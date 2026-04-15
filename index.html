@@ -1304,6 +1304,67 @@
     75% { transform: translateX(6px); }
   }
 
+  /* --------- BADGE BOARDS (per-kid) --------- */
+  .badge-board-head {
+    display: flex; align-items: center; gap: 16px;
+    margin: 32px 0 16px;
+    padding: 18px 22px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap;
+  }
+  .badge-board-head:first-of-type { margin-top: 20px; }
+  .badge-board-avatar {
+    width: 56px !important; height: 56px !important;
+    border-radius: 18px !important;
+    font-size: 26px !important;
+    flex-shrink: 0;
+    margin-bottom: 0 !important;
+  }
+  .badge-board-meta { flex: 1 1 220px; min-width: 0; }
+  .badge-board-title {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-display);
+    font-size: 20px; font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+  }
+  .you-tag-inline {
+    display: inline-flex; align-items: center;
+    background: linear-gradient(135deg, var(--coral), #FF4A66);
+    color: #fff;
+    font-size: 10.5px; font-weight: 800;
+    padding: 3px 9px; border-radius: 999px;
+    letter-spacing: .08em;
+    box-shadow: 0 4px 10px -3px rgba(255,107,129,.5);
+  }
+  .badge-board-count {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    display: inline-flex; align-items: center;
+  }
+  .badge-board-count .icon { margin-right: 3px; color: var(--sun); }
+  .badge-board-progress {
+    flex: 1 1 200px;
+    min-width: 160px;
+  }
+  .badge-board-bar {
+    height: 10px; border-radius: 999px;
+    background: rgba(26,31,58,.06);
+    overflow: hidden;
+  }
+  .badge-board-bar i {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--sky), var(--grass), var(--sun));
+    border-radius: 999px;
+    transition: width .5s var(--ease-spring);
+  }
+
   /* --------- BADGES PAGE --------- */
   .badges-grid {
     display: grid; gap: 16px;
@@ -3696,19 +3757,42 @@ function svgIcon(name, size = 16) {
   return svg;
 }
 
-/* ---------- BADGE CATALOG ---------- */
+/* ---------- BADGE CATALOG ----------
+   Ordered from easiest (starter) to hardest (legendary).
+   Each kid earns their own badges independently. */
 const BADGES = [
-  { id: 'first-star',   name: 'First Star',      icon: 'i-star',    desc: 'Earn your first star' },
-  { id: 'ten-stars',    name: 'Star Collector',  icon: 'i-sparkle', desc: 'Collect 10 stars' },
-  { id: 'reading-pro',  name: 'Reading Pro',     icon: 'i-book',    desc: 'Finish a reading activity' },
-  { id: 'writing-pro',  name: 'Word Wizard',     icon: 'i-pencil',  desc: 'Finish a writing activity' },
-  { id: 'logic-pro',    name: 'Logic Legend',    icon: 'i-puzzle',  desc: 'Finish a logic activity' },
-  { id: 'math-pro',     name: 'Math Master',     icon: 'i-calc',    desc: 'Finish a math activity' },
-  { id: 'perfect',      name: 'Perfect Score',   icon: 'i-target',  desc: 'Get every answer right' },
-  { id: 'streak-3',     name: 'On Fire',         icon: 'i-flame',   desc: 'Finish 3 activities' },
-  { id: 'explorer',     name: 'Explorer',        icon: 'i-map',     desc: 'Try all four subjects' },
-  { id: 'reading-star', name: 'Reading Star',    icon: 'i-book',    desc: 'Finish your first story' },
-  { id: 'story-master', name: 'Story Master',    icon: 'i-trophy',  desc: 'Finish all 5 reading stories' },
+  // ----- Starter -----
+  { id: 'first-steps',   name: 'First Steps',      icon: 'i-rocket',  desc: 'Complete 3 activities' },
+  { id: 'ten-stars',     name: 'Star Beginner',    icon: 'i-star',    desc: 'Collect 10 stars' },
+  { id: 'reading-star',  name: 'Reading Star',     icon: 'i-book',    desc: 'Finish your first story' },
+  { id: 'perfect-score', name: 'Bullseye',         icon: 'i-target',  desc: 'Get every answer right on an activity' },
+
+  // ----- Subject Mastery (5 activities in the subject) -----
+  { id: 'reading-pro',   name: 'Reading Pro',      icon: 'i-book',    desc: 'Complete 5 Reading activities' },
+  { id: 'writing-pro',   name: 'Word Wizard',      icon: 'i-pencil',  desc: 'Complete 5 Writing activities' },
+  { id: 'logic-pro',     name: 'Logic Legend',     icon: 'i-puzzle',  desc: 'Complete 5 Logic activities' },
+  { id: 'math-pro',      name: 'Math Master',      icon: 'i-calc',    desc: 'Complete 5 Math activities' },
+  { id: 'french-pro',    name: 'French Friend',    icon: 'i-french',  desc: 'Complete 5 French activities' },
+
+  // ----- Volume -----
+  { id: 'streak-10',     name: 'On Fire',          icon: 'i-flame',   desc: 'Complete 10 activities' },
+  { id: 'scholar',       name: 'Scholar',          icon: 'i-grad',    desc: 'Complete 25 activities' },
+  { id: 'master',        name: 'Adventure Master', icon: 'i-medal',   desc: 'Complete 50 activities' },
+
+  // ----- Star milestones -----
+  { id: 'star-fifty',    name: 'Star Collector',   icon: 'i-sparkle', desc: 'Collect 50 stars' },
+  { id: 'star-century',  name: 'Century Star',     icon: 'i-trophy',  desc: 'Collect 100 stars' },
+
+  // ----- Skill -----
+  { id: 'perfectionist', name: 'Perfectionist',    icon: 'i-check',   desc: 'Get perfect scores on 5 activities' },
+  { id: 'flawless',      name: 'Flawless',         icon: 'i-sparkle', desc: 'Get perfect scores on 15 activities' },
+
+  // ----- Exploration -----
+  { id: 'explorer',      name: 'Explorer',         icon: 'i-map',     desc: 'Try all 5 subjects' },
+  { id: 'linguist',      name: 'Linguist',         icon: 'i-french',  desc: 'Complete 10 French activities' },
+
+  // ----- Stories -----
+  { id: 'story-master',  name: 'Story Master',     icon: 'i-trophy',  desc: 'Finish all 5 reading stories' },
 ];
 
 /* IDs of story activities (used to award the Story Master badge) */
@@ -3731,10 +3815,11 @@ const LOCAL_USER_KEY = 'rhahavy-current-user';
 
 const defaultUserState = () => ({
   totalStars: 0,
-  badges: {},          // id -> true
-  progress: {},        // activityId -> { best: number, attempts: number, done: boolean }
+  badges: {},               // id -> true
+  progress: {},             // activityId -> { best: number, attempts: number, done: boolean }
   completedByChild: { nishan: {}, rushan: {} },
-  completedActivities: {} // activityId -> true
+  completedActivities: {},  // activityId -> true
+  perfectActivities: {}     // activityId -> true (every question correct)
 });
 
 const defaultAllData = () => ({
@@ -4376,33 +4461,60 @@ function renderChild(root, child) {
   ]));
 }
 
-/* ---------- BADGES SCREEN ---------- */
+/* ---------- BADGES SCREEN ----------
+   Shows BOTH kids' badge collections side-by-side.
+   Each kid earns their own badges independently. */
 function renderBadges(root) {
+  const meU = allData.users[currentUser] || defaultUserState();
+  const myCount = Object.keys(meU.badges || {}).length;
+
   const hero = h('section', { class: 'hero' }, [
     h('div', { class: 'eyebrow' }, [
       svgIcon('i-medal', 14),
       h('span', {}, 'Achievements')
     ]),
-    h('h1', { class: 'child-title' }, 'Your Badge Collection'),
-    h('p', { class: 'sub' }, `You have unlocked ${Object.keys(state.badges).length} out of ${BADGES.length} badges. Keep playing to collect them all.`)
+    h('h1', { class: 'child-title' }, 'Badge Boards'),
+    h('p', { class: 'sub' }, `You've unlocked ${myCount} of ${BADGES.length} badges. See how you and ${currentUser === 'nishan' ? 'Rushan' : 'Nishan'} are doing!`)
   ]);
   root.appendChild(hero);
 
-  root.appendChild(h('h2', { class: 'section-title' }, [
-    h('span', { class: 'pill-ico' }, svgIcon('i-sparkle', 16)),
-    'Stickers & Badges'
-  ]));
+  // Show current user's board first, then the other kid's
+  const order = [currentUser, currentUser === 'nishan' ? 'rushan' : 'nishan'];
 
-  const grid = h('div', { class: 'badges-grid' });
-  BADGES.forEach(b => {
-    const unlocked = !!state.badges[b.id];
-    grid.appendChild(h('div', { class: 'badge' + (unlocked ? '' : ' locked') }, [
-      h('div', { class: 'ico' }, svgIcon(unlocked ? b.icon : 'i-lock', 28)),
-      h('div', { class: 'name' }, b.name),
-      h('div', { class: 'desc' }, unlocked ? b.desc : 'Locked')
+  order.forEach(userId => {
+    const u = allData.users[userId] || defaultUserState();
+    const unlocked = Object.keys(u.badges || {}).length;
+    const isMe = userId === currentUser;
+    const name = userId === 'nishan' ? 'Nishan' : 'Rushan';
+
+    root.appendChild(h('div', { class: 'badge-board-head' }, [
+      h('div', { class: 'badge-board-avatar avatar-lg ' + userId }, userId === 'nishan' ? 'N' : 'R'),
+      h('div', { class: 'badge-board-meta' }, [
+        h('div', { class: 'badge-board-title' }, [
+          h('span', {}, name + "'s Board"),
+          isMe ? h('span', { class: 'you-tag-inline' }, 'YOU') : null
+        ]),
+        h('div', { class: 'badge-board-count' }, [
+          svgIcon('i-medal', 13),
+          ' ' + unlocked + ' of ' + BADGES.length + ' badges unlocked · ' + (u.totalStars || 0) + ' stars'
+        ])
+      ]),
+      h('div', { class: 'badge-board-progress' }, [
+        h('div', { class: 'badge-board-bar' }, h('i', { style: `width:${(unlocked/BADGES.length)*100}%;` })),
+      ])
     ]));
+
+    const grid = h('div', { class: 'badges-grid' });
+    BADGES.forEach(b => {
+      const got = !!(u.badges && u.badges[b.id]);
+      grid.appendChild(h('div', { class: 'badge' + (got ? '' : ' locked') }, [
+        h('div', { class: 'ico' }, svgIcon(got ? b.icon : 'i-lock', 28)),
+        h('div', { class: 'name' }, b.name),
+        h('div', { class: 'desc' }, got ? b.desc : 'Locked')
+      ]));
+    });
+    root.appendChild(grid);
   });
-  root.appendChild(grid);
 }
 
 /* ---------- ACTIVITY SCREEN ---------- */
@@ -4853,24 +4965,51 @@ function finishActivity() {
   state.completedByChild[quiz.child][quiz.subject] = (state.completedByChild[quiz.child][quiz.subject] || 0) + 1;
   state.totalStars += stars;
 
-  // Award badges
-  awardBadge('first-star');
-  if (state.totalStars >= 10) awardBadge('ten-stars');
-  if (quiz.subject === 'reading') awardBadge('reading-pro');
-  if (quiz.subject === 'writing') awardBadge('writing-pro');
-  if (quiz.subject === 'logic')   awardBadge('logic-pro');
-  if (quiz.subject === 'math')    awardBadge('math-pro');
-  if (correct === total)          awardBadge('perfect');
-  if (Object.keys(state.completedActivities).length >= 3) awardBadge('streak-3');
-  // Reading stories
-  if (STORY_IDS.includes(a.id)) awardBadge('reading-star');
-  if (STORY_IDS.every(id => state.completedActivities[id])) awardBadge('story-master');
-  // Explorer: tried at least one activity in each of the 4 subjects (either child)
-  const tried = new Set();
+  // Track perfect scores
+  if (correct === total && total > 0) state.perfectActivities[a.id] = true;
+
+  // ---- Compute stats for this user for badge checks ----
+  const totalDone = Object.keys(state.completedActivities).length;
+  const perfectDone = Object.keys(state.perfectActivities || {}).length;
+  const subjectCounts = { reading: 0, writing: 0, logic: 0, math: 0, french: 0 };
   Object.keys(state.completedActivities).forEach(id => {
-    const loc = findActivityById(id); if (loc) tried.add(loc.subject);
+    const loc = findActivityById(id);
+    if (loc) subjectCounts[loc.subject] = (subjectCounts[loc.subject] || 0) + 1;
   });
-  if (tried.size >= 4) awardBadge('explorer');
+  const subjectsTried = Object.keys(subjectCounts).filter(s => subjectCounts[s] > 0).length;
+
+  // ---- Starter badges ----
+  if (totalDone >= 3)            awardBadge('first-steps');
+  if (state.totalStars >= 10)    awardBadge('ten-stars');
+  if (correct === total)         awardBadge('perfect-score');
+  if (STORY_IDS.includes(a.id))  awardBadge('reading-star');
+
+  // ---- Subject mastery (5 activities per subject) ----
+  if (subjectCounts.reading >= 5) awardBadge('reading-pro');
+  if (subjectCounts.writing >= 5) awardBadge('writing-pro');
+  if (subjectCounts.logic   >= 5) awardBadge('logic-pro');
+  if (subjectCounts.math    >= 5) awardBadge('math-pro');
+  if (subjectCounts.french  >= 5) awardBadge('french-pro');
+
+  // ---- Volume ----
+  if (totalDone >= 10) awardBadge('streak-10');
+  if (totalDone >= 25) awardBadge('scholar');
+  if (totalDone >= 50) awardBadge('master');
+
+  // ---- Stars ----
+  if (state.totalStars >= 50)  awardBadge('star-fifty');
+  if (state.totalStars >= 100) awardBadge('star-century');
+
+  // ---- Skill ----
+  if (perfectDone >= 5)  awardBadge('perfectionist');
+  if (perfectDone >= 15) awardBadge('flawless');
+
+  // ---- Exploration ----
+  if (subjectsTried >= 5)        awardBadge('explorer');
+  if (subjectCounts.french >= 10) awardBadge('linguist');
+
+  // ---- Story completion ----
+  if (STORY_IDS.every(id => state.completedActivities[id])) awardBadge('story-master');
 
   saveState();
   updateTopbar(quiz.child);
