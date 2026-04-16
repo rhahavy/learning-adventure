@@ -3968,6 +3968,8 @@ const RC_SKILL_NOTES = {
   math:    ['Solves number problems','Applies math to word problems'],
   logic:   ['Finds patterns and connections','Reasons step by step'],
   french:  ['Recognizes French words','Understands simple phrases'],
+  science: ['Observes and explains natural world','Connects cause and effect in experiments'],
+  social:  ['Knows Canadian geography and symbols','Understands communities and rules'],
 };
 
 function computeSubjectStats(sid, subjId){
@@ -3994,7 +3996,7 @@ function computeSubjectStats(sid, subjId){
 }
 
 function generateSubjectComment(name, subjId, stats){
-  const subjName = {reading:'reading',writing:'writing',math:'math',logic:'logic puzzles',french:'French'}[subjId] || subjId;
+  const subjName = {reading:'reading',writing:'writing',math:'math',logic:'logic puzzles',french:'French',science:'science',social:'social studies'}[subjId] || subjId;
   if(stats.done === 0){
     const opts = [
       `${name} hasn't started ${subjName} this week — a fresh adventure awaits!`,
@@ -4036,11 +4038,12 @@ function generateSubjectComment(name, subjId, stats){
 }
 
 function computeOverallLevel(sid){
-  const subs = ['reading','writing','math','logic','french'];
+  // Iterate every subject that's in SUBJECTS — auto-includes new subjects.
+  // Subjects with no content for this student are skipped (don't drag down avg).
   let sum = 0, count = 0;
-  subs.forEach(id=>{
-    const acts = getWeekActivities(sid, id);
-    if(acts.length){ sum += computeSubjectStats(sid, id).lv; count++; }
+  SUBJECTS.forEach(sub=>{
+    const acts = getWeekActivities(sid, sub.id);
+    if(acts.length){ sum += computeSubjectStats(sid, sub.id).lv; count++; }
   });
   const avg = count ? sum/count : 1;
   const lv = Math.max(1, Math.min(4, Math.round(avg)));
