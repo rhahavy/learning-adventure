@@ -376,16 +376,16 @@ img{max-width:100%}
     <div class="brand-footer">KidQuest v1.0 · Built by Rhahavy</div>
   </footer>
 </div>
-<button id="fab" class="fab hidden" title="Home">🏠</button>
+<button id="fab" class="fab hidden" title="Home"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-7v6h-4A1.5 1.5 0 0 1 3 20Z"/></svg></button>
 <div class="reward-overlay" id="reward">
   <div class="reward-card">
     <div class="big-emoji" id="rwEmoji">🏆</div>
     <h2 id="rwTitle">Awesome!</h2>
     <p class="msg" id="rwMsg">You finished!</p>
     <div class="reward-stats">
-      <span>⭐ <b id="rwStars">0</b></span>
-      <span>🪙 <b id="rwCoins">0</b></span>
-      <span>🎯 <b id="rwScore">0/0</b></span>
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-2px"><path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4L2.6 9.4l6.5-.9Z"/></svg> <b id="rwStars">0</b></span>
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a2 2 0 0 1 0 4H9"/></svg> <b id="rwCoins">0</b></span>
+      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg> <b id="rwScore">0/0</b></span>
     </div>
     <div class="controls">
       <button class="btn btn-ghost" id="rwAgain">🔁 Play Again</button>
@@ -407,15 +407,57 @@ img{max-width:100%}
    - Cloud sync: change CLOUD_BUCKET below
    ============================================================ */
 
+/* ========== SVG ICON SYSTEM ==========
+   Clean inline SVGs instead of emojis for UI chrome.
+   Usage: icon('star',20) returns an <svg> element. */
+const ICON_PATHS = {
+  book:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v16H6.5a1.5 1.5 0 0 0 0 3H20"/><path d="M8 7h8M8 11h6"/>',
+  pencil:'<path d="M17 3l4 4L7 21H3v-4L17 3z"/>',
+  hash:'<path d="M4 9h16M4 15h16M10 3v18M14 3v18"/>',
+  puzzle:'<path d="M10 3a2 2 0 1 1 4 0v2h3a2 2 0 0 1 2 2v3h-2a2 2 0 1 0 0 4h2v3a2 2 0 0 1-2 2h-3v-2a2 2 0 1 0-4 0v2H7a2 2 0 0 1-2-2v-3H3a2 2 0 1 1 0-4h2V7c0-1.1.9-2 2-2h3V3Z"/>',
+  star:'<path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4L2.6 9.4l6.5-.9Z" fill="currentColor" stroke="none"/>',
+  coin:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a2 2 0 0 1 0 4H9"/>',
+  flame:'<path d="M12 2s-1 3-3 5-3 4-3 7a6 6 0 0 0 12 0c0-3-2-4-2-7 0 1-1 2-2 2 0-3-2-5-2-7Z" fill="currentColor" stroke="none"/>',
+  award:'<circle cx="12" cy="8" r="5"/><path d="M8.2 13.4 7 21l5-3 5 3-1.2-7.6"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/>',
+  trophy:'<path d="M6 4h12v4a6 6 0 1 1-12 0V4Z"/><path d="M4 5a2 2 0 0 0 2 4M20 5a2 2 0 0 1-2 4"/><path d="M9 15v2a3 3 0 0 0 6 0v-2M8 21h8"/>',
+  rocket:'<path d="M4 16s1-1 2-1 3 1 4 1 3-1 4-1 2 1 2 1"/><path d="M12 2C8 6 6 10 6 14c0 2 1 4 2 5l4-1 4 1c1-1 2-3 2-5 0-4-2-8-6-12Z"/><circle cx="12" cy="11" r="1.5"/>',
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-7v6h-4A1.5 1.5 0 0 1 3 20Z"/>',
+  check:'<path d="m5 12 5 5L20 7"/>',
+  lock:'<rect x="5" y="10" width="14" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  key:'<circle cx="8" cy="15" r="4"/><path d="M14.5 9.5 18 6l3 3-1.5 1.5-2-1L16 11l-1.5-1.5Z"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 16l4-4 3 3 5-7"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/>',
+  sparkle:'<path d="M12 2 13.4 8.6 20 10l-6.6 1.4L12 18l-1.4-6.6L4 10l6.6-1.4Z" fill="currentColor" stroke="none"/>',
+  zap:'<path d="M13 2 3 14h9l-1 8 10-12h-9Z" fill="currentColor" stroke="none"/>',
+  refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+  play:'<path d="M8 5v14l11-7Z" fill="currentColor" stroke="none"/>',
+  'arrow-right':'<path d="M5 12h14M13 5l7 7-7 7"/>',
+  'arrow-left':'<path d="M19 12H5M11 5l-7 7 7 7"/>',
+};
+function icon(name,size){
+  size=size||20;
+  const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  s.setAttribute('width',size);s.setAttribute('height',size);
+  s.setAttribute('viewBox','0 0 24 24');s.setAttribute('fill','none');
+  s.setAttribute('stroke','currentColor');s.setAttribute('stroke-width','2');
+  s.setAttribute('stroke-linecap','round');s.setAttribute('stroke-linejoin','round');
+  s.style.display='inline-block';s.style.verticalAlign='-0.125em';s.style.flexShrink='0';
+  s.innerHTML=ICON_PATHS[name]||'';
+  return s;
+}
+
 /* ========== STUDENT CONFIGURATION ==========
    Change emoji PINs here. Each student has ONE emoji they memorize. */
 const STUDENTS = [
   /* mascot = shown on profile cards (NOT the pin!). pin = secret emoji for login.
      IMPORTANT: mascot and pin must be DIFFERENT so the card doesn't give away the password. */
-  { id:'akshayan', name:'Akshayan', grade:'Grade 3', initial:'A', mascot:'🎮', pin:'🦁', hint:'(l__n)',     color:'var(--akshayan)' },
-  { id:'rushan',   name:'Rushan',   grade:'Grade 2',          initial:'R', mascot:'⚡', pin:'🐶', hint:'(d_g)',      color:'var(--rushan)' },
-  { id:'akaran',   name:'Akaran',   grade:'Grade 1',          initial:'K', mascot:'🎨', pin:'⭐', hint:'(s_ar)',     color:'var(--akaran)' },
-  { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',initial:'N',mascot:'🦄', pin:'🌈', hint:'(r_inb_w)', color:'var(--nishan)' },
+  { id:'akshayan', name:'Akshayan', grade:'Grade 3', initial:'A', iconName:'zap', pin:'🦁', hint:'(l__n)',     color:'var(--akshayan)' },
+  { id:'rushan',   name:'Rushan',   grade:'Grade 2',          initial:'R', iconName:'rocket', pin:'🐶', hint:'(d_g)',      color:'var(--rushan)' },
+  { id:'akaran',   name:'Akaran',   grade:'Grade 1',          initial:'K', iconName:'sparkle', pin:'⭐', hint:'(s_ar)',     color:'var(--akaran)' },
+  { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',initial:'N',iconName:'star', pin:'🌈', hint:'(r_inb_w)', color:'var(--nishan)' },
 ];
 const EMOJI_KEYPAD = ['🐶','🐱','🦁','🐸','🌈','⭐','🎈','🚀','🍎','🎵','💎','🦋'];
 
@@ -425,10 +467,10 @@ const TEACHER_CREDS = { password: 'Ryerye234' };
 
 /* ========== SUBJECTS ========== */
 const SUBJECTS = [
-  { id:'reading', name:'Reading', emoji:'📖', color:'#0984e3', bg:'#e3f2ff' },
-  { id:'writing', name:'Writing', emoji:'✏️', color:'#6c5ce7', bg:'#ede7f6' },
-  { id:'math',    name:'Math',    emoji:'🔢', color:'#e17055', bg:'#fff8e1' },
-  { id:'logic',   name:'Logic',   emoji:'🧩', color:'#00b894', bg:'#e0f7f5' },
+  { id:'reading', name:'Reading', iconName:'book',   color:'#0984e3', bg:'#e3f2ff' },
+  { id:'writing', name:'Writing', iconName:'pencil', color:'#6c5ce7', bg:'#ede7f6' },
+  { id:'math',    name:'Math',    iconName:'hash',   color:'#e17055', bg:'#fff8e1' },
+  { id:'logic',   name:'Logic',   iconName:'puzzle', color:'#00b894', bg:'#e0f7f5' },
 ];
 
 /* ========== VIDEO LINKS (YouTube search queries per activity) ==========
@@ -1358,8 +1400,9 @@ function updateTopbar(screen){
   items.forEach(i=>{nav.appendChild(h('button',{class:'nav-btn'+(screen===i.id?' active':''),onclick:()=>go(i.id)},i.label))});
   nav.appendChild(h('button',{class:'nav-btn',onclick:logout},'Switch'));
   if(state){
-    pills.appendChild(h('span',{class:'pill pill-star'},'⭐ '+state.totalStars));
-    pills.appendChild(h('span',{class:'pill pill-coin'},'🪙 '+state.coins));
+    const sp=h('span',{class:'pill pill-star'},[icon('star',14),h('span',{style:'margin-left:4px'},String(state.totalStars))]);
+    const cp=h('span',{class:'pill pill-coin'},[icon('coin',14),h('span',{style:'margin-left:4px'},String(state.coins))]);
+    pills.appendChild(sp); pills.appendChild(cp);
   }
 }
 
@@ -1393,10 +1436,10 @@ function renderHome(root){
   ]);
   root.appendChild(hero);
   const feats=h('div',{class:'features stagger'},[
-    h('div',{class:'feat'},[h('div',{class:'ico'},'🎯'),h('h3',{},'Personalized'),h('p',{},'Content matched to each student\'s grade and needs.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},'📊'),h('h3',{},'Track Progress'),h('p',{},'Stars, coins, streaks, and weekly completion tracking.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},'🏆'),h('h3',{},'Earn Rewards'),h('p',{},'Badges, coins, and celebrations for every achievement.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},'📅'),h('h3',{},'Weekly Adventures'),h('p',{},'Fresh content every week across 4 core subjects.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('target',28)]),h('h3',{},'Personalized'),h('p',{},'Content matched to each student\'s grade and needs.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('chart',28)]),h('h3',{},'Track Progress'),h('p',{},'Stars, coins, streaks, and weekly completion tracking.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('trophy',28)]),h('h3',{},'Earn Rewards'),h('p',{},'Badges, coins, and celebrations for every achievement.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('calendar',28)]),h('h3',{},'Weekly Adventures'),h('p',{},'Fresh content every week across 4 core subjects.')]),
   ]);
   root.appendChild(feats);
 }
@@ -1408,10 +1451,10 @@ function renderProfiles(root){
   STUDENTS.forEach(s=>{
     const ud=getStudentData(s.id);
     grid.appendChild(h('button',{class:'profile-card c-'+s.id,onclick:()=>go('pin',{student:s.id})},[
-      h('div',{class:'avatar'},s.mascot),
+      h('div',{class:'avatar'},s.initial),
       h('h3',{},s.name),
       h('span',{class:'grade'},s.grade),
-      h('div',{class:'stats'},[h('span',{},'⭐ '+ud.totalStars),h('span',{},'🪙 '+ud.coins)]),
+      h('div',{class:'stats'},[h('span',{},[icon('star',13),h('span',{style:'margin-left:3px'},String(ud.totalStars))]),h('span',{},[icon('coin',13),h('span',{style:'margin-left:3px'},String(ud.coins))])]),
     ]));
   });
   root.appendChild(grid);
@@ -1423,7 +1466,7 @@ function renderPin(root,sid){
   const s=getStudentInfo(sid); if(!s){go('profiles');return}
   const wrap=h('div',{class:'pin-screen'});
   wrap.appendChild(h('div',{class:'who'},[
-    h('div',{class:'av c-'+sid,style:'background:linear-gradient(135deg,'+s.color+','+s.color+')'},s.mascot),
+    h('div',{class:'av c-'+sid,style:'background:linear-gradient(135deg,'+s.color+','+s.color+')'},s.initial),
     h('div',{},[h('h2',{},'Hi, '+s.name+'!'),h('p',{class:'pin-hint'},['Tap your secret emoji: ',h('code',{},s.hint)])])
   ]));
   const msg=h('div',{class:'pin-msg',id:'pinMsg'},'');
@@ -1460,7 +1503,7 @@ function renderDashboard(root){
   if(!currentUser||!state){go('home');return}
   const s=getStudentInfo(currentUser);
   const hero=h('div',{class:'dash-hero c-'+currentUser},[
-    h('div',{class:'av',style:'background:linear-gradient(135deg,'+s.color+','+s.color+')'},s.mascot),
+    h('div',{class:'av',style:'background:linear-gradient(135deg,'+s.color+','+s.color+')'},s.initial),
     h('div',{class:'info'},[
       h('h1',{},'Hi, '+s.name+'!'),
       h('span',{class:'grade-pill'},s.grade),
@@ -1469,10 +1512,10 @@ function renderDashboard(root){
   root.appendChild(hero);
   // Stats
   const stats=h('div',{class:'dash-stats stagger'},[
-    h('div',{class:'d-stat'},[h('div',{class:'num'},'⭐ '+state.totalStars),h('div',{class:'lbl'},'Stars')]),
-    h('div',{class:'d-stat'},[h('div',{class:'num'},'🪙 '+state.coins),h('div',{class:'lbl'},'Coins')]),
-    h('div',{class:'d-stat'},[h('div',{class:'num'},'🔥 '+state.streak),h('div',{class:'lbl'},'Day Streak')]),
-    h('div',{class:'d-stat'},[h('div',{class:'num'},'🏅 '+Object.keys(state.badges).length),h('div',{class:'lbl'},'Badges')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('star',22),h('span',{style:'margin-left:6px'},String(state.totalStars))]),h('div',{class:'lbl'},'Stars')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('coin',22),h('span',{style:'margin-left:6px'},String(state.coins))]),h('div',{class:'lbl'},'Coins')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('flame',22),h('span',{style:'margin-left:6px'},String(state.streak))]),h('div',{class:'lbl'},'Day Streak')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('award',22),h('span',{style:'margin-left:6px'},String(Object.keys(state.badges).length))]),h('div',{class:'lbl'},'Badges')]),
   ]);
   root.appendChild(stats);
   // Subjects
@@ -1483,7 +1526,7 @@ function renderDashboard(root){
     const total=getWeekActivities(currentUser,sub.id).length;
     const pct=total?Math.round(done/total*100):0;
     subjs.appendChild(h('button',{class:'subj-card',onclick:()=>go('week',{subject:sub.id})},[
-      h('div',{class:'s-ico '+sub.id},sub.emoji),
+      h('div',{class:'s-ico '+sub.id},[icon(sub.iconName,24)]),
       h('div',{class:'s-info'},[
         h('div',{class:'s-name'},sub.name),
         h('div',{class:'s-prog'},done+' / '+total+' complete'),
@@ -1500,7 +1543,7 @@ function renderWeek(root,subId){
   const sub=SUBJECTS.find(s=>s.id===subId);if(!sub){go('dashboard');return}
   const acts=getWeekActivities(currentUser,subId);
   root.appendChild(h('div',{class:'week-head'},[
-    h('h2',{},[sub.emoji+' Week '+currentWeek+' · '+sub.name]),
+    h('h2',{},[icon(sub.iconName,22),h('span',{style:'margin-left:8px'},'Week '+currentWeek+' · '+sub.name)]),
     h('button',{class:'back-btn',onclick:()=>go('dashboard')},'← Back'),
   ]));
   const list=h('div',{class:'levels stagger'});
@@ -1582,7 +1625,7 @@ function renderQ(wrap){
   const a=quiz.activity, q=quiz.questions[quiz.idx], total=quiz.questions.length;
   const sub=SUBJECTS.find(s=>s.id===quiz.subject);
   wrap.appendChild(h('div',{class:'quiz-head'},[
-    h('div',{class:'qt'},[sub.emoji+' '+a.title]),
+    h('div',{class:'qt'},[icon(sub.iconName,18),h('span',{style:'margin-left:6px'},a.title)]),
     h('div',{class:'qc'},(quiz.idx+1)+' of '+total),
   ]));
   wrap.appendChild(h('div',{class:'q-progress'},[h('i',{style:'width:'+(quiz.idx/total*100)+'%'})]));
@@ -1862,11 +1905,11 @@ function renderTeacher(root){
     const totalActs=SUBJECTS.reduce((sum,sub)=>sum+getWeekActivities(s.id,sub.id).length,0);
     const pct=totalActs?Math.round(td/totalActs*100):0;
     const card=h('div',{class:'t-student'},[
-      h('h3',{},[s.mascot+' '+s.name]),
+      h('h3',{},[icon(s.iconName,18),h('span',{style:'margin-left:6px'},s.name)]),
       h('div',{class:'t-grade'},s.grade),
       h('div',{class:'t-stats'},[
-        h('span',{},'⭐ '+ud.totalStars),h('span',{},'🪙 '+ud.coins),
-        h('span',{},'🔥 '+ud.streak),h('span',{},'📊 '+pct+'%'),
+        h('span',{},[icon('star',12),' '+ud.totalStars]),h('span',{},[icon('coin',12),' '+ud.coins]),
+        h('span',{},[icon('flame',12),' '+ud.streak]),h('span',{},[icon('chart',12),' '+pct+'%']),
       ]),
     ]);
     const bars=h('div',{class:'t-subj-bars'});
@@ -1876,7 +1919,7 @@ function renderTeacher(root){
       const p=total?Math.round(done/total*100):0;
       const colors={reading:'#0984e3',writing:'#6c5ce7',math:'#e17055',logic:'#00b894'};
       bars.appendChild(h('div',{class:'t-subj-bar'},[
-        h('div',{class:'t-bar-label'},[h('span',{},sub.emoji+' '+sub.name),h('span',{},done+'/'+total)]),
+        h('div',{class:'t-bar-label'},[h('span',{},[icon(sub.iconName,14),h('span',{style:'margin-left:4px'},sub.name)]),h('span',{},done+'/'+total)]),
         h('div',{class:'t-bar'},[h('i',{style:'width:'+p+'%;background:'+colors[sub.id]})]),
       ]));
     });
