@@ -7,7 +7,7 @@
 <title>KidQuest — Where Learning Becomes an Adventure</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    KIDQUEST — CSS Theme & Layout
@@ -34,7 +34,8 @@
   --r-lg: 28px;
   --shadow: 0 4px 20px rgba(26,16,53,.08);
   --shadow-lg: 0 12px 40px rgba(26,16,53,.14);
-  --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font: 'Nunito', 'Fredoka', ui-rounded, system-ui, sans-serif;
+  --font-display: 'Fredoka', 'Nunito', ui-rounded, system-ui, sans-serif;
   --spring: cubic-bezier(.34,1.56,.64,1);
 }
 *,*::before,*::after{box-sizing:border-box}
@@ -43,6 +44,7 @@ body{font-family:var(--font);color:var(--ink);background:var(--bg);min-height:10
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 button:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
 h1,h2,h3,h4,p{margin:0}
+h1,h2,h3{font-family:var(--font-display);letter-spacing:-.02em}
 img{max-width:100%}
 
 /* Background */
@@ -275,6 +277,16 @@ img{max-width:100%}
 .rubric-tag.pass{background:rgba(0,206,201,.15);color:#00855a}
 .rubric-tag.miss{background:rgba(255,118,117,.12);color:#c0392b}
 
+/* Timer */
+.timer-bar{position:relative;height:6px;border-radius:99px;background:rgba(0,0,0,.06);margin:0 0 16px;overflow:hidden}
+.timer-bar i{display:block;height:100%;border-radius:99px;background:var(--mint);transition:width .25s linear,background .3s}
+.timer-bar i.warn{background:var(--sun)}
+.timer-bar i.danger{background:var(--coral);animation:timerPulse .5s infinite}
+@keyframes timerPulse{50%{opacity:.6}}
+.timer-text{position:absolute;right:0;top:-20px;font-size:12px;font-weight:800;color:var(--ink3);font-variant-numeric:tabular-nums}
+.timer-text.warn{color:#b8860b}
+.timer-text.danger{color:var(--coral)}
+
 /* Lesson card */
 .lesson-card{background:linear-gradient(180deg,#faf9ff,#fff)!important;border:2px dashed rgba(253,203,110,.5)!important;text-align:left!important;padding:clamp(22px,3vw,32px)!important}
 .lesson-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,#ffeaa7,var(--sun));color:#5b3e00;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.06em}
@@ -398,10 +410,12 @@ img{max-width:100%}
 /* ========== STUDENT CONFIGURATION ==========
    Change emoji PINs here. Each student has ONE emoji they memorize. */
 const STUDENTS = [
-  { id:'akshayan', name:'Akshayan', grade:'Grade 3', initial:'A', mascot:'🦁', pin:'🦁', hint:'(l__n)',     color:'var(--akshayan)' },
-  { id:'rushan',   name:'Rushan',   grade:'Grade 2',          initial:'R', mascot:'🐶', pin:'🐶', hint:'(d_g)',      color:'var(--rushan)' },
-  { id:'akaran',   name:'Akaran',   grade:'Grade 1',          initial:'K', mascot:'⭐', pin:'⭐', hint:'(s_ar)',     color:'var(--akaran)' },
-  { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',initial:'N',mascot:'🌈', pin:'🌈', hint:'(r_inb_w)', color:'var(--nishan)' },
+  /* mascot = shown on profile cards (NOT the pin!). pin = secret emoji for login.
+     IMPORTANT: mascot and pin must be DIFFERENT so the card doesn't give away the password. */
+  { id:'akshayan', name:'Akshayan', grade:'Grade 3', initial:'A', mascot:'🎮', pin:'🦁', hint:'(l__n)',     color:'var(--akshayan)' },
+  { id:'rushan',   name:'Rushan',   grade:'Grade 2',          initial:'R', mascot:'⚡', pin:'🐶', hint:'(d_g)',      color:'var(--rushan)' },
+  { id:'akaran',   name:'Akaran',   grade:'Grade 1',          initial:'K', mascot:'🎨', pin:'⭐', hint:'(s_ar)',     color:'var(--akaran)' },
+  { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',initial:'N',mascot:'🦄', pin:'🌈', hint:'(r_inb_w)', color:'var(--nishan)' },
 ];
 const EMOJI_KEYPAD = ['🐶','🐱','🦁','🐸','🌈','⭐','🎈','🚀','🍎','🎵','💎','🦋'];
 
@@ -1510,6 +1524,43 @@ function renderWeek(root,subId){
   root.appendChild(list);
 }
 
+/* ========== TIMER SYSTEM ==========
+   Age-appropriate seconds per question. Write questions get extra time.
+   Lesson screens have no timer. When time runs out, auto-advance. */
+const TIMER_SECS = { nishan:45, akaran:40, rushan:35, akshayan:30 };
+const WRITE_TIMER = 120; // 2 min for free-write
+let timerInterval = null;
+let timerLeft = 0;
+
+function startTimer(secs){
+  clearTimer();
+  timerLeft = secs;
+  const bar = $('#timerBar');
+  const txt = $('#timerTxt');
+  if(!bar||!txt) return;
+  bar.style.width='100%'; bar.className='';
+  txt.textContent=secs+'s'; txt.className='timer-text';
+  timerInterval = setInterval(()=>{
+    timerLeft--;
+    if(timerLeft<0){clearTimer();timeUp();return}
+    const pct = (timerLeft/secs)*100;
+    bar.style.width=pct+'%';
+    txt.textContent=timerLeft+'s';
+    if(timerLeft<=5){bar.className='danger';txt.className='timer-text danger'}
+    else if(timerLeft<=10){bar.className='warn';txt.className='timer-text warn'}
+  },1000);
+}
+function clearTimer(){if(timerInterval){clearInterval(timerInterval);timerInterval=null}}
+function timeUp(){
+  if(!quiz||quiz.locked)return;
+  quiz.locked=true;
+  // Mark wrong + show feedback
+  const fb=$('#fb');if(fb){fb.className='feedback no';fb.textContent='⏰ Time\'s up!'}
+  // Lock all choices
+  document.querySelectorAll('.choice,.emoji-btn,.write-submit,.order-chip,.match-item').forEach(el=>el.classList.add('locked'));
+  showNext();
+}
+
 /* ========== ACTIVITY ENGINE ========== */
 let quiz = null;
 
@@ -1535,10 +1586,21 @@ function renderQ(wrap){
     h('div',{class:'qc'},(quiz.idx+1)+' of '+total),
   ]));
   wrap.appendChild(h('div',{class:'q-progress'},[h('i',{style:'width:'+(quiz.idx/total*100)+'%'})]));
+
+  // Timer bar (hidden during lessons)
+  const timerWrap=h('div',{class:'timer-bar',style:q.type==='lesson'?'display:none':''},[
+    h('span',{class:'timer-text',id:'timerTxt'},''),
+    h('i',{id:'timerBar',style:'width:100%'}),
+  ]);
+  wrap.appendChild(timerWrap);
+
   const card=h('div',{class:'q-card'});
 
-  if(q.type==='lesson'){renderLesson(card,q);} 
+  if(q.type==='lesson'){clearTimer();renderLesson(card,q);}
   else {
+    // Start timer for this question
+    const secs = q.type==='write' ? WRITE_TIMER : (TIMER_SECS[currentUser]||35);
+    setTimeout(()=>startTimer(secs),100);
     if(q.type==='passage'&&q.passage) card.appendChild(h('div',{class:'q-passage'},q.passage));
     card.appendChild(h('div',{class:'q-text'},q.q||''));
     if(q.visual) card.appendChild(h('div',{class:'q-visual'},q.visual));
@@ -1590,7 +1652,7 @@ function renderMCQ(card,q){
   card.appendChild(box);
 }
 function handleMCQ(ev,pick,ans){
-  if(quiz.locked)return; quiz.locked=true;
+  if(quiz.locked)return; quiz.locked=true; clearTimer();
   const btn=ev.currentTarget;
   btn.parentElement.querySelectorAll('.choice').forEach(c=>c.classList.add('locked'));
   if(pick===ans){btn.classList.add('correct');quiz.correct++;setFB(true)}
@@ -1602,7 +1664,7 @@ function handleMCQ(ev,pick,ans){
 function renderCompare(card,q){
   const box=h('div',{class:'choices'});
   const mk=(key,txt)=>h('button',{class:'choice',style:'font-size:20px;padding:22px',onclick:e=>{
-    if(quiz.locked)return;quiz.locked=true;
+    if(quiz.locked)return;quiz.locked=true;clearTimer();
     e.currentTarget.parentElement.querySelectorAll('.choice').forEach(c=>c.classList.add('locked'));
     if(key===q.answer){e.currentTarget.classList.add('correct');quiz.correct++;setFB(true)}
     else{e.currentTarget.classList.add('wrong');setFB(false)}
@@ -1622,7 +1684,7 @@ function renderMatch(card,q){
   const board=h('div',{class:'match-board'});
   const colL=h('div',{class:'match-col'}),colR=h('div',{class:'match-col'});
   lefts.forEach(l=>{const el=h('button',{class:'match-item',onclick:()=>{if(el.classList.contains('done'))return;colL.querySelectorAll('.match-item').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');selL={el,val:l}}},l);colL.appendChild(el)});
-  rights.forEach(r=>{const el=h('button',{class:'match-item',onclick:()=>{if(el.classList.contains('done')||!selL)return;if(map[selL.val]===r){el.classList.add('done');selL.el.classList.add('done');selL.el.classList.remove('selected');done++;if(done===q.pairs.length){quiz.correct++;setFB(true);quiz.locked=true;showNext()}}else{el.style.borderColor='var(--coral)';setTimeout(()=>el.style.borderColor='',400)}if(selL)selL.el.classList.remove('selected');selL=null}},r);colR.appendChild(el)});
+  rights.forEach(r=>{const el=h('button',{class:'match-item',onclick:()=>{if(el.classList.contains('done')||!selL)return;if(map[selL.val]===r){el.classList.add('done');selL.el.classList.add('done');selL.el.classList.remove('selected');done++;if(done===q.pairs.length){quiz.correct++;setFB(true);quiz.locked=true;clearTimer();showNext()}}else{el.style.borderColor='var(--coral)';setTimeout(()=>el.style.borderColor='',400)}if(selL)selL.el.classList.remove('selected');selL=null}},r);colR.appendChild(el)});
   board.appendChild(colL);board.appendChild(colR);card.appendChild(board);
 }
 
@@ -1641,7 +1703,7 @@ function renderOrder(card,q){
     if(!placed.length) slots.appendChild(h('span',{style:'padding:12px;color:var(--ink3);font-size:14px'},'Tap items in order ↓'));
   }
   function check(){
-    quiz.locked=true;
+    quiz.locked=true;clearTimer();
     const ok=placed.every((v,i)=>v===expected[i]);
     if(ok){quiz.correct++;setFB(true)}else{setFB(false)}
     showNext();
@@ -1662,7 +1724,7 @@ function renderWrite(card,q){
     const text=ta.value.trim();
     const wc=text.split(/\s+/).filter(w=>w).length;
     if(wc<(q.minWords||2)){$('#fb').className='feedback no';$('#fb').textContent='Write a bit more! You need at least '+(q.minWords||2)+' words.';return}
-    btn.disabled=true; ta.disabled=true;
+    btn.disabled=true; ta.disabled=true; clearTimer();
     const result=gradeWriting(text,q);
     quiz.correct+=(result.level>=3?1:0); // Level 3-4 counts as correct
     // Show rubric
