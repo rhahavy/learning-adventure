@@ -1473,6 +1473,88 @@
   }
   .footer-line .divider { opacity: .4; }
 
+  /* --------- SPEAKER (listen) BUTTONS --------- */
+  .speaker-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(91, 181, 255, .14);
+    color: var(--sky);
+    cursor: pointer;
+    transition: all .2s var(--ease-spring);
+    padding: 0;
+    flex-shrink: 0;
+    border: 0;
+    vertical-align: middle;
+  }
+  .speaker-btn:hover {
+    background: var(--sky);
+    color: #fff;
+    transform: scale(1.08);
+    box-shadow: 0 6px 14px -4px rgba(91, 181, 255, .6);
+  }
+  .speaker-btn:active { transform: scale(.96); }
+  .speaker-btn.playing {
+    animation: speakerPulse .6s ease-out;
+    background: var(--sky);
+    color: #fff;
+  }
+  @keyframes speakerPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(91,181,255,.6); }
+    70%  { box-shadow: 0 0 0 12px rgba(91,181,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(91,181,255,0); }
+  }
+
+  /* Speaker INSIDE a choice button (used for French pronunciation) */
+  .choice { position: relative; }
+  .choice-speaker {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 26px; height: 26px;
+    background: rgba(91,181,255,.12);
+  }
+
+  /* Layout helpers so speaker sits neatly beside text */
+  .q-text-row {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    flex-wrap: wrap;
+    max-width: 720px; margin: 0 auto;
+  }
+  .q-text-row .q-text { flex: 1 1 auto; min-width: 0; }
+  .q-passage-wrap {
+    display: flex; align-items: flex-start; gap: 10px;
+    max-width: 680px; margin: 12px auto;
+  }
+  .q-passage-wrap .q-passage { flex: 1; margin: 0; }
+  .q-passage-wrap .speaker-btn { margin-top: 6px; }
+
+  .story-sentence-row {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    flex-wrap: wrap;
+  }
+  .story-sentence-row .story-sentence { flex: 0 1 auto; }
+
+  .lesson-title-row, .lesson-intro-row, .lesson-example-label-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .lesson-title-row { justify-content: space-between; }
+  .lesson-intro-row { align-items: flex-start; }
+  .lesson-intro-row .lesson-intro { flex: 1; margin: 0; }
+  .lesson-intro-row .speaker-btn { margin-top: 8px; }
+  .lesson-example-label-row { justify-content: space-between; margin-bottom: 6px; }
+
+  /* Audio on/off toggle in topbar */
+  .audio-toggle {
+    padding: 8px !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 34px; height: 34px;
+  }
+  .audio-toggle.audio-muted { color: var(--ink-mute); }
+  .audio-toggle.audio-muted:hover { color: var(--coral); }
+
   /* --------- LESSON CARD --------- */
   .lesson-card {
     background: linear-gradient(180deg, #FFFBF0 0%, var(--card) 100%) !important;
@@ -1782,6 +1864,15 @@
     <symbol id="i-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2V6Z"/>
       <path d="M9 4v16M15 6v16"/>
+    </symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9.5h3.5L13 5v14l-5.5-4.5H4z"/>
+      <path d="M16 8.5a4 4 0 0 1 0 7"/>
+      <path d="M19 5.5a8 8 0 0 1 0 13"/>
+    </symbol>
+    <symbol id="i-speaker-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9.5h3.5L13 5v14l-5.5-4.5H4z"/>
+      <path d="M17 9l5 5M22 9l-5 5"/>
     </symbol>
     <symbol id="i-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H12v16H6.5A2.5 2.5 0 0 1 4 17.5v-11Z"/>
@@ -3819,6 +3910,142 @@ const SUBJECTS = [
   { id: 'french',  name: 'French',   icon: 'i-french' },
 ];
 
+/* ============================================================
+   AUDIO / TEXT-TO-SPEECH
+   ============================================================
+   Uses the browser's built-in Web Speech API — free, offline-ish
+   (after voices load), supports many languages including French.
+   ============================================================ */
+const AUDIO_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window;
+const AUDIO_KEY = 'rhahavy-speech-enabled';
+let speechEnabled = AUDIO_SUPPORTED && (localStorage.getItem(AUDIO_KEY) !== 'off');
+
+// Some browsers (Chrome, Safari) load voices asynchronously. Prime the list.
+if (AUDIO_SUPPORTED) {
+  try { window.speechSynthesis.getVoices(); } catch(_e) {}
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      try { window.speechSynthesis.getVoices(); } catch(_e) {}
+    };
+  }
+}
+
+/* Figure out what language to speak based on context */
+function currentLang() {
+  if (quiz && quiz.subject === 'french') return 'fr-FR';
+  return 'en-US';
+}
+
+/* Preferred voice names (in order) — picked for their kid-friendly tone.
+   The browser has a different voice library depending on OS — this list
+   covers macOS/iOS, Windows, and Chrome's built-in voices. */
+const KID_FRIENDLY_VOICES = {
+  'en-US': [
+    // macOS / iOS — warm female voices that work great for kids
+    'Samantha', 'Allison', 'Ava', 'Susan', 'Karen', 'Victoria', 'Nicky',
+    // Windows 10/11 neural voices
+    'Microsoft Jenny Online', 'Microsoft Jenny', 'Microsoft Aria Online', 'Microsoft Aria',
+    'Microsoft Ava', 'Microsoft Zira',
+    // Chrome bundled
+    'Google US English',
+  ],
+  'en-GB': [
+    'Kate', 'Serena', 'Daniel', 'Microsoft Sonia Online', 'Google UK English Female',
+  ],
+  'fr-FR': [
+    // macOS / iOS French — Amélie is Canadian-French and sounds warm & clear
+    'Amélie', 'Amelie', 'Audrey', 'Marie', 'Aurélie', 'Thomas',
+    // Windows
+    'Microsoft Denise Online', 'Microsoft Denise', 'Microsoft Henri',
+    // Chrome
+    'Google français',
+  ],
+};
+
+/* Pick the best voice for a language, preferring kid-friendly ones. */
+function pickVoice(lang) {
+  if (!AUDIO_SUPPORTED) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || !voices.length) return null;
+  const prefs = KID_FRIENDLY_VOICES[lang] || [];
+  // 1) exact preferred name match
+  for (const name of prefs) {
+    const v = voices.find(x => x.name === name);
+    if (v) return v;
+  }
+  // 2) partial name match (e.g. "Microsoft Jenny (Natural)" contains "Jenny")
+  for (const name of prefs) {
+    const v = voices.find(x => x.name && x.name.includes(name));
+    if (v) return v;
+  }
+  // 3) any voice matching the exact language tag (prefer female if available)
+  const langMatches = voices.filter(v => v.lang === lang);
+  if (langMatches.length) {
+    // Heuristic: some voice names contain "Female" or common female names
+    const female = langMatches.find(v =>
+      /female|woman/i.test(v.name) ||
+      /^(Samantha|Allison|Karen|Victoria|Susan|Amélie|Amelie|Audrey|Marie|Aurélie)/i.test(v.name)
+    );
+    return female || langMatches[0];
+  }
+  // 4) any voice matching the base language (e.g. "en" for "en-US")
+  const base = lang.split('-')[0];
+  const baseMatch = voices.find(v => v.lang && v.lang.startsWith(base));
+  return baseMatch || null;
+}
+
+/* Speak a piece of text out loud. Cancels any in-progress speech first. */
+function speak(text, lang) {
+  if (!speechEnabled || !AUDIO_SUPPORTED || !text) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(String(text));
+    u.lang = lang || currentLang();
+    // Kid-friendly settings: slower speech, higher & friendlier pitch
+    u.rate = 0.85;
+    u.pitch = 1.2;
+    u.volume = 1.0;
+
+    const v = pickVoice(u.lang);
+    if (v) u.voice = v;
+
+    window.speechSynthesis.speak(u);
+  } catch(_e) { /* ignore */ }
+}
+
+function toggleSpeech() {
+  speechEnabled = !speechEnabled;
+  try { localStorage.setItem(AUDIO_KEY, speechEnabled ? 'on' : 'off'); } catch(_e) {}
+  if (!speechEnabled && AUDIO_SUPPORTED) { try { window.speechSynthesis.cancel(); } catch(_e) {} }
+  updateTopbar(currentScreen || 'home');
+}
+
+/* Create a little round speaker button that reads `text` when tapped.
+   Stops click propagation so it doesn't also trigger the parent (e.g. choice). */
+function speakerBtn(text, lang, size) {
+  size = size || 14;
+  const btn = document.createElement('button');
+  btn.className = 'speaker-btn';
+  btn.type = 'button';
+  btn.setAttribute('aria-label', 'Listen');
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    speak(text, lang);
+    btn.classList.add('playing');
+    setTimeout(() => btn.classList.remove('playing'), 600);
+  });
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'icon');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttribute('href', '#i-speaker');
+  svg.appendChild(use);
+  btn.appendChild(svg);
+  return btn;
+}
+
 /* ---------- ICON HELPER ----------
    Build an <svg> element referencing one of the icons in the sprite.
    Usage: svgIcon('i-home', 16) */
@@ -4248,6 +4475,17 @@ function updateTopbar(active) {
     }, [svgIcon(i.icon, 16), h('span', {}, i.label)]);
     nav.appendChild(b);
   });
+
+  // Audio on/off toggle
+  if (AUDIO_SUPPORTED) {
+    const audioBtn = h('button', {
+      class: 'nav-btn audio-toggle' + (speechEnabled ? '' : ' audio-muted'),
+      onclick: toggleSpeech,
+      title: speechEnabled ? 'Turn voice OFF' : 'Turn voice ON',
+      'aria-label': speechEnabled ? 'Mute voice' : 'Unmute voice'
+    }, [svgIcon(speechEnabled ? 'i-speaker' : 'i-speaker-off', 15)]);
+    nav.appendChild(audioBtn);
+  }
 
   // Current-user chip + sign out
   const chip = h('button', {
@@ -4811,13 +5049,23 @@ function renderQuestion(wrap) {
   if (q.type === 'lesson') {
     renderLesson(card, q);
   } else {
-    // Passage for reading questions
+    // Passage for reading questions (with speaker to read it aloud)
     if (q.type === 'passage' && q.passage) {
-      card.appendChild(h('div', { class: 'q-passage' }, q.passage));
+      const passageWrap = h('div', { class: 'q-passage-wrap' }, [
+        h('div', { class: 'q-passage' }, q.passage)
+      ]);
+      if (AUDIO_SUPPORTED) passageWrap.appendChild(speakerBtn(q.passage, 'en-US', 14));
+      card.appendChild(passageWrap);
     }
 
-    // Question text
-    card.appendChild(h('div', { class: 'q-text' }, q.q));
+    // Question text (with speaker button when it's meaningful to read aloud)
+    const qText = h('div', { class: 'q-text' }, q.q);
+    const qTextRow = h('div', { class: 'q-text-row' }, [qText]);
+    if (AUDIO_SUPPORTED && q.q) {
+      // For French subject, speak full prompt in French; otherwise English
+      qTextRow.appendChild(speakerBtn(q.q, currentLang(), 16));
+    }
+    card.appendChild(qTextRow);
 
     // Visual (emoji strings etc.)
     if (q.visual) card.appendChild(h('div', { class: 'q-visual' }, q.visual));
@@ -4862,6 +5110,7 @@ function renderLesson(card, q) {
   card.innerHTML = '';
   card.classList.add('lesson-card');
   const L = q.lesson || {};
+  const lang = currentLang();
 
   card.appendChild(h('div', { class: 'lesson-badge' }, [
     svgIcon('i-grad', 14),
@@ -4869,16 +5118,28 @@ function renderLesson(card, q) {
   ]));
 
   if (L.title) {
-    card.appendChild(h('h3', { class: 'lesson-title' }, L.title));
+    const titleRow = h('div', { class: 'lesson-title-row' }, [
+      h('h3', { class: 'lesson-title' }, L.title)
+    ]);
+    if (AUDIO_SUPPORTED) titleRow.appendChild(speakerBtn(L.title, 'en-US', 14));
+    card.appendChild(titleRow);
   }
 
   if (L.intro) {
-    card.appendChild(h('p', { class: 'lesson-intro' }, L.intro));
+    const introRow = h('div', { class: 'lesson-intro-row' }, [
+      h('p', { class: 'lesson-intro' }, L.intro)
+    ]);
+    if (AUDIO_SUPPORTED) introRow.appendChild(speakerBtn(L.intro, 'en-US', 14));
+    card.appendChild(introRow);
   }
 
   if (L.example) {
     const ex = h('div', { class: 'lesson-example' }, []);
-    ex.appendChild(h('div', { class: 'lesson-example-label' }, 'Example'));
+    const exLabelRow = h('div', { class: 'lesson-example-label-row' }, [
+      h('div', { class: 'lesson-example-label' }, 'Example')
+    ]);
+    if (AUDIO_SUPPORTED) exLabelRow.appendChild(speakerBtn(L.example, lang, 14));
+    ex.appendChild(exLabelRow);
     if (L.exampleVisual) {
       ex.appendChild(h('div', { class: 'lesson-example-visual' }, L.exampleVisual));
     }
@@ -4914,7 +5175,11 @@ function renderSentence(card, q) {
   if (q.emoji) {
     card.appendChild(h('div', { class: 'story-emoji' }, q.emoji));
   }
-  card.appendChild(h('div', { class: 'story-sentence fade-in' }, q.text));
+  const sentRow = h('div', { class: 'story-sentence-row fade-in' }, [
+    h('div', { class: 'story-sentence' }, q.text)
+  ]);
+  if (AUDIO_SUPPORTED) sentRow.appendChild(speakerBtn(q.text, 'en-US', 18));
+  card.appendChild(sentRow);
   const hint = h('div', { class: 'story-hint muted' }, [
     h('span', {}, 'Tap '),
     h('strong', {}, 'Next'),
@@ -4990,16 +5255,45 @@ function renderMCQ(card, q) {
   // render them much larger so they read like tap-on-picture buttons.
   const allShort = q.choices.every(c => {
     const s = String(c);
-    // Segmenter-aware length check (emojis count as 1 grapheme)
     const len = Array.from(s).length;
     return len <= 3;
   });
   const box = h('div', { class: 'choices' + (allShort ? ' choices-big' : '') });
+
+  // Add speaker widgets on choices that are text (not just emoji).
+  // Super useful for French (hear pronunciation) and Reading.
+  const isFrench = currentLang() === 'fr-FR';
+  const addChoiceSpeaker = AUDIO_SUPPORTED && !allShort && (isFrench || quiz.subject === 'reading');
+
   q.choices.forEach((c, i) => {
-    box.appendChild(h('button', {
+    const btn = h('button', {
       class: 'choice' + (allShort ? ' choice-big' : ''),
       onclick: (e) => handleMCQ(e, i, q.answer)
-    }, String(c)));
+    }, String(c));
+
+    if (addChoiceSpeaker) {
+      // Nested <button> is invalid HTML, so use a span with click-handler.
+      const sp = document.createElement('span');
+      sp.className = 'speaker-btn choice-speaker';
+      sp.setAttribute('role', 'button');
+      sp.setAttribute('aria-label', 'Listen');
+      sp.addEventListener('click', (e) => {
+        e.stopPropagation(); e.preventDefault();
+        speak(String(c), isFrench ? 'fr-FR' : 'en-US');
+        sp.classList.add('playing');
+        setTimeout(() => sp.classList.remove('playing'), 600);
+      });
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'icon');
+      svg.setAttribute('width', 14); svg.setAttribute('height', 14);
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', '#i-speaker');
+      svg.appendChild(use);
+      sp.appendChild(svg);
+      btn.appendChild(sp);
+    }
+
+    box.appendChild(btn);
   });
   card.appendChild(box);
 }
