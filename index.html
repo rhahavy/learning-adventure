@@ -127,7 +127,11 @@ img{max-width:100%}
 .feat:hover{transform:translateY(-8px) scale(1.02);box-shadow:var(--shadow-lg)}
 .feat:hover::after{opacity:1}
 .feat:hover .ico{transform:scale(1.15) rotate(-5deg);color:var(--primary)}
-.feat .ico{font-size:32px;margin-bottom:10px;transition:all .35s var(--spring);display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,rgba(108,92,231,.12),rgba(108,92,231,.04));color:var(--primary)}
+.feat .ico{font-size:32px;margin-bottom:10px;transition:all .35s var(--spring);display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,rgba(108,92,231,.15),rgba(253,203,110,.12));line-height:1}
+.feat:nth-child(1) .ico{background:linear-gradient(135deg,rgba(108,92,231,.18),rgba(162,155,254,.1))}
+.feat:nth-child(2) .ico{background:linear-gradient(135deg,rgba(116,185,255,.2),rgba(9,132,227,.08))}
+.feat:nth-child(3) .ico{background:linear-gradient(135deg,rgba(253,203,110,.2),rgba(225,112,85,.1))}
+.feat:nth-child(4) .ico{background:linear-gradient(135deg,rgba(0,206,201,.2),rgba(85,239,196,.1))}
 .feat h3{font-size:16px;font-weight:800;color:var(--ink)}
 .feat p{font-size:13px;color:var(--ink2);margin-top:6px;line-height:1.4}
 
@@ -156,7 +160,10 @@ img{max-width:100%}
 .profile-card.c-rushan::before{background:var(--rushan)}
 .profile-card.c-akaran::before{background:var(--akaran)}
 .profile-card.c-nishan::before{background:var(--nishan)}
-.profile-card .avatar{width:80px;height:80px;border-radius:24px;display:grid;place-items:center;margin:0 auto 14px;font-size:40px;color:#fff;font-weight:800;border:3px solid #fff;box-shadow:var(--shadow);transition:transform .4s var(--spring);position:relative;z-index:1}
+.profile-card .avatar-wrap{position:relative;display:inline-block;margin:0 auto 14px}
+.profile-card .avatar{width:80px;height:80px;border-radius:24px;display:grid;place-items:center;font-size:40px;color:#fff;font-weight:800;border:3px solid #fff;box-shadow:var(--shadow);transition:transform .4s var(--spring);position:relative;z-index:1}
+.profile-card .avatar-chip{position:absolute;bottom:-4px;right:-6px;width:34px;height:34px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:18px;box-shadow:0 4px 12px rgba(26,16,53,.18);border:3px solid #fff;z-index:2;transition:transform .4s var(--spring)}
+.profile-card:hover .avatar-chip{transform:rotate(-12deg) scale(1.15)}
 .c-akshayan .avatar{background:linear-gradient(135deg,#ff7675,#d63031)}
 .c-rushan .avatar{background:linear-gradient(135deg,#00cec9,#00b894)}
 .c-akaran .avatar{background:linear-gradient(135deg,#a29bfe,#6c5ce7)}
@@ -213,7 +220,9 @@ img{max-width:100%}
 .d-stat::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(108,92,231,.06),transparent 60%);opacity:0;transition:opacity .3s}
 .d-stat:hover{transform:translateY(-5px) scale(1.02);box-shadow:var(--shadow-lg)}
 .d-stat:hover::before{opacity:1}
-.d-stat .num{font-size:28px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px;position:relative;z-index:1}
+.d-stat .num{font-size:28px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;z-index:1}
+.d-stat .stat-emoji{font-size:26px;display:inline-block;transition:transform .3s var(--spring)}
+.d-stat:hover .stat-emoji{transform:scale(1.2) rotate(-8deg)}
 .d-stat .lbl{font-size:12px;color:var(--ink3);font-weight:700;margin-top:4px;position:relative;z-index:1}
 
 /* Subject cards */
@@ -224,7 +233,7 @@ img{max-width:100%}
 .subj-card:hover::before{transform:scaleY(1)}
 .subj-card:hover .s-ico{transform:scale(1.1) rotate(-5deg)}
 .subj-card .s-ico{transition:transform .3s var(--spring)}
-.subj-card .s-ico{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:26px;flex-shrink:0}
+.subj-card .s-ico{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;font-size:32px;flex-shrink:0;line-height:1;box-shadow:inset 0 -3px 0 rgba(0,0,0,.06)}
 .subj-card .s-ico.reading{background:#e3f2ff;color:#0984e3}
 .subj-card .s-ico.writing{background:#ede7f6;color:#6c5ce7}
 .subj-card .s-ico.math{background:#fff8e1;color:#e17055}
@@ -531,10 +540,12 @@ function icon(name,size){
 const STUDENTS = [
   /* mascot = shown on profile cards (NOT the pin!). pin = secret emoji for login.
      IMPORTANT: mascot and pin must be DIFFERENT so the card doesn't give away the password. */
-  { id:'akshayan', name:'Akshayan', grade:'Grade 3', initial:'A', iconName:'zap', pin:'🦁', hint:'(l__n)',     color:'var(--akshayan)' },
-  { id:'rushan',   name:'Rushan',   grade:'Grade 2',          initial:'R', iconName:'rocket', pin:'🐶', hint:'(d_g)',      color:'var(--rushan)' },
-  { id:'akaran',   name:'Akaran',   grade:'Grade 1',          initial:'K', iconName:'sparkle', pin:'⭐', hint:'(s_ar)',     color:'var(--akaran)' },
-  { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',initial:'N',iconName:'star', pin:'🌈', hint:'(r_inb_w)', color:'var(--nishan)' },
+  /* NOTE: decoEmoji is a FUN decoration shown on the profile card — it is NOT the PIN.
+     The PIN (login password) is separate and secret. */
+  { id:'akshayan', name:'Akshayan', grade:'Grade 3', initial:'A', decoEmoji:'🎮', pin:'🦁', hint:'(l__n)',     color:'var(--akshayan)' },
+  { id:'rushan',   name:'Rushan',   grade:'Grade 2',          initial:'R', decoEmoji:'⚡', pin:'🐶', hint:'(d_g)',      color:'var(--rushan)' },
+  { id:'akaran',   name:'Akaran',   grade:'Grade 1',          initial:'K', decoEmoji:'🎨', pin:'⭐', hint:'(s_ar)',     color:'var(--akaran)' },
+  { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',initial:'N',decoEmoji:'🦄', pin:'🌈', hint:'(r_inb_w)', color:'var(--nishan)' },
 ];
 const EMOJI_KEYPAD = ['🐶','🐱','🦁','🐸','🌈','⭐','🎈','🚀','🍎','🎵','💎','🦋'];
 
@@ -544,11 +555,11 @@ const TEACHER_CREDS = { password: 'Ryerye234' };
 
 /* ========== SUBJECTS ========== */
 const SUBJECTS = [
-  { id:'reading', name:'Reading', iconName:'book',   color:'#0984e3', bg:'#e3f2ff' },
-  { id:'writing', name:'Writing', iconName:'pencil', color:'#6c5ce7', bg:'#ede7f6' },
-  { id:'math',    name:'Math',    iconName:'hash',   color:'#e17055', bg:'#fff8e1' },
-  { id:'logic',   name:'Logic',   iconName:'puzzle', color:'#00b894', bg:'#e0f7f5' },
-  { id:'french',  name:'French',  iconName:'globe',  color:'#e84393', bg:'#ffe4ef' },
+  { id:'reading', name:'Reading', emoji:'📖', iconName:'book',   color:'#0984e3', bg:'#e3f2ff' },
+  { id:'writing', name:'Writing', emoji:'✏️', iconName:'pencil', color:'#6c5ce7', bg:'#ede7f6' },
+  { id:'math',    name:'Math',    emoji:'🔢', iconName:'hash',   color:'#e17055', bg:'#fff8e1' },
+  { id:'logic',   name:'Logic',   emoji:'🧩', iconName:'puzzle', color:'#00b894', bg:'#e0f7f5' },
+  { id:'french',  name:'French',  emoji:'🇫🇷', iconName:'globe',  color:'#e84393', bg:'#ffe4ef' },
 ];
 
 /* ========== VIDEO LINKS (YouTube search queries per activity) ==========
@@ -1715,9 +1726,8 @@ function updateTopbar(screen){
   items.forEach(i=>{nav.appendChild(h('button',{class:'nav-btn'+(screen===i.id?' active':''),onclick:()=>go(i.id)},i.label))});
   nav.appendChild(h('button',{class:'nav-btn',onclick:logout},'Switch'));
   if(state){
-    const sp=h('span',{class:'pill pill-star'},[icon('star',14),h('span',{style:'margin-left:4px'},String(state.totalStars))]);
-    const cp=h('span',{class:'pill pill-coin'},[icon('coin',14),h('span',{style:'margin-left:4px'},String(state.coins))]);
-    pills.appendChild(sp); pills.appendChild(cp);
+    pills.appendChild(h('span',{class:'pill pill-star'},'⭐ '+state.totalStars));
+    pills.appendChild(h('span',{class:'pill pill-coin'},'🪙 '+state.coins));
   }
 }
 
@@ -1776,10 +1786,10 @@ function renderHome(root){
   ]);
   root.appendChild(hero);
   const feats=h('div',{class:'features stagger'},[
-    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('target',28)]),h('h3',{},'Personalized'),h('p',{},'Content matched to each student\'s grade and needs.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('chart',28)]),h('h3',{},'Track Progress'),h('p',{},'Stars, coins, streaks, and weekly completion tracking.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('trophy',28)]),h('h3',{},'Earn Rewards'),h('p',{},'Badges, coins, and celebrations for every achievement.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},[icon('calendar',28)]),h('h3',{},'Weekly Adventures'),h('p',{},'Fresh content every week across 4 core subjects.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},'🎯'),h('h3',{},'Personalized'),h('p',{},'Content matched to each student\'s grade and needs.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},'📊'),h('h3',{},'Track Progress'),h('p',{},'Stars, coins, streaks, and weekly completion tracking.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},'🏆'),h('h3',{},'Earn Rewards'),h('p',{},'Badges, coins, and celebrations for every achievement.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},'📅'),h('h3',{},'Weekly Adventures'),h('p',{},'Fresh content every week across 5 core subjects.')]),
   ]);
   root.appendChild(feats);
 }
@@ -1791,10 +1801,13 @@ function renderProfiles(root){
   STUDENTS.forEach(s=>{
     const ud=getStudentData(s.id);
     grid.appendChild(h('button',{class:'profile-card c-'+s.id,onclick:()=>go('pin',{student:s.id})},[
-      h('div',{class:'avatar'},s.initial),
+      h('div',{class:'avatar-wrap'},[
+        h('div',{class:'avatar'},s.initial),
+        h('span',{class:'avatar-chip'},s.decoEmoji),
+      ]),
       h('h3',{},s.name),
       h('span',{class:'grade'},s.grade),
-      h('div',{class:'stats'},[h('span',{},[icon('star',13),h('span',{style:'margin-left:3px'},String(ud.totalStars))]),h('span',{},[icon('coin',13),h('span',{style:'margin-left:3px'},String(ud.coins))])]),
+      h('div',{class:'stats'},[h('span',{},'⭐ '+ud.totalStars),h('span',{},'🪙 '+ud.coins)]),
     ]));
   });
   root.appendChild(grid);
@@ -1866,10 +1879,10 @@ function renderDashboard(root){
   root.appendChild(hero);
   // Stats
   const stats=h('div',{class:'dash-stats stagger'},[
-    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('star',22),h('span',{style:'margin-left:6px'},String(state.totalStars))]),h('div',{class:'lbl'},'Stars')]),
-    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('coin',22),h('span',{style:'margin-left:6px'},String(state.coins))]),h('div',{class:'lbl'},'Coins')]),
-    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('flame',22),h('span',{style:'margin-left:6px'},String(state.streak))]),h('div',{class:'lbl'},'Day Streak')]),
-    h('div',{class:'d-stat'},[h('div',{class:'num'},[icon('award',22),h('span',{style:'margin-left:6px'},String(Object.keys(state.badges).length))]),h('div',{class:'lbl'},'Badges')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'⭐'),h('span',{},String(state.totalStars))]),h('div',{class:'lbl'},'Stars')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'🪙'),h('span',{},String(state.coins))]),h('div',{class:'lbl'},'Coins')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'🔥'),h('span',{},String(state.streak))]),h('div',{class:'lbl'},'Day Streak')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'🏅'),h('span',{},String(Object.keys(state.badges).length))]),h('div',{class:'lbl'},'Badges')]),
   ]);
   root.appendChild(stats);
   // Subjects
@@ -1880,7 +1893,7 @@ function renderDashboard(root){
     const total=getWeekActivities(currentUser,sub.id).length;
     const pct=total?Math.round(done/total*100):0;
     subjs.appendChild(h('button',{class:'subj-card',onclick:()=>go('week',{subject:sub.id})},[
-      h('div',{class:'s-ico '+sub.id},[icon(sub.iconName,24)]),
+      h('div',{class:'s-ico '+sub.id},sub.emoji),
       h('div',{class:'s-info'},[
         h('div',{class:'s-name'},sub.name),
         h('div',{class:'s-prog'},done+' / '+total+' complete'),
@@ -1897,7 +1910,7 @@ function renderWeek(root,subId){
   const sub=SUBJECTS.find(s=>s.id===subId);if(!sub){go('dashboard');return}
   const acts=getWeekActivities(currentUser,subId);
   root.appendChild(h('div',{class:'week-head'},[
-    h('h2',{},[icon(sub.iconName,22),h('span',{style:'margin-left:8px'},'Week '+currentWeek+' · '+sub.name)]),
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},sub.emoji),h('span',{},'Week '+currentWeek+' · '+sub.name)]),
     h('button',{class:'back-btn',onclick:()=>go('dashboard')},'← Back'),
   ]));
   const list=h('div',{class:'levels stagger'});
@@ -1979,7 +1992,7 @@ function renderQ(wrap){
   const a=quiz.activity, q=quiz.questions[quiz.idx], total=quiz.questions.length;
   const sub=SUBJECTS.find(s=>s.id===quiz.subject);
   wrap.appendChild(h('div',{class:'quiz-head'},[
-    h('div',{class:'qt'},[icon(sub.iconName,18),h('span',{style:'margin-left:6px'},a.title)]),
+    h('div',{class:'qt'},[h('span',{style:'font-size:20px;margin-right:6px'},sub.emoji),h('span',{},a.title)]),
     h('div',{class:'qc'},(quiz.idx+1)+' of '+total),
   ]));
   wrap.appendChild(h('div',{class:'q-progress'},[h('i',{style:'width:'+(quiz.idx/total*100)+'%'})]));
@@ -2260,11 +2273,11 @@ function renderTeacher(root){
     const totalActs=SUBJECTS.reduce((sum,sub)=>sum+getWeekActivities(s.id,sub.id).length,0);
     const pct=totalActs?Math.round(td/totalActs*100):0;
     const card=h('div',{class:'t-student'},[
-      h('h3',{},[icon(s.iconName,18),h('span',{style:'margin-left:6px'},s.name)]),
+      h('h3',{},[h('span',{style:'font-size:22px;margin-right:6px'},s.decoEmoji),h('span',{},s.name)]),
       h('div',{class:'t-grade'},s.grade),
       h('div',{class:'t-stats'},[
-        h('span',{},[icon('star',12),' '+ud.totalStars]),h('span',{},[icon('coin',12),' '+ud.coins]),
-        h('span',{},[icon('flame',12),' '+ud.streak]),h('span',{},[icon('chart',12),' '+pct+'%']),
+        h('span',{},'⭐ '+ud.totalStars),h('span',{},'🪙 '+ud.coins),
+        h('span',{},'🔥 '+ud.streak),h('span',{},'📊 '+pct+'%'),
       ]),
     ]);
     const bars=h('div',{class:'t-subj-bars'});
@@ -2274,7 +2287,7 @@ function renderTeacher(root){
       const p=total?Math.round(done/total*100):0;
       const colors={reading:'#0984e3',writing:'#6c5ce7',math:'#e17055',logic:'#00b894'};
       bars.appendChild(h('div',{class:'t-subj-bar'},[
-        h('div',{class:'t-bar-label'},[h('span',{},[icon(sub.iconName,14),h('span',{style:'margin-left:4px'},sub.name)]),h('span',{},done+'/'+total)]),
+        h('div',{class:'t-bar-label'},[h('span',{},sub.emoji+' '+sub.name),h('span',{},done+'/'+total)]),
         h('div',{class:'t-bar'},[h('i',{style:'width:'+p+'%;background:'+colors[sub.id]})]),
       ]));
     });
