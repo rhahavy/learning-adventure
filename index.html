@@ -3936,6 +3936,54 @@ function currentLang() {
   return 'en-US';
 }
 
+/* Heuristic: does a short string look like French?
+   Used to decide speaker language per-choice in French activities,
+   where choices can be either French ("Merci") or English ("🐶 Dog"). */
+function looksFrench(text) {
+  if (!text) return false;
+  const t = String(text).trim();
+  // Accented characters are a strong signal
+  if (/[àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇœ]/i.test(t)) return true;
+  // French articles / pronouns at the start
+  if (/^(le|la|les|l['’]|un|une|des|du|de|mon|ma|mes|ton|ta|tes|son|sa|ses|je|tu|il|elle|nous|vous|ils|elles)\s/i.test(t)) return true;
+  // Common French words / greetings
+  if (/\b(bonjour|bonsoir|bonne nuit|salut|merci|oui|non|pardon|enchanté|au revoir|s['’]il|ça va|comment|pourquoi|quand|où|qui|quoi|combien|aujourd|hier|demain|chat|chien|poisson|oiseau|pomme|pain|lait|eau|fromage|gâteau|rouge|bleu|jaune|vert|noir|blanc|violet|marron|rose|orange|maman|papa|frère|sœur|tête|main|pied|yeux|bouche|nez|soleil|lune|arbre|fleur|maison|porte|livre|crayon|table|chaise|professeur|ballon|poupée|voiture|courir|sauter|chanter|danser|manger|dormir|jouer|je suis|j['’]ai|tu es|tu as|il est|elle est|elle a|nous sommes|vous êtes|ils sont|elles sont|je m['’]appelle)\b/i.test(t)) return true;
+  // French day/month names
+  if (/\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\b/i.test(t)) return true;
+  // French number words
+  if (/\b(un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|dix-sept|dix-huit|dix-neuf|vingt|trente|quarante|cinquante|soixante)\b/i.test(t)) return true;
+  return false;
+}
+
+/* Prep a string for TTS: remove emojis, and when speaking French
+   strip the "= English translation" parts so the French voice
+   doesn't say "égal" followed by an English word. */
+function cleanForSpeech(text, lang) {
+  let t = String(text);
+
+  // Strip emojis — TTS mispronounces them ("pile of poo", etc.)
+  try {
+    t = t.replace(/\p{Extended_Pictographic}/gu, '');
+  } catch(_e) {
+    // Older JS runtimes: broad Unicode range fallback
+    t = t.replace(/[\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF]/g, '');
+  }
+
+  if (lang && lang.toLowerCase().startsWith('fr')) {
+    // Remove "= English translation" — everything after "=" until
+    // the next separator (comma, period, !, ?, quote).
+    t = t.replace(/\s*=\s*[^,.!?;"“”]+/g, '');
+    // Remove English parenthetical translations, e.g. "rouge (red)"
+    t = t.replace(/\s*\([^)]*\)/g, '');
+  }
+
+  // Normalize whitespace
+  t = t.replace(/\s+/g, ' ').trim();
+  // Clean up any orphan punctuation like ",  ." or leading "," after stripping
+  t = t.replace(/\s*([,.!?;])\s*/g, '$1 ').replace(/([,.!?;])\s*([,.!?;])/g, '$1').trim();
+  return t;
+}
+
 /* Preferred voice names (in order) — picked for their kid-friendly tone.
    The browser has a different voice library depending on OS — this list
    covers macOS/iOS, Windows, and Chrome's built-in voices. */
@@ -4124,17 +4172,14 @@ async function speak(text, lang) {
   stopAllAudio();              // bumps speakGen — prior playbacks become "stale"
   const myGen = speakGen;
   const useLang = lang || currentLang();
+  const cleaned = cleanForSpeech(text, useLang);
+  if (!cleaned) return;
   try {
-    await speakViaGoogle(String(text), useLang, myGen);
-    // If we got here, Google TTS handled it (possibly partial if superseded).
-    // Nothing to do.
+    await speakViaGoogle(cleaned, useLang, myGen);
   } catch (err) {
-    // Fall back to the browser voice ONLY if:
-    //   - this speak() is still the latest one (not superseded), AND
-    //   - nothing actually played yet (so we won't overlap with another voice)
     if (myGen !== speakGen) return;
     console.warn('[LA] Cloud TTS unavailable, using browser voice:', err && err.message);
-    speakViaBrowser(text, useLang);
+    speakViaBrowser(cleaned, useLang);
   }
 }
 
@@ -5187,8 +5232,9 @@ function renderQuestion(wrap) {
     const qText = h('div', { class: 'q-text' }, q.q);
     const qTextRow = h('div', { class: 'q-text-row' }, [qText]);
     if (AUDIO_SUPPORTED && q.q) {
-      // For French subject, speak full prompt in French; otherwise English
-      qTextRow.appendChild(speakerBtn(q.q, currentLang(), 16));
+      // Question prompts are written in English even on French activities
+      // — so always speak them with the English voice.
+      qTextRow.appendChild(speakerBtn(q.q, 'en-US', 16));
     }
     card.appendChild(qTextRow);
 
@@ -5386,9 +5432,9 @@ function renderMCQ(card, q) {
   const box = h('div', { class: 'choices' + (allShort ? ' choices-big' : '') });
 
   // Add speaker widgets on choices that are text (not just emoji).
-  // Super useful for French (hear pronunciation) and Reading.
-  const isFrench = currentLang() === 'fr-FR';
-  const addChoiceSpeaker = AUDIO_SUPPORTED && !allShort && (isFrench || quiz.subject === 'reading');
+  // Useful for French (hear pronunciation) and Reading.
+  const isFrenchSubject = currentLang() === 'fr-FR';
+  const addChoiceSpeaker = AUDIO_SUPPORTED && !allShort && (isFrenchSubject || quiz.subject === 'reading');
 
   q.choices.forEach((c, i) => {
     const btn = h('button', {
@@ -5397,6 +5443,10 @@ function renderMCQ(card, q) {
     }, String(c));
 
     if (addChoiceSpeaker) {
+      // Per-choice language detection — choices on French activities can
+      // be EITHER French ("Merci") OR English ("Hello"), so we sniff each.
+      const choiceLang = looksFrench(String(c)) ? 'fr-FR' : 'en-US';
+
       // Nested <button> is invalid HTML, so use a span with click-handler.
       const sp = document.createElement('span');
       sp.className = 'speaker-btn choice-speaker';
@@ -5404,7 +5454,7 @@ function renderMCQ(card, q) {
       sp.setAttribute('aria-label', 'Listen');
       sp.addEventListener('click', (e) => {
         e.stopPropagation(); e.preventDefault();
-        speak(String(c), isFrench ? 'fr-FR' : 'en-US');
+        speak(String(c), choiceLang);
         sp.classList.add('playing');
         setTimeout(() => sp.classList.remove('playing'), 600);
       });
