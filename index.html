@@ -371,23 +371,32 @@
   }
   .child-hero.nishan {
     background:
-      radial-gradient(circle at 90% -20%, rgba(91, 181, 255, .18), transparent 60%),
-      radial-gradient(circle at -10% 120%, rgba(255, 192, 67, .18), transparent 60%),
+      radial-gradient(circle at 90% -20%, rgba(91, 181, 255, .22), transparent 60%),
+      radial-gradient(circle at -10% 120%, rgba(255, 192, 67, .20), transparent 60%),
       var(--card);
   }
   .child-hero.rushan {
     background:
-      radial-gradient(circle at 90% -20%, rgba(78, 205, 196, .20), transparent 60%),
-      radial-gradient(circle at -10% 120%, rgba(139, 127, 255, .16), transparent 60%),
+      radial-gradient(circle at 90% -20%, rgba(78, 205, 196, .24), transparent 60%),
+      radial-gradient(circle at -10% 120%, rgba(139, 127, 255, .18), transparent 60%),
       var(--card);
   }
   .child-hero-inner {
-    display: flex; align-items: center; gap: 24px;
-    flex-wrap: wrap;
+    display: flex; align-items: center; gap: 22px;
+    flex-wrap: nowrap;          /* keep avatar + text + mascot on one line */
     position: relative;
     z-index: 1;
   }
-  .child-hero-text { flex: 1 1 240px; min-width: 0; }
+  .child-hero-text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  @media (max-width: 720px) {
+    .child-hero-inner { flex-wrap: wrap; gap: 16px; }
+    .child-hero-text { flex: 1 1 100%; order: 2; }
+    .child-hero-inner > .avatar-lg { order: 1; }
+    .child-hero-inner > .mascot     { order: 1; margin-left: auto; }
+  }
   .mascot {
     margin-left: auto;
     width: 104px; height: 104px;
@@ -582,20 +591,52 @@
     flex-shrink: 0;
   }
   .avatar-lg {
-    width: 88px !important; height: 88px !important;
-    border-radius: 26px !important;
-    font-size: 38px !important;
+    position: relative !important;
+    width: 104px !important; height: 104px !important;
+    border-radius: 30px !important;
+    font-size: 48px !important;
+    font-weight: 800 !important;
     margin-bottom: 0 !important;
+    flex-shrink: 0;
+    border: 3px solid #fff;
+    overflow: visible !important;
   }
   .avatar-lg.nishan {
-    background: linear-gradient(135deg, #7CC8FF 0%, var(--sky) 55%, #3D9BEB 100%);
-    box-shadow: var(--glow-sky), inset 0 -3px 0 rgba(0,0,0,.08);
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,.55) 0%, transparent 55%),
+      linear-gradient(135deg, #7CC8FF 0%, var(--sky) 55%, #3D9BEB 100%);
+    box-shadow: var(--glow-sky), inset 0 -4px 0 rgba(0,0,0,.10);
     color: #fff;
+    text-shadow: 0 2px 0 rgba(0,0,0,.12);
   }
   .avatar-lg.rushan {
-    background: linear-gradient(135deg, #6EE5DB 0%, var(--grass) 55%, #2EB5AB 100%);
-    box-shadow: var(--glow-mint), inset 0 -3px 0 rgba(0,0,0,.08);
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,.55) 0%, transparent 55%),
+      linear-gradient(135deg, #6EE5DB 0%, var(--grass) 55%, #2EB5AB 100%);
+    box-shadow: var(--glow-mint), inset 0 -4px 0 rgba(0,0,0,.10);
     color: #fff;
+    text-shadow: 0 2px 0 rgba(0,0,0,.12);
+  }
+  /* The little emoji "buddy badge" pinned to the avatar's bottom-right */
+  .avatar-lg::after {
+    content: attr(data-buddy);
+    position: absolute;
+    right: -10px; bottom: -10px;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: #fff;
+    display: grid; place-items: center;
+    font-size: 22px; line-height: 1;
+    box-shadow: 0 4px 12px -2px rgba(26,31,58,.22);
+    border: 2px solid #fff;
+    transform: rotate(-8deg);
+    transition: transform .4s var(--ease-spring);
+  }
+  .avatar-lg:hover::after { transform: rotate(8deg) scale(1.08); }
+
+  @media (max-width: 560px) {
+    .avatar-lg { width: 80px !important; height: 80px !important; font-size: 36px !important; border-radius: 24px !important; }
+    .avatar-lg::after { width: 30px; height: 30px; font-size: 17px; right: -8px; bottom: -8px; }
   }
   .child-title {
     font-size: clamp(28px, 4.5vw, 42px) !important;
@@ -637,6 +678,112 @@
     padding: 5px 10px; border-radius: 999px;
     box-shadow: 0 6px 14px -4px rgba(139, 127, 255, .5);
     letter-spacing: .04em;
+  }
+
+  /* --------- KID-FRIENDLY ANIMATIONS --------- */
+
+  /* Smooth screen transitions */
+  #screen { animation: screenIn .35s var(--ease-spring); }
+  @keyframes screenIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Staggered card entrance — feels alive when grid loads */
+  .activity-grid > .activity-card,
+  .badges-grid > .badge,
+  .stats-row > .stat-card,
+  .zone-stats > .zone-stat,
+  .choose > .char-card {
+    animation: cardIn .55s var(--ease-spring) backwards;
+  }
+  .activity-grid > *:nth-child(1),  .badges-grid > *:nth-child(1),
+  .stats-row > *:nth-child(1),      .zone-stats > *:nth-child(1),
+  .choose > *:nth-child(1)        { animation-delay: .04s; }
+  .activity-grid > *:nth-child(2),  .badges-grid > *:nth-child(2),
+  .stats-row > *:nth-child(2),      .zone-stats > *:nth-child(2),
+  .choose > *:nth-child(2)        { animation-delay: .10s; }
+  .activity-grid > *:nth-child(3),  .badges-grid > *:nth-child(3),
+  .stats-row > *:nth-child(3),      .zone-stats > *:nth-child(3) { animation-delay: .16s; }
+  .activity-grid > *:nth-child(4),  .badges-grid > *:nth-child(4),
+  .zone-stats > *:nth-child(4)    { animation-delay: .22s; }
+  .activity-grid > *:nth-child(5),  .badges-grid > *:nth-child(5),
+  .zone-stats > *:nth-child(5)    { animation-delay: .28s; }
+  .activity-grid > *:nth-child(6),  .badges-grid > *:nth-child(6) { animation-delay: .34s; }
+  .activity-grid > *:nth-child(7),  .badges-grid > *:nth-child(7) { animation-delay: .40s; }
+  .activity-grid > *:nth-child(8),  .badges-grid > *:nth-child(8) { animation-delay: .46s; }
+  .activity-grid > *:nth-child(n+9),.badges-grid > *:nth-child(n+9) { animation-delay: .52s; }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(24px) scale(.93); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Bouncier hovers and taps for kid-friendly feedback */
+  .activity-card:hover  { transform: translateY(-6px) scale(1.025); }
+  .activity-card:active { transform: translateY(-2px) scale(.98); }
+  .char-card:hover      { transform: translateY(-8px) scale(1.02); }
+  .char-card:active     { transform: translateY(-2px) scale(.98); }
+  .choice:hover:not(.locked) { transform: translateY(-3px) scale(1.03); }
+  .choice:active:not(.locked) { transform: scale(.96); }
+  .btn:hover            { transform: scale(1.05) translateY(-1px); }
+  .btn-primary:hover    { transform: scale(1.05) translateY(-2px); background: #1f2747; }
+
+  /* Sparkles for star icons */
+  .stat-card .stat-ico,
+  .footer .made-by .icon,
+  .score-pill .icon {
+    transition: transform .3s var(--ease-spring);
+  }
+  .score-pill:hover .icon { transform: rotate(24deg) scale(1.2); }
+
+  /* Slow gentle "wiggle" hint on level chips so they feel alive */
+  .level-chip { animation: wiggle 6s ease-in-out infinite; transform-origin: center; }
+  .activity-card:nth-child(2n) .level-chip { animation-delay: 1s; }
+  .activity-card:nth-child(3n) .level-chip { animation-delay: 2s; }
+  @keyframes wiggle {
+    0%, 90%, 100% { transform: rotate(0); }
+    93%           { transform: rotate(-4deg); }
+    96%           { transform: rotate(4deg); }
+  }
+
+  /* --------- BIG FLOATING "HOME" BUTTON --------- */
+  .fab-home {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(255,255,255,.4), transparent 55%),
+      linear-gradient(135deg, var(--sky), var(--plum));
+    color: #fff;
+    display: grid; place-items: center;
+    box-shadow: var(--shadow-lg), var(--glow-sky);
+    border: 3px solid #fff;
+    z-index: 80;
+    cursor: pointer;
+    padding: 0;
+    transition: transform .3s var(--ease-spring), box-shadow .3s;
+    animation: fabPulse 3s ease-in-out infinite;
+  }
+  .fab-home:hover  { transform: scale(1.12) rotate(-10deg); }
+  .fab-home:active { transform: scale(.92); }
+  .fab-home.hidden { display: none; }
+  @keyframes fabPulse {
+    0%, 100% { box-shadow: var(--shadow-lg), 0 0 0 0 rgba(91,181,255,.55); }
+    50%      { box-shadow: var(--shadow-lg), 0 0 0 18px rgba(91,181,255,0); }
+  }
+  @media (max-width: 560px) {
+    .fab-home { width: 60px; height: 60px; bottom: 14px; right: 14px; }
+    .fab-home .icon { width: 24px; height: 24px; }
+  }
+
+  /* Honor reduced-motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* --------- LOGIN / USER UI --------- */
@@ -1920,6 +2067,11 @@
 
   <!-- Screens get rendered here -->
   <main id="screen"></main>
+
+  <!-- Big always-visible Home button for little fingers -->
+  <button id="fabHome" class="fab-home hidden" title="Go home" aria-label="Go home">
+    <svg class="icon" width="28" height="28"><use href="#i-home"/></svg>
+  </button>
 
   <!-- ===== PARENT / TUTOR NOTE ===== -->
   <section class="parent-note">
@@ -4763,6 +4915,13 @@ function go(screen, opts = {}) {
   else if (screen === 'rushan') renderChild(root, 'rushan');
   else if (screen === 'badges') renderBadges(root);
   else if (screen === 'activity') renderActivity(root, opts.child, opts.activity);
+
+  // Show the floating Home button on every screen EXCEPT home / login
+  const fab = document.getElementById('fabHome');
+  if (fab) {
+    const showFab = currentUser && screen !== 'home' && screen !== 'login';
+    fab.classList.toggle('hidden', !showFab);
+  }
 }
 
 /* ---------- LOGIN SCREEN ---------- */
@@ -4983,7 +5142,7 @@ function renderChild(root, child) {
   /* ----- HERO ----- */
   const hero = h('section', { class: 'hero child-hero ' + child }, [
     h('div', { class: 'child-hero-inner' }, [
-      h('div', { class: 'avatar avatar-lg ' + child }, T.initial),
+      h('div', { class: 'avatar avatar-lg ' + child, 'data-buddy': T.mascotEmoji }, T.initial),
       h('div', { class: 'child-hero-text' }, [
         h('div', { class: 'eyebrow' }, [
           svgIcon('i-grad', 14),
@@ -5867,6 +6026,13 @@ function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 /* ---------- INITIAL BOOT ---------- */
 initCloud();
+
+// Wire the floating Home button (always-visible, big tap target for kids)
+const fabBtn = document.getElementById('fabHome');
+if (fabBtn) {
+  fabBtn.addEventListener('click', () => { sfx.click(); go('home'); });
+}
+
 updateTopbar(currentUser ? 'home' : 'login');
 go('home');  // go() will route to login screen if no currentUser
 </script>
