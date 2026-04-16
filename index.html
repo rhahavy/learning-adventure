@@ -1851,8 +1851,16 @@ akaran: {
         {type:'mcq',q:'A habitat is a place where...',choices:['People work','Animals live','Cars park','Stars shine'],answer:1},
       ]},
     { id:'w1-akaran-s4', title:'The Water Cycle', emoji:'💧',
-      lesson:{title:'Where Rain Comes From',intro:'Water goes round and round! The sun heats water → water rises as vapor → makes clouds → clouds rain → water goes back down.',pictures:[
-        {emoji:'☀️', word:'1. Sun heats water'},{emoji:'💨', word:'2. Water rises'},{emoji:'☁️', word:'3. Clouds form'},{emoji:'🌧️', word:'4. Rain falls'},
+      lesson:{title:'Where Rain Comes From',intro:'Water goes round and round! The sun heats water → water rises as vapor → makes clouds → clouds rain → water goes back down.',heroImage:IMG.rainbow,pictures:[
+        {emoji:'☀️', word:'1. Sun heats water', image:IMG.sunny},
+        {emoji:'💨', word:'2. Water rises'},
+        {emoji:'☁️', word:'3. Clouds form'},
+        {emoji:'🌧️', word:'4. Rain falls', image:IMG.rainbow},
+      ],steps:[
+        '<b>Step 1 — Evaporation:</b> the sun heats water in oceans, lakes, and puddles. The water turns into invisible vapor and rises into the sky.',
+        '<b>Step 2 — Condensation:</b> as the vapor gets higher and colder, it condenses into tiny droplets. Millions of droplets together form <b>clouds</b>.',
+        '<b>Step 3 — Precipitation:</b> when the droplets get too heavy, they fall as <b>rain</b> (or snow, sleet, or hail).',
+        '<b>Step 4 — Collection:</b> rain flows into rivers, lakes, and back to the ocean. Then the cycle starts again — it never stops!',
       ],hint:'Rain → river → ocean → back to clouds — it never stops!'},
       questions:[
         {type:'mcq',q:'What makes water go up into the sky?',choices:['The moon','The sun\'s heat','Wind only','Birds'],answer:1},
@@ -1899,8 +1907,15 @@ akaran: {
         {type:'mcq',q:'A symbol is...',choices:['A real animal','Something that stands for a bigger idea','A small food','A cloud'],answer:1},
       ]},
     { id:'w1-akaran-c3', title:'Indigenous Peoples', emoji:'🪶',
-      lesson:{title:'The First People of Canada',intro:'Long before anyone else came, INDIGENOUS PEOPLES already lived here. There are three main groups: FIRST NATIONS, MÉTIS, and INUIT.',pictures:[
-        {emoji:'🪶', word:'First Nations'},{emoji:'🏹', word:'Métis'},{emoji:'🛖', word:'Inuit', label:'Arctic peoples'},
+      lesson:{title:'The First People of Canada',intro:'Long before anyone else came, INDIGENOUS PEOPLES already lived here. Canada recognizes three main groups — each with their own languages, cultures, and traditions.',heroImage:IMG.inukshuk,pictures:[
+        {emoji:'🪶', word:'First Nations'},
+        {emoji:'🏹', word:'Métis'},
+        {emoji:'🛖', word:'Inuit', label:'Arctic peoples', image:IMG.inukshuk},
+      ],steps:[
+        '<b>Group 1 — First Nations:</b> Many different nations (like the Cree, Haudenosaunee, Anishinaabe, and more) living all across what is now Canada. Each has their own language and traditions.',
+        '<b>Group 2 — Métis:</b> People with both Indigenous and European ancestry. Their culture formed hundreds of years ago, especially on the Prairies.',
+        '<b>Group 3 — Inuit:</b> Peoples of Canada\'s Arctic region. They live in the far North and have adapted to the cold with unique skills like hunting, fishing, and building igloos.',
+        '<b>Key fact:</b> Indigenous Peoples have lived in Canada for over 10,000 years. They are the <b>FIRST</b> people of this land.',
       ],hint:'Indigenous Peoples have lived in Canada for over 10,000 years!'},
       questions:[
         {type:'mcq',q:'Who were the FIRST people living in Canada?',choices:['Indigenous Peoples','Europeans','Americans','Tourists'],answer:0},
@@ -2188,12 +2203,17 @@ rushan: {
   ],
   science: [
     { id:'w1-rushan-s1', title:'Life Cycles', emoji:'🐛',
-      lesson:{title:'The Butterfly Life Cycle',intro:'A LIFE CYCLE shows how an animal grows. A butterfly goes: egg → caterpillar → chrysalis → butterfly.',heroImage:IMG.butterfly,pictures:[
+      lesson:{title:'The Butterfly Life Cycle',intro:'A LIFE CYCLE shows how an animal grows. A butterfly goes through 4 amazing stages!',heroImage:IMG.butterfly,pictures:[
         {emoji:'🥚', word:'1. Egg'},
         {emoji:'🐛', word:'2. Caterpillar', image:IMG.caterpillar},
         {emoji:'🛌', word:'3. Chrysalis', image:IMG.chrysalis},
         {emoji:'🦋', word:'4. Butterfly', image:IMG.butterfly},
-      ],hint:'Caterpillars eat lots of leaves before becoming butterflies!'},
+      ],steps:[
+        '<b>Stage 1 — Egg:</b> A mother butterfly lays tiny eggs on a leaf. They\'re smaller than the head of a pin!',
+        '<b>Stage 2 — Caterpillar (larva):</b> The egg hatches into a caterpillar. Its ONLY job is to eat leaves and grow bigger and bigger.',
+        '<b>Stage 3 — Chrysalis (pupa):</b> The caterpillar attaches to a stem and forms a hard shell called a chrysalis. Inside, it changes completely!',
+        '<b>Stage 4 — Butterfly:</b> After about 2 weeks, a butterfly breaks out of the chrysalis. It dries its wings, then flies away!',
+      ],hint:'This change from one form to another is called METAMORPHOSIS.'},
       questions:[
         {type:'mcq',q:'What comes FIRST in a butterfly life cycle?',choices:['Butterfly','Egg','Caterpillar','Chrysalis'],answer:1},
         {type:'mcq',q:'What does a caterpillar become?',choices:['Bird','Butterfly','Spider','Worm'],answer:1},
@@ -2635,8 +2655,18 @@ akshayan: {
         {type:'mcq',q:'If the circuit is broken, the bulb...',choices:['Stays on','Turns off','Gets hotter','Rings'],answer:1},
       ]},
     { id:'w1-akshayan-s4', title:'Photosynthesis', emoji:'🌱',
-      lesson:{title:'How Plants Make Food',intro:'Plants make their own food! They take in SUNLIGHT through leaves, WATER through roots, and CARBON DIOXIDE (air) — and turn them into SUGAR (food) and OXYGEN (that we breathe).',pictures:[
-        {emoji:'☀️', word:'Sunlight'},{emoji:'💧', word:'Water'},{emoji:'💨', word:'Air/CO₂'},{emoji:'🍃', word:'Leaf', label:'does the work'},{emoji:'🌬️', word:'Oxygen', label:'we breathe'},
+      lesson:{title:'How Plants Make Food',intro:'Plants are amazing — they make their OWN food from sunlight, water, and air. This process is called photosynthesis.',heroImage:IMG.sunflower,pictures:[
+        {emoji:'☀️', word:'Sunlight', image:IMG.sunny},
+        {emoji:'💧', word:'Water'},
+        {emoji:'💨', word:'Air/CO₂'},
+        {emoji:'🍃', word:'Leaf', label:'does the work', image:IMG.tree},
+        {emoji:'🌬️', word:'Oxygen', label:'we breathe'},
+      ],steps:[
+        '<b>Step 1 — Collect sunlight:</b> Leaves catch sunlight using a green chemical called <b>chlorophyll</b>. That\'s why leaves are green!',
+        '<b>Step 2 — Drink water:</b> Roots pull water up from the soil, through the stem, into the leaves.',
+        '<b>Step 3 — Breathe in CO₂:</b> Tiny holes in the leaves take in carbon dioxide from the air (the same stuff we breathe OUT).',
+        '<b>Step 4 — Make food:</b> Using sunlight\'s energy, the leaf combines water + CO₂ into <b>sugar</b> — the plant\'s food.',
+        '<b>Step 5 — Release oxygen:</b> As a bonus, the plant releases <b>oxygen</b> — the air we breathe IN. Plants and animals help each other!',
       ],hint:'Plants give us oxygen — we give them carbon dioxide. Teamwork!'},
       questions:[
         {type:'mcq',q:'What do plants use to make food?',choices:['Meat','Sunlight, water, air','Chocolate','Magic'],answer:1},
@@ -2694,10 +2724,15 @@ akshayan: {
         {type:'mcq',q:'Which best describes Toronto?',choices:['Rural','Suburban','Urban','Wilderness'],answer:2},
       ]},
     { id:'w1-akshayan-c4', title:'Canadian Government', emoji:'🏛️',
-      lesson:{title:'Levels of Government',intro:'Canada has 3 LEVELS of government: FEDERAL (runs the whole country, led by Prime Minister), PROVINCIAL (runs each province, led by Premier), MUNICIPAL (runs each city/town, led by Mayor).',pictures:[
-        {emoji:'🇨🇦', word:'Federal', label:'Prime Minister'},
+      lesson:{title:'Levels of Government',intro:'Canada\'s government has 3 LEVELS. Each one runs different things and has its own leader.',heroImage:IMG.parliament,pictures:[
+        {emoji:'🇨🇦', word:'Federal', label:'Prime Minister', image:IMG.canadaFlag},
         {emoji:'🏢', word:'Provincial', label:'Premier'},
         {emoji:'🏘️', word:'Municipal', label:'Mayor'},
+      ],steps:[
+        '<b>Level 1 — Federal:</b> Runs the WHOLE country from Ottawa. Led by the <b>Prime Minister</b>. Handles big things: army, passports, postal service, money.',
+        '<b>Level 2 — Provincial:</b> Runs ONE province (like Ontario or BC). Led by the <b>Premier</b>. Handles schools, hospitals, highways, health care.',
+        '<b>Level 3 — Municipal:</b> Runs ONE city or town. Led by the <b>Mayor</b>. Handles local stuff: parks, garbage pickup, police, libraries.',
+        '<b>How to remember:</b> Biggest area → federal. Smallest area → municipal.',
       ],hint:'Each level handles different things: federal = army, provincial = schools, municipal = garbage pickup.'},
       questions:[
         {type:'mcq',q:'Who leads Canada\'s federal government?',choices:['Mayor','Premier','Prime Minister','King'],answer:2},
@@ -3089,7 +3124,13 @@ isaiah: {
         {type:'mcq',q:'A guitar playing makes ____ energy.',choices:['Only heat','Only cold','Sound','Electrical only'],answer:2},
       ]},
     { id:'w1-isaiah-s4', title:'Food Chains & Ecosystems', emoji:'🌿',
-      lesson:{title:'Who Eats Whom',intro:'In an ECOSYSTEM, energy flows through a FOOD CHAIN. PRODUCERS (plants) make food from sunlight. CONSUMERS eat producers or other consumers. DECOMPOSERS (bacteria, fungi) break down dead things.',pictures:[
+      lesson:{title:'Who Eats Whom',intro:'In every ECOSYSTEM, energy flows through a FOOD CHAIN. Each link has a job.',heroImage:IMG.tree,steps:[
+        '<b>Step 1 — Start at the Sun:</b> All energy in a food chain begins with sunlight.',
+        '<b>Step 2 — Producers (plants):</b> Plants capture sunlight and make food (photosynthesis). They\'re the first level of every food chain.',
+        '<b>Step 3 — Primary Consumers (herbivores):</b> Animals like rabbits and deer eat the plants. They get energy from producers.',
+        '<b>Step 4 — Secondary Consumers (carnivores):</b> Predators like foxes and hawks eat the herbivores. Energy continues up.',
+        '<b>Step 5 — Decomposers:</b> When anything dies, bacteria and fungi break it down and return nutrients to the soil — so plants can grow again. The cycle continues!',
+      ],pictures:[
         {emoji:'🌱', word:'Producer', label:'plants'},
         {emoji:'🦌', word:'Primary Consumer', label:'herbivore'},
         {emoji:'🐺', word:'Predator', label:'carnivore'},
@@ -3145,10 +3186,15 @@ isaiah: {
         {type:'mcq',q:'Who came to Canada FIRST — Europeans or Indigenous Peoples?',choices:['Europeans','Indigenous Peoples','Same time','No one'],answer:1},
       ]},
     { id:'w1-isaiah-c3', title:'3 Levels of Government', emoji:'🏛️',
-      lesson:{title:'How Canada is Governed',intro:'Canada has 3 LEVELS of government: FEDERAL (Ottawa, Prime Minister, runs whole country — army, money, postal service), PROVINCIAL (each province\'s Premier — schools, hospitals, highways), MUNICIPAL (city/town Mayor — parks, garbage, local police).',pictures:[
-        {emoji:'🇨🇦', word:'Federal', label:'Prime Minister'},
+      lesson:{title:'How Canada is Governed',intro:'Canada\'s government works on 3 levels. Each level has its own responsibilities and its own leader — voted in by Canadian citizens.',heroImage:IMG.parliament,pictures:[
+        {emoji:'🇨🇦', word:'Federal', label:'Prime Minister', image:IMG.canadaFlag},
         {emoji:'🏢', word:'Provincial', label:'Premier'},
         {emoji:'🏘️', word:'Municipal', label:'Mayor'},
+      ],steps:[
+        '<b>1. Federal (National):</b> Based in Ottawa. Led by the <b>Prime Minister</b>. Responsible for things that affect ALL of Canada — the military, immigration, the postal service, currency, national laws.',
+        '<b>2. Provincial / Territorial:</b> Each of the 10 provinces and 3 territories has its own government. Led by the <b>Premier</b>. Handles schools, hospitals, highways, driver\'s licenses, and provincial laws.',
+        '<b>3. Municipal:</b> Each city or town has its own council. Led by the <b>Mayor</b>. Handles local stuff — parks, garbage collection, libraries, local bylaws, city streets.',
+        '<b>How decisions are made:</b> Citizens VOTE for representatives at each level. Elected officials then pass laws and manage services. Democracy in action!',
       ],hint:'Parliament in Ottawa makes federal laws. Citizens VOTE for representatives at each level.'},
       questions:[
         {type:'mcq',q:'The FEDERAL government meets in...',choices:['Toronto','Ottawa','Montreal','New York'],answer:1},
