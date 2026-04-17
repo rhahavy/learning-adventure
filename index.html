@@ -405,6 +405,13 @@ img{max-width:100%}
 .week-head .back-btn{padding:8px 16px;border-radius:999px;background:rgba(0,0,0,.05);font-weight:700;font-size:14px;color:var(--ink2);transition:all .2s}
 .week-head .back-btn:hover{background:rgba(0,0,0,.1)}
 .levels{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+/* Wraps each level card so a teacher-only gear can sit in the corner WITHOUT
+   nesting a <button> inside the level-card <button> (invalid HTML + bad clicks).
+   The wrap is a sibling of the gear; both live in the flex grid. */
+.level-wrap{position:relative;width:100%}
+.level-wrap .level-card{width:100%}
+.lv-gear-card{position:absolute;top:10px;right:10px;z-index:2;min-width:34px;height:30px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800;color:var(--ink2);background:rgba(108,92,231,.1);border:1px solid rgba(108,92,231,.25);cursor:pointer;opacity:.7;transition:all .18s var(--spring);font-family:inherit;display:inline-flex;align-items:center;justify-content:center}
+.lv-gear-card:hover{opacity:1;background:rgba(108,92,231,.2);color:var(--primary);transform:translateY(-1px)}
 .level-card{display:flex;align-items:center;gap:16px;padding:18px 20px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);transition:all .35s var(--spring);width:100%}
 .level-card:hover:not(.locked){transform:translateX(8px) scale(1.01);box-shadow:var(--shadow-lg)}
 .level-card:hover:not(.locked) .l-emoji{transform:scale(1.15) rotate(-5deg)}
@@ -5827,14 +5834,27 @@ function renderWeek(root,subId){
                      : batchLocked ? '🔒 Finish Level '+(actBatch-1)*BATCH_SIZE+' in all subjects to unlock'
                      : locked ? '🔒 Locked'
                      : 'Ready to start!';
-    list.appendChild(h('button',{class:cls,onclick:()=>{if(!locked)go('activity',{activityId:a.id,subject:subId})}},[
+    const levelBtn = h('button',{class:cls,onclick:()=>{if(!locked)go('activity',{activityId:a.id,subject:subId})}},[
       h('div',{class:numCls},done?'✓':String(levelNum)),
       h('div',{class:'l-info'},[
         h('div',{class:'l-title'},a.title),
         h('div',{class:'l-status'}, statusText),
       ]),
       h('div',{class:'l-emoji'},a.emoji),
-    ]));
+    ]);
+    // Teacher-only gear on every level card — including LOCKED ones, so
+    // teachers can pre-load videos before students earn their way in. The
+    // gear is always visible, but the modal it opens is password-gated,
+    // so visibility ≠ access.
+    const builtinIdsForLevel = Array.isArray(a.videoIds) ? a.videoIds.filter(Boolean) : [];
+    const levelGear = h('button',{
+      class:'lv-gear lv-gear-card',
+      type:'button',
+      title:'Edit lesson video (teacher only)',
+      'aria-label':'Edit lesson video',
+      onclick:(e)=>{ e.preventDefault(); e.stopPropagation(); openLessonVideoSettings(a.id, builtinIdsForLevel); },
+    }, '⚙');
+    list.appendChild(h('div',{class:'level-wrap'}, [levelBtn, levelGear]));
   });
 
   // --- "Coming soon" card: appears AFTER the last activity if the student
