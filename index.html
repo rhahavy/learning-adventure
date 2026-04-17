@@ -441,6 +441,10 @@ img{max-width:100%}
 /* Lesson card */
 .lesson-card{background:linear-gradient(180deg,#faf9ff,#fff)!important;border:2px dashed rgba(253,203,110,.5)!important;text-align:left!important;padding:clamp(22px,3vw,32px)!important}
 .lesson-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,#ffeaa7,var(--sun));color:#5b3e00;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.06em}
+/* Nova cameo on the lesson card — small, top-right */
+.lesson-mascot{margin-top:10px;display:flex;justify-content:flex-start}
+.lesson-mascot .speech-bubble{font-size:13px;padding:9px 13px;max-width:180px}
+@media(max-width:640px){.lesson-mascot{flex-wrap:wrap}}
 .lesson-title{font-size:clamp(20px,3vw,26px);font-weight:800;margin-top:12px}
 /* Big emoji visual at the top of every lesson. Tight vertical rhythm so
    the emoji sits close to the title below without awkward floating space. */
@@ -621,6 +625,12 @@ img{max-width:100%}
 .reward-card h2{font-size:28px;font-weight:800;margin-top:8px;position:relative;z-index:1}
 .reward-card .big-emoji{font-size:72px;line-height:1;margin:8px 0;animation:bounce 1s ease infinite;display:inline-block;position:relative;z-index:1}
 .reward-card .msg{color:var(--ink2);font-size:15px;margin-top:6px}
+/* Nova's cameo inside the reward card — smaller size, centered, bubble
+   sits to the right. Hidden when empty. */
+.reward-card .rw-mascot{display:flex;justify-content:center;margin-bottom:10px;min-height:0}
+.reward-card .rw-mascot:empty{display:none}
+.reward-card .rw-mascot .mascot-wrap{align-items:center}
+.reward-card .rw-mascot .speech-bubble{font-size:14px;padding:10px 14px;max-width:200px}
 .reward-stats{display:flex;justify-content:center;gap:12px;margin:18px 0;font-weight:700}
 .reward-stats span{background:rgba(0,0,0,.05);padding:8px 14px;border-radius:12px;font-size:14px}
 
@@ -962,6 +972,8 @@ img{max-width:100%}
 <!-- Reward overlay is hidden by default. Only shown via JS after activity completion. -->
 <div class="reward-overlay" id="reward" style="display:none" aria-hidden="true">
   <div class="reward-card">
+    <!-- Nova pep talk — populated by JS in the activity completion flow. -->
+    <div class="rw-mascot" id="rwMascot"></div>
     <div class="big-emoji" id="rwEmoji"></div>
     <h2 id="rwTitle"></h2>
     <p class="msg" id="rwMsg"></p>
@@ -3905,6 +3917,38 @@ function pickNovaGreeting(userId){
   return pool[dailySeed(userId||'') % pool.length];
 }
 
+/* Nova's reward-overlay pep talks. Pool depends on the result tier. */
+const NOVA_PEP = {
+  perfect: ["Flawless! 🌟","Perfect! You crushed it!","Every. Single. One. 🏆","Genius mode activated!","WOW! I'm impressed!"],
+  great:   ["Awesome work!","Boom! Well done!","You're getting SO good at this.","Seriously great!","High five! ✋"],
+  pass:    ["Nice one!","You did it! 🎉","Keep that energy up!","Solid work!","One step closer!"],
+  fail:    ["So close! Try again? 💪","Every try makes you sharper.","I believe in you.","Not yet — but almost!","You got this next time!"],
+};
+function pickRewardPepTalk(tier){
+  const pool = NOVA_PEP[tier] || NOVA_PEP.pass;
+  // Random each time so the same tier doesn't always say the same thing
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/* Nova's per-subject flavor for the lesson intro card. */
+const NOVA_SUBJECT_TONE = {
+  reading:'cheerful', writing:'warm', math:'magic',
+  logic:'cheerful', french:'warm', science:'magic', social:'warm',
+};
+const NOVA_LESSON_OPENERS = {
+  reading: ["Story time! 📖","Let's read together.","Eyes on the page — you've got this!","Ready to explore?"],
+  writing: ["Let's make some words!","Pencils up! ✏️","You got this writer!","Your story starts here."],
+  math:    ["Numbers are friends!","Let's crunch it. 🧮","Deep breath — you've got this.","Math wizard mode: ON."],
+  logic:   ["Puzzle time! 🧩","Think think think…","Use those smart brain cells!","Pattern hunter, activate!"],
+  french:  ["Bonjour! 🇫🇷","On y va!","Let's speak French!","Ooh la la!"],
+  science: ["Lab coat on! 🔬","Let's discover stuff!","Science is wild.","Hypothesis time."],
+  social:  ["History time! 🌍","Let's explore Canada.","Know your country!","Citizen mode: ON."],
+};
+function pickNovaLessonOpener(subId){
+  const pool = NOVA_LESSON_OPENERS[subId] || ["Let's learn! 🚀","You've got this!"];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 /* ==========================================================================
    DAILY MISSION — 2 activities per day, refreshes at midnight
    --------------------------------------------------------------------------
@@ -5244,6 +5288,15 @@ function renderLesson(card,q){
   card.innerHTML='';card.classList.add('lesson-card');
   const L=q.lesson||{};
   card.appendChild(h('div',{class:'lesson-badge'},'🎓 QUICK LESSON'));
+  // Nova cameo on every lesson intro — subject-aware opener.
+  try {
+    const subId = quiz && quiz.subject;
+    const tone = NOVA_SUBJECT_TONE[subId] || 'magic';
+    const msg  = pickNovaLessonOpener(subId);
+    card.appendChild(h('div',{class:'lesson-mascot'},[
+      createMascot({ tone, size:72, message: msg }),
+    ]));
+  } catch(e){ console.warn('[KidQuest] lesson Nova failed:', e); }
   // Hero image — ONLY shown when lesson.heroImage is explicitly set.
   // We don't auto-apply generic subject images: a generic "any math photo"
   // doesn't actually match the specific lesson content, which was confusing.
@@ -5590,6 +5643,17 @@ function finishActivity(){
               : 'Nice effort!';
   $('#rwEmoji').textContent=emoji;$('#rwTitle').textContent=title;$('#rwMsg').textContent=msg;
   $('#rwStars').textContent='+'+stars;$('#rwCoins').textContent='+'+coins;$('#rwScore').textContent=correct+'/'+scorable;
+  // Nova cameo — tone + pep line depend on the result tier.
+  try {
+    const rwMascot = $('#rwMascot');
+    if(rwMascot){
+      rwMascot.innerHTML = '';
+      const tier = !passed ? 'fail' : pct===1 ? 'perfect' : pct>=.7 ? 'great' : 'pass';
+      const tone = tier==='perfect' ? 'victory' : tier==='great' ? 'warm' : tier==='pass' ? 'cheerful' : 'magic';
+      const pep  = pickRewardPepTalk(tier);
+      rwMascot.appendChild(createMascot({ tone, size:72, message:pep }));
+    }
+  } catch(e){ console.warn('[KidQuest] reward Nova failed:', e); }
   // At the end of every quiz — pass or fail — the PRIMARY button takes
   // the student back to this subject's list of levels. The SECONDARY
   // button offers a quick retry of the same activity. Pass label:
