@@ -4178,8 +4178,64 @@ isaiah: {
     ]),
   ];
   put('akshayan', g3Spelling);
-  // Axel gets the same Grade 3 spelling content, but re-IDed.
-  put('axel', g3Spelling.map(a => ({...a, id: a.id.replace('w1-akshayan-', 'w1-axel-')})));
+  // Axel is nominally Grade 3 but still building core spelling confidence —
+  // number words (like "three"), CVC patterns, silent E. His spelling
+  // curriculum ramps SK → G1 → G2 → early G3 across 5 levels so he lands
+  // at grade level by the end of the batch instead of hitting prefixes
+  // cold on Level 1. Every other subject still runs Akshayan's Grade 3
+  // content (cloned in addAxelCurriculum).
+  put('axel', [
+    SP('w1-axel-sp1','Letter Sounds','🔤',
+      'Every word is built from letter sounds. Say the word slowly — listen for the sounds you hear.',
+      '"Dog" = D-O-G. Three sounds, three letters.',
+      'Stretch the word out. "Sssss-uuuuu-nnnn" = S-U-N.',[
+      ['🐶 "Dog" starts with...',['B','D','G','T'],1],
+      ['🐱 "Cat" starts with...',['K','C','T','S'],1],
+      ['☀️ "Sun" ends with...',['S','U','N','M'],2],
+      ['🐟 "Fish" starts with...',['F','H','P','V'],0],
+      ['🚌 "Bus" ends with...',['B','U','S','T'],2],
+    ]),
+    SP('w1-axel-sp2','Number Words 1-10','🔢',
+      'Numbers have word spellings too! Some look tricky — "three" has a silent H-sound you have to remember, and "eight" hides a silent GH.',
+      '3 = "three" (T-H-R-E-E). 8 = "eight" (E-I-G-H-T).',
+      'Practice writing them. "Three" and "eight" are the trickiest — the rest follow their sounds.',[
+      ['How do you spell 3?',['tree','three','thre','threee'],1],
+      ['How do you spell 2?',['too','to','two','tow'],2],
+      ['How do you spell 4?',['four','for','fore','fower'],0],
+      ['How do you spell 8?',['ate','eigth','eight','eyt'],2],
+      ['How do you spell 10?',['ten','tenn','tene','tin'],0],
+    ]),
+    SP('w1-axel-sp3','Short Vowel Words','🧱',
+      'Short vowels are the quick middle sounds: a (cat), e (bed), i (pig), o (hot), u (sun). Most 3-letter words use one.',
+      '"cat" → short A. "bed" → short E. "pig" → short I.',
+      'The middle letter tells you the vowel sound.',[
+      ['Spell "cat":',['kat','cat','caat','cet'],1],
+      ['Spell "bed":',['bad','bid','bed','bedd'],2],
+      ['Spell "pig":',['pag','peg','pig','piig'],2],
+      ['Spell "hot":',['hat','hot','hut','hoot'],1],
+      ['Spell "run":',['ran','ren','run','roon'],2],
+    ]),
+    SP('w1-axel-sp4','Magic Silent E','🎩',
+      'Add a silent E to the end and the middle vowel says its NAME. "cap" (short A) → "cape" (long A).',
+      '"pin" → "pine". "hop" → "hope". "tub" → "tube". Silent E is magic!',
+      'The E is silent — you don\'t say it, but it changes the vowel sound.',[
+      ['"cap" + silent e = ?',['cape','capp','capy','caps'],0],
+      ['"pin" + silent e = ?',['pins','pine','piny','pint'],1],
+      ['"hop" + silent e = ?',['hope','hops','hoop','hopy'],0],
+      ['"tub" + silent e = ?',['tubs','tube','tuby','tubb'],1],
+      ['"kit" + silent e = ?',['kits','kitt','kite','kity'],2],
+    ]),
+    SP('w1-axel-sp5','Everyday Sight Words','💡',
+      'Some words show up all the time but don\'t follow normal rules. You memorize them: "said", "was", "have", "friend", "because".',
+      '"said" is NOT spelled "sed". "friend" has a sneaky I.',
+      'Read each word 3 times. Then try to spell it without looking.',[
+      ['How do you spell the past tense of "say"?',['sed','said','sayd','saide'],1],
+      ['How do you spell "was"?',['wuz','waz','was','wos'],2],
+      ['How do you spell "have"?',['hav','have','hafe','haf'],1],
+      ['How do you spell "friend"?',['frend','freind','friend','frind'],2],
+      ['How do you spell "because"?',['becuz','becase','because','becos'],2],
+    ]),
+  ]);
 
   /* --- Isaiah (Grade 5 stretch) --- */
   put('isaiah', [
