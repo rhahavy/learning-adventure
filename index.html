@@ -4054,6 +4054,12 @@ const APP_VERSION = 4;
 const STORAGE_KEY = 'kidquest-v4';
 const LOCAL_USER_KEY = 'kidquest-current-user';
 const VERSION_KEY = 'kidquest-version';
+// videoOverrides get their OWN dedicated local key so teacher edits survive
+// even if (a) a stale tab pushes allData to cloud without the field, or
+// (b) the teacher was demo-logged-in when saveState() short-circuited
+// localStorage. The key on THIS device is authoritative; allData.videoOverrides
+// is kept in sync as a best-effort mirror for cloud backup.
+const VIDEO_OVERRIDES_KEY = 'kidquest-video-overrides';
 const CLOUD_BUCKET = 'kidquest-dca83c70e20a70f247b6';
 const CLOUD_URL = 'https://textdb.dev/api/data/' + CLOUD_BUCKET;
 const POLL_MS = 25000;
@@ -4213,6 +4219,11 @@ let allData = (function(){
   }
 })();
 
+// Overlay the device-local videoOverrides key onto allData. This runs BEFORE
+// any render path reads videoOverrides, so a missing/outdated cloud field
+// can never wipe the teacher's saved video links on this device.
+try { rehydrateVideoOverrides(); } catch(e){ console.warn('[KidQuest] rehydrateVideoOverrides failed:', e); }
+
 let currentUser = null;
 try{
   const stored = localStorage.getItem(LOCAL_USER_KEY);
@@ -4288,6 +4299,9 @@ async function pullCloud(init){
     if(Array.isArray(d.orders))allData.orders=d.orders;
     if(d.catalogOverrides&&typeof d.catalogOverrides==='object')allData.catalogOverrides=d.catalogOverrides;
     if(d.videoOverrides &&typeof d.videoOverrides ==='object')allData.videoOverrides =d.videoOverrides;
+    // Local dedicated key ALWAYS wins over cloud for videoOverrides — this
+    // protects against stale-tab pushes that omitted the field.
+    try { rehydrateVideoOverrides(); } catch(e){}
     // Maintenance state — sync so kids on other devices see the gate flip
     if(d.maintenance&&typeof d.maintenance==='object'){
       allData.maintenance={
@@ -6097,6 +6111,33 @@ function extractYouTubeId(input){
   const m = s.match(/[A-Za-z0-9_-]{11}/);
   return m ? m[0] : null;
 }
+/* Per-device local backup of video overrides. This is the source of truth on
+   a given device — allData.videoOverrides is a mirror. If another client
+   (or a stale tab) ever pushes a cloud snapshot without videoOverrides, the
+   pullCloud path re-overlays from this key so local edits survive. */
+function loadLocalVideoOverrides(){
+  try{
+    const raw = localStorage.getItem(VIDEO_OVERRIDES_KEY);
+    if(!raw) return null;
+    const d = JSON.parse(raw);
+    return (d && typeof d === 'object' && !Array.isArray(d)) ? d : null;
+  }catch(e){ return null; }
+}
+function saveLocalVideoOverrides(map){
+  try{ localStorage.setItem(VIDEO_OVERRIDES_KEY, JSON.stringify(map || {})); }catch(e){}
+}
+/* Overlay the dedicated local key onto allData.videoOverrides. Called after
+   boot-load AND after each cloud pull so cloud-induced wipes get undone. */
+function rehydrateVideoOverrides(){
+  const local = loadLocalVideoOverrides();
+  if(local){
+    allData.videoOverrides = local;
+  } else if(allData && allData.videoOverrides && Object.keys(allData.videoOverrides).length){
+    // Migration: no dedicated key yet, but legacy allData has overrides —
+    // seed the dedicated key so future writes are protected.
+    saveLocalVideoOverrides(allData.videoOverrides);
+  }
+}
 function getActivityVideoIds(activityId, builtinIds){
   const map = (allData && allData.videoOverrides) || {};
   if(Object.prototype.hasOwnProperty.call(map, activityId)){
@@ -6170,6 +6211,7 @@ function openLessonVideoSettings(activityId, builtinIds){
       if(!id){ msg.textContent = 'Could not find a YouTube ID in that input.'; msg.className = 'lvs-msg no'; return; }
       if(!allData.videoOverrides) allData.videoOverrides = {};
       allData.videoOverrides[activityId] = [id];
+      saveLocalVideoOverrides(allData.videoOverrides);   // authoritative per-device copy
       msg.textContent = 'Saved. Reloading lesson…';
       msg.className = 'lvs-msg ok';
       setTimeout(refreshLesson, 400);
@@ -6177,12 +6219,14 @@ function openLessonVideoSettings(activityId, builtinIds){
     btns.appendChild(h('button',{class:'btn', onclick:()=>{
       if(!allData.videoOverrides) allData.videoOverrides = {};
       allData.videoOverrides[activityId] = [];   // empty array = hide
+      saveLocalVideoOverrides(allData.videoOverrides);
       msg.textContent = 'Video hidden for this lesson.';
       msg.className = 'lvs-msg ok';
       setTimeout(refreshLesson, 400);
     }}, '🙈 Hide video'));
     btns.appendChild(h('button',{class:'btn', onclick:()=>{
       if(allData.videoOverrides){ delete allData.videoOverrides[activityId]; }
+      saveLocalVideoOverrides(allData.videoOverrides || {});
       msg.textContent = 'Reset to default.';
       msg.className = 'lvs-msg ok';
       setTimeout(refreshLesson, 400);
@@ -8048,6 +8092,9 @@ function renderTeacher(root){
         allData.orders = Array.isArray(d.orders) ? d.orders : [];
         allData.catalogOverrides = (d.catalogOverrides && typeof d.catalogOverrides==='object') ? d.catalogOverrides : {};
         allData.videoOverrides   = (d.videoOverrides   && typeof d.videoOverrides  ==='object') ? d.videoOverrides   : {};
+        // Mirror restored overrides into the dedicated local key so they
+        // survive future cloud pulls that lack the field.
+        try { saveLocalVideoOverrides(allData.videoOverrides); } catch(e){}
         allData.teacher = (d.teacher && typeof d.teacher==='object') ? d.teacher : allData.teacher;
         allData.updatedAt = Date.now();
         saveState();
