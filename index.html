@@ -1400,6 +1400,66 @@ img{max-width:100%}
 .fab:hover{transform:scale(1.1) rotate(-8deg)}
 .fab.hidden{display:none}
 @keyframes fabPulse{0%,100%{box-shadow:var(--shadow-lg),0 0 0 0 rgba(108,92,231,.4)}50%{box-shadow:var(--shadow-lg),0 0 0 14px rgba(108,92,231,0)}}
+/* === CHAT BUBBLE + PANEL ===
+   Chat FAB sits above the home FAB (bottom:100px) so both live in the
+   bottom-right corner without overlapping. When the home FAB is hidden
+   (dashboard, home screen, teacher view) the chat FAB sits alone at a
+   shifted position via body state, but for simplicity we just keep it at
+   a fixed bottom:100px so the corner stays consistent visually. */
+.chat-fab{position:fixed;bottom:100px;right:20px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#0984e3,#00b894);color:#fff;display:grid;place-items:center;box-shadow:var(--shadow-lg),0 0 0 0 rgba(9,132,227,.45);border:3px solid #fff;z-index:55;cursor:pointer;transition:all .3s var(--spring);animation:chatFabPulse 3.2s ease-in-out infinite}
+.chat-fab:hover{transform:scale(1.08) rotate(-4deg)}
+.chat-fab.hidden{display:none}
+.chat-fab-badge{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#ff3b30;color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(255,59,48,.4)}
+@keyframes chatFabPulse{0%,100%{box-shadow:var(--shadow-lg),0 0 0 0 rgba(9,132,227,.45)}50%{box-shadow:var(--shadow-lg),0 0 0 12px rgba(9,132,227,0)}}
+.chat-panel{position:fixed;bottom:20px;right:20px;width:360px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 40px);background:#fff;border-radius:20px;box-shadow:var(--shadow-lg);z-index:60;display:none;flex-direction:column;overflow:hidden;border:2px solid rgba(0,0,0,.08)}
+.chat-panel.open{display:flex;animation:cpSlideUp .25s var(--spring)}
+@keyframes cpSlideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.chat-panel-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:linear-gradient(135deg,#0984e3,#00b894);color:#fff;flex-shrink:0}
+.chat-panel-head .cp-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
+.chat-panel-head .cp-avatar{font-size:26px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.15))}
+.chat-panel-head .cp-close{background:rgba(255,255,255,.22);border:0;color:#fff;width:30px;height:30px;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s}
+.chat-panel-head .cp-close:hover{background:rgba(255,255,255,.38)}
+.cp-messages{flex:1;overflow-y:auto;padding:14px;background:#fafafa;display:flex;flex-direction:column;gap:8px}
+.cp-empty{color:var(--ink3);font-size:13px;font-style:italic;text-align:center;padding:32px 16px;line-height:1.5}
+.cp-msg{max-width:78%;padding:8px 12px;border-radius:14px;font-size:14px;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;animation:cpMsgIn .2s ease}
+.cp-msg.from-student{align-self:flex-end;background:linear-gradient(135deg,#0984e3,#00b894);color:#fff;border-bottom-right-radius:4px}
+.cp-msg.from-teacher{align-self:flex-start;background:#fff;color:var(--ink);border:1px solid rgba(0,0,0,.08);border-bottom-left-radius:4px}
+.cp-msg-ts{font-size:10px;opacity:.7;margin-top:3px;font-weight:600}
+@keyframes cpMsgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.cp-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(0,0,0,.08);background:#fff;flex-shrink:0}
+.cp-input-row input{flex:1;padding:10px 14px;border-radius:999px;border:1.5px solid rgba(0,0,0,.12);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+.cp-input-row input:focus{border-color:#0984e3}
+.cp-send{padding:10px 14px;border-radius:999px;background:linear-gradient(135deg,#0984e3,#00b894);color:#fff;border:0;font-weight:700;cursor:pointer;display:grid;place-items:center;min-width:44px;transition:opacity .2s}
+.cp-send:hover{opacity:.88}
+.cp-send:disabled{opacity:.5;cursor:not-allowed}
+/* === TEACHER MESSAGES PANEL (inside teacher dashboard) === */
+.t-messages{margin-top:32px}
+.t-msg-help{font-size:13px;color:var(--ink3);margin:-4px 0 12px;font-weight:500}
+.t-msg-list{display:flex;flex-direction:column;gap:8px}
+.t-msg-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-radius:14px;cursor:pointer;transition:all .2s;border:2px solid rgba(0,0,0,.06);position:relative}
+.t-msg-row:hover{border-color:#0984e3;transform:translateX(2px);box-shadow:0 4px 12px rgba(9,132,227,.12)}
+.t-msg-row.has-unread{background:linear-gradient(135deg,#fff5e6,#ffecd0);border-color:rgba(230,170,40,.35)}
+.t-msg-avatar{font-size:32px;line-height:1;flex-shrink:0;width:44px;height:44px;display:grid;place-items:center;background:rgba(0,0,0,.04);border-radius:12px}
+.t-msg-meta{flex:1;min-width:0}
+.t-msg-name-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.t-msg-name{font-weight:800;font-size:15px;color:var(--ink)}
+.t-msg-date{font-size:11px;color:var(--ink3);font-weight:600;white-space:nowrap}
+.t-msg-preview{font-size:13px;color:var(--ink2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-msg-preview.no-msgs{color:var(--ink3);font-style:italic}
+.t-msg-badge{min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:#ff3b30;color:#fff;font-weight:800;font-size:12px;display:grid;place-items:center;flex-shrink:0;box-shadow:0 2px 6px rgba(255,59,48,.35)}
+/* Teacher thread modal (full conversation + reply) */
+.t-thread-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.t-thread-card{background:#fff;border-radius:20px;width:100%;max-width:500px;height:min(640px,90vh);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg)}
+.t-thread-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:linear-gradient(135deg,#0984e3,#00b894);color:#fff;flex-shrink:0}
+.t-thread-title{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700}
+.t-thread-avatar{font-size:28px;line-height:1;width:40px;height:40px;display:grid;place-items:center;background:rgba(255,255,255,.18);border-radius:10px}
+.t-thread-close{background:rgba(255,255,255,.22);border:0;color:#fff;width:32px;height:32px;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer}
+.t-thread-close:hover{background:rgba(255,255,255,.38)}
+.t-thread-msgs{flex:1;overflow-y:auto;padding:16px;background:#fafafa;display:flex;flex-direction:column;gap:8px}
+.t-thread-form{display:flex;gap:8px;padding:12px 14px;border-top:1px solid rgba(0,0,0,.08);background:#fff;flex-shrink:0}
+.t-thread-form input{flex:1;padding:10px 14px;border-radius:999px;border:1.5px solid rgba(0,0,0,.12);font-size:14px;font-family:inherit;outline:none}
+.t-thread-form input:focus{border-color:#0984e3}
 
 /* Confetti */
 .confetti{position:fixed;top:-20px;width:10px;height:14px;z-index:200;border-radius:2px;pointer-events:none;animation:fall linear forwards}
@@ -1500,6 +1560,32 @@ img{max-width:100%}
   </footer>
 </div>
 <button id="fab" class="fab hidden" title="Home" aria-label="Go home"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-7v6h-4A1.5 1.5 0 0 1 3 20Z"/></svg></button>
+<!-- Chat FAB — always visible when logged in as a student. Tap to open a
+     chat panel with Rhahavy (the teacher). Positioned above the Home FAB
+     so both live in the bottom-right without colliding. Badge shows the
+     unread count of teacher-authored messages. -->
+<button id="chatFab" class="chat-fab hidden" title="Message your teacher" aria-label="Open chat with teacher">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  <span id="chatFabBadge" class="chat-fab-badge" style="display:none" aria-live="polite">0</span>
+</button>
+<!-- Chat panel — slide-up card in the bottom-right corner. Hidden until
+     the student taps the FAB. Shows thread with Rhahavy plus input row. -->
+<div id="chatPanel" class="chat-panel" aria-hidden="true" role="dialog" aria-label="Chat with teacher">
+  <div class="chat-panel-head">
+    <div class="cp-title">
+      <span class="cp-avatar" aria-hidden="true">👩🏽‍🏫</span>
+      <span>Chat with Rhahavy</span>
+    </div>
+    <button class="cp-close" id="chatPanelClose" aria-label="Close chat">✕</button>
+  </div>
+  <div id="chatPanelMessages" class="cp-messages"></div>
+  <form id="chatPanelForm" class="cp-input-row" autocomplete="off">
+    <input type="text" id="chatPanelInput" placeholder="Ask for help…" maxlength="500" autocomplete="off" />
+    <button type="submit" class="cp-send" aria-label="Send message">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </form>
+</div>
 <!-- Reward overlay is hidden by default. Only shown via JS after activity completion. -->
 <div class="reward-overlay" id="reward" style="display:none" aria-hidden="true">
   <div class="reward-card">
@@ -5882,6 +5968,11 @@ const defaultAll = () => ({
   //   ['id1', 'id2']      = override with these YouTube video IDs
   // Teacher edits these via the Video Library in their dashboard.
   videoOverrides: {},
+  // Chat threads — one per student, keyed by student id. Each thread is an
+  // array of messages: {from:'student'|'teacher', text, ts, read}.
+  // Synced via cloud so the teacher sees student messages within one poll
+  // (~25s) on their own device and vice-versa.
+  messages: Object.fromEntries(STUDENTS.map(s=>[s.id, []])),
   // Maintenance mode — teacher toggles from dashboard, synced via cloud.
   maintenance: { active: false, message: DEFAULT_MAINTENANCE_MESSAGE, updatedAt: 0 },
   updatedAt:0
@@ -5920,6 +6011,13 @@ let allData = (function(){
     d.orders = Array.isArray(p.orders) ? p.orders : [];
     d.catalogOverrides = (p.catalogOverrides && typeof p.catalogOverrides==='object') ? p.catalogOverrides : {};
     d.videoOverrides  = (p.videoOverrides  && typeof p.videoOverrides ==='object') ? p.videoOverrides  : {};
+    // Chat messages — per-student thread arrays. Tolerate missing/legacy
+    // stored shapes (pre-chat backups won't have the field).
+    if(p.messages && typeof p.messages === 'object'){
+      STUDENTS.forEach(s => {
+        d.messages[s.id] = Array.isArray(p.messages[s.id]) ? p.messages[s.id] : [];
+      });
+    }
     if(p.maintenance && typeof p.maintenance==='object'){
       d.maintenance = {
         active: !!p.maintenance.active,
@@ -6019,6 +6117,33 @@ async function pullCloud(init){
     if(Array.isArray(d.orders))allData.orders=d.orders;
     if(d.catalogOverrides&&typeof d.catalogOverrides==='object')allData.catalogOverrides=d.catalogOverrides;
     if(d.videoOverrides &&typeof d.videoOverrides ==='object')allData.videoOverrides =d.videoOverrides;
+    // Chat merge — union local + remote by (from|ts|text) signature so a
+    // message sent on THIS device doesn't get wiped by a remote pull that
+    // hasn't seen it yet (last-write-wins at the allData level would lose
+    // messages from either side during simultaneous activity). If either
+    // side has marked a message read, preserve that flag.
+    if(d.messages && typeof d.messages === 'object'){
+      if(!allData.messages || typeof allData.messages !== 'object') allData.messages = {};
+      const sig = m => (m.from||'?')+'|'+(m.ts||0)+'|'+(m.text||'');
+      STUDENTS.forEach(s=>{
+        const local  = Array.isArray(allData.messages[s.id]) ? allData.messages[s.id] : [];
+        const remote = Array.isArray(d.messages[s.id])       ? d.messages[s.id]       : [];
+        const byKey = new Map();
+        [...local, ...remote].forEach(m=>{
+          if(!m || typeof m.text !== 'string' || !m.text) return;
+          const k = sig(m);
+          const existing = byKey.get(k);
+          if(existing){ if(m.read) existing.read = true; }
+          else byKey.set(k, { from:m.from, text:m.text, ts:m.ts||0, read:!!m.read });
+        });
+        allData.messages[s.id] = Array.from(byKey.values()).sort((a,b)=>(a.ts||0)-(b.ts||0));
+      });
+      // Keep the chat UI fresh — if the student's chat panel is open, new
+      // teacher replies appear without a refresh; the FAB badge updates too.
+      try{ if(typeof updateChatFab==='function') updateChatFab(); }catch(e){}
+      try{ if(typeof chatPanelOpen!=='undefined' && chatPanelOpen && typeof renderChatPanel==='function') renderChatPanel(); }catch(e){}
+      try{ if(typeof tThreadOpenSid!=='undefined' && tThreadOpenSid && typeof renderTeacherThreadMessages==='function') renderTeacherThreadMessages(tThreadOpenSid); }catch(e){}
+    }
     // Local dedicated key ALWAYS wins over cloud for videoOverrides — this
     // protects against stale-tab pushes that omitted the field.
     try { rehydrateVideoOverrides(); } catch(e){}
@@ -6046,6 +6171,266 @@ async function syncToCloud(){
   if(cloudBusy){pendingWrite=true;return}cloudBusy=true;
   try{await fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(allData)})}catch(e){}
   cloudBusy=false;if(pendingWrite){pendingWrite=false;syncToCloud()}
+}
+
+/* ================ CHAT SYSTEM ================
+   Single thread per student → teacher (Rhahavy). Messages live in
+   allData.messages[studentId] as an array of:
+     {from:'student'|'teacher', text:string, ts:number, read:boolean}
+   The `read` flag means "the opposite party has seen this message" and is
+   used to drive unread badges on both ends. pullCloud() merges threads
+   by (from|ts|text) signature so simultaneous writes from both devices
+   don't lose messages.
+   ============================================== */
+function ensureMessagesStore(){
+  if(!allData.messages || typeof allData.messages !== 'object') allData.messages = {};
+  STUDENTS.forEach(s=>{ if(!Array.isArray(allData.messages[s.id])) allData.messages[s.id] = []; });
+}
+
+function getThread(sid){
+  ensureMessagesStore();
+  return allData.messages[sid] || [];
+}
+
+function pushMessage(sid, fromRole, text){
+  const clean = String(text||'').trim();
+  if(!clean || !sid) return null;
+  ensureMessagesStore();
+  if(!Array.isArray(allData.messages[sid])) allData.messages[sid] = [];
+  const msg = { from: fromRole, text: clean.slice(0, 500), ts: Date.now(), read: false };
+  allData.messages[sid].push(msg);
+  allData.updatedAt = Date.now();
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(allData)); }catch(e){}
+  syncToCloud();
+  return msg;
+}
+
+function markThreadRead(sid, viewerRole){
+  const thread = getThread(sid);
+  const otherSide = viewerRole === 'student' ? 'teacher' : 'student';
+  let changed = false;
+  thread.forEach(m=>{ if(m.from === otherSide && !m.read){ m.read = true; changed = true; } });
+  if(changed){
+    allData.updatedAt = Date.now();
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(allData)); }catch(e){}
+    syncToCloud();
+  }
+}
+
+function countUnread(sid, viewerRole){
+  const otherSide = viewerRole === 'student' ? 'teacher' : 'student';
+  return getThread(sid).filter(m => m.from === otherSide && !m.read).length;
+}
+
+function totalUnreadForTeacher(){
+  ensureMessagesStore();
+  return STUDENTS.reduce((sum, s)=> sum + countUnread(s.id, 'teacher'), 0);
+}
+
+function formatChatTimestamp(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const timeStr = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  if(sameDay) return timeStr;
+  return d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' · ' + timeStr;
+}
+
+/* ---------- STUDENT SIDE: FAB + PANEL ---------- */
+let chatPanelOpen = false;
+
+function updateChatFab(){
+  const fab = document.getElementById('chatFab');
+  if(!fab) return;
+  // Show when a real student is logged in (not teacher, not demo, not
+  // nobody). Chat is pointless without a user identity to attach messages to.
+  const show = !!currentUser && !isTeacher && !isDemoUser(currentUser);
+  fab.classList.toggle('hidden', !show);
+  if(!show){
+    const panel = document.getElementById('chatPanel');
+    if(panel) panel.classList.remove('open');
+    chatPanelOpen = false;
+    return;
+  }
+  const badge = document.getElementById('chatFabBadge');
+  if(badge){
+    const n = countUnread(currentUser, 'student');
+    badge.textContent = n > 9 ? '9+' : String(n);
+    badge.style.display = n > 0 ? '' : 'none';
+  }
+}
+
+function openChatPanel(){
+  if(!currentUser) return;
+  const panel = document.getElementById('chatPanel');
+  if(!panel) return;
+  panel.classList.add('open');
+  chatPanelOpen = true;
+  renderChatPanel();
+  markThreadRead(currentUser, 'student');
+  updateChatFab();
+  setTimeout(()=>{ const inp = document.getElementById('chatPanelInput'); if(inp) inp.focus(); }, 120);
+}
+
+function closeChatPanel(){
+  const panel = document.getElementById('chatPanel');
+  if(panel) panel.classList.remove('open');
+  chatPanelOpen = false;
+}
+
+function renderChatPanel(){
+  const msgEl = document.getElementById('chatPanelMessages');
+  if(!msgEl || !currentUser) return;
+  const thread = getThread(currentUser);
+  msgEl.innerHTML = '';
+  if(!thread.length){
+    msgEl.appendChild(h('div',{class:'cp-empty'},
+      'Say hi to Rhahavy! 👋\nAsk for help with any lesson — she\'ll see it and reply.'));
+    return;
+  }
+  thread.forEach(m=>{
+    msgEl.appendChild(h('div',{class:'cp-msg from-'+m.from},[
+      h('div',{}, m.text),
+      h('div',{class:'cp-msg-ts'}, formatChatTimestamp(m.ts)),
+    ]));
+  });
+  msgEl.scrollTop = msgEl.scrollHeight;
+}
+
+function initChatFab(){
+  const fab = document.getElementById('chatFab');
+  const closeBtn = document.getElementById('chatPanelClose');
+  const form = document.getElementById('chatPanelForm');
+  const input = document.getElementById('chatPanelInput');
+  if(fab) fab.addEventListener('click', ()=>{
+    if(chatPanelOpen) closeChatPanel();
+    else openChatPanel();
+  });
+  if(closeBtn) closeBtn.addEventListener('click', closeChatPanel);
+  if(form && input) form.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    if(!currentUser) return;
+    const val = (input.value||'').trim();
+    if(!val) return;
+    pushMessage(currentUser, 'student', val);
+    input.value = '';
+    renderChatPanel();
+  });
+}
+
+/* ---------- TEACHER SIDE: MESSAGES PANEL + THREAD MODAL ---------- */
+let tThreadOpenSid = null;
+
+function renderTeacherMessages(){
+  ensureMessagesStore();
+  const wrap = h('div',{class:'t-messages'});
+  const totalUnread = totalUnreadForTeacher();
+  wrap.appendChild(h('h2',{style:'margin-top:8px'}, [
+    h('span',{},'💬 Messages'),
+    ...(totalUnread > 0 ? [h('span',{class:'t-msg-badge', style:'margin-left:10px;vertical-align:middle'}, totalUnread > 9 ? '9+' : String(totalUnread))] : []),
+  ]));
+  wrap.appendChild(h('p',{class:'t-msg-help'},
+    'Students can message you from their chat button. Unread threads are highlighted — click any student to open the conversation and reply.'));
+  const listEl = h('div',{class:'t-msg-list'});
+  // Sort students so unread threads float to the top, then most-recent
+  // activity. Keeps the teacher's attention on what needs action first.
+  const rows = STUDENTS.map(s=>{
+    const thread = getThread(s.id);
+    const unread = countUnread(s.id, 'teacher');
+    const last = thread.length ? thread[thread.length-1] : null;
+    return { s, thread, unread, last };
+  }).sort((a,b)=>{
+    if(a.unread !== b.unread) return b.unread - a.unread;
+    return (b.last?.ts||0) - (a.last?.ts||0);
+  });
+  rows.forEach(({s, thread, unread, last})=>{
+    const preview = last
+      ? (last.from==='teacher'?'You: ':'') + (last.text.length > 60 ? last.text.slice(0,60)+'…' : last.text)
+      : 'No messages yet';
+    const previewClass = 't-msg-preview' + (last ? '' : ' no-msgs');
+    const row = h('div',{class:'t-msg-row'+(unread?' has-unread':''), onclick:()=>openTeacherThread(s.id)},[
+      h('div',{class:'t-msg-avatar'}, getStudentAvatarDisplay(s.id).value),
+      h('div',{class:'t-msg-meta'},[
+        h('div',{class:'t-msg-name-row'},[
+          h('span',{class:'t-msg-name'}, s.name),
+          h('span',{class:'t-msg-date'}, last ? formatChatTimestamp(last.ts) : ''),
+        ]),
+        h('div',{class:previewClass}, preview),
+      ]),
+      ...(unread ? [h('span',{class:'t-msg-badge'}, unread > 9 ? '9+' : String(unread))] : []),
+    ]);
+    listEl.appendChild(row);
+  });
+  wrap.appendChild(listEl);
+  return wrap;
+}
+
+function openTeacherThread(sid){
+  const student = STUDENTS.find(s=>s.id===sid);
+  if(!student) return;
+  // Kill any stale thread modal first
+  const existing = document.querySelector('.t-thread-modal');
+  if(existing) existing.remove();
+  tThreadOpenSid = sid;
+
+  const modal = h('div',{class:'t-thread-modal', role:'dialog', 'aria-modal':'true'});
+  const card = h('div',{class:'t-thread-card'});
+  const closeModal = ()=>{ modal.remove(); tThreadOpenSid = null; try { go('teacher'); } catch(e){} };
+  card.appendChild(h('div',{class:'t-thread-head'},[
+    h('div',{class:'t-thread-title'},[
+      h('span',{class:'t-thread-avatar'}, getStudentAvatarDisplay(sid).value),
+      h('span',{},'Chat with '+student.name),
+    ]),
+    h('button',{class:'t-thread-close', onclick:closeModal, 'aria-label':'Close'},'✕'),
+  ]));
+  card.appendChild(h('div',{class:'t-thread-msgs', id:'tThreadMsgs'}));
+  const input = h('input',{type:'text', placeholder:'Reply to '+student.name+'…', maxlength:500, autocomplete:'off'});
+  const form = h('form',{class:'t-thread-form', onsubmit:(e)=>{
+    e.preventDefault();
+    const val = (input.value||'').trim();
+    if(!val) return;
+    pushMessage(sid, 'teacher', val);
+    input.value = '';
+    renderTeacherThreadMessages(sid);
+  }}, [
+    input,
+    h('button',{type:'submit', class:'cp-send', 'aria-label':'Send'},[
+      h('span',{html:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>'}),
+    ]),
+  ]);
+  card.appendChild(form);
+  modal.appendChild(card);
+  // Click-outside-to-close
+  modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
+  document.body.appendChild(modal);
+
+  markThreadRead(sid, 'teacher');
+  renderTeacherThreadMessages(sid);
+  setTimeout(()=>input.focus(), 120);
+}
+
+function renderTeacherThreadMessages(sid){
+  const msgEl = document.getElementById('tThreadMsgs');
+  if(!msgEl) return;
+  const thread = getThread(sid);
+  msgEl.innerHTML = '';
+  if(!thread.length){
+    msgEl.appendChild(h('div',{class:'cp-empty'}, 'No messages yet. Send the first one to break the ice!'));
+    return;
+  }
+  thread.forEach(m=>{
+    // From the teacher's perspective: teacher messages right-align (their
+    // own voice), student messages left-align. We reuse the student-side
+    // bubble styling — from-student = right/accent, from-teacher = left/gray —
+    // but SWAP the semantic so the teacher's messages always appear on the right.
+    const alignClass = m.from === 'teacher' ? 'from-student' : 'from-teacher';
+    msgEl.appendChild(h('div',{class:'cp-msg '+alignClass},[
+      h('div',{}, m.text),
+      h('div',{class:'cp-msg-ts'}, formatChatTimestamp(m.ts)),
+    ]));
+  });
+  msgEl.scrollTop = msgEl.scrollHeight;
 }
 
 /* ========== UI HELPERS ========== */
@@ -7002,6 +7387,10 @@ function go(screen,opts={}){
   // FAB visibility
   const fab=$('#fab');
   if(fab) fab.classList.toggle('hidden', !currentUser||screen==='home'||screen==='dashboard'||isTeacher);
+  // Chat FAB — visible whenever a real student is logged in, any screen.
+  // Kids may need to ask for help mid-lesson, mid-activity, or from the
+  // dashboard, so we don't hide it like the Home FAB.
+  try { updateChatFab(); } catch(e){ console.warn('[KidQuest] updateChatFab failed:', e); }
 
   // Defensive routing: if current user but no state, force to home
   if(currentUser && !state && screen!=='home' && screen!=='profiles'){
@@ -10776,6 +11165,12 @@ function renderTeacher(root){
     grid.appendChild(card);
   });
   dash.appendChild(grid);
+  // Messages panel — placed near the TOP of the dashboard (right after the
+  // overview grid) so teacher sees unread student questions immediately,
+  // ahead of report cards / store / maintenance. Unread badges at the
+  // section heading make "someone needs help" glanceable.
+  try { dash.appendChild(renderTeacherMessages()); }
+  catch(e){ console.warn('[KidQuest] teacher messages panel failed:',e); }
   // Per-student detailed Report Cards (teacher view)
   const rcHead=h('div',{style:'margin-top:32px;margin-bottom:-6px'},[
     h('h2',{style:'font-size:20px;font-weight:800'},'📊 Detailed Report Cards'),
@@ -10821,6 +11216,12 @@ function renderTeacher(root){
         allData.orders = Array.isArray(d.orders) ? d.orders : [];
         allData.catalogOverrides = (d.catalogOverrides && typeof d.catalogOverrides==='object') ? d.catalogOverrides : {};
         allData.videoOverrides   = (d.videoOverrides   && typeof d.videoOverrides  ==='object') ? d.videoOverrides   : {};
+        // Restore chat threads — tolerate legacy backups that predate chat
+        // by falling back to empty thread arrays for each known student.
+        if(d.messages && typeof d.messages==='object'){
+          allData.messages = {};
+          STUDENTS.forEach(s=>{ allData.messages[s.id] = Array.isArray(d.messages[s.id]) ? d.messages[s.id] : []; });
+        }
         // Mirror restored overrides into the dedicated local key so they
         // survive future cloud pulls that lack the field.
         try { saveLocalVideoOverrides(allData.videoOverrides); } catch(e){}
@@ -11828,6 +12229,11 @@ try {
     else go(currentUser?'dashboard':'home');
   });
 } catch(e) { console.warn('[KidQuest] Button wiring failed:',e); }
+
+// Initialize the always-available chat FAB + panel handlers. Separate try/
+// catch so a chat failure never blocks the core app from booting.
+try { initChatFab(); updateChatFab(); }
+catch(e) { console.warn('[KidQuest] chat init failed:', e); }
 
 // Maintenance gate: if allData.maintenance.active is true AND the teacher
 // hasn't unlocked (via password), show the holding screen instead of the app.
