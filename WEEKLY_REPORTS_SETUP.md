@@ -104,6 +104,41 @@ Resend rejects one parent's address, the rest of the batch still sends.
 
 ---
 
+## 3b. Test mode (send yourself a sample email)
+
+Useful before the `kidquest.fun` domain has finished verifying, or any time
+you want to confirm the Resend wiring end-to-end without waiting for a real
+student to have 7 days of history.
+
+1. **Actions** → **Weekly Parent Reports** → **Run workflow**
+2. Uncheck **Dry run**
+3. Fill in **Test recipient** with your own email address (the one you used
+   to sign up for Resend — e.g. `rhahavy.b@gmail.com`)
+4. **Run workflow**
+
+The script sends ONE sample email with demo data, using
+`KidQuest Test <onboarding@resend.dev>` as the From. This works before your
+domain is verified because `onboarding@resend.dev` is Resend's pre-verified
+sandbox address.
+
+Test mode **bypasses** the `parentEmail` requirement, the 7-day gate, and
+the `MIN_ACTIVITIES` check. It does **not** touch any real student's
+`lastReportSentAt`, so it can't interfere with the real weekly cadence.
+
+Once the domain is verified, leave the "Test recipient" box empty on future
+runs and the normal batch logic takes over.
+
+### Test-mode env overrides
+Inside the workflow, `TEST_RECIPIENT` and `TEST_FROM` control this mode. You
+can also run it locally:
+
+```bash
+RESEND_API_KEY=re_... TEST_RECIPIENT=you@example.com \
+  node scripts/send-weekly-reports.mjs
+```
+
+---
+
 ## 4. Let the cron take over
 
 Once the manual dry run looks right, you don't need to do anything else.

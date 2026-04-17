@@ -27,6 +27,14 @@
  *                      Default: true on manual dispatch, false on schedule.
  *   MIN_ACTIVITIES   — skip students who completed fewer than this in the
  *                      report period. Default: 0 (always send if due).
+ *   TEST_RECIPIENT   — if set, bypass all gates and send ONE sample email
+ *                      (with demo data) to this address. Useful for smoke-
+ *                      testing the Resend wiring before any student has
+ *                      real 7-day history. Skips cloud write-back.
+ *   TEST_FROM        — override From: specifically for test mode. If unset
+ *                      and TEST_RECIPIENT is set, falls back to
+ *                      "KidQuest Test <onboarding@resend.dev>" so the test
+ *                      works before you've verified your own domain.
  *
  * This script is self-contained: no npm install, no package.json, no
  * external dependencies beyond Node 20's built-in fetch + standard lib.
@@ -354,6 +362,9 @@ async function main(){
   const dashboardUrl = process.env.DASHBOARD_URL  || DEFAULT_DASHBOARD;
   const bucket       = process.env.CLOUD_BUCKET   || DEFAULT_BUCKET;
   const minActs      = parseInt(process.env.MIN_ACTIVITIES || '0', 10);
+  const testRecipient= (process.env.TEST_RECIPIENT || '').trim();
+  const testFrom     = (process.env.TEST_FROM || '').trim()
+                      || 'KidQuest Test <onboarding@resend.dev>';
 
   // Dry-run is forced when we lack an API key (can't actually send). Explicit
   // DRY_RUN=true also forces it. Otherwise default is false (cron sends).
@@ -363,6 +374,46 @@ async function main(){
     log('No RESEND_API_KEY in env — forcing dry-run.');
   } else if(dryRun){
     log('DRY_RUN=true — will log what would send but not actually send.');
+  }
+
+  // ----- TEST MODE --------------------------------------------------------
+  // Short-circuit: if TEST_RECIPIENT is set, build one demo email with fake
+  // stats and send it to that address. Skip the cloud write-back entirely so
+  // this can't corrupt the production lastReportSentAt stamps.
+  if(testRecipient){
+    log(`TEST MODE — sending ONE sample email to ${testRecipient}`);
+    log(`  FROM: ${testFrom}  (override with TEST_FROM)`);
+    const fakeStudent = { id: 'test-student', name: 'Demo Student', grade: 'Demo Grade' };
+    const fakeStats = {
+      subjects: {
+        reading: { id:'reading', name:'Reading',  emoji:'📖', completed:3, perfect:2, attempts:14, correct:12, scorable:3, activities:[] },
+        math:    { id:'math',    name:'Math',     emoji:'🔢', completed:5, perfect:3, attempts:28, correct:24, scorable:5, activities:[] },
+        spelling:{ id:'spelling',name:'Spelling', emoji:'🔤', completed:2, perfect:2, attempts:10, correct:10, scorable:2, activities:[] },
+      },
+      totalCompleted: 10, totalPerfect: 7, totalAttempts: 52,
+      totalStars: 42, coins: 120, streak: 5,
+      wrongBySubj: { math: [{},{}], reading: [{}] },
+      wrongCount: 3,
+    };
+    const periodStart = Date.now() - REPORT_INTERVAL_MS;
+    const email = buildReportEmail(fakeStudent, fakeStats, periodStart, dashboardUrl);
+    if(dryRun){
+      log(`(dry-run) would send test email. Subject: ${email.subject}`);
+      log(`(dry-run) text preview:\n  ${email.text.split('\n').slice(0,10).join('\n  ')}\n  ...`);
+      return;
+    }
+    await sendViaResend({
+      apiKey,
+      from: testFrom,
+      to: testRecipient,
+      cc: ccEmail,
+      subject: `[TEST] ${email.subject}`,
+      html: email.html,
+      text: email.text,
+    });
+    log(`✓ Test email sent to ${testRecipient}`);
+    log('(test mode skips cloud write-back — no lastReportSentAt stamp)');
+    return;
   }
 
   log(`Fetching cloud state: ${cloudUrl(bucket)}`);

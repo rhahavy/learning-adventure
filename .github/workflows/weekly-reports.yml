@@ -26,6 +26,11 @@ on:
         description: 'Dry run (log what would send, do not actually email)'
         type: boolean
         default: true
+      test_recipient:
+        description: 'Test mode — send ONE sample email to this address and exit. Leave blank for normal batch run. Bypasses the 7-day gate.'
+        type: string
+        required: false
+        default: ''
 
 # We only read the repo — no need to write commits or anything else.
 permissions:
@@ -62,5 +67,9 @@ jobs:
           CC_EMAIL:       ${{ secrets.CC_EMAIL }}
           DASHBOARD_URL:  ${{ vars.DASHBOARD_URL }}
           CLOUD_BUCKET:   ${{ vars.CLOUD_BUCKET }}
+          # Test mode — if provided via manual dispatch, the script sends ONE
+          # sample email to this address (using onboarding@resend.dev as From
+          # by default, so it works before your domain is verified) and exits.
+          TEST_RECIPIENT: ${{ github.event_name == 'workflow_dispatch' && inputs.test_recipient || '' }}
           # MIN_ACTIVITIES: '1'   # uncomment to skip students with no weekly activity
         run: node scripts/send-weekly-reports.mjs
