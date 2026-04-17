@@ -1475,6 +1475,52 @@ img{max-width:100%}
   .dash-hero .av{width:72px;height:72px;font-size:38px;border-radius:22px}
   .fab{width:52px;height:52px;font-size:20px;bottom:14px;right:14px}
   .emoji-pad{grid-template-columns:repeat(3,1fr);max-width:260px}
+  /* Picture-card grid and chat-panel also benefit from tablet-range tweaks. */
+  .pic-grid{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+  .chat-panel{width:min(380px,calc(100vw - 24px));height:min(540px,calc(100vh - 32px))}
+}
+/* Small phones (≤480px) — tighter spacing for things that still felt
+   cramped below 480px. Fixes reported phone-view weirdness:
+     - 3-4 digit math-stack columns overflowed 320-375px screens
+     - chat panel felt like a full-screen takeover
+     - .dash-hero padding still big (30px → 20px@640px → 18px here)
+     - pic-grid 120px minmax left only 2 awkward columns on narrow phones
+     - .demo-banner-left had min-width:200px trapping wrap
+     - .math-steps had min-width:200px preventing stack-below-math layout */
+@media(max-width:480px){
+  .app{padding:10px 10px 110px}
+  .topbar{padding:8px 10px;border-radius:16px;gap:8px}
+  .brand{font-size:15px}
+  .pill{padding:5px 10px;font-size:12.5px;gap:5px}
+  .dash-hero{padding:18px;gap:14px;border-radius:18px}
+  .dash-hero .av{width:64px;height:64px;font-size:34px;border-radius:18px}
+  /* Math stack — shrink cells so 4-digit problems fit, let steps wrap below. */
+  .math-stack{padding:10px 12px}
+  .math-row{gap:2px}
+  .math-row .op{font-size:22px;margin-right:4px}
+  .math-row .cell{min-width:24px;width:24px;font-size:24px}
+  .math-row.heads .cell{font-size:9px}
+  .math-row.carry .cell{font-size:12px;height:16px;line-height:16px}
+  .math-row.borrow .cell{font-size:11px;height:16px;line-height:16px}
+  .math-stack-note{max-width:none}
+  .math-steps{min-width:0;flex-basis:100%;padding:12px 14px}
+  .math-step{font-size:12.5px}
+  /* Vocab/picture grid — denser, less wasted space on narrow phones. */
+  .pic-grid{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+  .pic-card{padding:12px 8px 10px}
+  .pic-card .pc-emoji{font-size:38px}
+  /* Demo banner children shouldn't block shrinking. */
+  .demo-banner-left{min-width:0}
+  .demo-banner{padding:10px 12px;gap:10px}
+  /* Chat panel — pin to viewport edges so it doesn't feel like a takeover. */
+  .chat-panel{width:calc(100vw - 20px);right:10px;bottom:10px;height:min(520px,calc(100vh - 20px));border-radius:16px}
+  .chat-fab{bottom:84px;right:14px;width:52px;height:52px}
+  .cp-input-row{padding:8px 10px;gap:6px}
+  .cp-input-row input{padding:9px 12px;font-size:13.5px}
+  .cp-msg{max-width:85%;font-size:13.5px}
+  /* PIN emoji pad — gives each button more tap area on narrow phones. */
+  .emoji-pad{max-width:300px;gap:8px}
+  .emoji-btn{font-size:32px;padding:14px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
