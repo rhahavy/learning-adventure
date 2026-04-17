@@ -7252,23 +7252,17 @@ function renderDashboard(root){
     ]));
   });
   root.appendChild(subjs);
-  // Brain Break — optional mini-games (Memory + Quick Math). Capped daily
-  // coin rewards; lives between lessons and store so it reads as a reward
-  // surface, not a distraction from the main quest.
+  // Brain Break — single entry button into the mini-games hub. Previously
+  // this row showed Memory Match + Quick Math + Hub side-by-side on the
+  // dashboard, which made the games feel more prominent than the lessons.
+  // Collapsed into one button so the dashboard stays focused on the main
+  // quest; kids can still reach all games by tapping through.
   try {
     ensureMiniGameStats();
     const today = new Date().toISOString().slice(0,10);
     const coinsToday = (state.miniGameStats && state.miniGameStats.date === today) ? (state.miniGameStats.coinsToday||0) : 0;
     const capTxt = coinsToday >= MINI_GAME_COIN_CAP ? 'Come back tomorrow for more coins!' : ('Earn up to '+(MINI_GAME_COIN_CAP-coinsToday)+' more coins today');
     root.appendChild(h('div',{class:'brain-break-row'},[
-      h('button',{class:'brain-break-btn memory',onclick:()=>go('game-memory')},[
-        h('span',{class:'bb-emoji'},'🃏'),
-        h('span',{class:'bb-text'},[h('span',{},'Memory Match'),h('span',{class:'bb-sub'},'Flip cards · find pairs')]),
-      ]),
-      h('button',{class:'brain-break-btn math',onclick:()=>go('game-math')},[
-        h('span',{class:'bb-emoji'},'⚡'),
-        h('span',{class:'bb-text'},[h('span',{},'Quick Math'),h('span',{class:'bb-sub'},'60-second speed round')]),
-      ]),
       h('button',{class:'brain-break-btn hub',onclick:()=>go('mini-hub')},[
         h('span',{class:'bb-emoji'},'🧩'),
         h('span',{class:'bb-text'},[h('span',{},'Brain Break'),h('span',{class:'bb-sub'}, capTxt)]),
