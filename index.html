@@ -4277,7 +4277,7 @@ function updateTopbar(screen){
     return;
   }
   if(!currentUser) return;
-  const items=[{id:'dashboard',label:'Home'},{id:'badges',label:'Badges'}];
+  const items=[{id:'dashboard',label:'Home'},{id:'store',label:'🛍️ Store'}];
   items.forEach(i=>{nav.appendChild(h('button',{class:'nav-btn'+(screen===i.id?' active':''),onclick:()=>go(i.id)},i.label))});
   nav.appendChild(h('button',{class:'nav-btn',onclick:logout},'Switch'));
   if(state){
@@ -4618,12 +4618,13 @@ function renderDashboard(root){
     ]),
   ]);
   root.appendChild(hero);
-  // Stats
+  // Stats — perfect activities replaces Badges (badges feature de-emphasized)
+  const perfectCount = Object.keys(state.perfectActivities||{}).length;
   const stats=h('div',{class:'dash-stats stagger'},[
     h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'⭐'),h('span',{},String(state.totalStars))]),h('div',{class:'lbl'},'Stars')]),
     h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'💰'),h('span',{},String(state.coins))]),h('div',{class:'lbl'},'Coins')]),
     h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'🔥'),h('span',{},String(state.streak))]),h('div',{class:'lbl'},'Day Streak')]),
-    h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'🏅'),h('span',{},String(Object.keys(state.badges).length))]),h('div',{class:'lbl'},'Badges')]),
+    h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'💯'),h('span',{},String(perfectCount))]),h('div',{class:'lbl'},'Perfect')]),
   ]);
   root.appendChild(stats);
   // Subjects
