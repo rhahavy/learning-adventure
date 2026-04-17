@@ -1101,9 +1101,11 @@ img{max-width:100%}
 .autoplay-chip .ap-stop:hover{background:rgba(255,255,255,.32)}
 
 /* ---- BRAIN BREAK — mini-game dashboard entry + hub + boards ---- */
-/* Dashboard tiles (Memory / Quick Math buttons on main screen) */
-.brain-break-row{margin-top:14px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-.brain-break-btn{padding:16px 18px;border-radius:18px;border:none;cursor:pointer;font-weight:800;font-size:15px;display:flex;align-items:center;gap:10px;transition:all .3s var(--spring);box-shadow:var(--shadow);color:#fff;text-align:left}
+/* Dashboard single-bar entry — one full-width button into the mini-games hub.
+   Using a plain block (not a grid) so the bar is unambiguously one row even
+   if the markup ever changes. */
+.brain-break-row{margin-top:14px;margin-bottom:4px}
+.brain-break-btn{width:100%;padding:16px 18px;border-radius:18px;border:none;cursor:pointer;font-weight:800;font-size:15px;display:flex;align-items:center;gap:10px;transition:all .3s var(--spring);box-shadow:var(--shadow);color:#fff;text-align:left;font-family:inherit}
 .brain-break-btn.memory{background:linear-gradient(135deg,#a29bfe,#6c5ce7)}
 .brain-break-btn.math{background:linear-gradient(135deg,#74b9ff,#0984e3)}
 .brain-break-btn.hub{background:linear-gradient(135deg,#fd79a8,#e84393)}
@@ -4815,14 +4817,18 @@ isaiah: {
       ['Themes are ___ across different stories',['unique','similar often','rare','nonexistent'],1]]),
   ]);
   push('akshayan','writing',[
-    P('w1-akshayan-w6','5-Paragraph Essay','📄','Structure: intro + 3 body paragraphs + conclusion.',[
-      ['A 5-paragraph essay has __ body paragraphs',['1','2','3','5'],2],
-      ['The FIRST paragraph is the...',['conclusion','introduction','body','example'],1],
-      ['The LAST paragraph is the...',['intro','body','conclusion','example'],2]]),
-    P('w1-akshayan-w7','Research Report','📊','A research report uses FACTS from trusted sources.',[
-      ['A good source for facts is a...',['random blog','encyclopedia','bathroom wall','rumor'],1],
-      ['When we quote, we use...',['quotation marks','periods','dashes','numbers'],0],
-      ['Listing your sources is called a...',['header','bibliography','title','cover'],1]]),
+    // G3-appropriate preview levels. Previously w6 was "5-Paragraph Essay" and
+    // w7 was "Research Report" — both closer to Grade 5-6 targets. Swapped for
+    // paragraph-structure basics (topic → details → closing) and sequencing
+    // words, which are standard G3 writing stretch skills.
+    P('w1-akshayan-w6','Strong Paragraphs','📝','A good paragraph has a TOPIC sentence, 2-3 details, and a CLOSING sentence.',[
+      ['The first sentence of a paragraph is called the...',['closing','topic sentence','title','footnote'],1],
+      ['A paragraph should have how many main ideas?',['one','three','five','as many as you want'],0],
+      ['The LAST sentence of a paragraph...',['adds a new idea','wraps it up','starts the next topic','is always a question'],1]]),
+    P('w1-akshayan-w7','Linking Words','🔗','Words like "First, Next, Then, Finally, Also, Because" help your writing flow between ideas.',[
+      ['Which word shows WHAT HAPPENS FIRST?',['Finally','First','Also','So'],1],
+      ['Which word adds another idea?',['However','Also','Because','Finally'],1],
+      ['Which word gives a REASON?',['Next','Because','Then','Finally'],1]]),
     P('w1-akshayan-w8','Dialogue','💬','Dialogue is what characters SAY. Use quotation marks.',[
       ['Dialogue goes inside...',['brackets','quotation marks','parentheses','periods'],1],
       ['"I love pizza," said Mia. — Who spoke?',['the writer','Mia','the reader','no one'],1],
@@ -5101,6 +5107,131 @@ isaiah: {
       ['Reliable news comes from...',['random social media','established sources','rumors','memes'],1],
       ['Critical thinking means...',['accepting anything','questioning & checking','ignoring news','being negative'],1],
       ['Multiple sources help us...',['get confused','find the truth','waste time','ignore news'],1]]),
+  ]);
+
+  /* ===== SPELLING previews (6-10) — one grade-appropriate set per student.
+     Previously only subjects reading/writing/math/logic/french/science/social
+     had levels 6-10 (flagged demoOnly), making Spelling look oddly short in
+     the parent demo. These five per student bring Spelling up to parity. ===== */
+
+  // Nishan (SK) — beginning blends → number/color/family words
+  push('nishan','spelling',[
+    P('w1-nishan-sp6','Blends','🔗','Two letters blend into ONE starting sound: bl, cl, fr, tr.',[
+      ['"Frog" starts with what blend?',['tr','fr','cl','bl'],1],
+      ['Which word starts with "bl"?',['block','clock','truck','frog'],0],
+      ['"Tree" starts with...',['dr','tr','br','cr'],1]]),
+    P('w1-nishan-sp7','Short Vowels','🔤','Short vowel sounds: a (cat), e (bed), i (sit), o (dog), u (sun).',[
+      ['Which vowel is in "cat"?',['a','e','i','o'],0],
+      ['Which vowel is in "sun"?',['a','e','o','u'],3],
+      ['"Bed" has the short ___ sound',['a','e','i','o'],1]]),
+    P('w1-nishan-sp8','Color Words','🎨','Color names are everywhere: red, blue, green, yellow.',[
+      ['How do you spell the color of the sky?',['blu','bleu','blue','blew'],2],
+      ['How do you spell the color of grass?',['grean','green','greene','grn'],1],
+      ['How do you spell a warm color like fire?',['rede','read','red','redd'],2]]),
+    P('w1-nishan-sp9','Number Words 1-5','🔢','Count: one, two, three, four, five.',[
+      ['How do you spell 3?',['tree','three','thre','thri'],1],
+      ['How do you spell 4?',['for','four','fore','fower'],1],
+      ['How do you spell 2?',['too','to','two','tu'],2]]),
+    P('w1-nishan-sp10','Family Words','👨‍👩‍👧','Words at home: mom, dad, sister, brother.',[
+      ['How do you spell the word for a female parent?',['mom','mum','mommy','mome'],0],
+      ['How do you spell DAD?',['daad','dadd','dad','dade'],2],
+      ['Which is spelled correctly?',['sistr','sister','sistur','sester'],1]]),
+  ]);
+
+  // Akaran (G1) — digraphs, long vowels, plurals, doubles, silent letters
+  push('akaran','spelling',[
+    P('w1-akaran-sp6','Digraphs (sh/ch/th)','🔠','Two letters, one sound: sh (ship), ch (chip), th (thin).',[
+      ['Which word uses SH?',['chop','ship','this','that'],1],
+      ['"Chicken" starts with what digraph?',['sh','ch','th','ph'],1],
+      ['Which word uses TH?',['thin','shin','chin','pin'],0]]),
+    P('w1-akaran-sp7','Long Vowels','🎵','Magic E makes vowels say their name: cake, bike, bone.',[
+      ['Add E to "cak" — you get...',['cake','cak','cakee','caik'],0],
+      ['Which word has a long I?',['bit','bite','bat','but'],1],
+      ['Which word has a long O?',['hop','hope','hot','hot'],1]]),
+    P('w1-akaran-sp8','Plurals with S','📚','Add S to make more than one: cat → cats.',[
+      ['One dog. Many ___?',['doges','dog','dogs','doggs'],2],
+      ['Plural of "book"?',['bookes','booke','books','bookies'],2],
+      ['Plural of "hat"?',['hat','hats','hatz','hates'],1]]),
+    P('w1-akaran-sp9','Double Letters','🪜','Some words have double letters: ball, bell, mitt.',[
+      ['Ball has two...',['a\'s','l\'s','b\'s','vowels'],1],
+      ['Which is spelled correctly?',['litle','litle','little','liddle'],2],
+      ['Which is spelled correctly?',['happy','hapy','haaappy','hapi'],0]]),
+    P('w1-akaran-sp10','Silent Letters','🤫','Some letters hide: knee, lamb, wrap (silent k, b, w).',[
+      ['"Knee" — which letter is silent?',['n','e','k','double'],2],
+      ['"Lamb" ends with B — silent or loud?',['loud','silent','both','neither'],1],
+      ['"Write" has a silent...',['r','i','t','w'],3]]),
+  ]);
+
+  // Rushan (G2) — suffixes, compounds, contractions, vowel teams, tricky
+  push('rushan','spelling',[
+    P('w1-rushan-sp6','Suffixes -ing / -ed','➕','Add -ing for now, -ed for past: jump → jumping, jumped.',[
+      ['"Jump" + ing = ?',['jumping','jumpping','jumpin','jumppin'],0],
+      ['Past of "walk"?',['walkt','walkd','walked','walk-ed'],2],
+      ['"Run" + ing = ?',['runing','running','runnin','ranning'],1]]),
+    P('w1-rushan-sp7','Compound Words','🧩','Two words combine into one: sun + light = sunlight.',[
+      ['Sun + shine = ?',['sun shine','sunshine','sunnshine','sun-shine'],1],
+      ['Back + pack = ?',['backpak','back pack','backpack','bakpak'],2],
+      ['Which is a compound word?',['apple','rainbow','happy','running'],1]]),
+    P('w1-rushan-sp8','Contractions','✂️','Two words shortened with an apostrophe: do not → don\'t.',[
+      ['Do not = ?',['dont','do\'nt','don\'t','donot'],2],
+      ['Can not = ?',['cant','cann\'t','can\'t','kant'],2],
+      ['I am = ?',['Im','I\'m','Iam','Im\''],1]]),
+    P('w1-rushan-sp9','Vowel Teams','👥','Two vowels team up for one sound: rain, boat, seed.',[
+      ['"Rain" uses which vowel team?',['ai','ou','ee','oa'],0],
+      ['"Boat" uses which vowel team?',['ai','oa','ee','ou'],1],
+      ['"Seed" uses which vowel team?',['ai','ou','ee','oa'],2]]),
+    P('w1-rushan-sp10','Tricky Spellings','🧠','Some words don\'t follow rules — memorize: friend, said.',[
+      ['"Friend" has a hidden...',['r','i','e','double consonant'],2],
+      ['Which is spelled correctly?',['sed','said','saide','seyd'],1],
+      ['Which is spelled correctly?',['becuz','becase','because','becase'],2]]),
+  ]);
+
+  // Akshayan (G3) — Latin roots, homophones, -le endings, tricky, syllables
+  push('akshayan','spelling',[
+    P('w1-akshayan-sp6','Number Roots','🔢','Prefixes tell you HOW MANY: bi- = 2, tri- = 3, uni- = 1.',[
+      ['A TRIangle has how many sides?',['1','2','3','4'],2],
+      ['A BIcycle has how many wheels?',['1','2','3','4'],1],
+      ['UNIcorn has how many horns?',['0','1','2','3'],1]]),
+    P('w1-akshayan-sp7','Homophones','🗣️','Sound the same, spelled differently: there / their / they\'re.',[
+      ['"___ going to the park." (they are)',['there','their','they\'re','thier'],2],
+      ['"The dog wags ___ tail."',['there','their','they\'re','thier'],1],
+      ['"Look over ___!" (that place)',['there','their','they\'re','thier'],0]]),
+    P('w1-akshayan-sp8','-le Endings','🔚','Words ending in -le: bubble, apple, simple.',[
+      ['Which is spelled correctly?',['apel','aple','apple','appel'],2],
+      ['Which is spelled correctly?',['simpel','simple','simpl','sympal'],1],
+      ['"Bub___" — complete it!',['el','al','le','il'],2]]),
+    P('w1-akshayan-sp9','Commonly Misspelled','⚠️','Words kids often get wrong: because, friend, enough.',[
+      ['Which is spelled correctly?',['becuase','because','becoz','becuz'],1],
+      ['Which is spelled correctly?',['enuf','enough','enouph','enuogh'],1],
+      ['Which is spelled correctly?',['freind','friend','frend','frind'],1]]),
+    P('w1-akshayan-sp10','Syllables','🎼','Clap the parts: but-ter-fly = 3 syllables.',[
+      ['How many syllables in "butterfly"?',['1','2','3','4'],2],
+      ['How many syllables in "cat"?',['1','2','3','4'],0],
+      ['How many syllables in "elephant"?',['1','2','3','4'],2]]),
+  ]);
+
+  // Isaiah (G5) — unusual plurals, origins, confusables, schwa, academic
+  push('isaiah','spelling',[
+    P('w1-isaiah-sp6','Unusual Plurals','🌀','Not all plurals add S: child → children, mouse → mice.',[
+      ['Plural of "child"?',['childs','children','childes','child'],1],
+      ['Plural of "mouse"?',['mouses','mices','mice','mouse'],2],
+      ['Plural of "foot"?',['foots','feet','fooots','feeet'],1]]),
+    P('w1-isaiah-sp7','Greek Roots','🏛️','Many English words come from Greek: photo (light), tele (far).',[
+      ['"Photo" means...',['sound','light','far','big'],1],
+      ['"Telephone" = far + ?',['light','sound','big','time'],1],
+      ['"Telescope" lets you see things that are...',['far','close','red','loud'],0]]),
+    P('w1-isaiah-sp8','Confusables','🔀','accept ≠ except, affect ≠ effect — learn the difference.',[
+      ['"I ___ your invitation." (agree to)',['except','acept','accept','exsept'],2],
+      ['"Everyone ___ him came."',['accept','except','acepte','exsept'],1],
+      ['"The rain will ___ the picnic."',['effect','affeckt','affect','effick'],2]]),
+    P('w1-isaiah-sp9','The Schwa','😶','Unstressed vowels often sound like "uh" (called a schwa): about, pencil.',[
+      ['The A in "about" sounds like...',['AY','AH / UH','EH','EE'],1],
+      ['Which word has a schwa?',['cat','camel','cake','cube'],1],
+      ['Schwa happens on ___ syllables',['stressed','unstressed','all','none'],1]]),
+    P('w1-isaiah-sp10','Academic Words','🎓','Words you need for school writing: evidence, analyze, summarize.',[
+      ['"Analyze" means to...',['ignore','break down & study','forget','copy'],1],
+      ['"Evidence" is another word for...',['proof','song','color','number'],0],
+      ['"Summarize" means to...',['make longer','give the main ideas briefly','repeat word-for-word','argue'],1]]),
   ]);
 })();
 
