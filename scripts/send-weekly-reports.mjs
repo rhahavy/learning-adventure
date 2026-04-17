@@ -80,6 +80,14 @@ const SUBJECT_BY_PREFIX = {
 
 const SUBJECT_ORDER = ['reading','writing','spelling','math','logic','french','science','social'];
 
+// Reverse of SUBJECT_BY_PREFIX — look up the emoji/name from a subject id,
+// which is what ends up stored in wrongAnswers[].subj. Lets the email render
+// "🔢 Math" instead of a bare "math" token.
+const SUBJECT_META_BY_ID = Object.fromEntries(
+  Object.values(SUBJECT_BY_PREFIX).map(m => [m.id, m])
+);
+const subjectMeta = (id)=> SUBJECT_META_BY_ID[id] || { id, name: id, emoji: '📚' };
+
 // ----- ID parsing -------------------------------------------------------
 
 /** Returns the SUBJECT_BY_PREFIX entry for an activity id, or null. */
@@ -209,6 +217,41 @@ function formatDate(ts){
   catch(e){ return new Date(ts).toISOString().slice(0,10); }
 }
 
+// Trim long strings to keep the email readable. Works in characters not
+// bytes — fine for English + French + emoji at this level.
+function truncate(s, max){
+  const str = String(s == null ? '' : s);
+  if(str.length <= max) return str;
+  return str.slice(0, max - 1).trimEnd() + '…';
+}
+
+// Max wrong-answer examples rendered per subject. More than this and the
+// email becomes a wall of text — the "+N more" suffix carries the rest.
+const MAX_WRONG_PER_SUBJECT = 3;
+
+/**
+ * Extract human-readable pieces from a single wrongAnswers[] entry.
+ * Returns { question, chose, correct, when } — any field can be blank
+ * if the log entry is missing that data (older sessions didn't record
+ * all fields).
+ */
+function formatWrongEntry(w){
+  const question = truncate(w.qText || '', 140);
+  const choices  = Array.isArray(w.choices) ? w.choices : [];
+  const choseIdx = (typeof w.choseIdx === 'number') ? w.choseIdx : -1;
+  const corrIdx  = (typeof w.correctIdx === 'number') ? w.correctIdx : -1;
+  const chose    = (choseIdx  >= 0 && choices[choseIdx] != null) ? truncate(String(choices[choseIdx]),  60) : '';
+  const correct  = (corrIdx   >= 0 && choices[corrIdx]  != null) ? truncate(String(choices[corrIdx]),   60) : '';
+  let when = '';
+  if(w.at){
+    const days = Math.floor((Date.now() - w.at) / (24*60*60*1000));
+    if(days <= 0)      when = 'today';
+    else if(days === 1) when = 'yesterday';
+    else                when = `${days}d ago`;
+  }
+  return { question, chose, correct, when, qType: w.qType || 'mcq', aid: w.aid || '' };
+}
+
 /**
  * Build subject + HTML + plaintext for a student's weekly report.
  * `periodStartTs` is when the reporting window began (joinedAt for the
@@ -245,10 +288,30 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
   }
   if(stats.wrongCount > 0){
     textLines.push(`Concepts to practice this week (${stats.wrongCount} wrong-answer${stats.wrongCount===1?'':'s'} logged):`);
-    for(const [sub, arr] of Object.entries(stats.wrongBySubj)){
-      textLines.push(`  - ${sub}: ${arr.length} to review`);
-    }
     textLines.push('');
+    // Walk subjects in the global subject order so the email reads
+    // consistently between sends. Unknown subjects fall to the end.
+    const sortedSubs = Object.keys(stats.wrongBySubj).sort((a,b)=>{
+      const ai = SUBJECT_ORDER.indexOf(a); const bi = SUBJECT_ORDER.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+    for(const sub of sortedSubs){
+      const arr  = stats.wrongBySubj[sub] || [];
+      const meta = subjectMeta(sub);
+      textLines.push(`  ${meta.emoji} ${meta.name} — ${arr.length} to review`);
+      const shown = arr.slice(0, MAX_WRONG_PER_SUBJECT).map(formatWrongEntry);
+      shown.forEach((e, i) => {
+        const bullet = `    ${i+1}. `;
+        if(e.question) textLines.push(`${bullet}Q: ${e.question}`);
+        else           textLines.push(`${bullet}(question text unavailable)`);
+        if(e.chose)    textLines.push(`       chose:   ${e.chose}`);
+        if(e.correct)  textLines.push(`       correct: ${e.correct}`);
+        if(e.when)     textLines.push(`       (${e.when})`);
+      });
+      const extra = arr.length - shown.length;
+      if(extra > 0) textLines.push(`    …and ${extra} more in ${meta.name.toLowerCase()}`);
+      textLines.push('');
+    }
   } else {
     textLines.push('No wrong-answer entries logged this week — either a clean run or a quiet week.');
     textLines.push('');
@@ -267,12 +330,60 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
       <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;color:#666">${s.attempts} attempts</td>
     </tr>`).join('');
 
-  const wrongHtml = stats.wrongCount > 0
-    ? `<p style="margin:18px 0 6px;font-weight:700;font-size:14px">Concepts to practice this week</p>
-       <ul style="padding-left:20px;margin:0;color:#333;font-size:13.5px;line-height:1.6">
-         ${Object.entries(stats.wrongBySubj).map(([sub,arr])=>`<li><b>${escapeHtml(sub)}</b>: ${arr.length} to review</li>`).join('')}
-       </ul>`
-    : `<p style="margin:18px 0;font-size:13.5px;color:#666;font-style:italic">No wrong-answer entries logged this week — either a clean run or a quiet one.</p>`;
+  // Wrong-answer section: per-subject cards, each listing up to
+  // MAX_WRONG_PER_SUBJECT actual questions the student got wrong, with
+  // their chosen answer and the correct one. Trimmed and escaped so a
+  // weird question string can't break the email layout.
+  let wrongHtml;
+  if(stats.wrongCount > 0){
+    const sortedSubs = Object.keys(stats.wrongBySubj).sort((a,b)=>{
+      const ai = SUBJECT_ORDER.indexOf(a); const bi = SUBJECT_ORDER.indexOf(b);
+      return (ai<0?99:ai) - (bi<0?99:bi);
+    });
+    const subSections = sortedSubs.map(sub => {
+      const arr  = stats.wrongBySubj[sub] || [];
+      const meta = subjectMeta(sub);
+      const shown = arr.slice(0, MAX_WRONG_PER_SUBJECT).map(formatWrongEntry);
+      const extra = arr.length - shown.length;
+      const itemsHtml = shown.map(e => {
+        // Each wrong answer renders as a small "card": question on top,
+        // then a two-row mini-table of chose / correct. Empty fields are
+        // omitted so older log entries without full data don't render as
+        // blank rows.
+        const chose   = e.chose   ? `<div style="display:flex;gap:8px;align-items:baseline;margin-top:4px">
+          <span style="flex-shrink:0;min-width:62px;font-size:11px;font-weight:700;color:#d63031;letter-spacing:.04em;text-transform:uppercase">Chose</span>
+          <span style="color:#333">${escapeHtml(e.chose)}</span>
+        </div>` : '';
+        const correct = e.correct ? `<div style="display:flex;gap:8px;align-items:baseline;margin-top:2px">
+          <span style="flex-shrink:0;min-width:62px;font-size:11px;font-weight:700;color:#00b894;letter-spacing:.04em;text-transform:uppercase">Correct</span>
+          <span style="color:#333;font-weight:600">${escapeHtml(e.correct)}</span>
+        </div>` : '';
+        const when = e.when ? `<div style="font-size:11px;color:#999;margin-top:4px">${escapeHtml(e.when)}</div>` : '';
+        return `
+          <div style="border-left:3px solid rgba(108,92,231,.3);padding:8px 0 8px 12px;margin-top:10px">
+            <div style="font-size:13px;color:#1a1035;font-weight:600;line-height:1.45">${escapeHtml(e.question) || '<span style="color:#999;font-style:italic">question text unavailable</span>'}</div>
+            ${chose}${correct}${when}
+          </div>`;
+      }).join('');
+      const extraHtml = extra > 0
+        ? `<div style="margin-top:10px;font-size:12px;color:#666;font-style:italic">…and ${extra} more in ${escapeHtml(meta.name.toLowerCase())}</div>`
+        : '';
+      return `
+        <div style="background:rgba(108,92,231,.04);border:1px solid rgba(108,92,231,.12);border-radius:12px;padding:12px 14px;margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div style="font-weight:800;font-size:14px">${meta.emoji} ${escapeHtml(meta.name)}</div>
+            <div style="font-size:11.5px;color:#6c5ce7;font-weight:700;background:rgba(108,92,231,.1);padding:3px 9px;border-radius:999px">${arr.length} to review</div>
+          </div>
+          ${itemsHtml}${extraHtml}
+        </div>`;
+    }).join('');
+    wrongHtml = `
+      <p style="margin:20px 0 10px;font-weight:700;font-size:14px">Concepts to practice this week</p>
+      <p style="margin:0 0 12px;font-size:12px;color:#666;line-height:1.5">Here are the exact questions ${escapeHtml(name)} missed. Revisiting them together is the single highest-leverage thing you can do between sessions.</p>
+      ${subSections}`;
+  } else {
+    wrongHtml = `<p style="margin:18px 0;font-size:13.5px;color:#666;font-style:italic">No wrong-answer entries logged this week — either a clean run or a quiet one.</p>`;
+  }
 
   const html = `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#f6f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1035">
@@ -384,6 +495,9 @@ async function main(){
     log(`TEST MODE — sending ONE sample email to ${testRecipient}`);
     log(`  FROM: ${testFrom}  (override with TEST_FROM)`);
     const fakeStudent = { id: 'test-student', name: 'Demo Student', grade: 'Demo Grade' };
+    // Realistic demo data — mirrors the shape of a real wrongAnswers[]
+    // entry so the new per-question render path gets exercised.
+    const _dayAgo = (d)=> Date.now() - d * DAY_MS;
     const fakeStats = {
       subjects: {
         reading: { id:'reading', name:'Reading',  emoji:'📖', completed:3, perfect:2, attempts:14, correct:12, scorable:3, activities:[] },
@@ -392,8 +506,25 @@ async function main(){
       },
       totalCompleted: 10, totalPerfect: 7, totalAttempts: 52,
       totalStars: 42, coins: 120, streak: 5,
-      wrongBySubj: { math: [{},{}], reading: [{}] },
-      wrongCount: 3,
+      wrongBySubj: {
+        math: [
+          { aid:'w1-isaiah-m1', subj:'math', qType:'mcq', qText:'56 + 27 = ?',
+            choices:['73','82','83','93'], choseIdx:1, correctIdx:2, at:_dayAgo(2) },
+          { aid:'w1-isaiah-m1', subj:'math', qType:'mcq', qText:'When you add 38 + 45, the ones are 8 + 5 = 13. What do you do?',
+            choices:['Write 13 in the ones','Write 3, carry 1 to the tens','Carry 3','Start over'],
+            choseIdx:0, correctIdx:1, at:_dayAgo(3) },
+          { aid:'w1-isaiah-m2', subj:'math', qType:'mcq', qText:'5 × 6 = ?',
+            choices:['11','25','30','35'], choseIdx:3, correctIdx:2, at:_dayAgo(5) },
+          { aid:'w1-isaiah-m2', subj:'math', qType:'mcq', qText:'10 × 7 = ?',
+            choices:['17','70','77','107'], choseIdx:2, correctIdx:1, at:_dayAgo(6) },
+        ],
+        reading: [
+          { aid:'w1-isaiah-r1', subj:'reading', qType:'mcq', qText:'What is the MAIN idea of the story?',
+            choices:['The dog ran fast','Friendship takes work','It rained a lot','The park was empty'],
+            choseIdx:0, correctIdx:1, at:_dayAgo(1) },
+        ],
+      },
+      wrongCount: 5,
     };
     const periodStart = Date.now() - REPORT_INTERVAL_MS;
     const email = buildReportEmail(fakeStudent, fakeStats, periodStart, dashboardUrl);
