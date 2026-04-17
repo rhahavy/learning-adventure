@@ -3309,15 +3309,17 @@ const CATEGORIES = [
 ];
 
 /* COIN COST TIERS (guideline only — each item sets its own coinCost)
-   Low-cost (~$3-6)   ≈ 1,000–1,500 coins
-   Mid-cost (~$7-10)  ≈ 2,000–2,500 coins
-   Higher-cost (~$11-15) ≈ 3,000 coins
-   Special rare       ≈ 3,500–4,000 coins + extra requirements
+   MINIMUM FLOOR: 2,000 coins — every item costs AT LEAST 2,000. Cheaper
+   prices are too easy to grind; rewards should feel earned.
+   Low-cost   (~$3-6)   = 2,000 coins (floor)
+   Mid-cost   (~$7-10)  ≈ 2,000–2,500 coins
+   Higher     (~$11-15) ≈ 2,800–3,500 coins
+   Special rare         ≈ 3,500–4,000 coins + extra challenge requirements
 */
 const STORE_ITEMS = [
   { id:'sticker-pack', name:'Mega Sticker Pack', category:'stickers', emoji:'🌟',
     description:'A huge pack of shiny, sparkly stickers to decorate notebooks, water bottles, or anything you want.',
-    approxPrice:4.99, coinCost:1000, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:4.99, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:1, minSubjects:1, challenge:'easy' } },
   { id:'mini-plush', name:'Mini Plush Keychain', category:'plush', emoji:'🧸',
     description:'A cute mini plushie that clips onto your backpack. Tiny, fluffy, adorable.',
@@ -3325,19 +3327,19 @@ const STORE_ITEMS = [
     requirements:{ minLevels:2, minSubjects:2, challenge:'easy' } },
   { id:'gel-pens', name:'Glitter Gel Pens (12 pack)', category:'art', emoji:'🖊️',
     description:'Twelve glittery gel pens in rainbow colors. Makes homework extra sparkly.',
-    approxPrice:7.49, coinCost:1800, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:7.49, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:2, challenge:'easy' } },
   { id:'pop-fidget', name:'Pop-It Fidget Toy', category:'fidget', emoji:'🌈',
     description:'Satisfying poppable silicone toy. Pop, flip, repeat. Great for focus.',
-    approxPrice:5.99, coinCost:1500, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:5.99, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:1, challenge:'easy' } },
   { id:'fun-bookmark', name:'3D Dinosaur Bookmarks', category:'reading', emoji:'🦖',
     description:'A set of 3D animal bookmarks that peek out of the top of your book.',
-    approxPrice:6.49, coinCost:1500, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:6.49, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:2, challenge:'easy' } },
   { id:'fancy-pencils', name:'Fancy Pencils (Pack of 10)', category:'school', emoji:'✏️',
     description:'Ten gorgeous patterned pencils with fun erasers. Perfect for school.',
-    approxPrice:6.99, coinCost:1500, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:6.99, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:1, challenge:'easy' } },
   { id:'mini-notebook', name:'Mini Sketch Notebook', category:'art', emoji:'📓',
     description:'A pocket-size sketch notebook for doodling, drawing, and story ideas.',
@@ -3349,7 +3351,7 @@ const STORE_ITEMS = [
     requirements:{ minLevels:3, minSubjects:3, challenge:'medium' } },
   { id:'squishy-ball', name:'Stretchy Squishy Ball', category:'fidget', emoji:'🟢',
     description:'A stretchy, squishy stress ball you can pull, squish, and bounce back.',
-    approxPrice:5.49, coinCost:1200, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:5.49, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:1, minSubjects:1, challenge:'easy' } },
   { id:'puzzle-book', name:'Puzzle & Activity Book', category:'reading', emoji:'🧩',
     description:'A book full of mazes, word searches, and brain puzzles to solve.',
@@ -3367,7 +3369,7 @@ const STORE_ITEMS = [
   // ===== ADDITIONAL ITEMS — broader variety + boy-appeal =====
   { id:'hot-wheels-3pack', name:'Hot Wheels Car (3-pack)', category:'build', emoji:'🏎️',
     description:'Three die-cast race cars — zoom them across the floor, the couch, anywhere!',
-    approxPrice:6.99, coinCost:1500, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:6.99, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:1, challenge:'easy' } },
   { id:'lego-classic', name:'Mini LEGO Classic Set', category:'build', emoji:'🧱',
     description:'A small LEGO set you can build into anything you imagine.',
@@ -3383,7 +3385,7 @@ const STORE_ITEMS = [
     requirements:{ minLevels:4, minSubjects:3, challenge:'medium' } },
   { id:'pokemon-pack', name:'Pokémon Booster Pack', category:'collect', emoji:'🃏',
     description:'A pack of Pokémon cards to collect, trade, and battle with friends.',
-    approxPrice:4.99, coinCost:1200, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:4.99, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:2, challenge:'easy' } },
   { id:'dino-figures', name:'Dinosaur Figure Set (6pc)', category:'collect', emoji:'🦖',
     description:'Six detailed dinosaur figures — T-Rex, Stegosaurus, Triceratops, and more.',
@@ -3391,7 +3393,7 @@ const STORE_ITEMS = [
     requirements:{ minLevels:3, minSubjects:2, challenge:'medium' } },
   { id:'minecraft-keychain', name:'Minecraft Keychain Figure', category:'collect', emoji:'⛏️',
     description:'A collectable Minecraft keychain (Creeper, Steve, or random surprise).',
-    approxPrice:7.99, coinCost:1800, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:7.99, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:3, minSubjects:2, challenge:'medium' } },
   { id:'superhero-figure', name:'Superhero Mini Figure', category:'collect', emoji:'🦸',
     description:'A mini superhero figure (Spider-Man, Batman, or Iron Man — surprise!).',
@@ -3399,15 +3401,15 @@ const STORE_ITEMS = [
     requirements:{ minLevels:3, minSubjects:2, challenge:'medium' } },
   { id:'mini-football', name:'Mini Foam Football', category:'fidget', emoji:'🏈',
     description:'A soft foam football perfect for desktop tossing or outdoor throws.',
-    approxPrice:5.49, coinCost:1300, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:5.49, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:1, challenge:'easy' } },
   { id:'fidget-spinner', name:'Galaxy Fidget Spinner', category:'fidget', emoji:'🌀',
     description:'A smooth-spinning fidget spinner with a galaxy design. Spins for ages!',
-    approxPrice:4.49, coinCost:1100, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:4.49, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:1, minSubjects:1, challenge:'easy' } },
   { id:'glow-stars', name:'Glow-in-the-Dark Stars', category:'art', emoji:'✨',
     description:'Stick these on your ceiling and watch stars glow at bedtime.',
-    approxPrice:5.99, coinCost:1400, image:null, amazonLink:'', isAvailable:true, special:false,
+    approxPrice:5.99, coinCost:2000, image:null, amazonLink:'', isAvailable:true, special:false,
     requirements:{ minLevels:2, minSubjects:2, challenge:'easy' } },
   { id:'graphic-novel', name:'Mini Graphic Novel', category:'reading', emoji:'📚',
     description:'A short adventure graphic novel (Dog Man, Captain Underpants, or similar).',
