@@ -219,9 +219,56 @@ img{max-width:100%}
 .profile-card h3{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:-.01em}
 .profile-card .grade{margin-top:4px;display:inline-block;padding:5px 14px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(108,92,231,.08);color:var(--primary)}
 .profile-card .stats{margin-top:14px;display:flex;gap:10px;justify-content:center;font-size:13px;color:var(--ink2);font-weight:700}
-.teacher-link{margin-top:28px;text-align:center}
+.teacher-link{margin-top:18px;text-align:center}
 .teacher-link a{color:var(--primary);font-weight:700;font-size:15px;text-decoration:none;padding:12px 22px;border-radius:999px;border:2px solid var(--primary);display:inline-block;transition:all .3s var(--spring);background:rgba(108,92,231,.04)}
 .teacher-link a:hover{background:var(--primary);color:#fff;transform:translateY(-2px);box-shadow:0 8px 20px rgba(108,92,231,.35)}
+
+/* ---- DEMO ENTRY POINTS — parent/prospect preview flow ---- */
+.demo-cta-wrap{margin-top:28px;display:flex;justify-content:center}
+.demo-cta{display:inline-flex;align-items:center;gap:14px;padding:14px 22px;border-radius:18px;border:2px dashed rgba(108,92,231,.45);background:linear-gradient(135deg,rgba(108,92,231,.06),rgba(253,121,168,.06));color:var(--ink);cursor:pointer;font-family:inherit;transition:all .3s var(--spring);box-shadow:0 4px 14px rgba(108,92,231,.08)}
+.demo-cta:hover{transform:translateY(-3px) scale(1.02);border-color:var(--primary);box-shadow:0 10px 24px rgba(108,92,231,.25);background:linear-gradient(135deg,rgba(108,92,231,.12),rgba(253,121,168,.1))}
+.demo-cta-ico{font-size:28px;line-height:1}
+.demo-cta-label{display:flex;flex-direction:column;align-items:flex-start;text-align:left}
+.demo-cta-title{font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--ink);letter-spacing:-.01em}
+.demo-cta-sub{font-size:12px;color:var(--ink2);font-weight:600;margin-top:2px}
+.demo-cta-arrow{font-size:22px;font-weight:900;color:var(--primary);margin-left:4px;transition:transform .3s var(--spring)}
+.demo-cta:hover .demo-cta-arrow{transform:translateX(4px)}
+
+/* Demo PIN gate — centered card with a big 4-digit input */
+.demo-gate{max-width:460px;margin:40px auto 0;padding:34px 28px;background:var(--card);border:1.5px solid rgba(255,255,255,.9);border-radius:var(--r-lg);box-shadow:var(--shadow);text-align:center}
+.demo-gate-ico{font-size:56px;margin-bottom:10px}
+.demo-gate-title{font-family:var(--font-display);font-size:26px;font-weight:800;letter-spacing:-.01em;margin-bottom:8px}
+.demo-gate-sub{font-size:14px;color:var(--ink2);font-weight:600;margin:0 auto 22px;max-width:340px;line-height:1.45}
+.demo-pin-input{width:180px;font-size:32px;font-weight:800;letter-spacing:.3em;text-align:center;padding:14px 16px;border-radius:16px;border:2.5px solid var(--line);background:#fff;color:var(--ink);font-family:var(--font-display);transition:border-color .25s ease,box-shadow .25s ease}
+.demo-pin-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 4px rgba(108,92,231,.15)}
+.demo-gate-btn{margin-top:18px;min-width:200px}
+.demo-msg{min-height:22px;margin-top:14px;font-weight:700;font-size:14px;color:var(--ink2)}
+.demo-msg.ok{color:#0b8c56}
+.demo-msg.no{color:#c0392b}
+.demo-gate-back{margin-top:20px;background:none;border:none;color:var(--ink2);font-weight:700;font-size:14px;cursor:pointer;padding:8px 14px;border-radius:999px;font-family:inherit;transition:all .25s ease}
+.demo-gate-back:hover{background:rgba(108,92,231,.08);color:var(--primary)}
+
+/* Demo grade picker — tiles styled like profile cards but with a subtle
+   "preview" vibe (softer shadow, dashed top stripe) so they read as
+   temporary, not like a real kid's tile. */
+.demo-grade-title{text-align:center;margin-top:28px;font-size:24px}
+.demo-grade-sub{text-align:center;font-size:14px;color:var(--ink2);font-weight:600;max-width:520px;margin:8px auto 24px;line-height:1.45}
+.demo-grade-grid{margin-top:8px}
+.demo-card{position:relative}
+.demo-card::before{background:var(--demo-stripe,linear-gradient(90deg,#a29bfe,#6c5ce7))!important}
+.demo-card .demo-avatar{width:88px;height:88px;border-radius:26px;display:grid;place-items:center;font-size:34px;color:#fff;font-weight:800;font-family:var(--font-display);border:3px solid #fff;box-shadow:0 10px 24px rgba(26,16,53,.18),inset 0 -4px 0 rgba(0,0,0,.18);transition:transform .4s var(--spring);letter-spacing:.02em}
+.demo-card:hover .demo-avatar{transform:scale(1.1) rotate(-6deg)}
+.demo-card .demo-card-sub{background:rgba(108,92,231,.1);color:var(--primary);font-weight:800;letter-spacing:.02em}
+
+/* Demo-mode banner on dashboard — sticky-ish persistent reminder with
+   a clear Exit Demo action so the parent never feels trapped. */
+.demo-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 18px;margin:18px 0 6px;border-radius:16px;background:linear-gradient(135deg,rgba(253,203,110,.2),rgba(253,121,168,.15));border:1.5px solid rgba(253,121,168,.35);color:var(--ink);flex-wrap:wrap}
+.demo-banner-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1;min-width:200px}
+.demo-banner-tag{background:#fd79a8;color:#fff;font-weight:900;letter-spacing:.1em;font-size:11px;padding:4px 10px;border-radius:999px;box-shadow:0 4px 12px rgba(253,121,168,.3)}
+.demo-banner-msg{font-size:13px;font-weight:700;color:var(--ink);line-height:1.4}
+.demo-banner-exit{background:rgba(26,16,53,.85);color:#fff;border:none;padding:8px 16px;border-radius:999px;font-weight:800;font-size:13px;cursor:pointer;transition:all .25s ease;font-family:inherit;white-space:nowrap}
+.demo-banner-exit:hover{background:var(--ink);transform:translateY(-1px);box-shadow:0 6px 14px rgba(26,16,53,.25)}
+@media(max-width:520px){.demo-banner{flex-direction:column;align-items:stretch}.demo-banner-exit{align-self:flex-end}}
 
 /* ---- PIN SCREEN ---- */
 .pin-screen{margin-top:28px;text-align:center}
@@ -467,18 +514,27 @@ img{max-width:100%}
 /* Lesson card */
 .lesson-card{background:linear-gradient(180deg,#faf9ff,#fff)!important;border:2px dashed rgba(253,203,110,.5)!important;text-align:left!important;padding:clamp(22px,3vw,32px)!important}
 .lesson-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,#ffeaa7,var(--sun));color:#5b3e00;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.06em}
-/* Nova cameo on the lesson card — small, top-right */
+/* Nova cameo on the lesson card — bigger/friendlier so kids actually read
+   the pep talk. Was tiny (13px/180px) which felt like a footnote next to
+   the 26px lesson title — now matches the hero-card Nova scale. */
 .lesson-mascot{margin-top:10px;display:flex;justify-content:flex-start}
-.lesson-mascot .speech-bubble{font-size:13px;padding:9px 13px;max-width:180px}
-@media(max-width:640px){.lesson-mascot{flex-wrap:wrap}}
+.lesson-mascot .speech-bubble{font-size:17px;padding:14px 18px;max-width:280px;line-height:1.35}
+@media(max-width:640px){.lesson-mascot{flex-wrap:wrap}.lesson-mascot .speech-bubble{max-width:none}}
 .lesson-title{font-size:clamp(20px,3vw,26px);font-weight:800;margin-top:12px}
 /* Big emoji visual at the top of every lesson. Tight vertical rhythm so
    the emoji sits close to the title below without awkward floating space. */
 .lesson-visual{font-size:clamp(56px,9vw,78px);text-align:center;line-height:1;margin:0 0 2px;padding:0;filter:drop-shadow(0 4px 10px rgba(26,16,53,.12));animation:popIn .5s var(--spring);letter-spacing:0;word-spacing:.1em}
 .lesson-intro{font-size:15px;color:var(--ink);line-height:1.5;margin:10px 0}
-.lesson-example{margin-top:14px;padding:14px 16px;background:#fff;border:1px solid rgba(116,185,255,.2);border-left:4px solid var(--sky);border-radius:var(--r);box-shadow:var(--shadow)}
-.lesson-example-label{font-size:11px;font-weight:800;color:var(--sky);letter-spacing:.06em;margin-bottom:6px}
-.lesson-example-text{font-size:16px;font-weight:700;line-height:1.4}
+.lesson-example{position:relative;margin:14px auto 0;max-width:760px;padding:14px 16px;background:#fff;border:1px solid rgba(116,185,255,.2);border-left:4px solid var(--sky);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.lesson-example-label{font-size:11px;font-weight:800;color:var(--sky);letter-spacing:.06em;margin-bottom:6px;position:relative;z-index:1}
+.lesson-example-text{font-size:16px;font-weight:700;line-height:1.4;position:relative;z-index:1}
+/* Decorative emoji woven into the example box — fills whitespace in the
+   top-right, subtle enough that text stays readable on top. Replaces the
+   old big "lesson-visual" header that sat above the whole card. */
+.lesson-example-deco{position:absolute;top:10px;right:16px;font-size:54px;line-height:1;opacity:.18;pointer-events:none;user-select:none;filter:drop-shadow(0 2px 6px rgba(26,16,53,.08));letter-spacing:0;word-spacing:.05em;z-index:0;max-width:45%;text-align:right;transform:rotate(-6deg);transform-origin:top right}
+@media (max-width:540px){
+  .lesson-example-deco{font-size:40px;top:8px;right:12px}
+}
 
 /* ---- PICTURE CARD GRID ----
    Used in lesson.pictures for vocab-style lessons (French words, science terms,
@@ -539,7 +595,7 @@ img{max-width:100%}
 .math-stack-answer .cell{color:var(--primary);animation:popIn .5s var(--spring)}
 
 /* Side-by-side step list — plain-language breakdown */
-.math-steps{flex:1;min-width:200px;max-width:340px;padding:14px 16px;background:rgba(108,92,231,.05);border:1.5px solid rgba(108,92,231,.12);border-radius:var(--r)}
+.math-steps{flex:1 1 240px;min-width:200px;padding:14px 16px;background:rgba(108,92,231,.05);border:1.5px solid rgba(108,92,231,.12);border-radius:var(--r)}
 .math-steps-title{font-size:11px;font-weight:800;color:var(--primary);letter-spacing:.06em;margin-bottom:8px;text-transform:uppercase}
 .math-step{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.45}
 .math-step + .math-step{border-top:1px dashed rgba(108,92,231,.18)}
@@ -554,7 +610,27 @@ img{max-width:100%}
 .lesson-videos{margin:0 0 4px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .lesson-video-wrap{position:relative;padding-top:56.25%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 8px 20px rgba(26,16,53,.18)}
 .lesson-video-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
-.lesson-videos-title{font-size:12px;font-weight:800;color:var(--primary);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 6px}
+.lesson-videos-title{font-size:12px;font-weight:800;color:var(--primary);letter-spacing:.06em;text-transform:uppercase;margin:14px 0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lesson-videos-title .lv-gear{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;color:var(--ink2);background:rgba(108,92,231,.08);border:1px solid rgba(108,92,231,.22);cursor:pointer;transition:all .2s var(--spring);text-transform:none;letter-spacing:0}
+.lesson-videos-title .lv-gear:hover{background:rgba(108,92,231,.16);color:var(--primary);transform:translateY(-1px)}
+.lesson-videos-empty{margin:10px 0 4px;padding:10px 14px;border-radius:12px;background:rgba(108,92,231,.04);border:1px dashed rgba(108,92,231,.22);font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lesson-videos-empty .lv-gear{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#6c5ce7,#a29bfe);border:none;cursor:pointer;transition:all .2s var(--spring)}
+.lesson-videos-empty .lv-gear:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(108,92,231,.35)}
+/* Lesson video settings modal */
+.lvs-card{max-width:460px;text-align:left}
+.lvs-card h2{font-family:var(--font-display);font-size:22px;font-weight:800;margin:0 0 4px;color:var(--ink);text-align:center}
+.lvs-card .lvs-sub{font-size:13px;color:var(--ink3);text-align:center;margin-bottom:16px}
+.lvs-card label{display:block;font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px}
+.lvs-card input[type=password],.lvs-card input[type=text]{width:100%;padding:12px 14px;border-radius:12px;border:2px solid var(--line);font-size:15px;font-family:inherit;background:#fff;transition:border-color .2s}
+.lvs-card input:focus{outline:none;border-color:var(--primary)}
+.lvs-card .lvs-current{background:rgba(108,92,231,.06);border:1px solid rgba(108,92,231,.18);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--ink2);word-break:break-all}
+.lvs-card .lvs-current .lvs-id{font-family:'SF Mono',ui-monospace,monospace;font-weight:700;color:var(--primary)}
+.lvs-card .lvs-msg{min-height:20px;font-size:13px;font-weight:600;margin-top:8px;text-align:center}
+.lvs-card .lvs-msg.ok{color:#00b894}
+.lvs-card .lvs-msg.no{color:var(--coral)}
+.lvs-card .lvs-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+.lvs-card .lvs-btns .btn{padding:10px 18px;font-size:14px}
+.lvs-hint{font-size:11px;color:var(--ink3);margin-top:4px;line-height:1.45}
 
 /* ---- MAINTENANCE SCREEN ----
    Shown when MAINTENANCE_MODE = true in the script section.
@@ -588,8 +664,41 @@ img{max-width:100%}
 .t-maint-textarea:focus{outline:none;border-color:var(--primary)}
 .t-maint-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .t-maint-foot{font-size:11px;color:var(--ink3);margin-top:10px;font-weight:600}
+/* Reset controls — password-gated per-student + per-subject resets */
+.t-reset-block .t-reset-row{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.t-reset-block .t-reset-row:first-of-type{border-top:none;padding-top:0;margin-top:0}
+.t-reset-row-title{font-weight:800;font-size:14px;color:var(--ink);margin-bottom:4px}
+.t-reset-row-sub{font-size:12px;color:var(--ink3);margin-bottom:10px;font-weight:600;line-height:1.4}
+.t-reset-row-ctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.t-reset-select{padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);font-size:14px;font-weight:600;background:#fff;color:var(--ink);min-width:170px;font-family:inherit}
+.t-reset-select:focus{outline:none;border-color:var(--primary)}
+.t-reset-btn{white-space:nowrap}
 .btn-danger{background:linear-gradient(180deg,#ff6b6b 0%,#c0392b 100%);color:#fff;border-color:#fff;box-shadow:0 8px 22px rgba(192,57,43,.35),inset 0 -4px 0 rgba(0,0,0,.2)}
 .btn-danger:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 14px 30px rgba(192,57,43,.5),inset 0 -4px 0 rgba(0,0,0,.2)}
+/* Parent progress-report block — per-student email + send controls */
+.t-parents .t-parent-row{display:flex;gap:12px;align-items:stretch;padding:14px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.t-parents .t-parent-row:first-of-type{border-top:none;padding-top:4px}
+.t-parents .t-parent-info{flex:0 0 150px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.t-parents .t-parent-name{font-weight:800;font-size:15px;color:var(--ink)}
+.t-parents .t-parent-grade{font-size:11px;color:var(--ink3);font-weight:600}
+.t-parents .t-parent-main{flex:1 1 260px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.t-parents .t-parent-email{padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);font-size:14px;font-weight:600;background:#fff;color:var(--ink);font-family:inherit;width:100%;box-sizing:border-box}
+.t-parents .t-parent-email:focus{outline:none;border-color:var(--primary)}
+.t-parents .t-parent-pronouns{padding:6px 10px;border-radius:10px;border:1.5px solid var(--line);font-size:12px;font-weight:700;background:#fff;color:var(--ink);font-family:inherit;cursor:pointer}
+.t-parents .t-parent-pronouns:focus{outline:none;border-color:var(--primary)}
+.t-parents .t-parent-pronoun-wrap{display:inline-flex;align-items:center;gap:6px}
+.t-parents .t-parent-pronoun-wrap .tpp-label{font-size:11px;color:var(--ink3);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.t-parents .t-parent-meta{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--ink3);font-weight:600;flex-wrap:wrap}
+.t-parents .t-parent-chip{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:800;font-size:11px;letter-spacing:.03em}
+.t-parents .t-parent-chip.ok{background:#d7f8e8;color:#0b8c56}
+.t-parents .t-parent-chip.due{background:#fff4d6;color:#b57100}
+.t-parents .t-parent-chip.overdue{background:#ffe5e5;color:#c0392b}
+.t-parents .t-parent-chip.never{background:rgba(108,92,231,.1);color:var(--primary)}
+.t-parents .t-parent-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch;flex:0 0 auto}
+.t-parents .t-parent-actions .btn{white-space:nowrap;padding:9px 14px;font-size:13px}
+.t-parents .t-parents-cc{font-size:12px;color:var(--ink3);font-weight:600;margin:10px 0 0;padding-top:10px;border-top:1px dashed var(--line)}
+.t-parents .t-parents-cc code{background:rgba(108,92,231,.08);padding:2px 6px;border-radius:6px;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;color:var(--primary)}
+@media(max-width:540px){.t-parents .t-parent-row{flex-direction:column;align-items:stretch}.t-parents .t-parent-info{flex:0 0 auto}.t-parents .t-parent-actions{flex-direction:row}}
 
 /* ==========================================================================
    NOVA — the KidQuest alien mascot
@@ -890,6 +999,22 @@ img{max-width:100%}
 .dash-store-btn:hover{transform:translateY(-3px) scale(1.02);box-shadow:var(--shadow-lg)}
 .dash-store-btn .dsb-emoji{font-size:22px}
 
+/* ---- AUTOPLAY — one-tap chained learning + break games ---- */
+.autoplay-cta-wrap{margin:22px 0 6px;display:flex;justify-content:center}
+.autoplay-cta{display:inline-flex;align-items:center;gap:14px;padding:14px 26px;border-radius:20px;border:none;cursor:pointer;font-family:var(--font-display);font-weight:800;font-size:17px;color:#fff;background:linear-gradient(135deg,#ff9ff3,#6c5ce7);box-shadow:0 12px 26px rgba(108,92,231,.35);transition:all .3s var(--spring)}
+.autoplay-cta:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 16px 32px rgba(108,92,231,.45)}
+.autoplay-cta:active{transform:translateY(-1px) scale(.98)}
+.autoplay-cta .ap-ico{font-size:26px}
+.autoplay-cta .ap-sub{display:block;font-size:11.5px;font-weight:600;opacity:.92;margin-top:3px}
+.autoplay-cta .ap-txt{text-align:left;line-height:1.15}
+.autoplay-chip{position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:linear-gradient(135deg,#6c5ce7,#e84393);color:#fff;font-weight:700;font-size:13px;box-shadow:0 10px 22px rgba(108,92,231,.4);animation:apSlide .35s var(--spring)}
+@keyframes apSlide{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
+.autoplay-chip .ap-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#fff;animation:apPulse 1.2s ease-in-out infinite}
+@keyframes apPulse{0%,100%{opacity:1}50%{opacity:.4}}
+.autoplay-chip .ap-steps{opacity:.85;font-weight:600}
+.autoplay-chip .ap-stop{background:rgba(255,255,255,.2);color:#fff;border:none;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;transition:background .2s}
+.autoplay-chip .ap-stop:hover{background:rgba(255,255,255,.32)}
+
 /* ---- BRAIN BREAK — mini-game dashboard entry + hub + boards ---- */
 /* Dashboard tiles (Memory / Quick Math buttons on main screen) */
 .brain-break-row{margin-top:14px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
@@ -914,12 +1039,42 @@ img{max-width:100%}
 .mg-tile::before{content:'';position:absolute;top:0;left:0;bottom:0;width:5px;transform:scaleY(0);transform-origin:top;transition:transform .3s;border-radius:5px 0 0 5px}
 .mg-tile.memory::before{background:linear-gradient(180deg,#a29bfe,#6c5ce7)}
 .mg-tile.math::before{background:linear-gradient(180deg,#74b9ff,#0984e3)}
+.mg-tile.odd::before{background:linear-gradient(180deg,#ffd86b,#f39c12)}
+.mg-tile.simon::before{background:linear-gradient(180deg,#ff9ff3,#e84393)}
 .mg-tile:hover{transform:translateY(-5px) rotate(-.3deg);box-shadow:var(--shadow-lg)}
 .mg-tile:hover::before{transform:scaleY(1)}
 .mg-tile:hover .mg-ico{transform:scale(1.15) rotate(-8deg)}
 .mg-tile .mg-ico{transition:transform .4s var(--spring);width:60px;height:60px;border-radius:18px;display:grid;place-items:center;font-size:32px;flex-shrink:0;border:2px solid #fff;box-shadow:0 8px 18px rgba(26,16,53,.12)}
 .mg-tile.memory .mg-ico{background:linear-gradient(135deg,#b6adff,#6c5ce7);color:#fff}
 .mg-tile.math .mg-ico{background:linear-gradient(135deg,#91c4f5,#0984e3);color:#fff}
+.mg-tile.odd .mg-ico{background:linear-gradient(135deg,#ffe28a,#f39c12);color:#fff}
+.mg-tile.simon .mg-ico{background:linear-gradient(135deg,#ff9ff3,#e84393);color:#fff}
+
+/* Odd One Out game board */
+.oo-prompt{margin:18px auto 6px;max-width:540px;text-align:center;font-family:var(--font-display);font-size:clamp(20px,3vw,26px);font-weight:800;color:var(--ink);background:linear-gradient(135deg,#fff8e1,#fff);border:2px dashed #f39c12;border-radius:var(--r);padding:14px 18px}
+.oo-sub{text-align:center;font-size:13px;color:var(--ink3);font-weight:700;margin-bottom:12px}
+.oo-board{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:460px;margin:0 auto}
+.oo-choice{background:#fff;border:2.5px solid var(--line);border-radius:var(--r);padding:18px;font-size:clamp(48px,7vw,64px);line-height:1;cursor:pointer;transition:all .25s var(--spring);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
+.oo-choice:hover:not(.locked){transform:translateY(-3px) scale(1.04);border-color:#f39c12;box-shadow:0 8px 18px rgba(243,156,18,.22)}
+.oo-choice.correct{border-color:#00b894;background:#e6fff5;animation:pop .4s var(--spring)}
+.oo-choice.wrong{border-color:var(--coral);background:#fff0f0;animation:shake .4s}
+.oo-choice.locked{cursor:not-allowed}
+.oo-intro{display:flex;flex-direction:column;align-items:center;gap:14px;margin:18px 0;text-align:center}
+
+/* Simon Says game board */
+.ss-intro{display:flex;flex-direction:column;align-items:center;gap:14px;margin:18px 0;text-align:center}
+.ss-status{text-align:center;margin:10px 0;font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--ink)}
+.ss-sub{text-align:center;font-size:13px;color:var(--ink3);font-weight:700;margin-bottom:10px;min-height:18px}
+.ss-board{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:380px;margin:0 auto}
+.ss-pad{aspect-ratio:1/1;border-radius:24px;border:none;cursor:pointer;font-size:clamp(44px,6vw,56px);display:flex;align-items:center;justify-content:center;opacity:.55;transition:all .2s ease;box-shadow:0 6px 14px rgba(26,16,53,.18);user-select:none}
+.ss-pad[data-pad="0"]{background:linear-gradient(135deg,#ff6b81,#ee5253)}
+.ss-pad[data-pad="1"]{background:linear-gradient(135deg,#54a0ff,#2e86de)}
+.ss-pad[data-pad="2"]{background:linear-gradient(135deg,#5fe3a1,#0abf64)}
+.ss-pad[data-pad="3"]{background:linear-gradient(135deg,#feca57,#f39c12)}
+.ss-pad.lit{opacity:1;transform:scale(1.06);box-shadow:0 0 0 6px rgba(255,255,255,.55), 0 10px 24px rgba(26,16,53,.28)}
+.ss-pad:disabled{cursor:not-allowed}
+.ss-pad.active-input:not(:disabled):hover{opacity:.85;transform:scale(1.02)}
+.ss-pad.wrong{animation:shake .4s;outline:4px solid var(--coral)}
 .mg-tile .mg-info{flex:1;min-width:0}
 .mg-tile .mg-name{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.01em}
 .mg-tile .mg-desc{font-size:13px;color:var(--ink3);font-weight:600;margin-top:3px}
@@ -1323,12 +1478,42 @@ const STUDENTS = [
   { id:'isaiah',   name:'Isaiah',   grade:'Grade 5',               initial:'I', decoEmoji:'🚀', pin:'🦊', hint:'(f_x)',      colorLight:'#ffd793', colorDark:'#f39c12' },
   { id:'akshayan', name:'Akshayan', grade:'Grade 3',               initial:'A', decoEmoji:'🎮', pin:'🦁', hint:'(l__n)',     colorLight:'#ff9f9f', colorDark:'#d63031' },
   { id:'rushan',   name:'Rushan',   grade:'Grade 2',               initial:'R', decoEmoji:'⚡', pin:'🐶', hint:'(d_g)',      colorLight:'#81ecec', colorDark:'#00b894' },
-  { id:'akaran',   name:'Akaran',   grade:'Grade 1',               initial:'K', decoEmoji:'🦖', pin:'⭐', hint:'(s_ar)',     colorLight:'#b6adff', colorDark:'#6c5ce7' },
+  { id:'akaran',   name:'Akaran',   grade:'Grade 1',               initial:'A', decoEmoji:'🦖', pin:'⭐', hint:'(s_ar)',     colorLight:'#b6adff', colorDark:'#6c5ce7' },
   { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',   initial:'N', decoEmoji:'🎨', pin:'🌈', hint:'(r_inb_w)', colorLight:'#91c4f5', colorDark:'#0984e3' },
 ];
 // Back-compat: keep `color` populated as the dark hex so legacy code paths
 // that read `student.color` (e.g. dashboard avatar gradient style) still work.
 STUDENTS.forEach(s=>{ if(!s.color) s.color = s.colorDark; });
+
+/* ---- DEMO PROFILES ----
+   Prospect-facing: a parent can enter DEMO_PIN on the home screen, pick a
+   grade, and explore the student experience without affecting real data.
+   Each demo grade reuses an existing student's curriculum
+   (`curriculumSid`) so we don't duplicate lesson data. Demo users are
+   created in-memory only — saveState() skips cloud + localStorage when
+   the current user is a demo id, so a refresh wipes the demo state
+   clean. Change DEMO_PIN if you share the PIN with a parent and want
+   to rotate it later. */
+const DEMO_PIN = '2228';
+const DEMO_GRADES = [
+  { id:'demo-sk', name:'Senior Kindergarten Demo', grade:'Senior Kindergarten', initial:'SK', curriculumSid:'nishan',   colorLight:'#91c4f5', colorDark:'#0984e3' },
+  { id:'demo-g1', name:'Grade 1 Demo',              grade:'Grade 1',              initial:'1',  curriculumSid:'akaran',   colorLight:'#b6adff', colorDark:'#6c5ce7' },
+  { id:'demo-g2', name:'Grade 2 Demo',              grade:'Grade 2',              initial:'2',  curriculumSid:'rushan',   colorLight:'#81ecec', colorDark:'#00b894' },
+  { id:'demo-g3', name:'Grade 3 Demo',              grade:'Grade 3',              initial:'3',  curriculumSid:'akshayan', colorLight:'#ff9f9f', colorDark:'#d63031' },
+  { id:'demo-g4', name:'Grade 4 Demo',              grade:'Grade 4',              initial:'4',  curriculumSid:'isaiah',   colorLight:'#ffd54f', colorDark:'#f39c12' },
+  { id:'demo-g5', name:'Grade 5 Demo',              grade:'Grade 5',              initial:'5',  curriculumSid:'isaiah',   colorLight:'#ffb3ba', colorDark:'#e84393' },
+];
+// Fill in name/color back-compat for demo users too — getStudentInfo
+// and buildAvatarTile both expect `color` and `pin` fields to exist.
+DEMO_GRADES.forEach(d=>{
+  d.color = d.colorDark;
+  d.isDemo = true;
+  d.pin = DEMO_PIN;            // unused (we bypass the emoji-pin flow)
+  d.decoEmoji = '🎓';
+  d.hint = '(demo)';
+});
+const DEMO_ID_SET = new Set(DEMO_GRADES.map(d=>d.id));
+function isDemoUser(sid){ return !!sid && DEMO_ID_SET.has(sid); }
 
 /* Auto-generate per-student CSS from the array above.
    Adds `.profile-card.c-<id>::before` (top stripe) and `.c-<id> .avatar`
@@ -3267,7 +3452,13 @@ isaiah: {
         {type:'mcq',q:'47 × 3 = ?',choices:['121','131','141','151'],answer:2},
       ]},
     { id:'w1-isaiah-m3', title:'Division with Remainders', emoji:'➗', videoIds:['LGqBQrUYua4'], // Math Antics - Long Division
-      lesson:{title:'Division — Sharing Equally',visual:'14 🍪  ➗  3 👧',intro:'Division splits a number into equal groups. Sometimes there\'s a bit left over — that\'s the REMAINDER.',example:'14 ÷ 3: How many 3s fit in 14? Four (because 4 × 3 = 12). 14 − 12 = 2 left over. Answer: 4 remainder 2.',hint:'Think: "How many times does the small number fit into the big one?" Then subtract to find what\'s left.'},
+      lesson:{title:'Division — Sharing Equally',visual:'14 🍪  ➗  3 👧',intro:'Division splits a number into equal groups. Sometimes there\'s a bit left over — that\'s the REMAINDER.',example:'14 ÷ 3 = 4 remainder 2. (Four full groups of 3, with 2 left over.)',steps:[
+        '<b>Read the problem</b>: 14 ÷ 3 means "share 14 into groups of 3".',
+        '<b>Ask: how many 3s fit in 14?</b> Count by 3s: 3, 6, 9, 12. That\'s <b>four 3s</b>.',
+        '<b>Multiply to check:</b> 4 × 3 = <b>12</b>.',
+        '<b>Subtract to find the leftover:</b> 14 − 12 = <b>2</b>.',
+        '<b>Write the answer:</b> 4 remainder 2 (or "4 R 2").'
+      ],hint:'Think: "How many times does the small number fit into the big one?" Then subtract to find what\'s left.'},
       questions:[
         {type:'mcq',q:'20 ÷ 4 = ?',choices:['4','5','6','8'],answer:1},
         {type:'mcq',q:'17 ÷ 5 = ?',choices:['3 remainder 2','4 remainder 1','2 remainder 7','5 remainder 0'],answer:0},
@@ -3276,7 +3467,13 @@ isaiah: {
         {type:'mcq',q:'What does "remainder" mean?',choices:['The answer','Whatever is left after dividing','The starting number','A multiplication trick'],answer:1},
       ]},
     { id:'w1-isaiah-m4', title:'Fractions: Compare & Equivalent', emoji:'🍕', videoIds:['5juto2ze8Lg','4lkq3DgvmJo'], // Math Antics - Adding/Subtracting Fractions + Dividing Fractions
-      lesson:{title:'Fractions',intro:'A FRACTION shows a part of a whole. TOP = numerator (parts you have). BOTTOM = denominator (total parts). EQUIVALENT fractions look different but equal the same amount (1/2 = 2/4 = 4/8).',example:'1/2 of a pizza = 2/4 of the same pizza = 4/8. Also: 3/4 is bigger than 1/2.',hint:'Same denominator? Bigger top = bigger fraction. Different denominators? Think about the pizza picture.'},
+      lesson:{title:'Fractions',intro:'A FRACTION shows a part of a whole. TOP = numerator (parts you have). BOTTOM = denominator (total parts). EQUIVALENT fractions look different but equal the same amount (1/2 = 2/4 = 4/8).',example:'1/2 of a pizza = 2/4 of the same pizza = 4/8. Also: 3/4 is bigger than 1/2.',steps:[
+        '<b>Read the fraction</b> as "top over bottom". Example: <b>3/4</b> = 3 parts out of 4.',
+        '<b>Same bottom? Compare the tops.</b> 3/4 vs 1/4 — same 4 on the bottom, so bigger top wins: 3/4.',
+        '<b>Different bottoms? Find equivalents.</b> Multiply top AND bottom by the same number. 1/2 × 2/2 = <b>2/4</b>.',
+        '<b>Compare equivalents.</b> 2/6 vs 2/4? Convert 2/6 to 4/12 and 2/4 to 6/12. Now 6/12 &gt; 4/12, so 2/4 is bigger.',
+        '<b>Check with a picture</b> in your head: would half a pizza be more than a third? Yes!'
+      ],hint:'Same denominator? Bigger top = bigger fraction. Different denominators? Think about the pizza picture.'},
       questions:[
         {type:'mcq',q:'Which fraction is BIGGER: 3/4 or 1/4?',choices:['3/4','1/4','They are equal','Cannot tell'],answer:0},
         {type:'mcq',q:'Which fraction is EQUIVALENT to 1/2?',choices:['1/3','2/4','3/5','1/4'],answer:1},
@@ -3286,7 +3483,14 @@ isaiah: {
       ]},
     // ★ LEVEL 5 STRETCH — Grade 5 multi-step + decimals
     { id:'w1-isaiah-m5', title:'Multi-Step & Decimals (G5 Stretch!)', emoji:'🌟', videoIds:['KG6ILNOiMgM','dAgfnK528RA'],
-      lesson:{title:'Multi-Step Word Problems',intro:'In multi-step problems, you often need TWO or MORE operations to find the answer. Read carefully, underline the question, and plan your steps.',example:'"Maya has $20. She buys 3 books at $4 each. How much change?" Step 1: 3 × $4 = $12. Step 2: $20 - $12 = $8.',hint:'Ask: What is the question asking? What information do I have? What steps do I need?'},
+      lesson:{title:'Multi-Step Word Problems',intro:'In multi-step problems, you often need TWO or MORE operations to find the answer. Read carefully, underline the question, and plan your steps.',example:'"Maya has $20. She buys 3 books at $4 each. How much change?" Step 1: 3 × $4 = $12. Step 2: $20 − $12 = $8.',steps:[
+        '<b>Read twice.</b> First time to get the story, second time to find the question.',
+        '<b>Circle the numbers</b> you\'ll need: 3 books, $4 each, $20 total.',
+        '<b>Pick operation 1.</b> 3 books × $4 each = how much spent? Multiplication → 3 × 4 = <b>$12</b>.',
+        '<b>Pick operation 2.</b> Start money − spent = change left. Subtraction → $20 − $12 = <b>$8</b>.',
+        '<b>Check it makes sense.</b> $8 is less than $20 and more than $0 — looks right.',
+        '<b>For decimals:</b> line up the dots. 0.5 + 0.25 → write 0.50 + 0.25 = 0.75. Keep the decimal in the SAME column.'
+      ],hint:'Ask: What is the question asking? What information do I have? What steps do I need?'},
       questions:[
         {type:'mcq',q:'A pizza costs $12.50. If Jay buys 2 pizzas and pays with $30, how much change?',choices:['$3.00','$4.50','$5.00','$7.50'],answer:2},
         {type:'mcq',q:'There are 48 students in 4 equal teams. Each team wins 3 trophies. How many trophies in total?',choices:['12','36','48','60'],answer:0},
@@ -3363,64 +3567,88 @@ isaiah: {
       ]},
   ],
   french: [
-    { id:'w1-isaiah-f1', title:'School & Everyday Words', emoji:'🏫',
-      lesson:{title:'Vocabulary for School Life',intro:'Learn French words for the classroom and your daily routine — useful for talking about what you do. Tap each card to hear how it sounds!',audioLang:'fr-FR',pictures:[
-        {emoji:'✏️', word:'le crayon', label:'pencil'},
-        {emoji:'📖', word:'le livre', label:'book'},
-        {emoji:'🎒', word:'le sac', label:'bag'},
-        {emoji:'🏫', word:'l\'école', label:'school'},
-        {emoji:'🪑', word:'la classe', label:'classroom'},
-        {emoji:'👩‍🏫', word:'le professeur', label:'teacher'},
-      ],hint:'Notice "le" (masculine) and "la" (feminine) — the word for "the" changes with the noun.'},
+    // NOTE: French curriculum assumes students know only "bonjour" and "merci".
+    // Every lesson has pictures (= tap-to-speak audio) + a kid-safe YouTube video.
+    { id:'w1-isaiah-f1', title:'Les Salutations (Greetings)', emoji:'👋', videoIds:['9BgyvEXTZbk'],
+      lesson:{title:'Ways to Say Hello & Goodbye',intro:'You already know "bonjour"! Let\'s learn four more greeting words. Tap each card to hear the French pronunciation.',audioLang:'fr-FR',pictures:[
+        {emoji:'☀️', word:'bonjour', label:'hello / good morning'},
+        {emoji:'👋', word:'salut', label:'hi (casual)'},
+        {emoji:'🌆', word:'bonsoir', label:'good evening'},
+        {emoji:'🌙', word:'bonne nuit', label:'good night'},
+        {emoji:'🚪', word:'au revoir', label:'goodbye'},
+      ],hint:'"Bonjour" works any time in the day. "Salut" is just for friends. Use "Bonsoir" after the sun goes down.'},
       questions:[
-        {type:'mcq',q:'What does "le livre" mean?',choices:['Pencil','Book','Bag','Desk'],answer:1},
-        {type:'mcq',q:'What does "le professeur" mean?',choices:['Student','Teacher','Principal','Parent'],answer:1},
-        {type:'mcq',q:'Which means "school"?',choices:['la classe','le sac','l\'école','le livre'],answer:2},
-        {type:'mcq',q:'What is "un crayon"?',choices:['A pencil','A pen','A notebook','A desk'],answer:0},
-        {type:'match',q:'Match the school words!',pairs:[['le livre','book'],['le sac','bag'],['la classe','classroom'],['le crayon','pencil']]},
+        {type:'mcq',q:'What does "bonjour" mean?',choices:['👋 Goodbye','☀️ Hello / Good morning','🙏 Thank you','✅ Yes'],answer:1},
+        {type:'mcq',q:'Which word is a CASUAL "hi" for friends?',choices:['Bonjour','Bonsoir','Salut','Au revoir'],answer:2},
+        {type:'mcq',q:'You see your teacher in the evening. What do you say?',choices:['Bonjour','Bonsoir','Bonne nuit','Au revoir'],answer:1},
+        {type:'mcq',q:'Which phrase means "goodbye"?',choices:['Bonjour','Salut','Bonne nuit','Au revoir'],answer:3},
+        {type:'match',q:'Match the greeting to its meaning!',pairs:[['Bonjour','Hello'],['Salut','Hi'],['Bonsoir','Good evening'],['Au revoir','Goodbye']]},
       ]},
-    { id:'w1-isaiah-f2', title:'-ER Verb Conjugation', emoji:'🔁',
-      lesson:{title:'Present Tense of -ER Verbs',intro:'Most French verbs end in -ER (like parler = to speak). To use them, drop -ER and add: -e (je), -es (tu), -e (il/elle), -ons (nous), -ez (vous), -ent (ils/elles).',example:'Parler (to speak): je parle, tu parles, il parle, nous parlons, vous parlez, ils parlent.',steps:[
-        '<b>Start with the infinitive</b> (the -ER form). Example: <i>parler</i>.',
-        '<b>Drop the -ER.</b> You\'re left with the stem: <i>parl-</i>.',
-        '<b>Pick the subject</b> (je, tu, il/elle, nous, vous, ils/elles).',
-        '<b>Add the matching ending:</b> -e (je), -es (tu), -e (il/elle), -ons (nous), -ez (vous), -ent (ils/elles).',
-        '<b>Put it together.</b> Example: nous + parl- + -ons = <i>nous parlons</i>.',
-      ],hint:'The je/tu/il endings SOUND the same when spoken — but spellings differ. Always add "s" for "tu".'},
+    { id:'w1-isaiah-f2', title:'La Politesse (Being Polite)', emoji:'🙏', videoIds:['9BgyvEXTZbk'],
+      lesson:{title:'Merci and Friends',intro:'You already know "merci"! Here are four more polite words that make you sound super kind in French. Tap each card to hear it.',audioLang:'fr-FR',pictures:[
+        {emoji:'🙏', word:'merci', label:'thank you'},
+        {emoji:'😊', word:'s\'il vous plaît', label:'please (polite)'},
+        {emoji:'💁', word:'de rien', label:'you\'re welcome'},
+        {emoji:'😅', word:'pardon', label:'sorry'},
+        {emoji:'🤚', word:'excusez-moi', label:'excuse me'},
+      ],hint:'"S\'il vous plaît" sounds like "see-voo-play". Use "pardon" if you bump into someone; "excusez-moi" to get someone\'s attention.'},
       questions:[
-        {type:'mcq',q:'"Je parle" means...',choices:['I speak','You speak','They speak','We speak'],answer:0},
-        {type:'mcq',q:'"Nous mangeons" means...',choices:['I eat','They eat','We eat','You eat'],answer:2},
-        {type:'mcq',q:'What is the "tu" form of "jouer" (to play)?',choices:['joue','joues','jouons','jouent'],answer:1},
-        {type:'mcq',q:'Which ending goes with "vous"?',choices:['-ons','-es','-ez','-ent'],answer:2},
-        {type:'match',q:'Match the conjugation!',pairs:[['je parle','I speak'],['tu parles','you speak'],['nous parlons','we speak'],['ils parlent','they speak']]},
+        {type:'mcq',q:'What does "merci" mean?',choices:['😊 Please','🙏 Thank you','😅 Sorry','☀️ Hello'],answer:1},
+        {type:'mcq',q:'Someone says "merci" to you. A polite reply is...',choices:['Bonjour','Pardon','De rien','Au revoir'],answer:2},
+        {type:'mcq',q:'Which means "please"?',choices:['Merci','S\'il vous plaît','Pardon','De rien'],answer:1},
+        {type:'mcq',q:'You step on someone\'s foot. You say...',choices:['Bonjour','Pardon','Merci','De rien'],answer:1},
+        {type:'match',q:'Match each polite word!',pairs:[['merci','thank you'],['s\'il vous plaît','please'],['de rien','you\'re welcome'],['pardon','sorry']]},
       ]},
-    { id:'w1-isaiah-f3', title:'Asking Questions', emoji:'❓',
-      lesson:{title:'How to Ask in French',intro:'To turn a statement into a question, add "Est-ce que" at the start, or raise your voice at the end. Also use question words: Qui, Quoi, Où, Quand, Pourquoi, Comment, Combien.',example:'Statement: "Tu aimes le chocolat." Question: "Est-ce que tu aimes le chocolat?" (Do you like chocolate?)',hint:'"Est-ce que" literally means "Is it that..." — a polite way to ask yes/no questions.'},
+    { id:'w1-isaiah-f3', title:'Oui, Non et Plus (Yes, No, More)', emoji:'✅', videoIds:['9BgyvEXTZbk'],
+      lesson:{title:'Yes, No & Little Answers',intro:'Learn the five tiny words that answer almost any question in French. Tap each card to hear how it sounds.',audioLang:'fr-FR',pictures:[
+        {emoji:'✅', word:'oui', label:'yes'},
+        {emoji:'❌', word:'non', label:'no'},
+        {emoji:'👍', word:'d\'accord', label:'OK / agreed'},
+        {emoji:'🤔', word:'peut-être', label:'maybe'},
+        {emoji:'🙂', word:'ça va', label:'I\'m OK'},
+      ],hint:'"Oui" sounds like "wee". "Peut-être" sounds like "puh-teh-truh". Short and quick!'},
       questions:[
-        {type:'mcq',q:'"Est-ce que tu parles français?" means...',choices:['I speak French','Do you speak French?','She speaks French','Speak French now'],answer:1},
-        {type:'mcq',q:'"Où est le livre?" means...',choices:['What is the book?','Who has the book?','Where is the book?','When is the book?'],answer:2},
-        {type:'mcq',q:'"Combien" means...',choices:['Why','How many / How much','Who','Where'],answer:1},
-        {type:'mcq',q:'To ask "Do you like music?" in French:',choices:['Est-ce que tu aimes la musique?','Musique est-ce que','Tu la musique','J\'aime la musique'],answer:0},
-        {type:'match',q:'Match the question words!',pairs:[['Qui','Who'],['Quoi','What'],['Où','Where'],['Combien','How many']]},
+        {type:'mcq',q:'What does "oui" mean?',choices:['❌ No','✅ Yes','🤔 Maybe','😊 Please'],answer:1},
+        {type:'mcq',q:'What does "non" mean?',choices:['✅ Yes','❌ No','☀️ Hi','👍 OK'],answer:1},
+        {type:'mcq',q:'Which word means "maybe"?',choices:['Oui','D\'accord','Peut-être','Ça va'],answer:2},
+        {type:'mcq',q:'A friend asks "Ça va?" (how are you?). A good reply is...',choices:['Merci','Ça va','Au revoir','Pardon'],answer:1},
+        {type:'match',q:'Match the short answer!',pairs:[['oui','yes'],['non','no'],['d\'accord','OK'],['peut-être','maybe']]},
       ]},
-    { id:'w1-isaiah-f4', title:'Possessive Adjectives', emoji:'👉',
-      lesson:{title:'My, Your, His/Her',intro:'In French, "my/your/his/her" changes based on whether the noun is masculine or feminine. Mon/ma = my · Ton/ta = your · Son/sa = his or her.',example:'mon chat (my cat — masc.) · ma maison (my house — fem.) · ton livre (your book) · sa mère (his/her mother)',hint:'Match the possessive to the GENDER of the object, not the owner! "Sa mère" can mean "his mother" OR "her mother" — it depends on context.'},
+    { id:'w1-isaiah-f4', title:'Les Nombres 1-10 (Numbers)', emoji:'🔢', videoIds:['lsc3qLMaCu8'],
+      lesson:{title:'Counting in French',intro:'Counting in French sounds different, but the numbers still go 1, 2, 3! Tap each card to hear how it\'s pronounced.',audioLang:'fr-FR',pictures:[
+        {emoji:'1️⃣', word:'un', label:'one'},
+        {emoji:'2️⃣', word:'deux', label:'two'},
+        {emoji:'3️⃣', word:'trois', label:'three'},
+        {emoji:'4️⃣', word:'quatre', label:'four'},
+        {emoji:'5️⃣', word:'cinq', label:'five'},
+        {emoji:'6️⃣', word:'six', label:'six'},
+        {emoji:'7️⃣', word:'sept', label:'seven'},
+        {emoji:'8️⃣', word:'huit', label:'eight'},
+        {emoji:'9️⃣', word:'neuf', label:'nine'},
+        {emoji:'🔟', word:'dix', label:'ten'},
+      ],hint:'"Deux" sounds like "duh". "Huit" sounds like "weet". "Dix" sounds like "deese".'},
       questions:[
-        {type:'mcq',q:'How do you say "my dog" (le chien is masculine)?',choices:['ma chien','mon chien','mes chien','son chien'],answer:1},
-        {type:'mcq',q:'How do you say "my sister" (la sœur is feminine)?',choices:['mon sœur','ma sœur','ton sœur','sa sœur'],answer:1},
-        {type:'mcq',q:'"Ton livre" means...',choices:['my book','your book','his book','their book'],answer:1},
-        {type:'mcq',q:'"Sa mère" can mean...',choices:['my mom only','his OR her mom','our mom','their mom'],answer:1},
-        {type:'match',q:'Match the possessives!',pairs:[['mon','my (m)'],['ma','my (f)'],['ton','your (m)'],['sa','his/her (f)']]},
+        {type:'mcq',q:'What number is "trois"?',choices:['1','2','3','4'],answer:2},
+        {type:'mcq',q:'What number is "cinq"?',choices:['4','5','6','7'],answer:1},
+        {type:'mcq',q:'Which word means "seven"?',choices:['six','sept','huit','neuf'],answer:1},
+        {type:'mcq',q:'Which word means "ten"?',choices:['huit','neuf','dix','douze'],answer:2},
+        {type:'order',q:'Put these numbers in order from lowest to highest!',items:['deux','quatre','six','huit'],correctOrder:[0,1,2,3]},
       ]},
-    // ★ LEVEL 5 STRETCH — short French passage
-    { id:'w1-isaiah-f5', title:'French Passage (G5 Stretch!)', emoji:'🌟',
-      lesson:{title:'Reading a Short French Paragraph',intro:'Now let\'s combine vocabulary, verbs, and possessives to understand a SHORT passage in French. Focus on words you know — and guess smartly for the rest!',example:'"Bonjour! Je m\'appelle Léo. J\'ai dix ans. J\'aime le foot et mon chien s\'appelle Max." = Hello! My name is Léo. I am 10 years old. I like soccer and my dog\'s name is Max.',hint:'You already know: bonjour, je m\'appelle, j\'ai...ans, j\'aime, mon. Use those to decode the rest!'},
+    { id:'w1-isaiah-f5', title:'Les Couleurs (Colors)', emoji:'🎨', videoIds:['fZR66TjjrDc'],
+      lesson:{title:'Colors in French',intro:'Colors in French are simple! Tap each card to hear the color, then remember the matches.',audioLang:'fr-FR',pictures:[
+        {emoji:'🔴', word:'rouge', label:'red'},
+        {emoji:'🔵', word:'bleu', label:'blue'},
+        {emoji:'🟢', word:'vert', label:'green'},
+        {emoji:'🟡', word:'jaune', label:'yellow'},
+        {emoji:'⚫', word:'noir', label:'black'},
+        {emoji:'⚪', word:'blanc', label:'white'},
+      ],hint:'"Rouge" sounds like "roozh". "Jaune" sounds like "zhohn". Short and fun!'},
       questions:[
-        {type:'passage',passage:'Salut! Je m\'appelle Emma. J\'ai onze ans. J\'aime l\'école et ma classe. Mon professeur est super.',q:'How old is Emma?',choices:['10','11','12','13'],answer:1},
-        {type:'passage',passage:'Bonjour! Je m\'appelle Louis. J\'habite à Paris. J\'ai un chat noir. Il s\'appelle Minou.',q:'What is Louis\'s cat\'s name?',choices:['Louis','Paris','Minou','Noir'],answer:2},
-        {type:'passage',passage:'Je m\'appelle Zoé. J\'aime lire des livres. Mon livre préféré est "Le Petit Prince".',q:'What does Zoé love to do?',choices:['Play sports','Read books','Cook','Swim'],answer:1},
-        {type:'passage',passage:'Lucas a neuf ans. Il joue au foot avec son frère. Ils mangent de la pizza après le match.',q:'What do Lucas and his brother eat after the game?',choices:['Sandwiches','Salad','Pizza','Soup'],answer:2},
-        {type:'mcq',q:'In French passages, "j\'aime" always means...',choices:['I have','I am','I like / I love','I go'],answer:2},
+        {type:'mcq',q:'What color is "rouge"?',choices:['🔴 Red','🔵 Blue','🟢 Green','🟡 Yellow'],answer:0},
+        {type:'mcq',q:'What color is "bleu"?',choices:['🔴 Red','🔵 Blue','🟢 Green','⚫ Black'],answer:1},
+        {type:'mcq',q:'Which word means "yellow"?',choices:['vert','rouge','jaune','noir'],answer:2},
+        {type:'mcq',q:'Which word means "white"?',choices:['noir','blanc','bleu','vert'],answer:1},
+        {type:'match',q:'Match each color!',pairs:[['rouge','red'],['bleu','blue'],['vert','green'],['jaune','yellow']]},
       ]},
   ],
   science: [
@@ -3830,11 +4058,84 @@ const CLOUD_BUCKET = 'kidquest-dca83c70e20a70f247b6';
 const CLOUD_URL = 'https://textdb.dev/api/data/' + CLOUD_BUCKET;
 const POLL_MS = 25000;
 
+// Parent progress reports — always CC the business owner so Rhahavy sees
+// every report that goes out. `mailto:` opens the teacher's mail client
+// pre-filled with subject/body/cc so they can review and hit send.
+const REPORT_CC_EMAIL = 'rhahavy.b@gmail.com';
+const REPORT_INTERVAL_DAYS = 7;
+const REPORT_INTERVAL_MS = REPORT_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
+const WRONG_ANSWER_LOG_CAP = 200;
+
+// Pronoun presets used by the parent progress report. Each preset carries
+// the verb-agreement-aware phrases that appear in the report so we don't
+// have to conjugate on the fly. Add more presets (e.g. 'xe/xem') by
+// following the same shape.
+const PRONOUN_PRESETS = {
+  they: {
+    label: 'they / them',
+    subj: 'they', Subj: 'They',
+    obj: 'them',
+    poss: 'their', Poss: 'Their',
+    // Phrases used verbatim in buildProgressReport
+    haveEarned: "they've earned",
+    reallyUnderstand: 'they really understand',
+    arentJustClicking: "they aren't just clicking through",
+    needed: 'they needed',          // simple past — same for all
+    areMoving: "they're moving",
+    areStillInEarly: "they're still in the early stretch",
+  },
+  he: {
+    label: 'he / him',
+    subj: 'he', Subj: 'He',
+    obj: 'him',
+    poss: 'his', Poss: 'His',
+    haveEarned: "he's earned",
+    reallyUnderstand: 'he really understands',
+    arentJustClicking: "he isn't just clicking through",
+    needed: 'he needed',
+    areMoving: "he's moving",
+    areStillInEarly: "he's still in the early stretch",
+  },
+  she: {
+    label: 'she / her',
+    subj: 'she', Subj: 'She',
+    obj: 'her',
+    poss: 'her', Poss: 'Her',
+    haveEarned: "she's earned",
+    reallyUnderstand: 'she really understands',
+    arentJustClicking: "she isn't just clicking through",
+    needed: 'she needed',
+    areMoving: "she's moving",
+    areStillInEarly: "she's still in the early stretch",
+  },
+};
+function getPronouns(sidOrUd){
+  const ud = typeof sidOrUd === 'string' ? (allData.users[sidOrUd]||{}) : (sidOrUd||{});
+  const key = (ud.pronouns && PRONOUN_PRESETS[ud.pronouns]) ? ud.pronouns : 'they';
+  return PRONOUN_PRESETS[key];
+}
+
 const defaultUser = () => ({
   totalStars:0, coins:0, streak:0, lastActiveDate:'',
   badges:{}, progress:{}, completedActivities:{}, perfectActivities:{},
   wishlist: [],  // array of STORE_ITEMS ids the student has saved for later
   avatar: null,  // optional emoji string — overrides initial-letter tile when set
+  // Parent progress-report fields.
+  //   parentEmail        — teacher enters on dashboard. Empty = no report yet.
+  //   lastReportSentAt   — epoch ms of last time teacher sent a report.
+  //                        Dashboard shows "Overdue" chip after 7 days.
+  //   wrongAnswers       — rolling log (last 200) of questions the student got
+  //                        wrong. Used to summarize growth areas in the report.
+  //                        Entry shape: {aid, subj, qIdx, qType, qText,
+  //                                      choices?, choseIdx?, correctIdx?, at}
+  parentEmail: '',
+  lastReportSentAt: 0,
+  wrongAnswers: [],
+  // Pronouns — used by the parent progress report so language reads
+  // naturally ("he has earned..." vs "they have earned..."). Default is
+  // 'they' (inclusive / safe until the teacher picks). Valid values:
+  // 'they' | 'he' | 'she'. Teacher sets this on the dashboard.
+  pronouns: 'they',
   // Brain-break mini-games — daily coin cap + personal bests.
   // Kept separate from academic progress so it can't replace real practice.
   miniGameStats: {
@@ -3853,6 +4154,12 @@ const defaultAll = () => ({
   // catalogOverrides{} lets teacher edit items live without touching source.
   orders: [],
   catalogOverrides: {},
+  // Per-lesson YouTube video overrides — keyed by activity.id. Value is:
+  //   undefined / missing = use the built-in videoIds from source
+  //   [] empty array      = explicitly show NO videos for this lesson
+  //   ['id1', 'id2']      = override with these YouTube video IDs
+  // Teacher edits these via the Video Library in their dashboard.
+  videoOverrides: {},
   // Maintenance mode — teacher toggles from dashboard, synced via cloud.
   maintenance: { active: false, message: DEFAULT_MAINTENANCE_MESSAGE, updatedAt: 0 },
   updatedAt:0
@@ -3890,6 +4197,7 @@ let allData = (function(){
     d.teacher = (p.teacher && typeof p.teacher === 'object') ? p.teacher : {lastLogin:0};
     d.orders = Array.isArray(p.orders) ? p.orders : [];
     d.catalogOverrides = (p.catalogOverrides && typeof p.catalogOverrides==='object') ? p.catalogOverrides : {};
+    d.videoOverrides  = (p.videoOverrides  && typeof p.videoOverrides ==='object') ? p.videoOverrides  : {};
     if(p.maintenance && typeof p.maintenance==='object'){
       d.maintenance = {
         active: !!p.maintenance.active,
@@ -3919,6 +4227,11 @@ let currentOpts = {};
 function saveState(){
   if(currentUser && state) allData.users[currentUser]=state;
   allData.updatedAt=Date.now();
+  // Demo profiles live in memory only — we skip localStorage AND cloud
+  // sync when a demo user is active so their exploration never
+  // contaminates real student data or gets shared to other devices.
+  // A page refresh wipes the demo session clean.
+  if(isDemoUser(currentUser)) return;
   try{
     localStorage.setItem(STORAGE_KEY,JSON.stringify(allData));
     localStorage.setItem(VERSION_KEY,String(APP_VERSION));
@@ -3974,6 +4287,7 @@ async function pullCloud(init){
     STUDENTS.forEach(s=>{allData.users[s.id]=Object.assign(defaultUser(),d.users[s.id]||{})});
     if(Array.isArray(d.orders))allData.orders=d.orders;
     if(d.catalogOverrides&&typeof d.catalogOverrides==='object')allData.catalogOverrides=d.catalogOverrides;
+    if(d.videoOverrides &&typeof d.videoOverrides ==='object')allData.videoOverrides =d.videoOverrides;
     // Maintenance state — sync so kids on other devices see the gate flip
     if(d.maintenance&&typeof d.maintenance==='object'){
       allData.maintenance={
@@ -4374,20 +4688,43 @@ function _getBestVoice(lang){
   // 4. First voice in the requested language.
   return voices[0];
 }
+// Normalize text for TTS engines that choke on ligatures / typography.
+//   œ → oe, æ → ae, curly apostrophe → straight, non-breaking space → space.
+// Pure visual characters like the accents in "é" / "à" / "ç" are left alone;
+// the French voices handle those natively.
+function _normalizeForTts(text){
+  return String(text || '')
+    .replace(/\u0153/g,'oe').replace(/\u0152/g,'Oe')  // œ Œ
+    .replace(/\u00E6/g,'ae').replace(/\u00C6/g,'Ae')  // æ Æ
+    .replace(/\u2019/g,"'")                            // ’ → '
+    .replace(/\u00A0/g,' ');                           // nbsp → space
+}
 function speak(text, lang){
   if(!text || typeof window.speechSynthesis === 'undefined') return;
   try{
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(String(text));
+    const isFrench = /^fr/i.test(lang || '');
+    const u = new SpeechSynthesisUtterance(_normalizeForTts(text));
     u.lang = lang || 'en-US';
-    u.rate = 0.92;   // Slightly slower for clarity
-    u.pitch = 1.0;   // Natural pitch — no chipmunk effect
+    // French benefits from a bit more clarity — kids learning pronunciation
+    // need a slightly slower pace than native-English read-alouds.
+    u.rate  = isFrench ? 0.86 : 0.92;
+    u.pitch = 1.0;  // Natural pitch — no chipmunk effect
     const v = _getBestVoice(u.lang);
     if(v){
       u.voice = v;
       // IMPORTANT: when setting .voice, also ensure .lang matches the voice's
       // native lang so the browser doesn't down-mix to a different engine.
       u.lang = v.lang || u.lang;
+    } else if(isFrench){
+      // No French voice at all — warn once per session so the parent/teacher
+      // can install one (macOS: System Settings → Accessibility → Spoken
+      // Content → System Voice → French). Still attempt to speak; on most
+      // systems the default voice will at least attempt French phonetics.
+      if(!window.__kqFrVoiceWarned){
+        window.__kqFrVoiceWarned = true;
+        console.warn('[KidQuest] No French voice found. Install one via your OS (macOS: Amélie/Thomas) for best pronunciation.');
+      }
     }
     window.speechSynthesis.speak(u);
   }catch(e){ console.warn('[speak] failed:', e); }
@@ -4563,8 +4900,20 @@ function confettiBurst(n=50){
 }
 
 function getStudentData(sid){return allData.users[sid]||defaultUser()}
-function getStudentInfo(sid){return STUDENTS.find(s=>s.id===sid)}
-function getWeekActivities(sid,subj){return(WEEKS[currentWeek]&&WEEKS[currentWeek][sid]&&WEEKS[currentWeek][sid][subj])||[]}
+// Returns the STUDENTS entry for a real student, or the DEMO_GRADES entry
+// for a demo profile. Used everywhere that needs display info (name,
+// grade, colors, initial) so demo users render correctly too.
+function getStudentInfo(sid){
+  return STUDENTS.find(s=>s.id===sid) || DEMO_GRADES.find(d=>d.id===sid);
+}
+function getWeekActivities(sid,subj){
+  // Demo profiles reuse an existing student's curriculum via curriculumSid
+  // so we don't duplicate the big WEEKS data structure. Real students hit
+  // the fast path unchanged.
+  const demo = DEMO_GRADES.find(d=>d.id===sid);
+  const resolved = demo ? demo.curriculumSid : sid;
+  return (WEEKS[currentWeek] && WEEKS[currentWeek][resolved] && WEEKS[currentWeek][resolved][subj]) || [];
+}
 function countDone(sid,subj){const acts=getWeekActivities(sid,subj);const ud=getStudentData(sid);return acts.filter(a=>ud.completedActivities[a.id]).length}
 function isActivityDone(sid,aid){return !!(getStudentData(sid).completedActivities[aid])}
 
@@ -4890,6 +5239,8 @@ function go(screen,opts={}){
     else if(screen==='profiles') renderProfiles(root);
     else if(screen==='pin') renderPin(root,opts.student);
     else if(screen==='teacher-login') renderTeacherLogin(root);
+    else if(screen==='demo-gate') renderDemoGate(root);
+    else if(screen==='demo-grade') renderDemoGradePicker(root);
     else if(screen==='dashboard') renderDashboard(root);
     else if(screen==='week') renderWeek(root,opts.subject);
     else if(screen==='activity') renderActivity(root,opts.activityId,opts.subject);
@@ -4898,6 +5249,8 @@ function go(screen,opts={}){
     else if(screen==='mini-hub') renderMiniHub(root);
     else if(screen==='game-memory') renderMemoryMatch(root, opts);
     else if(screen==='game-math') renderQuickMath(root, opts);
+    else if(screen==='game-odd') renderOddOneOut(root, opts);
+    else if(screen==='game-simon') renderSimonSays(root, opts);
     else if(screen==='store') renderStore(root);
     else if(screen==='orders') renderOrders(root);
     else if(screen==='teacher') renderTeacher(root);
@@ -4910,6 +5263,9 @@ function go(screen,opts={}){
       try{ renderHome(root); }catch(e){ console.error('[KidQuest] Home render also failed:',e); }
     }
   }
+  // Autoplay chip — floating "Autoplay ON · Stop" badge. Shown on every
+  // screen while autoplay is active so the student can always bail out.
+  try { renderAutoplayChip(root); } catch(e){ console.warn('[KidQuest] autoplay chip failed:',e); }
 }
 
 /* ========== HOME ========== */
@@ -4935,10 +5291,11 @@ function renderProfiles(root){
   const grid=h('div',{class:'profiles stagger'});
   STUDENTS.forEach(s=>{
     const ud=getStudentData(s.id);
+    // Profile tile shows only the chosen avatar emoji OR the name's initial —
+    // no decorative decoEmoji chip. Keeps identity clean and consistent.
     grid.appendChild(h('button',{class:'profile-card c-'+s.id,onclick:()=>go('pin',{student:s.id})},[
       h('div',{class:'avatar-wrap'},[
         buildAvatarTile(s.id,'avatar'),
-        h('span',{class:'avatar-chip'},s.decoEmoji),
       ]),
       h('h3',{},s.name),
       h('span',{class:'grade'},s.grade),
@@ -4946,7 +5303,109 @@ function renderProfiles(root){
     ]));
   });
   root.appendChild(grid);
+  // Prospect / parent entry point — "Try a Demo" sits below the real
+  // student tiles so kids don't accidentally tap it mid-lesson.
+  root.appendChild(h('div',{class:'demo-cta-wrap'},[
+    h('button',{class:'demo-cta',onclick:()=>go('demo-gate')},[
+      h('span',{class:'demo-cta-ico'},'👀'),
+      h('span',{class:'demo-cta-label'},[
+        h('span',{class:'demo-cta-title'},'Try a Demo'),
+        h('span',{class:'demo-cta-sub'},'Parents — preview the student experience'),
+      ]),
+      h('span',{class:'demo-cta-arrow'},'→'),
+    ])
+  ]));
   root.appendChild(h('div',{class:'teacher-link'},[h('a',{href:'#',onclick:e=>{e.preventDefault();go('teacher-login')}},'🔑 Teacher Login')]));
+}
+
+/* ========== DEMO PIN GATE ==========
+   4-digit PIN entry for parents/prospects. PIN is DEMO_PIN ('2228'),
+   intentionally separate from the emoji-PIN flow kids use — the PIN is
+   meant to be shared verbally or in a tutoring pamphlet. */
+function renderDemoGate(root){
+  const wrap = h('div',{class:'demo-gate'});
+  wrap.appendChild(h('div',{class:'demo-gate-ico'},'🎓'));
+  wrap.appendChild(h('h2',{class:'demo-gate-title'},'Demo Access'));
+  wrap.appendChild(h('p',{class:'demo-gate-sub'},
+    'Enter the 4-digit demo PIN to preview the student experience. ' +
+    'Ask the tutor for the PIN if you don\'t have it.'));
+  const pinInput = h('input',{
+    type:'tel',
+    inputmode:'numeric',
+    maxlength:'4',
+    placeholder:'• • • •',
+    class:'demo-pin-input',
+    'aria-label':'Demo PIN'
+  });
+  const msg = h('div',{class:'demo-msg'},'');
+  const tryUnlock = ()=>{
+    const val = (pinInput.value||'').trim();
+    if(val === DEMO_PIN){
+      msg.textContent = '✓ Unlocked';
+      msg.className = 'demo-msg ok';
+      setTimeout(()=>go('demo-grade'), 450);
+    } else {
+      msg.textContent = 'That\'s not the right PIN — try again.';
+      msg.className = 'demo-msg no';
+      pinInput.value = '';
+      pinInput.focus();
+    }
+  };
+  pinInput.addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+  // Auto-advance on 4 digits so you don't have to tap Continue
+  pinInput.addEventListener('input', ()=>{
+    if(pinInput.value.length === 4) tryUnlock();
+  });
+  wrap.appendChild(pinInput);
+  wrap.appendChild(h('button',{class:'btn btn-primary demo-gate-btn',onclick:tryUnlock},'Continue →'));
+  wrap.appendChild(msg);
+  wrap.appendChild(h('button',{class:'demo-gate-back',onclick:()=>go('profiles')},'← Back to profiles'));
+  root.appendChild(wrap);
+  // Autofocus for snappy UX
+  setTimeout(()=>{ try{ pinInput.focus(); }catch(e){} }, 50);
+}
+
+/* ========== DEMO GRADE PICKER ==========
+   After PIN unlock: parent picks which grade to preview. Each tile maps
+   to a real student's curriculum via DEMO_GRADES[n].curriculumSid. */
+function renderDemoGradePicker(root){
+  root.appendChild(h('h2',{class:'demo-grade-title'},'Pick a grade to preview'));
+  root.appendChild(h('p',{class:'demo-grade-sub'},
+    'You\'ll start a fresh demo session as a student at that grade. ' +
+    'Nothing you do here is saved — refresh any time to reset.'));
+  const grid = h('div',{class:'profiles demo-grade-grid stagger'});
+  DEMO_GRADES.forEach(d=>{
+    const tile = h('button',{
+      class:'profile-card demo-card',
+      onclick:()=>enterDemoAs(d.id),
+      'aria-label':`Preview as a ${d.grade} student`
+    },[
+      h('div',{class:'avatar-wrap'},[
+        h('div',{
+          class:'avatar demo-avatar',
+          style:`background:linear-gradient(135deg,${d.colorLight},${d.colorDark})`
+        }, d.initial),
+      ]),
+      h('h3',{},d.grade),
+      h('span',{class:'grade demo-card-sub'},'Preview →'),
+    ]);
+    // Top stripe uses the grade's colors so the tile picks up identity
+    tile.style.setProperty('--demo-stripe',
+      `linear-gradient(90deg,${d.colorLight},${d.colorDark})`);
+    grid.appendChild(tile);
+  });
+  root.appendChild(grid);
+  root.appendChild(h('button',{class:'demo-gate-back',onclick:()=>go('profiles')},'← Back to profiles'));
+}
+
+// Spin up a fresh demo session: create a new in-memory user for the
+// chosen demo id and log in. No cloud / localStorage writes happen for
+// demo users (saveState short-circuits), so a refresh clears state.
+function enterDemoAs(demoId){
+  const d = DEMO_GRADES.find(x=>x.id===demoId);
+  if(!d){ go('profiles'); return; }
+  allData.users[demoId] = defaultUser();
+  loginAs(demoId);  // routes to dashboard
 }
 
 /* ========== EMOJI PIN ========== */
@@ -5050,7 +5509,7 @@ function computeSubjectStats(sid, subjId){
 }
 
 function generateSubjectComment(name, subjId, stats){
-  const subjName = {reading:'reading',writing:'writing',math:'math',logic:'logic puzzles',french:'French',science:'science',social:'social studies'}[subjId] || subjId;
+  const subjName = {reading:'reading',writing:'writing',math:'math',logic:'logic',french:'French',science:'science',social:'social studies'}[subjId] || subjId;
   if(stats.done === 0){
     const opts = [
       `${name} hasn't started ${subjName} this week — a fresh adventure awaits!`,
@@ -5188,6 +5647,24 @@ function renderLegend(){
 function renderDashboard(root){
   if(!currentUser||!state){go('home');return}
   const s=getStudentInfo(currentUser);
+  // Demo-mode banner — sits at the very top so the parent always knows
+  // they're in a preview and sees an obvious exit. Clicking Exit drops
+  // the demo state (which wasn't persisted anyway) and returns home.
+  if(isDemoUser(currentUser)){
+    root.appendChild(h('div',{class:'demo-banner'},[
+      h('div',{class:'demo-banner-left'},[
+        h('span',{class:'demo-banner-tag'},'DEMO'),
+        h('span',{class:'demo-banner-msg'},
+          `You're previewing the ${s.grade} student experience. ` +
+          `Nothing you do here is saved.`),
+      ]),
+      h('button',{class:'demo-banner-exit',onclick:()=>{
+        // Drop the in-memory demo user so a re-entry starts fresh
+        delete allData.users[currentUser];
+        logout();
+      }},'✕ Exit Demo'),
+    ]));
+  }
   const hero=h('div',{class:'dash-hero c-'+currentUser},[
     buildAvatarTile(currentUser,'av'),
     h('div',{class:'info'},[
@@ -5223,6 +5700,22 @@ function renderDashboard(root){
     const dm = renderDailyMission(currentUser);
     if(dm) root.appendChild(dm);
   } catch(e){ console.warn('[KidQuest] renderDailyMission failed:', e); }
+  // Autoplay — one-tap "let it play for me" button. When active, each lesson
+  // is auto-chained with a random brain-break game. Kids who want to "just go"
+  // can hit this and trust the app to pick what's next.
+  try {
+    ensureAutoplay();
+    if(!(state.autoplay && state.autoplay.active)){
+      const cta = h('button',{class:'autoplay-cta',onclick:autoplayStart},[
+        h('span',{class:'ap-ico'},'▶️'),
+        h('span',{class:'ap-txt'},[
+          h('span',{},'Autoplay'),
+          h('span',{class:'ap-sub'},'Lessons + brain breaks on auto — just keep learning'),
+        ]),
+      ]);
+      root.appendChild(h('div',{class:'autoplay-cta-wrap'}, cta));
+    }
+  } catch(e){ console.warn('[KidQuest] autoplay CTA failed:',e); }
   // Subjects
   root.appendChild(h('h2',{style:'margin-top:24px;font-size:20px;font-weight:800'},'Week '+currentWeek+' · Subjects'));
   const subjs=h('div',{class:'subjects stagger'});
@@ -5567,6 +6060,172 @@ function buildMathStack(spec){
   return wrap;
 }
 
+/* ==========================================================================
+   YOUTUBE VIDEO OVERRIDES — teacher-managed per-lesson embeds
+   --------------------------------------------------------------------------
+   extractYouTubeId(input)  — parses any YouTube URL form OR a bare ID and
+                              returns the 11-char video ID, or null.
+                              Accepts: watch?v=, youtu.be/, embed/, shorts/,
+                              youtube-nocookie.com, plain 11-char ID.
+   getActivityVideoIds(id, builtin) — returns the teacher's override for
+                              this activity if set (empty array = hide
+                              videos entirely), else the built-in list
+                              from the source data.
+   ========================================================================== */
+function extractYouTubeId(input){
+  if(input == null) return null;
+  const s = String(input).trim();
+  if(!s) return null;
+  // Bare ID (11 chars, URL-safe)
+  if(/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  // Try parsing as a URL — handles watch?v=, youtu.be/, embed/, shorts/
+  try {
+    const u = new URL(s.includes('://') ? s : ('https://' + s));
+    const host = u.hostname.toLowerCase();
+    if(host.includes('youtu.be')){
+      const id = u.pathname.replace(/^\//,'').split('/')[0];
+      if(/^[A-Za-z0-9_-]{11}$/.test(id)) return id;
+    }
+    if(host.includes('youtube.com') || host.includes('youtube-nocookie.com')){
+      const v = u.searchParams.get('v');
+      if(v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v;
+      const m = u.pathname.match(/\/(?:embed|shorts|v)\/([A-Za-z0-9_-]{11})/);
+      if(m) return m[1];
+    }
+  } catch(e){ /* not a URL — fall through */ }
+  // Last resort — scan anywhere in the string
+  const m = s.match(/[A-Za-z0-9_-]{11}/);
+  return m ? m[0] : null;
+}
+function getActivityVideoIds(activityId, builtinIds){
+  const map = (allData && allData.videoOverrides) || {};
+  if(Object.prototype.hasOwnProperty.call(map, activityId)){
+    const ov = map[activityId];
+    if(Array.isArray(ov)) return ov.filter(Boolean);  // [] = show nothing
+  }
+  return Array.isArray(builtinIds) ? builtinIds.filter(Boolean) : [];
+}
+
+/* Teacher-only modal: edit the YouTube video embedded on a specific lesson.
+   Password-gated with the same password as the teacher login (TEACHER_CREDS).
+   Auth is session-scoped via window.__kqLessonVideoAuth, so the teacher only
+   types the password once per page load — editing multiple lessons in a row
+   stays frictionless. Overrides persist in allData.videoOverrides and sync
+   to the cloud like any other state change. After save/reset the lesson
+   re-renders so the teacher sees the change immediately. */
+function openLessonVideoSettings(activityId, builtinIds){
+  if(!activityId) return;
+  const overlay = h('div',{class:'mg-win-overlay'});
+  const card = h('div',{class:'mg-win-card lvs-card'});
+  overlay.appendChild(card);
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+
+  const buildUnlocked = ()=>{
+    card.innerHTML = '';
+    card.appendChild(h('h2', {}, '⚙ Lesson Video Settings'));
+    card.appendChild(h('div',{class:'lvs-sub'}, 'Paste a YouTube URL to replace the embedded video for this lesson.'));
+
+    const current = getActivityVideoIds(activityId, builtinIds);
+    const hasOverride = !!(allData && allData.videoOverrides && Object.prototype.hasOwnProperty.call(allData.videoOverrides, activityId));
+    const sourceLabel = hasOverride
+      ? (current.length ? 'Custom video (teacher override)' : 'Videos hidden (teacher override)')
+      : (current.length ? 'Default video' : 'No video set');
+    card.appendChild(h('label', {}, 'Current'));
+    const curBox = h('div',{class:'lvs-current'});
+    curBox.appendChild(h('div',{}, sourceLabel));
+    if(current.length){
+      current.forEach(id=>{
+        curBox.appendChild(h('div',{class:'lvs-id'}, 'ID: ' + id));
+      });
+    }
+    card.appendChild(curBox);
+
+    card.appendChild(h('label',{for:'lvsUrl'}, 'New YouTube URL or video ID'));
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'lvsUrl';
+    input.placeholder = 'https://www.youtube.com/watch?v=...';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    card.appendChild(input);
+    card.appendChild(h('div',{class:'lvs-hint'}, 'Accepts watch?v=…, youtu.be/…, shorts/…, embed/…, or a bare 11-character ID.'));
+
+    const msg = h('div',{class:'lvs-msg'}, '');
+    card.appendChild(msg);
+
+    const refreshLesson = ()=>{
+      try { saveState(); } catch(e){ console.warn('[KidQuest] saveState failed:',e); }
+      overlay.remove();
+      // Re-render the current lesson so the change is visible immediately.
+      try { if(currentScreen === 'activity') go('activity', currentOpts || {}); }
+      catch(e){ console.warn('[KidQuest] lesson re-render failed:',e); }
+    };
+
+    const btns = h('div',{class:'lvs-btns'});
+    btns.appendChild(h('button',{class:'btn btn-primary', onclick:()=>{
+      const id = extractYouTubeId(input.value);
+      if(!id){ msg.textContent = 'Could not find a YouTube ID in that input.'; msg.className = 'lvs-msg no'; return; }
+      if(!allData.videoOverrides) allData.videoOverrides = {};
+      allData.videoOverrides[activityId] = [id];
+      msg.textContent = 'Saved. Reloading lesson…';
+      msg.className = 'lvs-msg ok';
+      setTimeout(refreshLesson, 400);
+    }}, '💾 Save'));
+    btns.appendChild(h('button',{class:'btn', onclick:()=>{
+      if(!allData.videoOverrides) allData.videoOverrides = {};
+      allData.videoOverrides[activityId] = [];   // empty array = hide
+      msg.textContent = 'Video hidden for this lesson.';
+      msg.className = 'lvs-msg ok';
+      setTimeout(refreshLesson, 400);
+    }}, '🙈 Hide video'));
+    btns.appendChild(h('button',{class:'btn', onclick:()=>{
+      if(allData.videoOverrides){ delete allData.videoOverrides[activityId]; }
+      msg.textContent = 'Reset to default.';
+      msg.className = 'lvs-msg ok';
+      setTimeout(refreshLesson, 400);
+    }}, '↺ Reset to default'));
+    btns.appendChild(h('button',{class:'btn', onclick:()=>overlay.remove()}, 'Cancel'));
+    card.appendChild(btns);
+
+    setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 30);
+  };
+
+  const buildPasswordPrompt = ()=>{
+    card.innerHTML = '';
+    card.appendChild(h('h2', {}, '🔒 Teacher Access'));
+    card.appendChild(h('div',{class:'lvs-sub'}, 'Enter the teacher password to edit lesson videos.'));
+    card.appendChild(h('label',{for:'lvsPw'}, 'Password'));
+    const pw = document.createElement('input');
+    pw.type = 'password';
+    pw.id = 'lvsPw';
+    pw.autocomplete = 'current-password';
+    card.appendChild(pw);
+    const msg = h('div',{class:'lvs-msg'}, '');
+    card.appendChild(msg);
+    const tryUnlock = ()=>{
+      if(pw.value === TEACHER_CREDS.password){
+        window.__kqLessonVideoAuth = true;
+        buildUnlocked();
+      } else {
+        msg.textContent = 'Wrong password.';
+        msg.className = 'lvs-msg no';
+        pw.value = '';
+        pw.focus();
+      }
+    };
+    pw.addEventListener('keydown',(e)=>{ if(e.key === 'Enter'){ e.preventDefault(); tryUnlock(); } });
+    const btns = h('div',{class:'lvs-btns'});
+    btns.appendChild(h('button',{class:'btn btn-primary', onclick:tryUnlock}, 'Unlock'));
+    btns.appendChild(h('button',{class:'btn', onclick:()=>overlay.remove()}, 'Cancel'));
+    card.appendChild(btns);
+    setTimeout(()=>{ try{ pw.focus(); }catch(e){} }, 30);
+  };
+
+  if(window.__kqLessonVideoAuth === true) buildUnlocked();
+  else buildPasswordPrompt();
+}
+
 function renderLesson(card,q){
   card.innerHTML='';card.classList.add('lesson-card');
   const L=q.lesson||{};
@@ -5577,7 +6236,7 @@ function renderLesson(card,q){
     const tone = NOVA_SUBJECT_TONE[subId] || 'magic';
     const msg  = pickNovaLessonOpener(subId);
     card.appendChild(h('div',{class:'lesson-mascot'},[
-      createMascot({ tone, size:72, message: msg }),
+      createMascot({ tone, size:104, message: msg }),
     ]));
   } catch(e){ console.warn('[KidQuest] lesson Nova failed:', e); }
   // Hero image — ONLY shown when lesson.heroImage is explicitly set.
@@ -5594,17 +6253,21 @@ function renderLesson(card,q){
     img.onload = ()=>img.classList.add('loaded');
     img.onerror = ()=>img.remove();   // fail silently; text content still shines
     card.appendChild(img);
-  } else {
-    // No hero image? Show a big emoji visual instead. Uses lesson.visual for
-    // a lesson-specific override (e.g. '🐘' on the Main Idea lesson whose
-    // example is about elephants), otherwise falls back to the activity's
-    // own emoji (every activity has one — see WEEKS content). This means
-    // every lesson screen has a visual anchor, not just text.
-    const bigEmoji = L.visual || (quiz && quiz.activity && quiz.activity.emoji);
-    if(bigEmoji){
-      card.appendChild(h('div',{class:'lesson-visual'}, bigEmoji));
-    }
   }
+  // NOTE: we deliberately DO NOT render a big emoji header anymore.
+  // The activity emoji is woven into the example box below as a subtle
+  // corner decoration — keeps the top of the card clean while still giving
+  // the lesson a visual identity.
+  //
+  // We intentionally use activity.emoji (always a single clean glyph like
+  // "➕" or "🔢") and NOT L.visual. `L.visual` is often a narrative
+  // pictogram string (e.g. "14 🍪  ➗  3 👧") that looks wrong rotated in
+  // the corner — it belongs inline inside the example text, not as deco.
+  const decoEmoji = (quiz && quiz.activity && quiz.activity.emoji) || '';
+  const addDeco = (box)=>{
+    if(decoEmoji) box.appendChild(h('div',{class:'lesson-example-deco','aria-hidden':'true'}, decoEmoji));
+    return box;
+  };
   if(L.title) card.appendChild(h('div',{class:'lesson-title'},L.title));
   // Inline embedded videos — kid-safe, kids NEVER leave the app.
   // Rendered HIGH on the lesson card (right after the title) so kids
@@ -5612,11 +6275,24 @@ function renderLesson(card,q){
   // activity.videoIds[] is set with real YouTube video IDs (up to 2).
   // youtube-nocookie.com + rel=0 + modestbranding=1 + iv_load_policy=3
   // kills the related-video feed, YouTube branding, and annotations.
-  const vidIds = (quiz && quiz.activity && Array.isArray(quiz.activity.videoIds))
-                   ? quiz.activity.videoIds.filter(Boolean) : [];
+  const activityId  = quiz && quiz.activity && quiz.activity.id;
+  const builtinIds  = (quiz && quiz.activity && Array.isArray(quiz.activity.videoIds))
+                        ? quiz.activity.videoIds.filter(Boolean) : [];
+  const vidIds = getActivityVideoIds(activityId, builtinIds);
+  // Teacher-only gear — opens the password-gated lesson video settings modal.
+  const gearBtn = ()=>h('button',{
+    class:'lv-gear',
+    onclick:(e)=>{ e.preventDefault(); e.stopPropagation(); openLessonVideoSettings(activityId, builtinIds); },
+    title:'Edit lesson video (teacher only)',
+    'aria-label':'Edit lesson video',
+  }, '⚙ Settings');
   if(vidIds.length){
     const vbox = h('div',{class:'lesson-videos'});
-    card.appendChild(h('div',{class:'lesson-videos-title'}, '▶ Watch & learn'));
+    const titleRow = h('div',{class:'lesson-videos-title'}, [
+      h('span',{}, '▶ Watch & learn'),
+    ]);
+    if(activityId) titleRow.appendChild(gearBtn());
+    card.appendChild(titleRow);
     vidIds.slice(0,2).forEach(id=>{
       const wrap = h('div',{class:'lesson-video-wrap'});
       const iframe = document.createElement('iframe');
@@ -5629,17 +6305,26 @@ function renderLesson(card,q){
       vbox.appendChild(wrap);
     });
     card.appendChild(vbox);
+  } else if(activityId){
+    // No video set for this lesson — still surface the gear so the teacher
+    // can add one. Students aren't told about the gear; the subtle dashed
+    // row just reads "No video" from their perspective.
+    const empty = h('div',{class:'lesson-videos-empty'},[
+      h('span',{}, '▶ No lesson video set.'),
+      gearBtn(),
+    ]);
+    card.appendChild(empty);
   }
   if(L.intro) card.appendChild(h('p',{class:'lesson-intro'},L.intro));
   // If the lesson provides a stack spec OR array of specs, render those as
   // visual columns INSTEAD of (or in addition to) the text example.
   if(L.stack){
     const stacks = Array.isArray(L.stack) ? L.stack : [L.stack];
-    const box = h('div',{class:'lesson-example'},[h('div',{class:'lesson-example-label'},'EXAMPLE')]);
+    const box = addDeco(h('div',{class:'lesson-example'},[h('div',{class:'lesson-example-label'},'EXAMPLE')]));
     stacks.forEach(s=>box.appendChild(buildMathStack(s)));
     card.appendChild(box);
   } else if(L.example){
-    const ex=h('div',{class:'lesson-example'},[h('div',{class:'lesson-example-label'},'EXAMPLE'),h('div',{class:'lesson-example-text'},L.example)]);
+    const ex=addDeco(h('div',{class:'lesson-example'},[h('div',{class:'lesson-example-label'},'EXAMPLE'),h('div',{class:'lesson-example-text'},L.example)]));
     card.appendChild(ex);
   }
   // Picture-card grid — for vocab/symbol lessons (French words, science terms,
@@ -5647,9 +6332,9 @@ function renderLesson(card,q){
   // (if audioLang is set) a speaker button that pronounces the word.
   if(Array.isArray(L.pictures) && L.pictures.length){
     const lang = L.audioLang || null;
-    const ex = h('div',{class:'lesson-example'},[
+    const ex = addDeco(h('div',{class:'lesson-example'},[
       h('div',{class:'lesson-example-label'}, lang ? 'VOCABULARY — TAP A CARD TO HEAR IT' : 'VOCABULARY'),
-    ]);
+    ]));
     const grid = h('div',{class:'pic-grid'});
     L.pictures.forEach(p=>{
       const speakText = p.speak || p.word;
@@ -5709,6 +6394,32 @@ function renderLesson(card,q){
   setTimeout(()=>{const b=$('#nextBtn');if(b){b.style.display='inline-flex';b.textContent="Let's practice! →"}},0);
 }
 
+/* ---- Wrong-answer tracking ----
+   Called by every question-type handler below when the student picks the
+   wrong answer. Feeds the per-student `wrongAnswers` log used by the
+   parent progress report. Cap at 200 most recent to keep storage bounded. */
+function logWrongAnswer(q, choseIdx, correctIdx){
+  try {
+    if(!state || !quiz) return;
+    if(!Array.isArray(state.wrongAnswers)) state.wrongAnswers = [];
+    const entry = {
+      aid: quiz.activityId,
+      subj: quiz.subject,
+      qIdx: quiz.idx,
+      qType: q && q.type || 'mcq',
+      qText: (q && (q.q || q.prompt || q.qText)) || '',
+      choseIdx: (typeof choseIdx === 'number') ? choseIdx : null,
+      correctIdx: (typeof correctIdx === 'number') ? correctIdx : null,
+      choices: Array.isArray(q && q.choices) ? q.choices.slice(0,6) : null,
+      at: Date.now()
+    };
+    state.wrongAnswers.push(entry);
+    if(state.wrongAnswers.length > WRONG_ANSWER_LOG_CAP){
+      state.wrongAnswers = state.wrongAnswers.slice(-WRONG_ANSWER_LOG_CAP);
+    }
+  } catch(e){ /* never let analytics break gameplay */ console.warn('[KidQuest] logWrongAnswer failed:', e); }
+}
+
 /* ---- MCQ ---- */
 function renderMCQ(card,q){
   // Auto-prefix each choice with a topical emoji when it doesn't already
@@ -5727,7 +6438,10 @@ function handleMCQ(ev,pick,ans){
   const btn=ev.currentTarget;
   btn.parentElement.querySelectorAll('.choice').forEach(c=>c.classList.add('locked'));
   if(pick===ans){btn.classList.add('correct');quiz.correct++;setFB(true)}
-  else{btn.classList.add('wrong');btn.parentElement.children[ans].classList.add('correct');setFB(false)}
+  else{
+    btn.classList.add('wrong');btn.parentElement.children[ans].classList.add('correct');setFB(false);
+    logWrongAnswer(quiz.questions[quiz.idx], pick, ans);
+  }
   showNext();
 }
 
@@ -5738,7 +6452,7 @@ function renderCompare(card,q){
     if(quiz.locked)return;quiz.locked=true;clearTimer();
     e.currentTarget.parentElement.querySelectorAll('.choice').forEach(c=>c.classList.add('locked'));
     if(key===q.answer){e.currentTarget.classList.add('correct');quiz.correct++;setFB(true)}
-    else{e.currentTarget.classList.add('wrong');setFB(false)}
+    else{e.currentTarget.classList.add('wrong');setFB(false);logWrongAnswer(q, null, null)}
     showNext();
   }},txt);
   box.appendChild(mk('a',String(q.a)));
@@ -5776,7 +6490,7 @@ function renderOrder(card,q){
   function check(){
     quiz.locked=true;clearTimer();
     const ok=placed.every((v,i)=>v===expected[i]);
-    if(ok){quiz.correct++;setFB(true)}else{setFB(false)}
+    if(ok){quiz.correct++;setFB(true)}else{setFB(false);logWrongAnswer(q, null, null)}
     showNext();
   }
   card.appendChild(slots);card.appendChild(pool);refresh();
@@ -5798,6 +6512,7 @@ function renderWrite(card,q){
     btn.disabled=true; ta.disabled=true; clearTimer();
     const result=gradeWriting(text,q);
     quiz.correct+=(result.level>=3?1:0); // Level 3-4 counts as correct
+    if(result.level<3) logWrongAnswer(q, null, null);
     // Show rubric
     const rubric=h('div',{class:'rubric'});
     const lvNames=['','Needs Work','Getting There','Good Job!','Excellent!'];
@@ -6417,8 +7132,109 @@ const MINI_GAME_COIN_CAP = 10; // max coins per day awarded from mini-games
 function ensureMiniGameStats(){
   if(!state) return;
   if(!state.miniGameStats){
-    state.miniGameStats = { date:'', coinsToday:0, bestMemoryEasy:null, bestMemoryHard:null, bestMathScore:0 };
+    state.miniGameStats = { date:'', coinsToday:0, bestMemoryEasy:null, bestMemoryHard:null, bestMathScore:0, bestOddScore:0, bestSimonLevel:0 };
   }
+  // Backfill new best-score fields for saves that predate them.
+  if(state.miniGameStats.bestOddScore   === undefined) state.miniGameStats.bestOddScore   = 0;
+  if(state.miniGameStats.bestSimonLevel === undefined) state.miniGameStats.bestSimonLevel = 0;
+}
+
+/* ==========================================================================
+   AUTOPLAY MODE
+   --------------------------------------------------------------------------
+   One-tap "learn on autopilot" flow. After the student logs in, tapping the
+   Autoplay button starts a cycle that runs until the student stops it:
+     → next subject's next un-passed lesson
+     → random brain-break game
+     → next subject's next un-passed lesson
+     → random brain-break game
+     → …
+   Subjects are rotated so each gets a turn before any repeats. When every
+   lesson in a subject is passed, autoplay picks a random one from that
+   subject for extra practice.
+
+   autoplay is ephemeral session state — it never hits the cloud save. A
+   fresh page load starts fresh. The student can exit at any time via the
+   floating "⏹ Autoplay" chip or the Home topbar.
+   ========================================================================== */
+const AUTOPLAY_BREAK_GAMES = [
+  { screen:'game-memory', opts:null },
+  { screen:'game-math',   opts:{ level:'easy' } },
+  { screen:'game-odd',    opts:{ level:'medium' } },
+  { screen:'game-simon',  opts:null },
+];
+function ensureAutoplay(){
+  if(!state) return;
+  if(!state.autoplay){
+    state.autoplay = { active:false, stepsDone:0, lastSubject:null, phase:null };
+  }
+}
+function autoplayStart(){
+  ensureAutoplay();
+  state.autoplay = { active:true, stepsDone:0, lastSubject:null, phase:null };
+  autoplayGoNextLesson();
+}
+function autoplayStop(){
+  ensureAutoplay();
+  state.autoplay.active = false;
+  // Render the current screen again so the floating chip disappears
+  go(currentUser ? 'dashboard' : 'home');
+}
+// Rotate to the next subject that has an un-passed lesson. Returns
+// { activityId, subject } or null if the student has literally nothing
+// available (shouldn't happen for a populated WEEKS dataset).
+function autoplayPickNextLesson(){
+  if(!currentUser || !state) return null;
+  const subjects = SUBJECTS.map(s=>s.id);
+  const lastIdx  = subjects.indexOf(state.autoplay && state.autoplay.lastSubject || '');
+  // Start rotation at the subject AFTER the one that just ran.
+  for(let i=1; i<=subjects.length; i++){
+    const nextIdx = (lastIdx + i + subjects.length) % subjects.length;
+    const subjId  = subjects[nextIdx];
+    const acts = getWeekActivities(currentUser, subjId);
+    if(!acts.length) continue;
+    const unpassed = acts.find(a => !state.completedActivities[a.id]);
+    if(unpassed) return { activityId: unpassed.id, subject: subjId };
+  }
+  // Everything passed — grace mode: pick a random lesson for extra practice.
+  for(let i=1; i<=subjects.length; i++){
+    const nextIdx = (lastIdx + i + subjects.length) % subjects.length;
+    const subjId  = subjects[nextIdx];
+    const acts = getWeekActivities(currentUser, subjId);
+    if(acts.length){
+      const a = acts[Math.floor(Math.random()*acts.length)];
+      return { activityId: a.id, subject: subjId };
+    }
+  }
+  return null;
+}
+function autoplayGoNextLesson(){
+  ensureAutoplay();
+  const pick = autoplayPickNextLesson();
+  if(!pick){ autoplayStop(); return; }
+  state.autoplay.lastSubject = pick.subject;
+  state.autoplay.phase = 'lesson';
+  state.autoplay.stepsDone = (state.autoplay.stepsDone||0) + 1;
+  go('activity', { activityId: pick.activityId, subject: pick.subject });
+}
+function autoplayGoNextBreak(){
+  ensureAutoplay();
+  const g = AUTOPLAY_BREAK_GAMES[Math.floor(Math.random()*AUTOPLAY_BREAK_GAMES.length)];
+  state.autoplay.phase = 'break';
+  state.autoplay.stepsDone = (state.autoplay.stepsDone||0) + 1;
+  go(g.screen, g.opts || undefined);
+}
+// Adds a floating "Autoplay ON · ⏹ Stop" chip to the current screen's root.
+// Safe to call from any render function.
+function renderAutoplayChip(root){
+  if(!state || !state.autoplay || !state.autoplay.active) return;
+  const chip = h('div',{class:'autoplay-chip'},[
+    h('span',{class:'ap-dot'},''),
+    h('span',{class:'ap-label'},'Autoplay ON'),
+    h('span',{class:'ap-steps'}, '· ' + (state.autoplay.stepsDone||0) + ' done'),
+    h('button',{class:'ap-stop',onclick:autoplayStop,title:'Stop autoplay'},'⏹ Stop'),
+  ]);
+  root.appendChild(chip);
 }
 
 // Award coins for a finished run. rating: 0–3. Silently clamps to the daily
@@ -6461,10 +7277,21 @@ function showMiniGameWin(opts){
   }
   card.appendChild(h('div',{class:'mg-win-coins'}, opts.coins > 0 ? ('+'+opts.coins+' 💰') : 'Daily coin cap reached — play for fun!'));
   if(opts.isNewBest) card.appendChild(h('div',{class:'mg-win-best'}, '🏆 New personal best!'));
-  card.appendChild(h('div',{class:'mg-win-buttons'},[
-    h('button',{class:'btn btn-primary',onclick:()=>{overlay.remove(); opts.onReplay && opts.onReplay();}}, '🔁 Play Again'),
-    h('button',{class:'btn',onclick:()=>{overlay.remove(); opts.onHome && opts.onHome();}}, '🏠 Back to Dashboard'),
-  ]));
+  // Autoplay override — if active, replace the two default buttons with a
+  // single "Next lesson ▶" that routes to the next subject's next un-passed
+  // lesson. The student stays in the flow without having to navigate.
+  const autoplayActive = !!(state && state.autoplay && state.autoplay.active);
+  if(autoplayActive){
+    card.appendChild(h('div',{class:'mg-win-buttons'},[
+      h('button',{class:'btn btn-primary',onclick:()=>{overlay.remove(); try{ autoplayGoNextLesson(); }catch(e){ console.warn('[KidQuest] autoplay advance failed:',e); go('dashboard'); }}}, 'Next lesson ▶'),
+      h('button',{class:'btn',onclick:()=>{overlay.remove(); try{ autoplayStop(); }catch(e){ go('dashboard'); }}}, '⏹ Stop autoplay'),
+    ]));
+  } else {
+    card.appendChild(h('div',{class:'mg-win-buttons'},[
+      h('button',{class:'btn btn-primary',onclick:()=>{overlay.remove(); opts.onReplay && opts.onReplay();}}, '🔁 Play Again'),
+      h('button',{class:'btn',onclick:()=>{overlay.remove(); opts.onHome && opts.onHome();}}, '🏠 Back to Dashboard'),
+    ]));
+  }
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 }
@@ -6491,6 +7318,8 @@ function renderMiniHub(root){
   const bestMem  = state.miniGameStats.bestMemoryEasy;
   const bestMemH = state.miniGameStats.bestMemoryHard;
   const bestMath = state.miniGameStats.bestMathScore || 0;
+  const bestOdd  = state.miniGameStats.bestOddScore   || 0;
+  const bestSim  = state.miniGameStats.bestSimonLevel || 0;
   const grid = h('div',{class:'mini-games-grid stagger'});
   const memBestTxt = bestMemH ? ('Best (Hard): ' + bestMemH.moves + ' moves')
                    : bestMem  ? ('Best (Easy): ' + bestMem.moves + ' moves')
@@ -6511,6 +7340,26 @@ function renderMiniHub(root){
       h('div',{class:'mg-name'},'Quick Math'),
       h('div',{class:'mg-desc'},'60 seconds. How many can you solve?'),
       h('div',{class:'mg-best'}, mathBestTxt),
+    ]),
+    h('div',{class:'mg-arrow'},'→'),
+  ]));
+  const oddBestTxt = bestOdd ? ('Best: ' + bestOdd + ' correct') : 'Play to set a record!';
+  grid.appendChild(h('button',{class:'mg-tile odd',onclick:()=>go('game-odd')},[
+    h('div',{class:'mg-ico'},'🎯'),
+    h('div',{class:'mg-info'},[
+      h('div',{class:'mg-name'},'Odd One Out'),
+      h('div',{class:'mg-desc'},'Spot the one that doesn\u2019t belong.'),
+      h('div',{class:'mg-best'}, oddBestTxt),
+    ]),
+    h('div',{class:'mg-arrow'},'→'),
+  ]));
+  const simBestTxt = bestSim ? ('Best: Level ' + bestSim) : 'Play to set a record!';
+  grid.appendChild(h('button',{class:'mg-tile simon',onclick:()=>go('game-simon')},[
+    h('div',{class:'mg-ico'},'🎵'),
+    h('div',{class:'mg-info'},[
+      h('div',{class:'mg-name'},'Copycat'),
+      h('div',{class:'mg-desc'},'Watch the pattern. Tap it back.'),
+      h('div',{class:'mg-best'}, simBestTxt),
     ]),
     h('div',{class:'mg-arrow'},'→'),
   ]));
@@ -6769,6 +7618,334 @@ function renderQuickMath(root, opts){
   }
 }
 
+/* ----- ODD ONE OUT -----
+   60-second category-matching game. Show 4 emoji — three fit a category,
+   one is the odd one. Kid taps the outlier. Correct = +1, streak advances.
+   Wrong = brief reveal of the correct answer, then next puzzle. Rating
+   scales with total correct. Three difficulty tiers so older students get
+   real challenge (attribute-based + abstract groupings) while younger kids
+   keep accessible rounds. */
+const ODD_ONE_OUT_PUZZLES = {
+  easy: [
+    // Obvious visual category mismatches — kindergarten / G1.
+    { category:'Which is NOT an animal?',     odd:'🚗', fits:['🐶','🐱','🐰'] },
+    { category:'Which is NOT a fruit?',       odd:'🥕', fits:['🍎','🍌','🍊'] },
+    { category:'Which is NOT a vehicle?',     odd:'🐸', fits:['🚗','🚲','✈️'] },
+    { category:'Which is NOT a sport ball?',  odd:'🎈', fits:['⚽','🏀','⚾'] },
+    { category:'Which is NOT a bug?',         odd:'🐟', fits:['🐛','🦋','🐜'] },
+    { category:'Which is NOT a drink?',       odd:'🍞', fits:['🥤','☕','🧃'] },
+    { category:'Which is NOT a building?',    odd:'🌲', fits:['🏠','🏢','🏫'] },
+    { category:'Which is NOT a face?',        odd:'🌕', fits:['😀','😎','🥳'] },
+    { category:'Which is NOT a tool?',        odd:'🍓', fits:['🔨','🪚','🔧'] },
+    { category:'Which is NOT a musical thing?', odd:'🍕', fits:['🎸','🥁','🎹'] },
+    { category:'Which is NOT a weather?',     odd:'🦄', fits:['☀️','🌧️','⛈️'] },
+    { category:'Which is NOT a bird?',        odd:'🐠', fits:['🦅','🦉','🐔'] },
+    { category:'Which is NOT a vegetable?',   odd:'🍰', fits:['🥦','🥕','🌽'] },
+    { category:'Which is NOT clothing?',      odd:'🍌', fits:['👕','👖','🧦'] },
+    { category:'Which is NOT a sea creature?', odd:'🐘', fits:['🐟','🐙','🦈'] },
+    { category:'Which is NOT a sweet treat?', odd:'🥦', fits:['🍪','🍭','🧁'] },
+    { category:'Which is NOT a farm animal?', odd:'🦒', fits:['🐄','🐖','🐑'] },
+    { category:'Which is NOT a breakfast food?', odd:'🍔', fits:['🥞','🥚','🥐'] },
+    { category:'Which is NOT something in space?', odd:'🦆', fits:['🌟','🪐','☄️'] },
+    { category:'Which is NOT a party thing?', odd:'🧹', fits:['🎂','🎉','🎈'] },
+  ],
+  medium: [
+    // Subtler categories — attributes, sub-groups, needs a moment to think.
+    { category:'Which does NOT have legs?',           odd:'🐍', fits:['🐶','🐱','🐘'] },
+    { category:'Which does NOT swim?',                odd:'🐎', fits:['🐟','🐬','🦈'] },
+    { category:'Which is NOT dairy?',                 odd:'🍎', fits:['🧀','🥛','🧈'] },
+    { category:'Which does NOT fly?',                 odd:'🐧', fits:['🦅','🦋','🦉'] },
+    { category:'Which is NOT a citrus fruit?',        odd:'🍓', fits:['🍋','🍊','🍈'] },
+    { category:'Which is NOT used for writing?',      odd:'🥄', fits:['✏️','🖊️','🖍️'] },
+    { category:'Which does NOT grow on a tree?',      odd:'🍓', fits:['🍎','🍐','🍋'] },
+    { category:'Which is NOT yellow?',                odd:'🍇', fits:['🍋','🌞','🧀'] },
+    { category:'Which does NOT shine light?',         odd:'🌧️', fits:['☀️','💡','🕯️'] },
+    { category:'Which is NOT a big cat?',             odd:'🐺', fits:['🦁','🐯','🐆'] },
+    { category:'Which does NOT go in the bathroom?',  odd:'🛏️', fits:['🚿','🛁','🧼'] },
+    { category:'Which is NOT a reptile?',             odd:'🐸', fits:['🐍','🐢','🦎'] },
+    { category:'Which is NOT a type of bread?',       odd:'🍩', fits:['🥐','🥖','🍞'] },
+    { category:'Which does NOT live in water?',       odd:'🦌', fits:['🐟','🐙','🦈'] },
+    { category:'Which is NOT made of metal?',         odd:'📚', fits:['🔧','🔨','⚙️'] },
+    { category:'Which is NOT hot?',                   odd:'❄️', fits:['🔥','☀️','🌶️'] },
+    { category:'Which is NOT round?',                 odd:'📐', fits:['⚽','🍩','🥎'] },
+    { category:'Which does NOT come from a plant?',   odd:'🥩', fits:['🥕','🍎','🌽'] },
+    { category:'Which is NOT a kind of school?',      odd:'🏥', fits:['🏫','🎓','📚'] },
+    { category:'Which is NOT a continent on a map?',  odd:'🏝️', fits:['🌍','🌎','🌏'] },
+  ],
+  hard: [
+    // Tough — abstract traits, sub-sub-categories, real thinking.
+    { category:'Which is NOT a primary color?',        odd:'🟢', fits:['🔴','🔵','🟡'] },
+    { category:'Which is NOT a prime number?',         odd:'9️⃣', fits:['7️⃣','5️⃣','3️⃣'] },
+    { category:'Which is NOT a mammal?',               odd:'🐊', fits:['🐬','🐻','🦇'] },
+    { category:'Which is NOT used to tell time?',      odd:'📏', fits:['⏰','⌚','⏳'] },
+    { category:'Which is NOT a polygon shape?',        odd:'⭕', fits:['🔺','🟦','🔶'] },
+    { category:'Which does NOT have seeds inside?',    odd:'🍌', fits:['🍎','🍉','🍊'] },
+    { category:'Which is NOT an herbivore?',           odd:'🦁', fits:['🐄','🐇','🐘'] },
+    { category:'Which is NOT an even number?',         odd:'7️⃣', fits:['2️⃣','4️⃣','6️⃣'] },
+    { category:'Which does NOT lay eggs?',             odd:'🐕', fits:['🐔','🐢','🐍'] },
+    { category:'Which is NOT a solid at room temp?',   odd:'💧', fits:['🧊','🪨','🧱'] },
+    { category:'Which is NOT a planet?',               odd:'⭐', fits:['🌍','🪐','☄️'] },
+    { category:'Which is NOT a stringed instrument?',  odd:'🎹', fits:['🎸','🎻','🪕'] },
+    { category:'Which does NOT bloom?',                odd:'🌳', fits:['🌹','🌻','🌷'] },
+    { category:'Which is NOT a math tool?',            odd:'🧪', fits:['📏','📐','🧮'] },
+    { category:'Which is NOT man-made?',               odd:'🌋', fits:['🏰','🚀','🔧'] },
+    { category:'Which does NOT have chlorophyll?',     odd:'🍄', fits:['🌿','🌳','🌱'] },
+    { category:'Which is NOT a state of matter?',      odd:'🔥', fits:['🧊','💧','💨'] },
+    { category:'Which is NOT a Canadian symbol?',      odd:'🦅', fits:['🍁','🦫','🏒'] },
+    { category:'Which is NOT a type of triangle?',     odd:'⬛', fits:['🔺','🔻','🔼'] },
+  ],
+};
+function renderOddOneOut(root, opts){
+  if(!currentUser||!state){go('home');return}
+  ensureMiniGameStats();
+  const level = (opts && opts.level) || 'medium';
+
+  root.appendChild(h('div',{class:'week-head'},[
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},'🎯'),h('span',{},'Odd One Out')]),
+    h('button',{class:'back-btn',onclick:()=>go('mini-hub')},'← Back'),
+  ]));
+  root.appendChild(h('div',{class:'mg-diff-row'},[
+    h('button',{class:'mg-diff'+(level==='easy'  ?' active':''),onclick:()=>go('game-odd',{level:'easy'}  )}, 'Easy · basic groups'),
+    h('button',{class:'mg-diff'+(level==='medium'?' active':''),onclick:()=>go('game-odd',{level:'medium'})}, 'Medium · subtler'),
+    h('button',{class:'mg-diff'+(level==='hard'  ?' active':''),onclick:()=>go('game-odd',{level:'hard'}  )}, 'Hard · think!'),
+  ]));
+
+  let correct = 0; let wrong = 0; let timeLeft = 60; let gameActive = false;
+  let timerId = null; let answerLocked = false;
+  // Shuffled queue of puzzles so no immediate repeats within a run.
+  const pool = ODD_ONE_OUT_PUZZLES[level] || ODD_ONE_OUT_PUZZLES.medium;
+  let queue = pool.slice().sort(()=>Math.random()-0.5);
+  let qi = 0;
+
+  const intro = h('div',{class:'oo-intro'},[
+    createMascot({ tone:'magic', size:90, message:'Pick the one that doesn\u2019t fit!' }),
+    h('button',{class:'btn btn-primary qm-start-btn',onclick:startGame}, '▶️ Start!'),
+  ]);
+  root.appendChild(intro);
+
+  const area = h('div',{class:'qm-area',style:'display:none'});
+  root.appendChild(area);
+  const scoreDisp = h('span',{class:'mg-val'},'0');
+  const timeDisp  = h('span',{class:'mg-val'},'60');
+  area.appendChild(h('div',{class:'qm-status'},[
+    h('div',{class:'qm-stat'},[h('span',{class:'mg-label'},'Correct'), scoreDisp]),
+    h('div',{class:'qm-stat'},[h('span',{class:'mg-label'},'Time'),    timeDisp]),
+  ]));
+  const promptEl = h('div',{class:'oo-prompt'});
+  const boardEl  = h('div',{class:'oo-board'});
+  area.appendChild(promptEl);
+  area.appendChild(boardEl);
+
+  function nextPuzzle(){
+    if(qi >= queue.length){
+      // Reshuffle if the kid is fast enough to exhaust the deck.
+      queue = pool.slice().sort(()=>Math.random()-0.5);
+      qi = 0;
+    }
+    const p = queue[qi++];
+    promptEl.textContent = p.category;
+    // Shuffle odd + 3 fits together
+    const items = p.fits.map(e=>({ emoji:e, isOdd:false })).concat([{ emoji:p.odd, isOdd:true }]);
+    items.sort(()=>Math.random()-0.5);
+    boardEl.innerHTML = '';
+    answerLocked = false;
+    items.forEach(it=>{
+      const btn = h('button',{class:'oo-choice'}, it.emoji);
+      btn.onclick = () => {
+        if(!gameActive || answerLocked) return;
+        answerLocked = true;
+        if(it.isOdd){
+          correct++;
+          btn.classList.add('correct');
+          scoreDisp.textContent = String(correct);
+        } else {
+          wrong++;
+          btn.classList.add('wrong');
+          // Highlight the actual odd one so the kid learns
+          Array.from(boardEl.children).forEach(ch=>{
+            if(ch.textContent === p.odd) ch.classList.add('correct');
+          });
+        }
+        Array.from(boardEl.children).forEach(ch=>ch.classList.add('locked'));
+        setTimeout(nextPuzzle, 500);
+      };
+      boardEl.appendChild(btn);
+    });
+  }
+
+  function startGame(){
+    gameActive = true;
+    intro.style.display = 'none';
+    area.style.display  = '';
+    nextPuzzle();
+    timerId = setInterval(()=>{
+      timeLeft--;
+      timeDisp.textContent = String(timeLeft);
+      if(timeLeft <= 0){
+        clearInterval(timerId);
+        gameActive = false;
+        onEnd();
+      }
+    }, 1000);
+  }
+
+  function onEnd(){
+    // Harder difficulties reward lower raw counts so a good Hard run
+    // still earns full stars (puzzles take longer to read/think through).
+    const thresholds = level === 'hard'   ? [3, 6, 10]
+                     : level === 'medium' ? [4, 8, 14]
+                     :                      [5, 10, 18];
+    const rating = correct >= thresholds[2] ? 3 : correct >= thresholds[1] ? 2 : correct >= thresholds[0] ? 1 : 0;
+    const prevBest = state.miniGameStats.bestOddScore || 0;
+    const isNewBest = correct > prevBest;
+    if(isNewBest) state.miniGameStats.bestOddScore = correct;
+    const coins = miniGameAward(rating);
+    saveState();
+    showMiniGameWin({
+      title: "Time's up!",
+      rating, coins, isNewBest,
+      stats: [
+        { lbl:'Correct', val: String(correct) },
+        { lbl:'Oops',    val: String(wrong)   },
+      ],
+      onReplay: () => go('game-odd', { level }),
+      onHome:   () => go('dashboard'),
+    });
+  }
+}
+
+/* ----- COPYCAT (Simon Says) -----
+   Four colored pads flash a pattern. Kid taps the pattern back. Each level
+   adds one more step. One wrong tap ends the round. Best = longest level
+   successfully completed. Exercises working memory, complements the other
+   games. */
+function renderSimonSays(root, opts){
+  if(!currentUser||!state){go('home');return}
+  ensureMiniGameStats();
+
+  root.appendChild(h('div',{class:'week-head'},[
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},'🎵'),h('span',{},'Copycat')]),
+    h('button',{class:'back-btn',onclick:()=>go('mini-hub')},'← Back'),
+  ]));
+
+  let sequence = []; let inputIdx = 0; let level = 0; let gameActive = false;
+  let acceptingInput = false;
+
+  const intro = h('div',{class:'ss-intro'},[
+    createMascot({ tone:'magic', size:90, message:'Watch the pattern. Tap it back!' }),
+    h('button',{class:'btn btn-primary qm-start-btn',onclick:startGame}, '▶️ Start!'),
+  ]);
+  root.appendChild(intro);
+
+  const area = h('div',{class:'qm-area',style:'display:none'});
+  root.appendChild(area);
+  const levelDisp = h('div',{class:'ss-status'}, 'Level 1');
+  const hintDisp  = h('div',{class:'ss-sub'}, 'Get ready…');
+  area.appendChild(levelDisp);
+  area.appendChild(hintDisp);
+
+  const padEmojis = ['🔴','🔵','🟢','🟡'];
+  const boardEl = h('div',{class:'ss-board'});
+  const pads = [];
+  for(let i=0;i<4;i++){
+    const p = h('button',{class:'ss-pad','data-pad':String(i)}, padEmojis[i]);
+    p.disabled = true;
+    p.onclick = () => onPadTap(i);
+    pads.push(p);
+    boardEl.appendChild(p);
+  }
+  area.appendChild(boardEl);
+
+  function flashPad(idx, duration){
+    return new Promise(res=>{
+      const p = pads[idx];
+      p.classList.add('lit');
+      setTimeout(()=>{
+        p.classList.remove('lit');
+        setTimeout(res, 140);
+      }, duration);
+    });
+  }
+
+  async function playSequence(){
+    acceptingInput = false;
+    pads.forEach(p=>{ p.disabled = true; p.classList.remove('active-input'); });
+    hintDisp.textContent = 'Watch…';
+    // Brief pause so the kid can see the new level before playback
+    await new Promise(r=>setTimeout(r,450));
+    // Playback tempo speeds up a bit as levels climb (floor at 280ms)
+    const dur = Math.max(280, 620 - (level-1)*25);
+    for(let i=0;i<sequence.length;i++){
+      await flashPad(sequence[i], dur);
+    }
+    acceptingInput = true;
+    inputIdx = 0;
+    hintDisp.textContent = 'Your turn — tap the pattern!';
+    pads.forEach(p=>{ p.disabled = false; p.classList.add('active-input'); });
+  }
+
+  function nextLevel(){
+    level++;
+    levelDisp.textContent = 'Level ' + level;
+    sequence.push(Math.floor(Math.random()*4));
+    playSequence();
+  }
+
+  function onPadTap(i){
+    if(!gameActive || !acceptingInput) return;
+    const expected = sequence[inputIdx];
+    if(i === expected){
+      // Briefly light up the tapped pad for feedback
+      flashPad(i, 180);
+      inputIdx++;
+      if(inputIdx >= sequence.length){
+        acceptingInput = false;
+        pads.forEach(p=>{ p.disabled = true; p.classList.remove('active-input'); });
+        hintDisp.textContent = 'Nice!';
+        setTimeout(nextLevel, 650);
+      }
+    } else {
+      // Wrong tap — show correct pad briefly, then end
+      acceptingInput = false;
+      pads.forEach(p=>{ p.disabled = true; p.classList.remove('active-input'); });
+      pads[i].classList.add('wrong');
+      setTimeout(()=>{
+        pads[i].classList.remove('wrong');
+        onEnd();
+      }, 700);
+    }
+  }
+
+  function startGame(){
+    gameActive = true;
+    intro.style.display = 'none';
+    area.style.display  = '';
+    sequence = []; level = 0; inputIdx = 0;
+    nextLevel();
+  }
+
+  function onEnd(){
+    gameActive = false;
+    const completed = Math.max(0, level - 1); // the level you tripped on doesn't count
+    const rating = completed >= 9 ? 3 : completed >= 5 ? 2 : completed >= 2 ? 1 : 0;
+    const prevBest = state.miniGameStats.bestSimonLevel || 0;
+    const isNewBest = completed > prevBest;
+    if(isNewBest) state.miniGameStats.bestSimonLevel = completed;
+    const coins = miniGameAward(rating);
+    saveState();
+    showMiniGameWin({
+      title: completed > 0 ? ('Level ' + completed + ' cleared!') : 'Good try!',
+      rating, coins, isNewBest,
+      stats: [
+        { lbl:'Levels', val: String(completed) },
+        { lbl:'Steps',  val: String(sequence.length) },
+      ],
+      onReplay: () => go('game-simon'),
+      onHome:   () => go('dashboard'),
+    });
+  }
+}
+
 /* ========== BADGES ========== */
 function renderBadges(root){
   if(!currentUser||!state){go('home');return}
@@ -6796,8 +7973,12 @@ function renderTeacher(root){
     const td=Object.keys(ud.completedActivities).length;
     const totalActs=SUBJECTS.reduce((sum,sub)=>sum+getWeekActivities(s.id,sub.id).length,0);
     const pct=totalActs?Math.round(td/totalActs*100):0;
+    // Header token = chosen avatar emoji if set, otherwise the student's
+    // initial. Replaces the old decorative decoEmoji for a cleaner look
+    // that matches the student's own profile identity.
+    const tToken=getStudentAvatarDisplay(s.id).value;
     const card=h('div',{class:'t-student'},[
-      h('h3',{},[h('span',{style:'font-size:22px;margin-right:6px'},s.decoEmoji),h('span',{},s.name)]),
+      h('h3',{},[h('span',{style:'font-size:22px;margin-right:6px'},tToken),h('span',{},s.name)]),
       h('div',{class:'t-grade'},s.grade),
       h('div',{class:'t-stats'},[
         h('span',{},'⭐ '+ud.totalStars),h('span',{},'💰 '+ud.coins),
@@ -6829,6 +8010,9 @@ function renderTeacher(root){
     try { dash.appendChild(renderReportCard(s.id, true)); }
     catch(e){ console.warn('[KidQuest] teacher report card failed:',e); }
   });
+  // Parent email + weekly progress report
+  try { dash.appendChild(renderParentReports()); }
+  catch(e){ console.warn('[KidQuest] parent reports UI failed:',e); }
   // Store management: reward requests + catalog editor + stats
   try { dash.appendChild(renderTeacherStore()); }
   catch(e){ console.warn('[KidQuest] teacher store failed:',e); }
@@ -6860,6 +8044,7 @@ function renderTeacher(root){
         STUDENTS.forEach(s=>{ allData.users[s.id] = Object.assign(defaultUser(), d.users[s.id]||{}); });
         allData.orders = Array.isArray(d.orders) ? d.orders : [];
         allData.catalogOverrides = (d.catalogOverrides && typeof d.catalogOverrides==='object') ? d.catalogOverrides : {};
+        allData.videoOverrides   = (d.videoOverrides   && typeof d.videoOverrides  ==='object') ? d.videoOverrides   : {};
         allData.teacher = (d.teacher && typeof d.teacher==='object') ? d.teacher : allData.teacher;
         allData.updatedAt = Date.now();
         saveState();
@@ -6869,11 +8054,520 @@ function renderTeacher(root){
         alert('Could not import: '+err.message);
       }
     }},'📥 Import JSON'),
-    h('button',{class:'btn btn-ghost',onclick:()=>{if(confirm('Reset ALL student progress?')){STUDENTS.forEach(s=>{allData.users[s.id]=defaultUser()});saveState();go('teacher')}}},'🔄 Reset All'),
-    h('button',{class:'btn btn-ghost',onclick:()=>{if(confirm('Clear ALL reward order history?')){allData.orders=[];saveState();go('teacher')}}},'🧹 Clear Orders'),
+    h('button',{class:'btn btn-ghost',onclick:()=>{
+      if(!confirm('Clear ALL reward order history?')) return;
+      if(!confirmTeacherPassword('clear all reward orders')) return;
+      allData.orders=[]; saveState(); go('teacher');
+    }},'🧹 Clear Orders'),
   ]);
   dash.appendChild(ctrl);
+  // Reset controls — granular password-gated resets (per subject, per student, all).
+  try { dash.appendChild(renderResetControls()); }
+  catch(e){ console.warn('[KidQuest] reset controls failed:',e); }
   root.appendChild(dash);
+}
+
+/* ==========================================================================
+   RESET CONTROLS — Teacher tools
+   --------------------------------------------------------------------------
+   Three levels of progress-reset, all password-gated:
+     1. Reset ONE subject's progress for ONE student (keeps everything else)
+     2. Reset ONE student completely (coins, stars, badges, completions)
+     3. Reset EVERYTHING — wipes every student + clears reward order history
+   Teacher password is prompted every time, even though the teacher dashboard
+   is already password-gated, as a deliberate "are you sure" before a
+   destructive action. Prevents misclicks from nuking a kid's progress.
+   ========================================================================== */
+function confirmTeacherPassword(actionDesc){
+  const pw = prompt('Teacher password required to '+actionDesc+'.\n\nEnter password:');
+  if(pw === null) return false; // user hit Cancel — treat as aborted
+  if(pw !== TEACHER_CREDS.password){
+    alert('Incorrect password. Action canceled.');
+    return false;
+  }
+  return true;
+}
+function resetStudent(sid){
+  if(!allData.users[sid]) return;
+  allData.users[sid] = defaultUser();
+  saveState();
+}
+function resetStudentSubject(sid, subjId){
+  const ud = allData.users[sid];
+  if(!ud) return;
+  const acts = getWeekActivities(sid, subjId) || [];
+  const actIds = new Set(acts.map(a=>a.id));
+  // Wipe completedActivities / perfectActivities entries that belong to this subject
+  if(ud.completedActivities){
+    Object.keys(ud.completedActivities).forEach(aid=>{
+      if(actIds.has(aid)) delete ud.completedActivities[aid];
+    });
+  }
+  if(ud.perfectActivities){
+    Object.keys(ud.perfectActivities).forEach(aid=>{
+      if(actIds.has(aid)) delete ud.perfectActivities[aid];
+    });
+  }
+  if(ud.progress){
+    Object.keys(ud.progress).forEach(k=>{
+      if(actIds.has(k)) delete ud.progress[k];
+    });
+  }
+  saveState();
+}
+/* ========== PARENT PROGRESS REPORTS ==========
+   Teacher dashboard lets the teacher enter a parent email per student and
+   fire off a weekly progress summary. We can't actually SEND mail from a
+   static single-file HTML app, so "send" opens the teacher's own mail
+   client via `mailto:` with subject/body/CC pre-filled. They review and
+   hit Send themselves.
+
+   CC is always REPORT_CC_EMAIL (rhahavy.b@gmail.com) so the tutoring
+   business owner sees every report that leaves the system.
+
+   Cadence: banner turns red after REPORT_INTERVAL_DAYS (7) without a
+   send. Teacher still sends manually — there's no cron without a server.
+*/
+
+// Aggregate the per-subject stats a report needs for one student.
+// Records specific activity titles so the email can name concepts the kid
+// nailed vs concepts they're still chewing on — not just subject-level stats.
+function reportSubjectStats(sid){
+  const ud = allData.users[sid] || defaultUser();
+  return SUBJECTS.map(sub => {
+    const acts = getWeekActivities(sid, sub.id) || [];
+    const total = acts.length;
+    let done=0, perfect=0;
+    const repeats = [];         // activities with >=2 attempts (kid had to retry)
+    const perfectActs = [];     // activity titles where they nailed it
+    const notDoneActs = [];     // activity titles not yet touched (complete)
+    const completedNotPerfect = []; // done but not perfect — on the bubble
+    acts.forEach(a=>{
+      const isDone = !!(ud.completedActivities && ud.completedActivities[a.id]);
+      const isPerfect = !!(ud.perfectActivities && ud.perfectActivities[a.id]);
+      const attempts = (ud.progress && ud.progress[a.id] && ud.progress[a.id].attempts) || 0;
+      // Prefer the specific lesson concept title when available — reads more
+      // naturally than the short activity label ("Finding the Main Idea" vs
+      // "Main Idea & Details"). Falls back to the activity title if the
+      // lesson object doesn't supply one.
+      const conceptTitle = (a.lesson && a.lesson.title) || a.title;
+      if(isDone) done++;
+      if(isPerfect){ perfect++; perfectActs.push({id:a.id, title:a.title, concept:conceptTitle}); }
+      if(attempts >= 2) repeats.push({id:a.id, title:a.title, concept:conceptTitle, attempts});
+      if(!isDone) notDoneActs.push({id:a.id, title:a.title, concept:conceptTitle});
+      if(isDone && !isPerfect) completedNotPerfect.push({id:a.id, title:a.title, concept:conceptTitle});
+    });
+    return {
+      id: sub.id, name: sub.name, emoji: sub.emoji,
+      total, done, perfect, repeats,
+      perfectActs, notDoneActs, completedNotPerfect,
+      pctDone: total ? Math.round((done/total)*100) : 0,
+      pctPerfect: total ? Math.round((perfect/total)*100) : 0,
+    };
+  });
+}
+
+// Build a plain-text progress report for the given student. Returns
+// { subject, body } strings ready to drop into a mailto: link.
+function buildProgressReport(sid){
+  const student = STUDENTS.find(s=>s.id===sid);
+  const ud = allData.users[sid] || defaultUser();
+  const p = getPronouns(ud);
+  const stats = reportSubjectStats(sid);
+  const totalDone = stats.reduce((a,b)=>a+b.done,0);
+  const totalAvail = stats.reduce((a,b)=>a+b.total,0);
+  const totalPerfect = stats.reduce((a,b)=>a+b.perfect,0);
+
+  // Strengths: subjects with perfect/total >= 50% AND at least 1 perfect
+  const strengths = stats.filter(s=>s.total>0 && s.perfect>=1 && (s.perfect/s.total) >= 0.5)
+                          .sort((a,b)=>b.pctPerfect-a.pctPerfect);
+  const strengthIds = new Set(strengths.map(s=>s.id));
+  // Growth areas: subjects where there's a problem (repeats, low completion,
+  // or zero perfect scores) AND they aren't already called out as strengths.
+  // Filtering out strengths avoids the awkward case where the same subject
+  // gets praised in paragraph 1 and criticized in paragraph 2.
+  const growth = stats.filter(s=>s.total>0 && !strengthIds.has(s.id)
+                                 && (s.repeats.length>=1 || s.done/s.total < 0.5 || s.perfect===0))
+                      .sort((a,b)=>b.repeats.length - a.repeats.length);
+
+  // Wrong-answer digest — pull the 10 most recent and bucket by subject.
+  const recent = (Array.isArray(ud.wrongAnswers) ? ud.wrongAnswers.slice(-10).reverse() : []);
+  const wrongBySubj = {};
+  recent.forEach(w=>{
+    if(!w.subj) return;
+    (wrongBySubj[w.subj] = wrongBySubj[w.subj] || []).push(w);
+  });
+
+  // ---- Compose ----
+  const name = student ? student.name : sid;
+  const grade = student ? student.grade : '';
+  const today = new Date().toLocaleDateString(undefined, {year:'numeric',month:'long',day:'numeric'});
+
+  const lines = [];
+  lines.push('Hi!');
+  lines.push('');
+  lines.push(`Here is ${name}'s weekly KidQuest progress report (${today}).`);
+  lines.push('');
+  lines.push(`Overall: ${totalDone} of ${totalAvail} activities completed — ${totalPerfect} perfect scores. ⭐${ud.totalStars||0} stars / 💰${ud.coins||0} coins / 🔥${ud.streak||0}-day streak.`);
+  lines.push('');
+
+  // Strengths paragraph — names the specific concepts the kid nailed, not
+  // just the subject. Parents want to know "what is she good at" in
+  // Reading, not just "Reading." We list perfect-score activity titles.
+  lines.push(`WHERE ${name.toUpperCase()} IS DOING WELL`);
+  if(strengths.length){
+    const top = strengths[0];
+    const topNames = strengths.slice(0,3).map(s=>s.name).join(', ');
+    lines.push(`${name} is showing real strength in ${topNames}. ` +
+      `In ${top.name} specifically, ${p.haveEarned} ${top.perfect} perfect score${top.perfect===1?'':'s'} ` +
+      `out of ${top.total} activit${top.total===1?'y':'ies'} (${top.pctPerfect}% perfect rate) — ` +
+      `${p.reallyUnderstand} this material and ${p.arentJustClicking}.`);
+    // Concept-level breakdown for each strong subject (up to 2 subjects).
+    strengths.slice(0,2).forEach(s=>{
+      if(!s.perfectActs.length) return;
+      // Cap at 4 concepts per subject to keep the email scannable. Use
+      // concept names from lesson.title (e.g. "Finding the Main Idea")
+      // when available, falling back to activity title.
+      const concepts = s.perfectActs.slice(0,4).map(a=>a.concept);
+      const extra = s.perfectActs.length > 4 ? `, +${s.perfectActs.length-4} more` : '';
+      lines.push('');
+      lines.push(`  ${s.emoji} Strong ${s.name.toLowerCase()} concepts: ${concepts.join(', ')}${extra}.`);
+    });
+  } else {
+    // No perfect-scores yet. Still try to highlight ANY done activities
+    // so the parent sees effort even before mastery shows up.
+    const anyDone = stats.filter(s=>s.done>0).sort((a,b)=>b.done-a.done);
+    if(anyDone.length){
+      const best = anyDone[0];
+      lines.push(`${name} is still working toward ${p.poss} first perfect-score streak, but ${p.subj}${p.subj==='they'?`'ve`:`'s`} been putting in the effort — ${best.done} of ${best.total} ${best.name} activities completed this week. We'll look for breakthrough moments next week.`);
+    } else {
+      lines.push(`${name} is still in the early stretch of this week's content — no perfect-score streak to highlight yet, but showing up and attempting lessons is the first step. We'll look for breakthrough moments next week.`);
+    }
+  }
+  lines.push('');
+
+  // Growth paragraph — names specific concepts to work on, not just
+  // subjects. We surface: (a) concepts that needed extra attempts,
+  // (b) concepts not yet tackled, (c) specific questions missed with
+  // what they chose vs the right answer when available.
+  lines.push(`WHERE ${name.toUpperCase()} CAN IMPROVE`);
+  if(growth.length){
+    const top = growth[0];
+    lines.push(`Areas to focus on: ${growth.slice(0,3).map(g=>g.name).join(', ')}. ` +
+      `${top.name} is the biggest priority this week.`);
+    // Per-subject concept breakdown — for each growth subject, list the
+    // specific activities that are shaky (repeats), done-but-imperfect,
+    // or untouched. We dedupe by activity id across all three buckets
+    // so a repeated-AND-unfinished activity only appears once.
+    growth.slice(0,2).forEach(s=>{
+      const bullets = [];
+      const used = new Set();  // track activity ids already surfaced
+      const addBullet = (a, line)=>{
+        if(used.has(a.id)) return;
+        used.add(a.id);
+        bullets.push(line);
+      };
+      // Repeated activities = struggled with the concept, worth naming
+      s.repeats.slice(0,3).forEach(r=>{
+        addBullet(r, `${r.concept} — needed ${r.attempts} attempt${r.attempts===1?'':'s'}`);
+      });
+      // Completed but not perfect = got it done but shaky on details
+      if(bullets.length < 3){
+        s.completedNotPerfect.forEach(a=>{
+          if(bullets.length >= 3) return;
+          addBullet(a, `${a.concept} — done but not yet mastered`);
+        });
+      }
+      // Not-done activities = haven't attempted, need to tackle
+      if(bullets.length < 3){
+        s.notDoneActs.forEach(a=>{
+          if(bullets.length >= 3) return;
+          addBullet(a, `${a.concept} — not yet attempted`);
+        });
+      }
+      if(!bullets.length) return;
+      lines.push('');
+      lines.push(`  ${s.emoji} ${s.name} concepts to revisit: ${bullets.join('; ')}.`);
+    });
+    // Specific wrong-question examples so the parent sees the exact
+    // spots where the kid tripped up — shows we're tracking at the
+    // question level, not just the activity level.
+    if(recent.length){
+      lines.push('');
+      lines.push(`  Recent questions ${p.subj} missed:`);
+      recent.slice(0,4).forEach(w=>{
+        const sub = SUBJECTS.find(s=>s.id===w.subj);
+        const subLabel = sub ? sub.name : (w.subj||'');
+        const snippet = (w.qText||'').trim().replace(/\s+/g,' ').slice(0,90);
+        if(!snippet) return;
+        // For MCQ: show what they chose vs the right answer so the
+        // parent can spot-check misconceptions
+        let detail = '';
+        if(Array.isArray(w.choices) && typeof w.choseIdx==='number' && typeof w.correctIdx==='number'){
+          const chose = (w.choices[w.choseIdx]||'').replace(/[^\w\s'-]/g,'').trim().slice(0,40);
+          const right = (w.choices[w.correctIdx]||'').replace(/[^\w\s'-]/g,'').trim().slice(0,40);
+          if(chose && right) detail = ` (chose "${chose}", correct: "${right}")`;
+        }
+        lines.push(`    • ${subLabel} — "${snippet}"${detail}`);
+      });
+    }
+  } else {
+    lines.push(`No specific struggles this week — ${p.areMoving} through the material at a confident pace. We'll stretch ${p.obj} with harder content next week.`);
+  }
+  lines.push('');
+
+  // Per-subject breakdown (scannable table)
+  lines.push('SUBJECT BREAKDOWN');
+  stats.forEach(s=>{
+    if(!s.total) return;
+    const tag = s.perfect===s.total && s.total>0 ? ' ✨' :
+                s.repeats.length>=1 ? ' ↻' : '';
+    lines.push(`  ${s.emoji} ${s.name}: ${s.done}/${s.total} done · ${s.perfect} perfect${tag}`);
+  });
+  lines.push('');
+  lines.push('— Rhahavy, KidQuest Tutoring');
+  lines.push('(Reply to this email to reach me directly.)');
+
+  const subject = `${name}'s KidQuest progress — ${today}`;
+  return { subject, body: lines.join('\n') };
+}
+
+// Fire off a report for the given student. Opens the teacher's mail
+// client via mailto: with parent-to + CC=REPORT_CC_EMAIL + pre-filled
+// body. Stamps lastReportSentAt so the overdue indicator resets.
+function sendProgressReport(sid){
+  const ud = allData.users[sid];
+  if(!ud){ alert('Student not found.'); return; }
+  const email = String(ud.parentEmail||'').trim();
+  if(!email){
+    alert("Please enter the parent's email first, then try again.");
+    return;
+  }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    if(!confirm(`"${email}" doesn't look like a valid email. Send anyway?`)) return;
+  }
+  const { subject, body } = buildProgressReport(sid);
+  // URLSearchParams uses + for spaces; mailto prefers %20 so body stays
+  // readable in the mail client preview.
+  const qs = new URLSearchParams({
+    subject,
+    cc: REPORT_CC_EMAIL,
+    body
+  }).toString().replace(/\+/g,'%20');
+  const href = 'mailto:' + email + '?' + qs;
+  // Stamp + persist BEFORE opening the client — if they cancel in their
+  // mail app, they can just hit Send again (the stamp is idempotent).
+  ud.lastReportSentAt = Date.now();
+  saveState();
+  // Some browsers block window.location for long mailto; use <a>.click()
+  const a = document.createElement('a');
+  a.href = href; a.style.display='none';
+  document.body.appendChild(a); a.click(); a.remove();
+  // Re-render teacher dashboard so the "last sent" + overdue chip update.
+  setTimeout(()=>{ try { renderTeacher(document.getElementById('screen')); } catch(e){} }, 150);
+}
+
+// Open a plain-text preview in an alert so the teacher can review before
+// firing the mailto: link. Simpler than a modal and works on all screens.
+function previewProgressReport(sid){
+  const ud = allData.users[sid];
+  if(!ud){ return; }
+  const { subject, body } = buildProgressReport(sid);
+  alert('Subject: ' + subject + '\n\n' + body);
+}
+
+// Format a "time since last sent" string for the UI. Returns e.g.
+// "Never sent", "Sent 3 days ago", "Sent today".
+function reportStatusFor(ud){
+  const ts = ud && ud.lastReportSentAt;
+  if(!ts){
+    return { label:'Never sent', cls:'never', overdue:false, days:Infinity };
+  }
+  const days = Math.floor((Date.now() - ts) / (24*60*60*1000));
+  const overdue = days >= REPORT_INTERVAL_DAYS;
+  let label;
+  if(days === 0) label = 'Sent today';
+  else if(days === 1) label = 'Sent yesterday';
+  else label = `Sent ${days} days ago`;
+  return { label, cls: overdue ? 'overdue' : (days >= REPORT_INTERVAL_DAYS - 2 ? 'due' : 'ok'), overdue, days };
+}
+
+// Teacher-dashboard panel: one row per student with a parent-email input,
+// "last sent" status, and Preview / Send buttons. A banner up top lists
+// how many reports are overdue so the teacher has a clear nudge.
+function renderParentReports(){
+  const wrap = h('div',{class:'t-maint t-parents'});
+  wrap.appendChild(h('h3',{class:'t-maint-title'},'📧 Parent Progress Reports'));
+  wrap.appendChild(h('p',{class:'t-maint-sub'},
+    `Enter each parent's email below, then tap "Send" to open your mail client with a weekly progress summary pre-filled. ` +
+    `Reports always CC the business owner (${REPORT_CC_EMAIL}). A report is suggested every ${REPORT_INTERVAL_DAYS} days.`
+  ));
+
+  // Count overdue students → summary pill
+  const overdueCount = STUDENTS.filter(s=>{
+    const ud = allData.users[s.id];
+    return ud && ud.parentEmail && reportStatusFor(ud).overdue;
+  }).length;
+  const neverCount = STUDENTS.filter(s=>{
+    const ud = allData.users[s.id];
+    return ud && ud.parentEmail && !ud.lastReportSentAt;
+  }).length;
+  if(overdueCount>0){
+    wrap.appendChild(h('div',{class:'t-maint-pill on'},
+      `🔔 ${overdueCount} report${overdueCount===1?'':'s'} overdue`));
+  } else if(neverCount === STUDENTS.filter(s=>allData.users[s.id]?.parentEmail).length && neverCount>0){
+    wrap.appendChild(h('div',{class:'t-maint-pill off'},'✓ No reports overdue'));
+  }
+
+  // One row per student
+  STUDENTS.forEach(s=>{
+    const ud = allData.users[s.id] || defaultUser();
+    const status = reportStatusFor(ud);
+
+    const row = h('div',{class:'t-parent-row'});
+    // Left: student name + grade. Use chosen avatar emoji (if set) or
+    // the initial from the name — NOT the tiny decoEmoji — so the header
+    // matches the student's own profile identity.
+    const headToken = getStudentAvatarDisplay(s.id).value;
+    row.appendChild(h('div',{class:'t-parent-info'},[
+      h('div',{class:'t-parent-name'}, headToken + ' ' + s.name),
+      h('div',{class:'t-parent-grade'}, s.grade||'')
+    ]));
+    // Middle: email input + status chip + pronoun picker
+    const input = h('input',{
+      class:'t-parent-email',
+      type:'email',
+      placeholder:"parent@example.com",
+      value: ud.parentEmail || '',
+      'aria-label': `Parent email for ${s.name}`
+    });
+    input.addEventListener('change', ()=>{
+      const v = input.value.trim();
+      allData.users[s.id].parentEmail = v;
+      saveState();
+      // Re-render to refresh the "overdue" pill and button disabled state
+      try { renderTeacher(document.getElementById('screen')); } catch(e){}
+    });
+    // Pronoun picker — affects report language. Defaults to 'they'.
+    const currentPronoun = (ud.pronouns && PRONOUN_PRESETS[ud.pronouns]) ? ud.pronouns : 'they';
+    const pronounSel = h('select',{
+      class:'t-parent-pronouns',
+      'aria-label': `Pronouns for ${s.name} in progress reports`
+    });
+    Object.keys(PRONOUN_PRESETS).forEach(key=>{
+      const opt = h('option',{value:key}, PRONOUN_PRESETS[key].label);
+      if(key === currentPronoun) opt.selected = true;
+      pronounSel.appendChild(opt);
+    });
+    pronounSel.addEventListener('change', ()=>{
+      allData.users[s.id].pronouns = pronounSel.value;
+      saveState();
+    });
+    const meta = h('div',{class:'t-parent-meta'},[
+      h('span',{class:'t-parent-chip ' + status.cls}, status.label),
+    ]);
+    if(status.overdue){
+      meta.appendChild(h('span',{}, `(≥${REPORT_INTERVAL_DAYS} days — time to send)`));
+    }
+    meta.appendChild(h('span',{class:'t-parent-pronoun-wrap'},[
+      h('span',{class:'tpp-label'},'Pronouns'),
+      pronounSel
+    ]));
+    row.appendChild(h('div',{class:'t-parent-main'},[input, meta]));
+    // Right: action buttons
+    const hasEmail = !!(ud.parentEmail||'').trim();
+    const actions = h('div',{class:'t-parent-actions'},[
+      h('button',{
+        class:'btn btn-ghost',
+        onclick:()=>previewProgressReport(s.id)
+      },'📄 Preview'),
+      h('button',{
+        class:'btn btn-primary' + (hasEmail ? '' : ' btn-disabled'),
+        disabled: hasEmail ? null : '',
+        style: hasEmail ? '' : 'opacity:.45;cursor:not-allowed',
+        onclick:()=>{
+          if(!hasEmail){ alert('Enter the parent email first.'); return; }
+          sendProgressReport(s.id);
+        }
+      },'📧 Send'),
+    ]);
+    row.appendChild(actions);
+    wrap.appendChild(row);
+  });
+
+  wrap.appendChild(h('p',{class:'t-parents-cc'},[
+    'Every report is CC\'d to ',
+    h('code',{}, REPORT_CC_EMAIL),
+    ' so the business owner sees outgoing progress updates.'
+  ]));
+
+  return wrap;
+}
+
+function renderResetControls(){
+  const wrap = h('div',{class:'t-maint t-reset-block'});
+  wrap.appendChild(h('h3',{class:'t-maint-title'},'🔄 Reset Controls'));
+  wrap.appendChild(h('p',{class:'t-maint-sub'},'All resets require the teacher password. Export a JSON backup first if you\'re unsure — these cannot be undone.'));
+
+  // ---- Row 1: reset one subject for one student
+  const row1 = h('div',{class:'t-reset-row'});
+  row1.appendChild(h('div',{class:'t-reset-row-title'},'Reset ONE subject for ONE student'));
+  row1.appendChild(h('div',{class:'t-reset-row-sub'},'Clears completions, perfect scores, and subject stars only. Coins and other subjects are untouched.'));
+  const stuSel1 = h('select',{class:'t-reset-select'});
+  stuSel1.appendChild(h('option',{value:''},'— pick a student —'));
+  STUDENTS.forEach(s=>stuSel1.appendChild(h('option',{value:s.id},s.name)));
+  const subSel1 = h('select',{class:'t-reset-select'});
+  subSel1.appendChild(h('option',{value:''},'— pick a subject —'));
+  SUBJECTS.forEach(sub=>subSel1.appendChild(h('option',{value:sub.id},sub.emoji+' '+sub.name)));
+  const btn1 = h('button',{class:'btn btn-ghost t-reset-btn',onclick:()=>{
+    if(!stuSel1.value || !subSel1.value){ alert('Pick a student AND a subject first.'); return; }
+    const stu = STUDENTS.find(s=>s.id===stuSel1.value);
+    const sub = SUBJECTS.find(x=>x.id===subSel1.value);
+    if(!confirm('Reset '+stu.name+'\'s '+sub.name+' progress?\n\nThis deletes completions and perfect scores for '+sub.name+' only. Other subjects, coins, and other students are not affected.')) return;
+    if(!confirmTeacherPassword('reset '+stu.name+'\'s '+sub.name+' progress')) return;
+    resetStudentSubject(stu.id, sub.id);
+    alert('✓ '+stu.name+'\'s '+sub.name+' progress has been reset.');
+    go('teacher');
+  }},'Reset subject');
+  row1.appendChild(h('div',{class:'t-reset-row-ctrls'},[stuSel1, subSel1, btn1]));
+  wrap.appendChild(row1);
+
+  // ---- Row 2: reset one student entirely
+  const row2 = h('div',{class:'t-reset-row'});
+  row2.appendChild(h('div',{class:'t-reset-row-title'},'Reset ONE student completely'));
+  row2.appendChild(h('div',{class:'t-reset-row-sub'},'Wipes coins, stars, streak, badges, completions, wishlist, and avatar for one student. Other students are not affected.'));
+  const stuSel2 = h('select',{class:'t-reset-select'});
+  stuSel2.appendChild(h('option',{value:''},'— pick a student —'));
+  STUDENTS.forEach(s=>stuSel2.appendChild(h('option',{value:s.id},s.name)));
+  const btn2 = h('button',{class:'btn btn-ghost t-reset-btn',onclick:()=>{
+    if(!stuSel2.value){ alert('Pick a student first.'); return; }
+    const stu = STUDENTS.find(s=>s.id===stuSel2.value);
+    if(!confirm('Reset '+stu.name+'\'s ENTIRE profile?\n\nThis wipes coins, stars, streak, badges, completions, perfect scores, wishlist, and avatar. Other students are untouched.')) return;
+    if(!confirmTeacherPassword('reset '+stu.name+'\'s entire profile')) return;
+    resetStudent(stu.id);
+    alert('✓ '+stu.name+'\'s profile has been reset.');
+    go('teacher');
+  }},'Reset student');
+  row2.appendChild(h('div',{class:'t-reset-row-ctrls'},[stuSel2, btn2]));
+  wrap.appendChild(row2);
+
+  // ---- Row 3: nuclear option — everyone
+  const row3 = h('div',{class:'t-reset-row'});
+  row3.appendChild(h('div',{class:'t-reset-row-title'},'Reset EVERYTHING (every student)'));
+  row3.appendChild(h('div',{class:'t-reset-row-sub'},'Wipes every student\'s progress and clears all reward order history in one shot.'));
+  const btn3 = h('button',{class:'btn btn-danger t-reset-btn',onclick:()=>{
+    if(!confirm('Reset EVERY student\'s progress + clear all reward orders?\n\nThis cannot be undone. Export a JSON backup first if you might need the data later.')) return;
+    if(!confirmTeacherPassword('reset every student\'s progress')) return;
+    STUDENTS.forEach(s=>{ allData.users[s.id] = defaultUser(); });
+    allData.orders = [];
+    saveState();
+    alert('✓ All student progress has been reset.');
+    go('teacher');
+  }},'🔴 Reset everything');
+  row3.appendChild(h('div',{class:'t-reset-row-ctrls'},[btn3]));
+  wrap.appendChild(row3);
+
+  return wrap;
 }
 
 /* ==========================================================================
@@ -7064,8 +8758,9 @@ function renderTeacherStore(){
   STUDENTS.forEach(s=>{
     const ud = getStudentData(s.id);
     const wl = Array.isArray(ud.wishlist) ? ud.wishlist : [];
+    const wToken = getStudentAvatarDisplay(s.id).value;
     const card = h('div',{class:'t-wish-card'},[
-      h('div',{class:'twc-head'},[h('span',{},s.decoEmoji||'👤'),h('span',{},s.name)]),
+      h('div',{class:'twc-head'},[h('span',{},wToken),h('span',{},s.name)]),
     ]);
     if(!wl.length){
       card.appendChild(h('div',{class:'t-wish-empty'},'No wishlist items yet.'));
@@ -7139,10 +8834,17 @@ try {
   });
   const rwNextEl = $('#rwNext');
   if(rwNextEl) rwNextEl.addEventListener('click',()=>{
-    // Always route to the subject's levels list after a quiz — pass or fail.
-    // The student sees their progress, picks what's next, or re-picks the
-    // same level if they want to try it again.
     closeReward();
+    // Autoplay override: chain straight into a brain break, then back to
+    // next subject. Bypasses the usual levels list — the whole point of
+    // autoplay is that the student doesn't have to navigate.
+    if(state && state.autoplay && state.autoplay.active){
+      try { autoplayGoNextBreak(); return; }
+      catch(e){ console.warn('[KidQuest] autoplay advance failed:',e); }
+    }
+    // Default: route to the subject's levels list after a quiz — pass or
+    // fail. The student sees their progress, picks what's next, or re-picks
+    // the same level if they want to try it again.
     if(quiz && quiz.subject) go('week',{subject:quiz.subject});
     else go(currentUser?'dashboard':'home');
   });
@@ -7164,7 +8866,7 @@ function renderMaintenanceScreen(){
     +     '<h1 class="maintenance-title">KidQuest is getting an upgrade!</h1>'
     +     '<p class="maintenance-msg">' + safeMsg + '</p>'
     +     '<div class="maintenance-dots"><span></span><span></span><span></span></div>'
-    +     '<div class="maintenance-footer">Tutor Rhahavy is working on something new. 🛠️</div>'
+    +     '<div class="maintenance-footer">Rhahavy is working on something new. 🛠️</div>'
     +     '<button class="maint-unlock" id="maintUnlockBtn">🔑 Teacher unlock</button>'
     +   '</div>'
     + '</div>';
