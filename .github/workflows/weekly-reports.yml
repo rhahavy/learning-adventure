@@ -1,0 +1,66 @@
+name: Weekly Parent Reports
+
+# Sends a weekly KidQuest progress email to each student's parent. The heavy
+# lifting lives in scripts/send-weekly-reports.mjs — this workflow just
+# schedules it and wires env vars.
+#
+# Triggers:
+#   - Sundays at 14:00 UTC (10:00 EDT / 09:00 EST) — weekly cron.
+#   - Manual run from the Actions tab, with an optional dry-run toggle so you
+#     can rehearse without actually emailing anyone.
+#
+# Required secrets / vars (see WEEKLY_REPORTS_SETUP.md):
+#   secrets.RESEND_API_KEY  — Resend API key (required for real sends)
+#   secrets.FROM_EMAIL      — "KidQuest Reports <reports@your-domain>" (optional)
+#   secrets.CC_EMAIL        — CC address on every report (optional)
+#   vars.DASHBOARD_URL      — URL shown in the email CTA (optional)
+#   vars.CLOUD_BUCKET       — textdb.dev bucket override (optional)
+
+on:
+  schedule:
+    # minute hour day(month) month day(week) — Sunday = 0
+    - cron: '0 14 * * 0'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (log what would send, do not actually email)'
+        type: boolean
+        default: true
+
+# We only read the repo — no need to write commits or anything else.
+permissions:
+  contents: read
+
+# Don't let two runs overlap if a manual dispatch fires during a scheduled
+# window — cron wins, manual waits. Avoids double-sending.
+concurrency:
+  group: weekly-reports
+  cancel-in-progress: false
+
+jobs:
+  send:
+    name: Send weekly parent reports
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Send reports
+        env:
+          # Scheduled runs always send for real. Manual dispatch respects the
+          # dry_run input (defaults true). The script also force-dry-runs if
+          # RESEND_API_KEY is missing, so this is belt-and-braces.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL:     ${{ secrets.FROM_EMAIL }}
+          CC_EMAIL:       ${{ secrets.CC_EMAIL }}
+          DASHBOARD_URL:  ${{ vars.DASHBOARD_URL }}
+          CLOUD_BUCKET:   ${{ vars.CLOUD_BUCKET }}
+          # MIN_ACTIVITIES: '1'   # uncomment to skip students with no weekly activity
+        run: node scripts/send-weekly-reports.mjs
