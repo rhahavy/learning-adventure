@@ -415,6 +415,11 @@ img{max-width:100%}
 .lesson-card{background:linear-gradient(180deg,#faf9ff,#fff)!important;border:2px dashed rgba(253,203,110,.5)!important;text-align:left!important;padding:clamp(22px,3vw,32px)!important}
 .lesson-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,#ffeaa7,var(--sun));color:#5b3e00;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.06em}
 .lesson-title{font-size:clamp(20px,3vw,26px);font-weight:800;margin-top:12px}
+/* Big emoji visual at the top of every lesson — auto-populated from the
+   activity's emoji field, or from lesson.visual for a more specific override.
+   Supports multi-emoji combos (e.g. '🐘 🌳') that tell a mini story matching
+   the lesson — spaces render with consistent gap, flex-wrap for small screens. */
+.lesson-visual{font-size:clamp(64px,10vw,92px);text-align:center;line-height:1.1;margin:6px 0 -2px;filter:drop-shadow(0 6px 14px rgba(26,16,53,.14));animation:popIn .5s var(--spring);letter-spacing:.15em;word-spacing:.25em}
 .lesson-intro{font-size:15px;color:var(--ink);line-height:1.5;margin:10px 0}
 .lesson-example{margin-top:14px;padding:14px 16px;background:#fff;border:1px solid rgba(116,185,255,.2);border-left:4px solid var(--sky);border-radius:var(--r);box-shadow:var(--shadow)}
 .lesson-example-label{font-size:11px;font-weight:800;color:var(--sky);letter-spacing:.06em;margin-bottom:6px}
@@ -550,7 +555,7 @@ img{max-width:100%}
 .rc-skills{margin-top:10px;font-size:12.5px;color:var(--ink2);font-weight:600;line-height:1.5}
 .rc-skills li{margin-top:3px;list-style:none;padding-left:16px;position:relative}
 .rc-skills li::before{content:'✓';position:absolute;left:0;color:#00b894;font-weight:800}
-.rc-comment{margin-top:10px;font-size:13px;color:var(--ink);font-style:italic;line-height:1.5;padding:10px 12px;background:rgba(108,92,231,.05);border-left:3px solid var(--primary);border-radius:8px}
+.rc-comment{margin-top:10px;font-size:13px;color:var(--ink);font-style:normal;font-weight:500;line-height:1.5;padding:10px 12px;background:rgba(108,92,231,.05);border-left:3px solid var(--primary);border-radius:8px}
 .rc-encourage{margin-top:18px;text-align:center;padding:14px;background:linear-gradient(135deg,#fff8e1,#ffe4ef);border-radius:14px;font-size:14px;font-weight:700;color:#e84393}
 .rc-encourage .rc-en-emoji{font-size:20px;margin-right:6px}
 
@@ -1955,7 +1960,7 @@ rushan: {
         {type:'mcq',q:'A turtle\'s shell is like a...',choices:['Hat','Blanket','House','Toy'],answer:2},
       ]},
     { id:'w1-rushan-r2', title:'Weather Report', emoji:'🌤️',
-      lesson:{title:'Making Inferences',intro:'Sometimes the story doesn\'t tell you everything — you figure it out from clues!',example:'"Mia grabbed her umbrella" → it must be raining!',steps:[
+      lesson:{title:'Making Inferences',visual:'☂️ 🕵️',intro:'Sometimes the story doesn\'t tell you everything — you figure it out from clues!',example:'"Mia grabbed her umbrella" → it must be raining!',steps:[
         '<b>Look for clues</b> — what do the characters do, wear, or see?',
         '<b>Think about real life:</b> when would YOU do that?',
         '<b>Guess smartly</b> — the answer must fit ALL the clues.',
@@ -2212,7 +2217,7 @@ rushan: {
         {type:'mcq',q:'Caterpillars eat mostly...',choices:['Meat','Leaves','Sand','Rocks'],answer:1},
       ]},
     { id:'w1-rushan-s2', title:'Plant Life Cycle', emoji:'🌱',
-      lesson:{title:'From Seed to Flower',intro:'Plants grow from a seed. First the seed sprouts, then grows roots, a stem, leaves, and finally flowers or fruit.',pictures:[
+      lesson:{title:'From Seed to Flower',visual:'🌰 ➡️ 🌻',intro:'Plants grow from a seed. First the seed sprouts, then grows roots, a stem, leaves, and finally flowers or fruit.',pictures:[
         {emoji:'🌰', word:'Seed'},{emoji:'🌱', word:'Sprout'},{emoji:'🌿', word:'Plant'},{emoji:'🌸', word:'Flower'},
       ],hint:'Plants need water, sunlight, and soil to grow!'},
       questions:[
@@ -2752,7 +2757,7 @@ akshayan: {
 isaiah: {
   reading: [
     { id:'w1-isaiah-r1', title:'Main Idea & Details', emoji:'📚',
-      lesson:{title:'Finding the Main Idea',intro:'The MAIN IDEA is what a passage is MOSTLY about. Supporting DETAILS are smaller facts that help explain the main idea.',example:'If a passage is mostly about how elephants find food — that\'s the main idea. Details = WHAT they eat, WHERE they find it, HOW.',steps:[
+      lesson:{title:'Finding the Main Idea',visual:'🐘 🌳',intro:'The MAIN IDEA is what a passage is MOSTLY about. Supporting DETAILS are smaller facts that help explain the main idea.',example:'If a passage is mostly about how elephants find food — that\'s the main idea. Details = WHAT they eat, WHERE they find it, HOW.',steps:[
         '<b>Read the whole passage</b> once, no stopping.',
         '<b>Ask yourself:</b> "What is this mostly about?" Try to answer in one sentence.',
         '<b>Check the answer choices</b> — pick the one that matches your one-sentence summary.',
@@ -2766,7 +2771,7 @@ isaiah: {
         {type:'mcq',q:'If a story is mostly about a lost puppy finding home, the main idea is about...',choices:['🐕 The puppy\'s journey home','☁️ The weather','🏠 A house','🦴 Dog food'],answer:0},
       ]},
     { id:'w1-isaiah-r2', title:'Cause & Effect', emoji:'🔗',
-      lesson:{title:'Cause → Effect',intro:'A CAUSE is WHY something happens. An EFFECT is WHAT happens because of it. They are linked by words like "because", "so", "since", "as a result".',example:'CAUSE: It rained all night. EFFECT: The soccer game was cancelled. ("It rained, SO the game was cancelled.")',hint:'Ask: "What made this happen?" = cause. "What happened because of that?" = effect.'},
+      lesson:{title:'Cause → Effect',visual:'🌧️ ➡️ ☂️',intro:'A CAUSE is WHY something happens. An EFFECT is WHAT happens because of it. They are linked by words like "because", "so", "since", "as a result".',example:'CAUSE: It rained all night. EFFECT: The soccer game was cancelled. ("It rained, SO the game was cancelled.")',hint:'Ask: "What made this happen?" = cause. "What happened because of that?" = effect.'},
       questions:[
         {type:'mcq',q:'"Ella forgot her umbrella, so she got soaked." What is the CAUSE?',choices:['💦 She got soaked','☂️ She forgot her umbrella','🌧️ It was raining','🚶 She was walking'],answer:1},
         {type:'mcq',q:'"The ice cream melted because it was left in the sun." What is the EFFECT?',choices:['☀️ It was in the sun','🔥 It was hot outside','🍦 The ice cream melted','☀️ Summer'],answer:2},
@@ -2775,7 +2780,7 @@ isaiah: {
         {type:'mcq',q:'"The leaves turned orange since it was autumn." What happened BECAUSE of autumn?',choices:['🍂 The leaves turned orange','🌳 The trees grew','☁️ The sky changed','🐻 Animals hibernated'],answer:0},
       ]},
     { id:'w1-isaiah-r3', title:'Reading Between the Lines', emoji:'🔍',
-      lesson:{title:'Making Inferences',intro:'An INFERENCE is a smart guess based on clues in the text — things the author doesn\'t say directly. You combine the clues with what you already know.',example:'TEXT: "Maya walked in with muddy boots and dripping clothes." CLUES → muddy + dripping. INFERENCE: It\'s raining outside (even though the text never says "rain").',steps:[
+      lesson:{title:'Making Inferences',visual:'🔍 💭',intro:'An INFERENCE is a smart guess based on clues in the text — things the author doesn\'t say directly. You combine the clues with what you already know.',example:'TEXT: "Maya walked in with muddy boots and dripping clothes." CLUES → muddy + dripping. INFERENCE: It\'s raining outside (even though the text never says "rain").',steps:[
         '<b>Read carefully</b> and notice small details (what characters do, say, wear, feel).',
         '<b>List the clues</b> in your head — what facts is the author showing you?',
         '<b>Think about what you already know</b> about the world (real-life experience).',
@@ -2790,7 +2795,7 @@ isaiah: {
         {type:'mcq',q:'To make an inference, you...',choices:['🎲 Guess randomly','📖 Read the title only','🕵️ Use text clues + what you know','⏭️ Skip ahead'],answer:2},
       ]},
     { id:'w1-isaiah-r4', title:'Author\'s Purpose', emoji:'✍️',
-      lesson:{title:'Why Did the Author Write It?',intro:'Every piece of writing has a PURPOSE. Remember PIE: Persuade, Inform, or Entertain.',example:'PERSUADE: a letter trying to convince you to eat veggies · INFORM: an encyclopedia page about volcanoes · ENTERTAIN: a funny story about a talking cat.',hint:'Ask: Is the author trying to convince me, teach me, or make me enjoy a story?'},
+      lesson:{title:'Why Did the Author Write It?',visual:'✍️ 💡',intro:'Every piece of writing has a PURPOSE. Remember PIE: Persuade, Inform, or Entertain.',example:'PERSUADE: a letter trying to convince you to eat veggies · INFORM: an encyclopedia page about volcanoes · ENTERTAIN: a funny story about a talking cat.',hint:'Ask: Is the author trying to convince me, teach me, or make me enjoy a story?'},
       questions:[
         {type:'mcq',q:'What is the MAIN purpose of a news article?',choices:['🎭 Entertain','📰 Inform','🗣️ Persuade','😵 Confuse'],answer:1},
         {type:'mcq',q:'A commercial for a toy tries to...',choices:['🔬 Inform you about science','🛒 Persuade you to buy it','📜 Entertain you with poetry','📚 Teach you history'],answer:1},
@@ -2800,7 +2805,7 @@ isaiah: {
       ]},
     // ★ LEVEL 5 STRETCH — Grade 5 content
     { id:'w1-isaiah-r5', title:'Summarizing (G5 Stretch!)', emoji:'🌟',
-      lesson:{title:'Summarizing Longer Passages',intro:'A SUMMARY is a short version of a passage in your OWN words. Include the main idea + the most important details, but leave out small facts.',example:'Don\'t rewrite every sentence. Pick 2-3 key ideas. A good summary of a long story should fit in 1-2 sentences.',steps:[
+      lesson:{title:'Summarizing Longer Passages',visual:'📖 ✂️',intro:'A SUMMARY is a short version of a passage in your OWN words. Include the main idea + the most important details, but leave out small facts.',example:'Don\'t rewrite every sentence. Pick 2-3 key ideas. A good summary of a long story should fit in 1-2 sentences.',steps:[
         '<b>Read</b> the whole passage once, without stopping.',
         '<b>Find the main idea</b> — what is this mostly about?',
         '<b>Pick 2–3 most important points</b> that SUPPORT the main idea. Skip tiny details (names, dates) unless they really matter.',
@@ -2817,7 +2822,7 @@ isaiah: {
   ],
   writing: [
     { id:'w1-isaiah-w1', title:'Topic Sentences', emoji:'🎯',
-      lesson:{title:'The Topic Sentence',intro:'Every paragraph needs a TOPIC SENTENCE — the first (or main) sentence that tells the reader what the paragraph is about.',example:'Topic: My dog Max loves swimming. → The rest of the paragraph can then give examples: "He jumps in the pool, chases toys in the water, and splashes everywhere."',steps:[
+      lesson:{title:'The Topic Sentence',visual:'📝 🎯',intro:'Every paragraph needs a TOPIC SENTENCE — the first (or main) sentence that tells the reader what the paragraph is about.',example:'Topic: My dog Max loves swimming. → The rest of the paragraph can then give examples: "He jumps in the pool, chases toys in the water, and splashes everywhere."',steps:[
         '<b>Decide your subject</b> — what is this paragraph about in ONE word or phrase?',
         '<b>Write ONE sentence</b> that tells the reader that subject clearly.',
         'Make sure it\'s <b>specific</b> (not "Dogs are good" but "Dogs make great family pets because they\'re loyal").',
@@ -2831,7 +2836,7 @@ isaiah: {
         {type:'mcq',q:'Which is NOT a strong topic sentence?',choices:['Fall is my favorite season','There are three reasons dogs are the best pet','The zoo has many interesting animals','I walked to the store'],answer:3},
       ]},
     { id:'w1-isaiah-w2', title:'Transition Words', emoji:'🔀',
-      lesson:{title:'Connecting Your Ideas',intro:'TRANSITION WORDS help readers follow your writing. Use them to show ORDER (first, next, then, finally), ADD info (also, in addition), or show CAUSE (because, so).',example:'First, preheat the oven. Next, mix the flour and sugar. Then, add the eggs. Finally, bake for 25 minutes.',hint:'Good transitions are like stepping stones — they help readers hop from one idea to the next without getting lost.'},
+      lesson:{title:'Connecting Your Ideas',visual:'🔗 📝',intro:'TRANSITION WORDS help readers follow your writing. Use them to show ORDER (first, next, then, finally), ADD info (also, in addition), or show CAUSE (because, so).',example:'First, preheat the oven. Next, mix the flour and sugar. Then, add the eggs. Finally, bake for 25 minutes.',hint:'Good transitions are like stepping stones — they help readers hop from one idea to the next without getting lost.'},
       questions:[
         {type:'mcq',q:'Which transition word shows ORDER?',choices:['First','Because','However','Angry'],answer:0},
         {type:'mcq',q:'"I like pizza ___ it is cheesy." Best word?',choices:['although','because','finally','suddenly'],answer:1},
@@ -2840,7 +2845,7 @@ isaiah: {
         {type:'mcq',q:'"It was snowing heavily; ___, the school closed." Best transition?',choices:['however','therefore','suddenly','first'],answer:1},
       ]},
     { id:'w1-isaiah-w3', title:'Descriptive Writing', emoji:'🎨',
-      lesson:{title:'Show, Don\'t Tell',intro:'Strong writing uses SENSORY DETAILS (sight, sound, smell, touch, taste) and STRONG VERBS. Instead of telling readers how someone feels, show it with details.',example:'TELL: "The dog was excited." SHOW: "The dog\'s tail spun in circles and he bounced off the couch with a happy bark."',hint:'Close your eyes and imagine the scene. What do you SEE, HEAR, SMELL? Put those details on the page.'},
+      lesson:{title:'Show, Don\'t Tell',visual:'👀 ✨',intro:'Strong writing uses SENSORY DETAILS (sight, sound, smell, touch, taste) and STRONG VERBS. Instead of telling readers how someone feels, show it with details.',example:'TELL: "The dog was excited." SHOW: "The dog\'s tail spun in circles and he bounced off the couch with a happy bark."',hint:'Close your eyes and imagine the scene. What do you SEE, HEAR, SMELL? Put those details on the page.'},
       questions:[
         {type:'mcq',q:'Which sentence SHOWS instead of tells?',choices:['It was cold','My teeth chattered and my nose turned bright red','The weather was bad','I was outside'],answer:1},
         {type:'mcq',q:'Which is the STRONGEST verb?',choices:['walked','sprinted','went','moved'],answer:1},
@@ -2849,7 +2854,7 @@ isaiah: {
         {type:'mcq',q:'Good descriptive writing uses:',choices:['Only one sense','All five senses when possible','No details','Long words only'],answer:1},
       ]},
     { id:'w1-isaiah-w4', title:'Full Paragraph: TSDC', emoji:'📝',
-      lesson:{title:'Topic-Support-Detail-Closing',intro:'A great paragraph has four parts: Topic sentence (main idea), Supporting sentences (2-3 reasons or examples), Details (facts or description), Closing sentence (wrap it up).',example:'T: Dogs are great pets. S: They are loyal companions and also easy to train. D: My dog, Buddy, learned "sit" and "stay" in just two weeks. C: For these reasons, dogs make wonderful family members.',steps:[
+      lesson:{title:'Topic-Support-Detail-Closing',visual:'📝 🧱',intro:'A great paragraph has four parts: Topic sentence (main idea), Supporting sentences (2-3 reasons or examples), Details (facts or description), Closing sentence (wrap it up).',example:'T: Dogs are great pets. S: They are loyal companions and also easy to train. D: My dog, Buddy, learned "sit" and "stay" in just two weeks. C: For these reasons, dogs make wonderful family members.',steps:[
         '<b>T — Topic sentence:</b> announce what the paragraph is about in ONE sentence.',
         '<b>S — Supporting sentences:</b> give 2–3 reasons or examples that back up your topic.',
         '<b>D — Details:</b> add specific facts, descriptions, or a personal example to make it real.',
@@ -2864,7 +2869,7 @@ isaiah: {
       ]},
     // ★ LEVEL 5 STRETCH — Grade 5 content
     { id:'w1-isaiah-w5', title:'Opinion Essay (G5 Stretch!)', emoji:'🌟',
-      lesson:{title:'Short Opinion Essay',intro:'An OPINION ESSAY shares what you think AND why. Structure: Intro (your opinion), 2-3 reasons (each with evidence), Conclusion (restate and wrap up).',example:'INTRO: Recess should be longer. REASON 1: Kids focus better after breaks. REASON 2: Physical activity helps learning. REASON 3: Friendships grow at recess. CONCLUSION: For these reasons, a longer recess would help everyone.',steps:[
+      lesson:{title:'Short Opinion Essay',visual:'💭 ✍️',intro:'An OPINION ESSAY shares what you think AND why. Structure: Intro (your opinion), 2-3 reasons (each with evidence), Conclusion (restate and wrap up).',example:'INTRO: Recess should be longer. REASON 1: Kids focus better after breaks. REASON 2: Physical activity helps learning. REASON 3: Friendships grow at recess. CONCLUSION: For these reasons, a longer recess would help everyone.',steps:[
         '<b>Intro:</b> state your opinion clearly in 1–2 sentences. ("I think _____ because...")',
         '<b>Reason 1:</b> give one reason with an example or evidence. Start with "First,".',
         '<b>Reason 2:</b> a second reason with evidence. Start with "In addition," or "Also,".',
@@ -4536,7 +4541,11 @@ function renderQ(wrap){
       card.appendChild(pBox);
     }
     card.appendChild(h('div',{class:'q-text'},q.q||''));
-    if(q.visual) card.appendChild(h('div',{class:'q-visual'},q.visual));
+    // Big emoji visual above the question. Uses q.visual for question-specific
+    // override, else falls back to the activity's emoji — so every question
+    // has a visual anchor. Only shown when NO image is provided (image wins).
+    const qVisual = q.visual || (!q.image && quiz && quiz.activity && quiz.activity.emoji);
+    if(qVisual) card.appendChild(h('div',{class:'q-visual'},qVisual));
     // Real image above the answer choices — ONLY shown when q.image is
     // specifically set on the question. We do NOT auto-apply a generic
     // subject default here: a random stock photo that doesn't match the
@@ -4659,6 +4668,16 @@ function renderLesson(card,q){
     img.onload = ()=>img.classList.add('loaded');
     img.onerror = ()=>img.remove();   // fail silently; text content still shines
     card.appendChild(img);
+  } else {
+    // No hero image? Show a big emoji visual instead. Uses lesson.visual for
+    // a lesson-specific override (e.g. '🐘' on the Main Idea lesson whose
+    // example is about elephants), otherwise falls back to the activity's
+    // own emoji (every activity has one — see WEEKS content). This means
+    // every lesson screen has a visual anchor, not just text.
+    const bigEmoji = L.visual || (quiz && quiz.activity && quiz.activity.emoji);
+    if(bigEmoji){
+      card.appendChild(h('div',{class:'lesson-visual'}, bigEmoji));
+    }
   }
   if(L.title) card.appendChild(h('div',{class:'lesson-title'},L.title));
   if(L.intro) card.appendChild(h('p',{class:'lesson-intro'},L.intro));
