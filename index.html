@@ -631,6 +631,14 @@ img{max-width:100%}
 .lvs-card .lvs-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .lvs-card .lvs-btns .btn{padding:10px 18px;font-size:14px}
 .lvs-hint{font-size:11px;color:var(--ink3);margin-top:4px;line-height:1.45}
+.lvs-card .lvs-rows{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.lvs-card .lvs-row{display:flex;align-items:center;gap:8px}
+.lvs-card .lvs-row-input{flex:1 1 auto;min-width:0;padding:10px 12px;border-radius:10px;border:2px solid var(--line);font-size:14px;font-family:inherit;background:#fff;transition:border-color .2s}
+.lvs-card .lvs-row-input:focus{outline:none;border-color:var(--primary)}
+.lvs-card .lvs-row-remove{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:2px solid var(--line);background:#fff;color:var(--ink3);font-size:14px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s ease;padding:0}
+.lvs-card .lvs-row-remove:hover{border-color:var(--coral);color:var(--coral);background:rgba(231,76,60,.06)}
+.lvs-card .lvs-add{margin-top:10px;padding:8px 14px;font-size:13px;border:1.5px dashed rgba(108,92,231,.35);background:rgba(108,92,231,.04);color:var(--primary);font-weight:700;border-radius:10px;cursor:pointer;transition:all .15s ease;width:100%;font-family:inherit}
+.lvs-card .lvs-add:hover{background:rgba(108,92,231,.09);border-style:solid}
 
 /* ---- MAINTENANCE SCREEN ----
    Shown when MAINTENANCE_MODE = true in the script section.
@@ -6184,15 +6192,42 @@ function openLessonVideoSettings(activityId, builtinIds){
     }
     card.appendChild(curBox);
 
-    card.appendChild(h('label',{for:'lvsUrl'}, 'New YouTube URL or video ID'));
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.id = 'lvsUrl';
-    input.placeholder = 'https://www.youtube.com/watch?v=...';
-    input.autocomplete = 'off';
-    input.spellcheck = false;
-    card.appendChild(input);
-    card.appendChild(h('div',{class:'lvs-hint'}, 'Accepts watch?v=…, youtu.be/…, shorts/…, embed/…, or a bare 11-character ID.'));
+    card.appendChild(h('label',{}, 'Videos for this lesson'));
+    // Dynamic rows — each row = one YouTube video. Teacher can add/remove
+    // rows freely via the ➕ button below. Seed from the current effective
+    // list (override OR builtin) so the starting state matches what kids
+    // currently see.
+    const rowsWrap = h('div',{class:'lvs-rows'});
+    card.appendChild(rowsWrap);
+    const addRow = (val)=>{
+      const row = h('div',{class:'lvs-row'});
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'lvs-row-input';
+      inp.placeholder = 'https://www.youtube.com/watch?v=...';
+      inp.autocomplete = 'off';
+      inp.spellcheck = false;
+      if(val) inp.value = val;
+      const rm = h('button',{
+        class:'lvs-row-remove',
+        type:'button',
+        title:'Remove this video',
+        'aria-label':'Remove this video',
+        onclick:(e)=>{ e.preventDefault(); row.remove(); },
+      }, '✕');
+      row.appendChild(inp);
+      row.appendChild(rm);
+      rowsWrap.appendChild(row);
+      return inp;
+    };
+    const seedIds = current.length ? current.slice() : [''];
+    seedIds.forEach(id=>addRow(id));
+    card.appendChild(h('div',{class:'lvs-hint'}, 'Accepts watch?v=…, youtu.be/…, shorts/…, embed/…, or a bare 11-character ID. Add as many videos as you like.'));
+    card.appendChild(h('button',{
+      class:'lvs-add',
+      type:'button',
+      onclick:(e)=>{ e.preventDefault(); const ni = addRow(''); try{ ni.focus(); }catch(er){} },
+    }, '➕ Add another video'));
 
     const msg = h('div',{class:'lvs-msg'}, '');
     card.appendChild(msg);
@@ -6207,12 +6242,32 @@ function openLessonVideoSettings(activityId, builtinIds){
 
     const btns = h('div',{class:'lvs-btns'});
     btns.appendChild(h('button',{class:'btn btn-primary', onclick:()=>{
-      const id = extractYouTubeId(input.value);
-      if(!id){ msg.textContent = 'Could not find a YouTube ID in that input.'; msg.className = 'lvs-msg no'; return; }
+      // Collect every row, skip blanks, validate the rest. Rejecting on ANY
+      // parse failure means the teacher can't accidentally drop a bad link —
+      // they have to fix or remove it before the save goes through.
+      const inputs = Array.from(rowsWrap.querySelectorAll('.lvs-row-input'));
+      const ids = [];
+      const rejected = [];
+      inputs.forEach(inp=>{
+        const v = String(inp.value || '').trim();
+        if(!v) return;
+        const id = extractYouTubeId(v);
+        if(id) ids.push(id); else rejected.push(v);
+      });
+      if(rejected.length){
+        msg.textContent = 'Could not parse ' + rejected.length + ' entr' + (rejected.length===1?'y':'ies') + '. Fix or remove, then save again.';
+        msg.className = 'lvs-msg no';
+        return;
+      }
+      if(!ids.length){
+        msg.textContent = 'Add at least one video, or click “🙈 Hide video” to hide the lesson video.';
+        msg.className = 'lvs-msg no';
+        return;
+      }
       if(!allData.videoOverrides) allData.videoOverrides = {};
-      allData.videoOverrides[activityId] = [id];
+      allData.videoOverrides[activityId] = ids;
       saveLocalVideoOverrides(allData.videoOverrides);   // authoritative per-device copy
-      msg.textContent = 'Saved. Reloading lesson…';
+      msg.textContent = 'Saved ' + ids.length + ' video' + (ids.length===1?'':'s') + '. Reloading lesson…';
       msg.className = 'lvs-msg ok';
       setTimeout(refreshLesson, 400);
     }}, '💾 Save'));
@@ -6234,7 +6289,11 @@ function openLessonVideoSettings(activityId, builtinIds){
     btns.appendChild(h('button',{class:'btn', onclick:()=>overlay.remove()}, 'Cancel'));
     card.appendChild(btns);
 
-    setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 30);
+    // Focus the first row input so the teacher can start typing immediately.
+    setTimeout(()=>{
+      try{ const first = rowsWrap.querySelector('.lvs-row-input'); if(first) first.focus(); }
+      catch(e){}
+    }, 30);
   };
 
   const buildPasswordPrompt = ()=>{
@@ -6340,7 +6399,9 @@ function renderLesson(card,q){
     ]);
     if(activityId) titleRow.appendChild(gearBtn());
     card.appendChild(titleRow);
-    vidIds.slice(0,2).forEach(id=>{
+    // Cap at 6 to keep the lesson card a reasonable length — the gear lets
+    // the teacher curate beyond the builtin 1-2 videos, but not runaway.
+    vidIds.slice(0,6).forEach(id=>{
       const wrap = h('div',{class:'lesson-video-wrap'});
       const iframe = document.createElement('iframe');
       iframe.src = 'https://www.youtube-nocookie.com/embed/'+encodeURIComponent(id)+'?rel=0&modestbranding=1&iv_load_policy=3';
