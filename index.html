@@ -890,6 +890,105 @@ img{max-width:100%}
 .dash-store-btn:hover{transform:translateY(-3px) scale(1.02);box-shadow:var(--shadow-lg)}
 .dash-store-btn .dsb-emoji{font-size:22px}
 
+/* ---- BRAIN BREAK — mini-game dashboard entry + hub + boards ---- */
+/* Dashboard tiles (Memory / Quick Math buttons on main screen) */
+.brain-break-row{margin-top:14px;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.brain-break-btn{padding:16px 18px;border-radius:18px;border:none;cursor:pointer;font-weight:800;font-size:15px;display:flex;align-items:center;gap:10px;transition:all .3s var(--spring);box-shadow:var(--shadow);color:#fff;text-align:left}
+.brain-break-btn.memory{background:linear-gradient(135deg,#a29bfe,#6c5ce7)}
+.brain-break-btn.math{background:linear-gradient(135deg,#74b9ff,#0984e3)}
+.brain-break-btn.hub{background:linear-gradient(135deg,#fd79a8,#e84393)}
+.brain-break-btn:hover{transform:translateY(-3px) scale(1.02);box-shadow:var(--shadow-lg)}
+.brain-break-btn .bb-emoji{font-size:22px}
+.brain-break-btn .bb-text{flex:1;display:flex;flex-direction:column;line-height:1.15}
+.brain-break-btn .bb-sub{font-size:11.5px;font-weight:600;opacity:.85;margin-top:2px}
+
+/* Mini-hub landing screen */
+.mini-hub-intro{display:flex;justify-content:center;margin:18px 0 8px}
+.mg-coin-meter{margin:8px auto 16px;padding:10px 16px;border-radius:99px;background:rgba(253,203,110,.18);border:1.5px solid #ffd68a;display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;color:#8b5a10}
+.mg-coin-meter .mgcm-val{color:#5a3200;font-weight:800}
+.mini-hub-note{margin-top:20px;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink3);font-style:italic}
+
+/* Mini-game tile on hub screen */
+.mini-games-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-top:8px}
+.mg-tile{background:var(--card);border:1.5px solid rgba(255,255,255,.9);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);transition:all .35s var(--spring);display:flex;align-items:center;gap:14px;width:100%;position:relative;overflow:hidden;cursor:pointer;text-align:left}
+.mg-tile::before{content:'';position:absolute;top:0;left:0;bottom:0;width:5px;transform:scaleY(0);transform-origin:top;transition:transform .3s;border-radius:5px 0 0 5px}
+.mg-tile.memory::before{background:linear-gradient(180deg,#a29bfe,#6c5ce7)}
+.mg-tile.math::before{background:linear-gradient(180deg,#74b9ff,#0984e3)}
+.mg-tile:hover{transform:translateY(-5px) rotate(-.3deg);box-shadow:var(--shadow-lg)}
+.mg-tile:hover::before{transform:scaleY(1)}
+.mg-tile:hover .mg-ico{transform:scale(1.15) rotate(-8deg)}
+.mg-tile .mg-ico{transition:transform .4s var(--spring);width:60px;height:60px;border-radius:18px;display:grid;place-items:center;font-size:32px;flex-shrink:0;border:2px solid #fff;box-shadow:0 8px 18px rgba(26,16,53,.12)}
+.mg-tile.memory .mg-ico{background:linear-gradient(135deg,#b6adff,#6c5ce7);color:#fff}
+.mg-tile.math .mg-ico{background:linear-gradient(135deg,#91c4f5,#0984e3);color:#fff}
+.mg-tile .mg-info{flex:1;min-width:0}
+.mg-tile .mg-name{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.01em}
+.mg-tile .mg-desc{font-size:13px;color:var(--ink3);font-weight:600;margin-top:3px}
+.mg-tile .mg-best{font-size:12px;color:#8b5a10;font-weight:700;margin-top:5px}
+.mg-tile .mg-arrow{font-size:22px;color:var(--ink3);font-weight:800;transition:transform .3s}
+.mg-tile:hover .mg-arrow{transform:translateX(4px);color:var(--primary)}
+
+/* In-game difficulty / level picker */
+.mg-diff-row{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap}
+.mg-diff{padding:8px 16px;border-radius:99px;border:1.5px solid #e4defa;background:#fff;color:var(--ink2);font-weight:700;font-size:13px;cursor:pointer;transition:all .2s}
+.mg-diff:hover{border-color:var(--primary);color:var(--primary)}
+.mg-diff.active{background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;border-color:var(--primary);box-shadow:0 6px 14px rgba(108,92,231,.3)}
+
+/* Game stats bar (moves/time/score) */
+.mg-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 18px}
+.mg-stat{background:var(--card);border-radius:14px;padding:10px 12px;text-align:center;box-shadow:0 4px 10px rgba(26,16,53,.06);border:1.5px solid rgba(255,255,255,.9)}
+.mg-label{display:block;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px}
+.mg-val{display:block;font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--ink);margin-top:2px}
+
+/* Memory-match card grid */
+.mg-board{display:grid;gap:10px;margin:0 auto;max-width:460px}
+.mg-board.cols-4{grid-template-columns:repeat(4,1fr)}
+.mg-board.cols-3{grid-template-columns:repeat(3,1fr)}
+.mg-card{aspect-ratio:1/1;perspective:600px;cursor:pointer}
+.mg-card-inner{position:relative;width:100%;height:100%;transition:transform .5s var(--spring);transform-style:preserve-3d}
+.mg-card.flipped .mg-card-inner{transform:rotateY(180deg)}
+.mg-card-front,.mg-card-back{position:absolute;inset:0;display:grid;place-items:center;border-radius:16px;backface-visibility:hidden;-webkit-backface-visibility:hidden;font-weight:800;border:2px solid #fff;box-shadow:0 6px 14px rgba(26,16,53,.15)}
+.mg-card-front{background:linear-gradient(135deg,var(--primary2),var(--primary));color:#fff;font-size:28px;font-family:var(--font-display)}
+.mg-card-back{background:#fff;transform:rotateY(180deg);font-size:40px;font-family:'Apple Color Emoji','Segoe UI Emoji',system-ui,sans-serif}
+.mg-card.matched .mg-card-back{background:linear-gradient(135deg,#b8f2c6,#55efc4);animation:mgMatch .45s var(--spring)}
+.mg-card.matched{pointer-events:none}
+.mg-card:not(.flipped):hover .mg-card-inner{transform:scale(1.04) rotate(-1deg)}
+@keyframes mgMatch{0%{transform:rotateY(180deg) scale(1)}50%{transform:rotateY(180deg) scale(1.15)}100%{transform:rotateY(180deg) scale(1)}}
+
+/* Quick Math — intro + play area */
+.qm-intro{display:flex;flex-direction:column;align-items:center;gap:18px;padding:30px 20px;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);border:1.5px solid rgba(255,255,255,.9);margin:8px 0}
+.qm-start-btn{padding:14px 40px;font-size:18px}
+.qm-area{animation:fadeSlide .4s var(--spring)}
+.qm-status{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.qm-stat{background:var(--card);border-radius:14px;padding:10px 12px;text-align:center;box-shadow:0 4px 10px rgba(26,16,53,.06);border:1.5px solid rgba(255,255,255,.9)}
+.qm-problem{font-family:var(--font-display);font-size:48px;font-weight:800;text-align:center;padding:30px 20px;background:linear-gradient(135deg,#eef2ff,#fff);border-radius:var(--r-lg);box-shadow:var(--shadow);border:1.5px solid rgba(255,255,255,.9);margin-bottom:16px;letter-spacing:-.02em;color:var(--ink)}
+.qm-choices{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;max-width:420px;margin:0 auto}
+.qm-choice{padding:18px;font-size:22px;font-family:var(--font-display);font-weight:800;border-radius:18px;border:2px solid #e4defa;background:#fff;color:var(--ink);cursor:pointer;transition:all .2s;box-shadow:0 4px 10px rgba(26,16,53,.06)}
+.qm-choice:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:0 8px 16px rgba(108,92,231,.2)}
+.qm-choice.correct{background:linear-gradient(135deg,#b8f2c6,#55efc4);border-color:#00b894;color:#0a5e3e;animation:mgMatch .4s var(--spring)}
+.qm-choice.wrong{background:linear-gradient(135deg,#ffd6e0,#ff9fb3);border-color:#e84393;color:#8b1e4c;animation:mgShake .35s}
+@keyframes mgShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* Post-game win overlay */
+.mg-win-overlay{position:fixed;inset:0;background:rgba(26,16,53,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;z-index:1000;animation:fadeSlide .3s ease}
+.mg-win-card{background:var(--card);border-radius:var(--r-lg);padding:32px 28px;max-width:360px;width:calc(100% - 32px);text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.35);border:2px solid rgba(255,255,255,.9);animation:winPop .5s var(--spring)}
+@keyframes winPop{0%{transform:scale(.7) translateY(20px);opacity:0}60%{transform:scale(1.05) translateY(-5px)}100%{transform:scale(1) translateY(0);opacity:1}}
+.mg-win-title{font-family:var(--font-display);font-size:26px;font-weight:800;margin:14px 0 8px;color:var(--ink);letter-spacing:-.01em}
+.mg-win-stars{display:flex;justify-content:center;gap:8px;margin:6px 0 14px}
+.mg-star{font-size:34px;filter:grayscale(1) opacity(.35);transition:all .4s var(--spring)}
+.mg-star.lit{filter:none;animation:starPop .5s var(--spring) both}
+.mg-star.lit:nth-child(1){animation-delay:.1s}
+.mg-star.lit:nth-child(2){animation-delay:.25s}
+.mg-star.lit:nth-child(3){animation-delay:.4s}
+@keyframes starPop{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.3) rotate(10deg)}100%{transform:scale(1) rotate(0)}}
+.mg-win-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px;margin:10px 0 14px}
+.mg-win-stat{background:rgba(108,92,231,.08);border-radius:14px;padding:10px 8px}
+.mg-win-stat .mgws-val{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--primary)}
+.mg-win-stat .mgws-lbl{font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.mg-win-coins{font-family:var(--font-display);font-size:20px;font-weight:800;color:#b56820;margin:8px 0;padding:10px;background:rgba(253,203,110,.2);border-radius:14px;border:1.5px solid #ffd68a}
+.mg-win-best{font-size:13px;font-weight:800;color:#0a7b5a;margin:4px 0 10px;letter-spacing:.2px}
+.mg-win-buttons{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.mg-win-buttons .btn{width:100%}
+
 /* ---- SAVE-UP PROGRESS + NUDGES + WISHLIST ---- */
 .save-row{margin-top:4px}
 .save-bar-wrap{height:8px;border-radius:99px;background:rgba(0,0,0,.08);overflow:hidden;position:relative}
@@ -3671,7 +3770,16 @@ const defaultUser = () => ({
   totalStars:0, coins:0, streak:0, lastActiveDate:'',
   badges:{}, progress:{}, completedActivities:{}, perfectActivities:{},
   wishlist: [],  // array of STORE_ITEMS ids the student has saved for later
-  avatar: null   // optional emoji string — overrides initial-letter tile when set
+  avatar: null,  // optional emoji string — overrides initial-letter tile when set
+  // Brain-break mini-games — daily coin cap + personal bests.
+  // Kept separate from academic progress so it can't replace real practice.
+  miniGameStats: {
+    date: '',              // YYYY-MM-DD — rolls over at midnight
+    coinsToday: 0,         // coins awarded from mini-games today (capped)
+    bestMemoryEasy: null,  // {moves, time} — lowest moves wins
+    bestMemoryHard: null,
+    bestMathScore: 0,      // highest correct count in a 60s Quick Math run
+  }
 });
 const defaultAll = () => ({
   users: Object.fromEntries(STUDENTS.map(s=>[s.id, defaultUser()])),
@@ -4668,6 +4776,9 @@ function go(screen,opts={}){
     else if(screen==='activity') renderActivity(root,opts.activityId,opts.subject);
     else if(screen==='badges') renderBadges(root);
     else if(screen==='avatars') renderAvatarPicker(root);
+    else if(screen==='mini-hub') renderMiniHub(root);
+    else if(screen==='game-memory') renderMemoryMatch(root, opts);
+    else if(screen==='game-math') renderQuickMath(root, opts);
     else if(screen==='store') renderStore(root);
     else if(screen==='orders') renderOrders(root);
     else if(screen==='teacher') renderTeacher(root);
@@ -5010,6 +5121,29 @@ function renderDashboard(root){
     ]));
   });
   root.appendChild(subjs);
+  // Brain Break — optional mini-games (Memory + Quick Math). Capped daily
+  // coin rewards; lives between lessons and store so it reads as a reward
+  // surface, not a distraction from the main quest.
+  try {
+    ensureMiniGameStats();
+    const today = new Date().toISOString().slice(0,10);
+    const coinsToday = (state.miniGameStats && state.miniGameStats.date === today) ? (state.miniGameStats.coinsToday||0) : 0;
+    const capTxt = coinsToday >= MINI_GAME_COIN_CAP ? 'Come back tomorrow for more coins!' : ('Earn up to '+(MINI_GAME_COIN_CAP-coinsToday)+' more coins today');
+    root.appendChild(h('div',{class:'brain-break-row'},[
+      h('button',{class:'brain-break-btn memory',onclick:()=>go('game-memory')},[
+        h('span',{class:'bb-emoji'},'🃏'),
+        h('span',{class:'bb-text'},[h('span',{},'Memory Match'),h('span',{class:'bb-sub'},'Flip cards · find pairs')]),
+      ]),
+      h('button',{class:'brain-break-btn math',onclick:()=>go('game-math')},[
+        h('span',{class:'bb-emoji'},'⚡'),
+        h('span',{class:'bb-text'},[h('span',{},'Quick Math'),h('span',{class:'bb-sub'},'60-second speed round')]),
+      ]),
+      h('button',{class:'brain-break-btn hub',onclick:()=>go('mini-hub')},[
+        h('span',{class:'bb-emoji'},'🧩'),
+        h('span',{class:'bb-text'},[h('span',{},'Brain Break'),h('span',{class:'bb-sub'}, capTxt)]),
+      ]),
+    ]));
+  } catch(e){ console.warn('[KidQuest] renderBrainBreak failed:', e); }
   // Store + Orders entry buttons — quick access from the dashboard
   const pending = (allData.orders||[]).filter(o=>o.studentId===currentUser).length;
   root.appendChild(h('div',{class:'dash-store-row'},[
@@ -6149,6 +6283,371 @@ function renderAvatarPicker(root){
   root.appendChild(h('div',{style:'margin-top:24px;display:flex;justify-content:center'},[
     h('button',{class:'btn btn-primary',onclick:()=>go('dashboard')}, 'Done →'),
   ]));
+}
+
+/* ==========================================================================
+   BRAIN BREAK — mini-games (Memory Match + Quick Math)
+   --------------------------------------------------------------------------
+   Casual games for downtime between lessons. Coins earned here are capped
+   daily so they don't replace real academic practice. Personal bests are
+   tracked per-student in state.miniGameStats.
+   ========================================================================== */
+const MINI_GAME_COIN_CAP = 10; // max coins per day awarded from mini-games
+
+// Ensure the stats container exists on older saves that predate this field.
+function ensureMiniGameStats(){
+  if(!state) return;
+  if(!state.miniGameStats){
+    state.miniGameStats = { date:'', coinsToday:0, bestMemoryEasy:null, bestMemoryHard:null, bestMathScore:0 };
+  }
+}
+
+// Award coins for a finished run. rating: 0–3. Silently clamps to the daily
+// cap so we never award more than MINI_GAME_COIN_CAP per real-world day.
+function miniGameAward(rating){
+  ensureMiniGameStats();
+  const today = new Date().toISOString().slice(0,10);
+  if(state.miniGameStats.date !== today){
+    state.miniGameStats.date = today;
+    state.miniGameStats.coinsToday = 0;
+  }
+  const base = Math.max(0, Math.min(3, rating|0));
+  const remaining = Math.max(0, MINI_GAME_COIN_CAP - state.miniGameStats.coinsToday);
+  const awarded = Math.min(base, remaining);
+  state.coins += awarded;
+  state.miniGameStats.coinsToday += awarded;
+  return awarded;
+}
+
+// Post-game modal: Nova + star rating + stats + coin award + replay buttons.
+function showMiniGameWin(opts){
+  const overlay = h('div',{class:'mg-win-overlay'});
+  const card = h('div',{class:'mg-win-card'});
+  const tone = opts.rating === 3 ? 'victory' : opts.rating === 2 ? 'warm' : opts.rating === 1 ? 'cheerful' : 'magic';
+  const novaMsg = opts.rating === 3 ? 'Incredible!' : opts.rating === 2 ? 'Nice run!' : opts.rating === 1 ? 'Good try!' : 'Keep going!';
+  card.appendChild(createMascot({ tone, size:78, message: novaMsg }));
+  card.appendChild(h('h2',{class:'mg-win-title'}, opts.title));
+  const starsEl = h('div',{class:'mg-win-stars'});
+  for(let i=0;i<3;i++) starsEl.appendChild(h('span',{class:'mg-star'+(i<opts.rating?' lit':'')},'⭐'));
+  card.appendChild(starsEl);
+  if(opts.stats && opts.stats.length){
+    const statsEl = h('div',{class:'mg-win-stats'});
+    opts.stats.forEach(s=>{
+      statsEl.appendChild(h('div',{class:'mg-win-stat'},[
+        h('div',{class:'mgws-val'}, s.val),
+        h('div',{class:'mgws-lbl'}, s.lbl),
+      ]));
+    });
+    card.appendChild(statsEl);
+  }
+  card.appendChild(h('div',{class:'mg-win-coins'}, opts.coins > 0 ? ('+'+opts.coins+' 💰') : 'Daily coin cap reached — play for fun!'));
+  if(opts.isNewBest) card.appendChild(h('div',{class:'mg-win-best'}, '🏆 New personal best!'));
+  card.appendChild(h('div',{class:'mg-win-buttons'},[
+    h('button',{class:'btn btn-primary',onclick:()=>{overlay.remove(); opts.onReplay && opts.onReplay();}}, '🔁 Play Again'),
+    h('button',{class:'btn',onclick:()=>{overlay.remove(); opts.onHome && opts.onHome();}}, '🏠 Back to Dashboard'),
+  ]));
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+/* ----- MINI HUB ----- */
+function renderMiniHub(root){
+  if(!currentUser||!state){go('home');return}
+  ensureMiniGameStats();
+  root.appendChild(h('div',{class:'week-head'},[
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},'🧩'),h('span',{},'Brain Break')]),
+    h('button',{class:'back-btn',onclick:()=>go('dashboard')},'← Back'),
+  ]));
+  root.appendChild(h('div',{class:'mini-hub-intro'},[
+    createMascot({ tone:'magic', size:90, message:'Need a brain break?' }),
+  ]));
+  const today = new Date().toISOString().slice(0,10);
+  const coinsToday = (state.miniGameStats.date === today) ? (state.miniGameStats.coinsToday||0) : 0;
+  root.appendChild(h('div',{style:'text-align:center;margin-bottom:10px'},[
+    h('span',{class:'mg-coin-meter'},[
+      h('span',{class:'mgcm-label'}, 'Coins earned today: '),
+      h('span',{class:'mgcm-val'}, coinsToday + ' / ' + MINI_GAME_COIN_CAP),
+    ]),
+  ]));
+  const bestMem  = state.miniGameStats.bestMemoryEasy;
+  const bestMemH = state.miniGameStats.bestMemoryHard;
+  const bestMath = state.miniGameStats.bestMathScore || 0;
+  const grid = h('div',{class:'mini-games-grid stagger'});
+  const memBestTxt = bestMemH ? ('Best (Hard): ' + bestMemH.moves + ' moves')
+                   : bestMem  ? ('Best (Easy): ' + bestMem.moves + ' moves')
+                   : 'Play to set a record!';
+  grid.appendChild(h('button',{class:'mg-tile memory',onclick:()=>go('game-memory')},[
+    h('div',{class:'mg-ico'},'🃏'),
+    h('div',{class:'mg-info'},[
+      h('div',{class:'mg-name'},'Memory Match'),
+      h('div',{class:'mg-desc'},'Flip cards. Find the pairs.'),
+      h('div',{class:'mg-best'}, memBestTxt),
+    ]),
+    h('div',{class:'mg-arrow'},'→'),
+  ]));
+  const mathBestTxt = bestMath ? ('Best: ' + bestMath + ' correct') : 'Play to set a record!';
+  grid.appendChild(h('button',{class:'mg-tile math',onclick:()=>go('game-math')},[
+    h('div',{class:'mg-ico'},'⚡'),
+    h('div',{class:'mg-info'},[
+      h('div',{class:'mg-name'},'Quick Math'),
+      h('div',{class:'mg-desc'},'60 seconds. How many can you solve?'),
+      h('div',{class:'mg-best'}, mathBestTxt),
+    ]),
+    h('div',{class:'mg-arrow'},'→'),
+  ]));
+  root.appendChild(grid);
+  root.appendChild(h('div',{class:'mini-hub-note'},
+    'Up to ' + MINI_GAME_COIN_CAP + ' coins per day from games. Lessons give a lot more!'));
+}
+
+/* ----- MEMORY MATCH -----
+   Pairs of emoji, flip two cards per move, matches stay revealed. Rating
+   (1-3 stars) scales with move count vs. a par = pairs*2. Coins follow
+   rating, capped by the daily mini-game cap. */
+const MEMORY_EMOJI_POOL = [
+  '🦊','🦁','🐯','🐼','🐸','🐵','🐰','🐻','🐶','🐱',
+  '🦄','🦖','🦉','🐙','🦋','⭐','🚀','🌈','🎮','🎯',
+  '🍕','🍎','🍪','🎨','🎵','🏀','⚽','🧩','🔮','💎',
+];
+function renderMemoryMatch(root, opts){
+  if(!currentUser||!state){go('home');return}
+  ensureMiniGameStats();
+  const difficulty = (opts && opts.difficulty) || 'easy';
+  const pairs = difficulty === 'hard' ? 8 : 6;
+  const cols = 4; // 4×3 easy, 4×4 hard
+
+  root.appendChild(h('div',{class:'week-head'},[
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},'🃏'),h('span',{},'Memory Match')]),
+    h('button',{class:'back-btn',onclick:()=>go('mini-hub')},'← Back'),
+  ]));
+  root.appendChild(h('div',{class:'mg-diff-row'},[
+    h('button',{class:'mg-diff'+(difficulty==='easy'?' active':''),onclick:()=>go('game-memory',{difficulty:'easy'})}, 'Easy · 6 pairs'),
+    h('button',{class:'mg-diff'+(difficulty==='hard'?' active':''),onclick:()=>go('game-memory',{difficulty:'hard'})}, 'Hard · 8 pairs'),
+  ]));
+
+  // Shuffled deck — pick N emoji, duplicate for pairs, shuffle positions.
+  const chosen = MEMORY_EMOJI_POOL.slice().sort(()=>Math.random()-0.5).slice(0, pairs);
+  const deck   = chosen.concat(chosen).sort(()=>Math.random()-0.5);
+
+  // Stats bar
+  const movesDisp   = h('span',{class:'mg-val'},'0');
+  const timeDisp    = h('span',{class:'mg-val'},'0:00');
+  const matchedDisp = h('span',{class:'mg-val'},'0 / '+pairs);
+  root.appendChild(h('div',{class:'mg-stats'},[
+    h('div',{class:'mg-stat'},[h('span',{class:'mg-label'},'Moves'), movesDisp]),
+    h('div',{class:'mg-stat'},[h('span',{class:'mg-label'},'Time'),  timeDisp]),
+    h('div',{class:'mg-stat'},[h('span',{class:'mg-label'},'Pairs'), matchedDisp]),
+  ]));
+
+  // Board
+  const board = h('div',{class:'mg-board cols-'+cols});
+  root.appendChild(board);
+
+  // Game state (closure-local)
+  let flipped = []; let matched = 0; let moves = 0; let locked = false;
+  let startTime = null; let timerId = null;
+
+  deck.forEach((emoji, idx) => {
+    const inner = h('div',{class:'mg-card-inner'},[
+      h('div',{class:'mg-card-front'},'?'),
+      h('div',{class:'mg-card-back'}, emoji),
+    ]);
+    const card = h('div',{class:'mg-card'}, [inner]);
+    card.onclick = () => {
+      if(locked || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+      if(!startTime){
+        startTime = Date.now();
+        timerId = setInterval(()=>{
+          const s = Math.floor((Date.now()-startTime)/1000);
+          timeDisp.textContent = Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+        }, 500);
+      }
+      card.classList.add('flipped');
+      flipped.push({ el: card, emoji });
+      if(flipped.length === 2){
+        moves++;
+        movesDisp.textContent = String(moves);
+        if(flipped[0].emoji === flipped[1].emoji){
+          flipped.forEach(f=>f.el.classList.add('matched'));
+          matched++;
+          matchedDisp.textContent = matched+' / '+pairs;
+          flipped = [];
+          if(matched === pairs){
+            if(timerId) clearInterval(timerId);
+            const elapsed = Math.floor((Date.now()-startTime)/1000);
+            onWin(elapsed);
+          }
+        } else {
+          locked = true;
+          const pair = flipped;
+          flipped = [];
+          setTimeout(()=>{
+            pair.forEach(f=>f.el.classList.remove('flipped'));
+            locked = false;
+          }, 800);
+        }
+      }
+    };
+    board.appendChild(card);
+  });
+
+  function onWin(elapsed){
+    const par = pairs * 2;
+    let rating = 3;
+    if(moves > Math.round(par * 1.5)) rating--;
+    if(moves > par * 2)               rating--;
+    rating = Math.max(1, rating);
+    const key = difficulty === 'hard' ? 'bestMemoryHard' : 'bestMemoryEasy';
+    const prev = state.miniGameStats[key];
+    const isNewBest = !prev || moves < prev.moves;
+    if(isNewBest) state.miniGameStats[key] = { moves, time: elapsed };
+    const coins = miniGameAward(rating);
+    saveState();
+    showMiniGameWin({
+      title: 'Match complete!',
+      rating, coins, isNewBest,
+      stats: [
+        { lbl:'Moves', val: String(moves) },
+        { lbl:'Time',  val: Math.floor(elapsed/60)+':'+String(elapsed%60).padStart(2,'0') },
+      ],
+      onReplay: () => go('game-memory', { difficulty }),
+      onHome:   () => go('dashboard'),
+    });
+  }
+}
+
+/* ----- QUICK MATH -----
+   60-second timed drill of simple arithmetic. Level scales difficulty.
+   Rating: 3★ = 20+ correct, 2★ = 10+, 1★ = 5+, else no stars (still fun). */
+function renderQuickMath(root, opts){
+  if(!currentUser||!state){go('home');return}
+  ensureMiniGameStats();
+  const level = (opts && opts.level) || 'easy';
+
+  root.appendChild(h('div',{class:'week-head'},[
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},'⚡'),h('span',{},'Quick Math')]),
+    h('button',{class:'back-btn',onclick:()=>go('mini-hub')},'← Back'),
+  ]));
+  root.appendChild(h('div',{class:'mg-diff-row'},[
+    h('button',{class:'mg-diff'+(level==='easy'?' active':''),onclick:()=>go('game-math',{level:'easy'})}, 'Easy · +/− to 10'),
+    h('button',{class:'mg-diff'+(level==='medium'?' active':''),onclick:()=>go('game-math',{level:'medium'})}, 'Medium · to 20'),
+    h('button',{class:'mg-diff'+(level==='hard'?' active':''),onclick:()=>go('game-math',{level:'hard'})}, 'Hard · +/−/×'),
+  ]));
+
+  let correct = 0; let wrong = 0; let timeLeft = 60; let gameActive = false;
+  let timerId = null; let answerLocked = false;
+
+  const intro = h('div',{class:'qm-intro'},[
+    createMascot({ tone:'magic', size:90, message: '60 seconds — how many can you get?' }),
+    h('button',{class:'btn btn-primary qm-start-btn',onclick:startGame}, '▶️ Start!'),
+  ]);
+  root.appendChild(intro);
+
+  const area = h('div',{class:'qm-area',style:'display:none'});
+  root.appendChild(area);
+  const scoreDisp = h('span',{class:'mg-val'},'0');
+  const timeDisp  = h('span',{class:'mg-val'},'60');
+  const problemEl = h('div',{class:'qm-problem'});
+  const choicesEl = h('div',{class:'qm-choices'});
+  area.appendChild(h('div',{class:'qm-status'},[
+    h('div',{class:'qm-stat'},[h('span',{class:'mg-label'},'Correct'), scoreDisp]),
+    h('div',{class:'qm-stat'},[h('span',{class:'mg-label'},'Time'),    timeDisp]),
+  ]));
+  area.appendChild(problemEl);
+  area.appendChild(choicesEl);
+
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+
+  function genProblem(){
+    let a, b, op, ans;
+    if(level === 'easy'){
+      op = Math.random() < 0.5 ? '+' : '−';
+      if(op === '+'){ a = ri(1,9);  b = ri(1, Math.max(1, 10-a)); ans = a + b; }
+      else          { a = ri(2,10); b = ri(1, a);                 ans = a - b; }
+    } else if(level === 'medium'){
+      op = Math.random() < 0.5 ? '+' : '−';
+      if(op === '+'){ a = ri(3,15); b = ri(3, Math.max(3, 20-a)); ans = a + b; }
+      else          { a = ri(5,20); b = ri(1, a);                 ans = a - b; }
+    } else {
+      const r = Math.random();
+      if(r < 0.4){ op = '+'; a = ri(10,50); b = ri(10,50); ans = a + b; }
+      else if(r < 0.75){ op = '−'; a = ri(20,99); b = ri(1, a-1); ans = a - b; }
+      else { op = '×'; a = ri(2,9); b = ri(2,9); ans = a * b; }
+    }
+    // 3 distractor choices + the answer, shuffled
+    const wrongs = new Set();
+    let guard = 0;
+    while(wrongs.size < 3 && guard++ < 40){
+      const delta = ri(-5,5) || 1;
+      const w = ans + delta;
+      if(w !== ans && w >= 0) wrongs.add(w);
+    }
+    const choices = Array.from(wrongs).concat([ans]).sort(()=>Math.random()-0.5);
+    return { a, b, op, ans, choices };
+  }
+
+  function renderProblem(){
+    const p = genProblem();
+    answerLocked = false;
+    problemEl.textContent = p.a + ' ' + p.op + ' ' + p.b + ' = ?';
+    choicesEl.innerHTML = '';
+    p.choices.forEach(c=>{
+      const btn = h('button',{class:'qm-choice'}, String(c));
+      btn.onclick = () => {
+        if(!gameActive || answerLocked) return;
+        answerLocked = true;
+        if(c === p.ans){
+          correct++;
+          btn.classList.add('correct');
+          scoreDisp.textContent = String(correct);
+        } else {
+          wrong++;
+          btn.classList.add('wrong');
+          // Briefly highlight the correct answer so the kid learns.
+          Array.from(choicesEl.children).forEach(ch=>{
+            if(ch.textContent === String(p.ans)) ch.classList.add('correct');
+          });
+        }
+        setTimeout(renderProblem, 400);
+      };
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  function startGame(){
+    gameActive = true;
+    intro.style.display = 'none';
+    area.style.display  = '';
+    renderProblem();
+    timerId = setInterval(()=>{
+      timeLeft--;
+      timeDisp.textContent = String(timeLeft);
+      if(timeLeft <= 0){
+        clearInterval(timerId);
+        gameActive = false;
+        onEnd();
+      }
+    }, 1000);
+  }
+
+  function onEnd(){
+    const rating = correct >= 20 ? 3 : correct >= 10 ? 2 : correct >= 5 ? 1 : 0;
+    const prevBest = state.miniGameStats.bestMathScore || 0;
+    const isNewBest = correct > prevBest;
+    if(isNewBest) state.miniGameStats.bestMathScore = correct;
+    const coins = miniGameAward(rating);
+    saveState();
+    showMiniGameWin({
+      title: "Time's up!",
+      rating, coins, isNewBest,
+      stats: [
+        { lbl:'Correct', val: String(correct) },
+        { lbl:'Oops',    val: String(wrong)   },
+      ],
+      onReplay: () => go('game-math', { level }),
+      onHome:   () => go('dashboard'),
+    });
+  }
 }
 
 /* ========== BADGES ========== */
