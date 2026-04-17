@@ -868,6 +868,12 @@ img{max-width:100%}
 .t-student h3{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px}
 .t-student .t-grade{font-size:12px;font-weight:700;color:var(--ink3)}
 .t-student .t-stats{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--ink2)}
+/* Second stats row under the primary stars/coins/streak line. Shows the
+   tutor-focused "attempts + accuracy" summary — subtler visual weight so it
+   doesn't compete with the hero stats, but present enough to catch the eye
+   when scanning. */
+.t-student .t-stats-extra{margin-top:4px;font-size:12px;color:var(--ink3);font-weight:600}
+.t-student .t-stats-extra span{background:rgba(108,92,231,.06);padding:3px 10px;border-radius:999px}
 .t-student .t-stats span{background:rgba(0,0,0,.05);padding:4px 10px;border-radius:999px}
 .t-subj-bars{margin-top:12px}
 .t-subj-bar{margin-top:6px}
@@ -7251,12 +7257,34 @@ function computeSubjectStats(sid, subjId){
   const acts = getWeekActivities(sid, subjId);
   const total = acts.length || 1;
   let done = 0, perfect = 0;
+  // --- Attempts & TRUE question-level accuracy ---
+  // We track BOTH:
+  //   • totalAttempts — how many tries (total) across every activity in this
+  //     subject. Sums the per-activity `progress[aid].attempts` counter.
+  //   • questionAccuracy — correct answers / scorable questions, averaged
+  //     across ATTEMPTED activities. This is the real "how well do they
+  //     answer questions" number (distinct from `accuracy` below, which
+  //     is really the perfect-score rate and is kept for level math).
+  let totalAttempts = 0;
+  let totalCorrect = 0;
+  let totalScorable = 0;
   acts.forEach(a=>{
     if(ud.completedActivities[a.id]) done++;
     if(ud.perfectActivities[a.id]) perfect++;
+    const prog = (ud.progress && ud.progress[a.id]) || {};
+    const attempts = prog.attempts || 0;
+    totalAttempts += attempts;
+    if(attempts > 0){
+      // Only sum scorable against ATTEMPTED activities — counting untouched
+      // lessons as 0/5 would unfairly crash accuracy on week 1.
+      const scorable = (a.questions || []).filter(q=>q.type!=='lesson').length || 1;
+      totalCorrect += (prog.best || 0);
+      totalScorable += scorable;
+    }
   });
   const completion = done/total;
-  const accuracy = done ? perfect/done : 0;
+  const accuracy = done ? perfect/done : 0;          // perfect-rate (for level math — don't change semantics)
+  const questionAccuracy = totalScorable ? totalCorrect/totalScorable : 0;  // TRUE answer accuracy
   // Blend: 60% completion + 40% accuracy
   const score = completion*0.6 + accuracy*0.4;
   let lv = 1;
@@ -7266,7 +7294,14 @@ function computeSubjectStats(sid, subjId){
   else lv = 1;
   // Special case: if nothing done yet, stay at Growing
   if(done === 0) lv = 1;
-  return {done, perfect, total, completion, accuracy, score, lv, pct:Math.round(completion*100)};
+  return {
+    done, perfect, total, completion, accuracy, score, lv,
+    pct: Math.round(completion*100),
+    totalAttempts,
+    totalCorrect, totalScorable,
+    questionAccuracy,
+    pctAccuracy: Math.round(questionAccuracy*100),
+  };
 }
 
 function generateSubjectComment(name, subjId, stats){
@@ -7359,10 +7394,15 @@ function renderReportCard(sid, isTeacher){
     card.appendChild(ul);
     card.appendChild(h('div',{class:'rc-comment'}, generateSubjectComment(s.name, sub.id, st)));
     if(isTeacher){
+      // Teacher-only stats row. "Accuracy" here is TRUE question-level
+      // accuracy (right answers / total scorable questions across ATTEMPTED
+      // activities) — not the older perfect-score-rate label. Attempts tells
+      // the tutor at a glance how many retries the kid needed overall.
       card.appendChild(h('div',{class:'rc-teacher'},[
         h('span',{},'Completed: '+st.done+'/'+st.total),
         h('span',{},'Perfect: '+st.perfect),
-        h('span',{},'Accuracy: '+Math.round(st.accuracy*100)+'%'),
+        h('span',{},'Attempts: '+st.totalAttempts),
+        h('span',{},'Accuracy: '+st.pctAccuracy+'%'),
       ]));
     }
     grid.appendChild(card);
@@ -10169,6 +10209,19 @@ function renderTeacher(root){
     const td=Object.keys(ud.completedActivities).length;
     const totalActs=SUBJECTS.reduce((sum,sub)=>sum+getWeekActivities(s.id,sub.id).length,0);
     const pct=totalActs?Math.round(td/totalActs*100):0;
+    // Aggregate attempts + TRUE accuracy across ALL subjects so the tutor
+    // gets a one-glance "did this kid keep trying? did they actually get
+    // the questions right?" read on the header row. Re-uses the same
+    // per-subject computeSubjectStats so numbers stay consistent between
+    // the header and the per-subject breakdown below.
+    let allAttempts = 0, allCorrect = 0, allScorable = 0;
+    SUBJECTS.forEach(sub=>{
+      const stt = computeSubjectStats(s.id, sub.id);
+      allAttempts += stt.totalAttempts || 0;
+      allCorrect  += stt.totalCorrect  || 0;
+      allScorable += stt.totalScorable || 0;
+    });
+    const overallAccuracy = allScorable ? Math.round(allCorrect/allScorable*100) : 0;
     // Header token = chosen avatar emoji if set, otherwise the student's
     // initial. Replaces the old decorative decoEmoji for a cleaner look
     // that matches the student's own profile identity.
@@ -10179,6 +10232,14 @@ function renderTeacher(root){
       h('div',{class:'t-stats'},[
         h('span',{},'⭐ '+ud.totalStars),h('span',{},'💰 '+ud.coins),
         h('span',{},'🔥 '+ud.streak),h('span',{},'📊 '+pct+'%'),
+      ]),
+      // Second stats row — attempts + accuracy. Distinct row so the top
+      // row keeps its familiar "stars/coins/streak/progress" shape while
+      // the tutor-focused "how hard did they work, how accurate were
+      // they?" numbers sit right under it.
+      h('div',{class:'t-stats t-stats-extra'},[
+        h('span',{title:'Total attempts across every activity (sum of retries)'},'🎯 '+allAttempts+' attempts'),
+        h('span',{title:'Correct answers ÷ total scored questions, on attempted activities'},'✅ '+overallAccuracy+'% accuracy'),
       ]),
     ]);
     const bars=h('div',{class:'t-subj-bars'});
@@ -10463,12 +10524,17 @@ function resetStudentSubject(sid, subjId){
 // Aggregate the per-subject stats a report needs for one student.
 // Records specific activity titles so the email can name concepts the kid
 // nailed vs concepts they're still chewing on — not just subject-level stats.
+// Also surfaces the effort signals parents ask about:
+//   • attempts — sum of retries per subject (and per activity on repeats)
+//   • accuracy — correct answers / scorable questions across attempted
+//     activities (per subject, plus per-activity on repeats / not-perfect)
 function reportSubjectStats(sid){
   const ud = allData.users[sid] || defaultUser();
   return SUBJECTS.map(sub => {
     const acts = getWeekActivities(sid, sub.id) || [];
     const total = acts.length;
     let done=0, perfect=0;
+    let totalAttempts=0, totalCorrect=0, totalScorable=0;
     const repeats = [];         // activities with >=2 attempts (kid had to retry)
     const perfectActs = [];     // activity titles where they nailed it
     const notDoneActs = [];     // activity titles not yet touched (complete)
@@ -10476,24 +10542,38 @@ function reportSubjectStats(sid){
     acts.forEach(a=>{
       const isDone = !!(ud.completedActivities && ud.completedActivities[a.id]);
       const isPerfect = !!(ud.perfectActivities && ud.perfectActivities[a.id]);
-      const attempts = (ud.progress && ud.progress[a.id] && ud.progress[a.id].attempts) || 0;
+      const prog = (ud.progress && ud.progress[a.id]) || {};
+      const attempts = prog.attempts || 0;
+      const best = prog.best || 0;
+      const scorable = (a.questions || []).filter(q=>q.type!=='lesson').length || 1;
+      const accuracy = attempts>0 ? best/scorable : 0;  // per-activity accuracy
+      const pctAcc = Math.round(accuracy*100);
+      totalAttempts += attempts;
+      if(attempts > 0){
+        totalCorrect  += best;
+        totalScorable += scorable;
+      }
       // Prefer the specific lesson concept title when available — reads more
       // naturally than the short activity label ("Finding the Main Idea" vs
       // "Main Idea & Details"). Falls back to the activity title if the
       // lesson object doesn't supply one.
       const conceptTitle = (a.lesson && a.lesson.title) || a.title;
+      const base = {id:a.id, title:a.title, concept:conceptTitle, attempts, best, scorable, pctAcc};
       if(isDone) done++;
-      if(isPerfect){ perfect++; perfectActs.push({id:a.id, title:a.title, concept:conceptTitle}); }
-      if(attempts >= 2) repeats.push({id:a.id, title:a.title, concept:conceptTitle, attempts});
-      if(!isDone) notDoneActs.push({id:a.id, title:a.title, concept:conceptTitle});
-      if(isDone && !isPerfect) completedNotPerfect.push({id:a.id, title:a.title, concept:conceptTitle});
+      if(isPerfect){ perfect++; perfectActs.push(base); }
+      if(attempts >= 2) repeats.push(base);
+      if(!isDone) notDoneActs.push(base);
+      if(isDone && !isPerfect) completedNotPerfect.push(base);
     });
+    const pctAccuracy = totalScorable ? Math.round((totalCorrect/totalScorable)*100) : 0;
     return {
       id: sub.id, name: sub.name, emoji: sub.emoji,
       total, done, perfect, repeats,
       perfectActs, notDoneActs, completedNotPerfect,
+      totalAttempts, totalCorrect, totalScorable,
       pctDone: total ? Math.round((done/total)*100) : 0,
       pctPerfect: total ? Math.round((perfect/total)*100) : 0,
+      pctAccuracy,
     };
   });
 }
@@ -10508,6 +10588,14 @@ function buildProgressReport(sid){
   const totalDone = stats.reduce((a,b)=>a+b.done,0);
   const totalAvail = stats.reduce((a,b)=>a+b.total,0);
   const totalPerfect = stats.reduce((a,b)=>a+b.perfect,0);
+  // Attempts + TRUE accuracy across every subject. Attempts is a raw sum
+  // (the "how many tries did the kid make total?" number parents ask
+  // about). Accuracy is correct answers ÷ scorable questions, weighted
+  // across attempted activities — not just "did they pass?".
+  const totalAttempts = stats.reduce((a,b)=>a+(b.totalAttempts||0),0);
+  const totalCorrect  = stats.reduce((a,b)=>a+(b.totalCorrect ||0),0);
+  const totalScorable = stats.reduce((a,b)=>a+(b.totalScorable||0),0);
+  const overallAccuracy = totalScorable ? Math.round((totalCorrect/totalScorable)*100) : 0;
 
   // Strengths: subjects with perfect/total >= 50% AND at least 1 perfect
   const strengths = stats.filter(s=>s.total>0 && s.perfect>=1 && (s.perfect/s.total) >= 0.5)
@@ -10540,6 +10628,13 @@ function buildProgressReport(sid){
   lines.push(`Here is ${name}'s weekly KidQuest progress report (${today}).`);
   lines.push('');
   lines.push(`Overall: ${totalDone} of ${totalAvail} activities completed — ${totalPerfect} perfect scores. ⭐${ud.totalStars||0} stars / 💰${ud.coins||0} coins / 🔥${ud.streak||0}-day streak.`);
+  // Effort + precision line: tells the parent at a glance HOW HARD the kid
+  // worked (total attempts) and HOW ACCURATELY they answered (right answers
+  // ÷ scorable questions across attempted activities). Using ${totalCorrect}
+  // / ${totalScorable} makes the % feel concrete instead of abstract.
+  if(totalAttempts>0){
+    lines.push(`Effort & accuracy: ${totalAttempts} total attempt${totalAttempts===1?'':'s'} across lessons, answering ${totalCorrect} of ${totalScorable} scored questions correctly (${overallAccuracy}% accuracy).`);
+  }
   lines.push('');
 
   // Strengths paragraph — names the specific concepts the kid nailed, not
@@ -10598,15 +10693,20 @@ function buildProgressReport(sid){
         used.add(a.id);
         bullets.push(line);
       };
-      // Repeated activities = struggled with the concept, worth naming
+      // Repeated activities = struggled with the concept, worth naming.
+      // We also surface their BEST score + accuracy % so the parent sees
+      // not just "needed 3 tries" but "best was 3/5 = 60%" — way more
+      // actionable. Same pattern applied to the not-perfect bucket below.
       s.repeats.slice(0,3).forEach(r=>{
-        addBullet(r, `${r.concept} — needed ${r.attempts} attempt${r.attempts===1?'':'s'}`);
+        const scoreTag = r.scorable ? ` (best: ${r.best}/${r.scorable} = ${r.pctAcc}%)` : '';
+        addBullet(r, `${r.concept} — needed ${r.attempts} attempt${r.attempts===1?'':'s'}${scoreTag}`);
       });
       // Completed but not perfect = got it done but shaky on details
       if(bullets.length < 3){
         s.completedNotPerfect.forEach(a=>{
           if(bullets.length >= 3) return;
-          addBullet(a, `${a.concept} — done but not yet mastered`);
+          const scoreTag = a.scorable ? ` (${a.best}/${a.scorable} = ${a.pctAcc}%)` : '';
+          addBullet(a, `${a.concept} — done but not yet mastered${scoreTag}`);
         });
       }
       // Not-done activities = haven't attempted, need to tackle
@@ -10647,13 +10747,25 @@ function buildProgressReport(sid){
   }
   lines.push('');
 
-  // Per-subject breakdown (scannable table)
+  // Per-subject breakdown (scannable table).
+  // Each line now includes the tutor-facing effort/accuracy numbers:
+  //   • done/total — how much of the week's material is finished
+  //   • perfect count — mastered activities (every Q right)
+  //   • attempts — how many tries total (signals effort OR struggle)
+  //   • accuracy % — correct answers / scorable questions (true hit rate)
+  // ✨ marks a fully-perfect subject; ↻ marks a subject with retries;
+  // so the tutor's eye can scan for both strengths and struggle zones.
   lines.push('SUBJECT BREAKDOWN');
   stats.forEach(s=>{
     if(!s.total) return;
     const tag = s.perfect===s.total && s.total>0 ? ' ✨' :
                 s.repeats.length>=1 ? ' ↻' : '';
-    lines.push(`  ${s.emoji} ${s.name}: ${s.done}/${s.total} done · ${s.perfect} perfect${tag}`);
+    // Only append attempts+accuracy when the kid has touched the subject —
+    // "0 attempts · 0% accuracy" on an untouched subject is noise.
+    const effort = s.totalAttempts > 0
+      ? ` · ${s.totalAttempts} attempt${s.totalAttempts===1?'':'s'} · ${s.pctAccuracy}% accuracy`
+      : '';
+    lines.push(`  ${s.emoji} ${s.name}: ${s.done}/${s.total} done · ${s.perfect} perfect${effort}${tag}`);
   });
   lines.push('');
   lines.push('— Rhahavy, KidQuest Tutoring');
