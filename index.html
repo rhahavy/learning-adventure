@@ -3918,6 +3918,815 @@ isaiah: {
 }};
 
 /* ==========================================================================
+   PREVIEW LEVELS 6–10 — demoOnly, parents-only curriculum previews
+   --------------------------------------------------------------------------
+   These activities are appended to each subject's array at load time. They
+   are flagged `demoOnly:true`, which causes `getWeekActivities(sid,subj)` to
+   FILTER THEM OUT for real students (they haven't unlocked that far yet)
+   but LEAVE THEM IN for parent-demo profiles — so parents browsing a demo
+   can see how the curriculum deepens over time.
+
+   Each level is intentionally lightweight (1 short lesson + 3 MCQs) — the
+   goal is preview/marketing, not full teaching. Parents who sign their
+   kids up get the real, fleshed-out version week by week.
+
+   To add more previews later: just push onto the right subject array here.
+   ========================================================================== */
+(function addDemoPreviewLevels(){
+  // Compact activity builder: 5 lines per level instead of 15.
+  const P = (id, title, emoji, intro, qs) => ({
+    id, title, emoji, demoOnly:true,
+    lesson:{ title:title, intro:intro,
+      example:'Preview lesson — real students unlock this after finishing Levels 1–5 in every subject!',
+      hint:'Parents: this is a sample of upcoming content.' },
+    questions: qs.map(r => ({type:'mcq', q:r[0], choices:r[1], answer:r[2]})),
+  });
+
+  const W = WEEKS[1];
+  const push = (sid, subj, levels) => { if(W[sid] && W[sid][subj]) W[sid][subj].push(...levels); };
+
+  /* ===== NISHAN (K / Grade 1) ===== */
+  push('nishan','reading',[
+    P('w1-nishan-r6','Rhyme Time','🎵','Rhyming words end with the same sound. "Cat" and "hat" rhyme!',[
+      ['Which word rhymes with "cat"?',['dog','hat','fish','tree'],1],
+      ['Which word rhymes with "sun"?',['moon','run','star','cloud'],1],
+      ['Which word rhymes with "star"?',['moon','car','sun','tree'],1]]),
+    P('w1-nishan-r7','First Sounds','🔤','Every word starts with a sound. Listen for the VERY first letter.',[
+      ['"Ball" starts with what sound?',['B','D','F','M'],0],
+      ['"Apple" starts with what sound?',['E','A','I','U'],1],
+      ['"Sun" starts with what sound?',['T','R','S','N'],2]]),
+    P('w1-nishan-r8','Story Pictures','🖼️','Pictures help us understand stories. Look at the picture AND the words.',[
+      ['A picture of a dog means the story is about...',['A cat','A dog','A car','A tree'],1],
+      ['Pictures can show us the...',['color','story','price','time'],1],
+      ['If a picture shows rain, the weather is...',['sunny','snowy','rainy','windy'],2]]),
+    P('w1-nishan-r9','Tell Me Why','❓','Stories have reasons things happen. Ask "why?"',[
+      ['The boy cried because...',['he was sad','he was silly','he was tall','it was sunny'],0],
+      ['The dog barked because...',['he was asleep','someone was at the door','it was raining','he ate'],1],
+      ['The girl smiled because...',['she was mad','she got a gift','she fell','it was dark'],1]]),
+    P('w1-nishan-r10','Story Mountain','🏔️','Stories have a BEGINNING, MIDDLE, and END.',[
+      ['The beginning of a story tells us...',['the ending','who and where','nothing','just colors'],1],
+      ['The middle of a story usually has...',['the problem','the title','the author','the price'],0],
+      ['The end of a story...',['wraps it up','is the first part','has the title','has no words'],0]]),
+  ]);
+  push('nishan','writing',[
+    P('w1-nishan-w6','Label It','🏷️','A label is one word that names a thing.',[
+      ['What would you label a round thing you bounce?',['ball','car','hat','lamp'],0],
+      ['What would you label a furry pet?',['rock','dog','book','cup'],1],
+      ['What would you label something you read?',['shoe','book','cloud','pen'],1]]),
+    P('w1-nishan-w7','My Day','☀️','Write what you did today! Morning, afternoon, night.',[
+      ['You eat breakfast in the...',['night','morning','middle','end'],1],
+      ['You go to sleep at...',['noon','lunch','night','start'],2],
+      ['The sun is up during the...',['night','day','dream','winter'],1]]),
+    P('w1-nishan-w8','Describe It','🎨','Describing words tell us how things look, feel, sound.',[
+      ['Snow feels...',['hot','cold','soft and cold','hard'],2],
+      ['A lemon tastes...',['sweet','sour','salty','cold'],1],
+      ['A baby sounds...',['loud and sharp','whisper quiet','small and soft','scary'],2]]),
+    P('w1-nishan-w9','My Family','👨‍👩‍👧‍👦','Writing about your family is fun! Start sentences with capital letters.',[
+      ['A complete sentence starts with a...',['small letter','capital letter','number','picture'],1],
+      ['Which is a complete sentence?',['My mom','My mom is kind.','mom','is kind'],1],
+      ['"My dad." is a complete sentence?',['Yes','No, it needs more','Yes always','Never'],1]]),
+    P('w1-nishan-w10','Story Starter','✏️','Finish the sentence to start a story!',[
+      ['"Once upon a time..." starts a...',['grocery list','story','math problem','song'],1],
+      ['After a sentence, we put a...',['comma','period','question mark always','nothing'],1],
+      ['A story needs at least one...',['character','number','color','price'],0]]),
+  ]);
+  push('nishan','math',[
+    P('w1-nishan-m6','Counting to 30','🔢','Numbers keep going past 10! 11, 12, 13... all the way to 30 and beyond.',[
+      ['What comes after 19?',['20','21','18','10'],0],
+      ['What comes after 27?',['26','28','29','30'],1],
+      ['Which is the biggest?',['9','15','23','18'],2]]),
+    P('w1-nishan-m7','Addition Within 10','➕','Adding two groups together makes a bigger group.',[
+      ['3 + 4 = ?',['6','7','8','5'],1],
+      ['5 + 2 = ?',['6','7','8','9'],1],
+      ['6 + 3 = ?',['8','9','10','7'],1]]),
+    P('w1-nishan-m8','Subtraction Within 10','➖','Taking away makes a group smaller.',[
+      ['7 − 3 = ?',['3','4','5','6'],1],
+      ['10 − 2 = ?',['7','8','9','6'],1],
+      ['6 − 1 = ?',['4','5','6','7'],1]]),
+    P('w1-nishan-m9','Shapes All Around','🔷','Circles, squares, triangles, rectangles — shapes are everywhere!',[
+      ['A pizza is usually shaped like a...',['square','triangle','circle','star'],2],
+      ['A door is shaped like a...',['circle','rectangle','triangle','heart'],1],
+      ['How many sides does a triangle have?',['2','3','4','5'],1]]),
+    P('w1-nishan-m10','Number Order','📊','Numbers can be compared — some are bigger, some smaller.',[
+      ['Which is BIGGER: 8 or 5?',['5','8','Same','Neither'],1],
+      ['Which is SMALLER: 12 or 20?',['12','20','Same','Neither'],0],
+      ['Put in order smallest-to-biggest: 3, 9, 6',['3, 6, 9','9, 6, 3','6, 3, 9','3, 9, 6'],0]]),
+  ]);
+  push('nishan','logic',[
+    P('w1-nishan-l6','Sorting Shapes','🔴','Sorting puts things that are ALIKE together.',[
+      ['If you sort by color, red goes with...',['red','blue','green','all colors'],0],
+      ['If you sort by shape, circles go with...',['squares','circles','triangles','lines'],1],
+      ['Sorting means putting things that are...',['all different','the same together','random','in sizes'],1]]),
+    P('w1-nishan-l7','What Comes Next?','➡️','Patterns repeat! Look for what keeps happening.',[
+      ['Pattern: 🔴🔵🔴🔵 — what\'s next?',['🔴','🔵','🟡','🟢'],0],
+      ['Pattern: ⭐🌙⭐🌙 — what\'s next?',['🌞','⭐','🌙','⛅'],0],
+      ['Pattern: 🐱🐶🐱🐶 — what\'s next?',['🐱','🐶','🐰','🐸'],0]]),
+    P('w1-nishan-l8','Same or Different?','🔍','Look closely! Are things the same or are they different?',[
+      ['🍎🍎 — same or different?',['Same','Different','Both','Neither'],0],
+      ['🐶🐱 — same or different?',['Same','Different','Same color','Same size'],1],
+      ['Two red balls of the same size are...',['Different','Same','Different color','Unknown'],1]]),
+    P('w1-nishan-l9','Mystery Bag','🎒','Guess what\'s in the bag using clues!',[
+      ['It\'s round, red, and you eat it. It\'s a...',['banana','apple','grape','lemon'],1],
+      ['It\'s yellow, long, and bendy. It\'s a...',['apple','orange','banana','pear'],2],
+      ['It has wheels and you ride it. It\'s a...',['book','car','plant','hat'],1]]),
+    P('w1-nishan-l10','Match Maker','🧩','Match pairs that go together!',[
+      ['Sock goes with...',['pencil','shoe','book','cup'],1],
+      ['Key goes with...',['tree','lock','moon','apple'],1],
+      ['Cup goes with...',['saucer','rock','grass','cloud'],0]]),
+  ]);
+  push('nishan','french',[
+    P('w1-nishan-f6','Les Couleurs','🌈','Colors in French: rouge (red), bleu (blue), jaune (yellow).',[
+      ['"Rouge" means...',['blue','red','green','yellow'],1],
+      ['"Bleu" means...',['red','green','blue','orange'],2],
+      ['"Jaune" means...',['yellow','pink','purple','black'],0]]),
+    P('w1-nishan-f7','Les Nombres','🔢','Numbers in French: un, deux, trois, quatre, cinq.',[
+      ['"Un" means...',['two','one','three','five'],1],
+      ['"Deux" means...',['four','one','two','six'],2],
+      ['"Trois" means...',['three','seven','ten','two'],0]]),
+    P('w1-nishan-f8','Les Animaux','🐶','Animals in French: chien (dog), chat (cat), oiseau (bird).',[
+      ['"Chien" means...',['cat','dog','bird','fish'],1],
+      ['"Chat" means...',['dog','cow','cat','duck'],2],
+      ['"Oiseau" means...',['horse','bird','fish','rabbit'],1]]),
+    P('w1-nishan-f9','La Famille','👨‍👩‍👧','Family in French: maman (mom), papa (dad), frère (brother).',[
+      ['"Maman" means...',['dad','mom','sister','grandma'],1],
+      ['"Papa" means...',['mom','uncle','dad','brother'],2],
+      ['"Frère" means...',['sister','cousin','brother','friend'],2]]),
+    P('w1-nishan-f10','Bonjour et Au Revoir','👋','Bonjour = hello. Au revoir = goodbye.',[
+      ['"Bonjour" means...',['goodbye','hello','please','thanks'],1],
+      ['"Au revoir" means...',['hello','maybe','goodbye','sorry'],2],
+      ['"Merci" means...',['please','thanks','hi','bye'],1]]),
+  ]);
+  push('nishan','science',[
+    P('w1-nishan-s6','My Five Senses','👁️','We have 5 senses: sight, hearing, touch, smell, taste.',[
+      ['We use our EYES to...',['hear','see','taste','smell'],1],
+      ['We use our EARS to...',['see','hear','touch','smell'],1],
+      ['We use our NOSE to...',['taste','see','smell','hear'],2]]),
+    P('w1-nishan-s7','Weather Watch','⛅','Weather changes! Sunny, rainy, cloudy, snowy.',[
+      ['When you see water drops falling, it\'s...',['sunny','rainy','windy','cloudy'],1],
+      ['When snow falls, the weather is...',['hot','snowy','sunny','raining'],1],
+      ['On a sunny day, we see the...',['moon','sun','stars','rain'],1]]),
+    P('w1-nishan-s8','Day and Night','🌞','The sun shines during the day, the moon shows at night.',[
+      ['The sun comes out during the...',['night','day','rain','snow'],1],
+      ['We see stars at...',['noon','morning','night','lunch'],2],
+      ['The moon shines at...',['day','night','lunch','always'],1]]),
+    P('w1-nishan-s9','Animals I Know','🦁','Animals live in different places and eat different things.',[
+      ['A lion lives on...',['ice','land','water','sky'],1],
+      ['A fish lives in...',['trees','water','sand','snow'],1],
+      ['A bird can...',['swim best','fly','dig deep','climb trees only'],1]]),
+    P('w1-nishan-s10','Plants Grow','🌱','Plants need sun, water, and soil to grow.',[
+      ['Plants need ___ to grow',['candy','water','toys','paper'],1],
+      ['Plants grow from...',['rocks','seeds','paper','toys'],1],
+      ['Plants use sunlight to make...',['rocks','food','rain','wind'],1]]),
+  ]);
+  push('nishan','social',[
+    P('w1-nishan-c6','My Community','🏘️','A community is where we live and the people around us.',[
+      ['A community includes your...',['neighbors','only you','no one','the moon'],0],
+      ['Your home is part of your...',['school','community','hospital','zoo'],1],
+      ['A community has...',['only houses','houses, shops, schools','only trees','one person'],1]]),
+    P('w1-nishan-c7','Jobs People Do','👮','People do jobs to help us. Doctors, teachers, firefighters, police.',[
+      ['Who helps you when you\'re sick?',['baker','doctor','plumber','artist'],1],
+      ['Who teaches you at school?',['firefighter','teacher','builder','farmer'],1],
+      ['Who puts out fires?',['police','firefighter','doctor','mail carrier'],1]]),
+    P('w1-nishan-c8','Canada\'s Flag','🍁','Canada\'s flag is red and white with a maple leaf.',[
+      ['Canada\'s flag has a...',['star','maple leaf','heart','cross'],1],
+      ['The colors on Canada\'s flag are...',['blue and gold','red and white','green and black','all colors'],1],
+      ['Canada\'s national symbol is the...',['eagle','maple leaf','rose','tiger'],1]]),
+    P('w1-nishan-c9','Being a Friend','🤝','Friends are kind, share, and help each other.',[
+      ['A good friend is...',['mean','kind','greedy','shy always'],1],
+      ['Friends like to...',['share','fight','hide','ignore'],0],
+      ['When a friend is sad you can...',['laugh','help them','walk away','yell'],1]]),
+    P('w1-nishan-c10','Taking Turns','🔄','Taking turns means everyone gets a chance.',[
+      ['When playing with a friend we should...',['grab toys','take turns','hide toys','run away'],1],
+      ['Taking turns is fair because...',['only one plays','everyone gets a chance','no one plays','it\'s slow'],1],
+      ['If a friend is using a toy you...',['snatch','wait your turn','cry','run'],1]]),
+  ]);
+
+  /* ===== AKARAN (Grade 1 / 2) ===== */
+  push('akaran','reading',[
+    P('w1-akaran-r6','Find the Fact','🔎','Stories have FACTS — details that are true in the story.',[
+      ['To find a fact, you should...',['guess','read carefully','skip it','close the book'],1],
+      ['Facts tell us what is...',['pretend','true','colorful','loud'],1],
+      ['If a story says "the dog is brown," the dog is...',['black','brown','white','pink'],1]]),
+    P('w1-akaran-r7','Tricky Words','💡','Sight words are words we see a lot: "the, and, of, was, said."',[
+      ['Which is a sight word?',['elephant','the','watermelon','sidewalk'],1],
+      ['Sight words we should...',['skip','know by heart','write only','hide'],1],
+      ['"Said" is a...',['color','sight word','number','shape'],1]]),
+    P('w1-akaran-r8','Story Order','📖','Stories have an order: first, next, then, last.',[
+      ['After "first" comes...',['last','next','never','alone'],1],
+      ['The LAST thing in a story is the...',['start','ending','title','cover'],1],
+      ['"Then" comes...',['before next','before first','between events','never'],2]]),
+    P('w1-akaran-r9','What\'s the Word?','🗣️','Using clues in the sentence helps us guess word meanings.',[
+      ['"The cat was FURIOUS — she hissed and scratched." FURIOUS means...',['happy','very angry','sleepy','hungry'],1],
+      ['"The puppy was TINY, smaller than a shoe." TINY means...',['very big','very small','loud','fluffy'],1],
+      ['"She GIGGLED with joy." GIGGLED means...',['cried','laughed','frowned','slept'],1]]),
+    P('w1-akaran-r10','Make a Picture','🎨','Good readers make pictures in their head when they read.',[
+      ['"The red balloon floated up into blue sky." Imagine...',['a rock sinking','a balloon rising','a fish swimming','a cake'],1],
+      ['When we make pictures, we help ourselves...',['forget','understand','skip','close the book'],1],
+      ['The word that helps picture color is...',['the','red','was','and'],1]]),
+  ]);
+  push('akaran','writing',[
+    P('w1-akaran-w6','Full Sentence','📝','A complete sentence has a SUBJECT (who) and an ACTION (what they do).',[
+      ['Which is a complete sentence?',['My dog','The cat runs.','Running','Tree big'],1],
+      ['A sentence ends with a...',['comma','period or ! or ?','colon','nothing'],1],
+      ['A sentence starts with a...',['small letter','number','capital letter','symbol'],2]]),
+    P('w1-akaran-w7','Pass the Punctuation','❗','Use . for facts, ? for questions, ! for excitement.',[
+      ['"Where is my hat" needs a...',['.','?','!','nothing'],1],
+      ['"I love pizza" could end with...',['? or .','. or !','?','none'],1],
+      ['"Watch out" sounds excited — use...',['.','!','?',','],1]]),
+    P('w1-akaran-w8','Describing Words','🌈','Adjectives describe nouns: big, small, soft, loud, happy.',[
+      ['Which is an adjective?',['run','happy','dog','quickly'],1],
+      ['"A ___ cat" — which word fits?',['fluffy','run','eat','walk'],0],
+      ['Adjectives describe...',['actions','feelings or looks','numbers only','verbs'],1]]),
+    P('w1-akaran-w9','My Favorite Thing','⭐','Opinion writing tells what YOU think. Use words like "I think," "I love," "the best."',[
+      ['An opinion is...',['what you think','always true','wrong','a number'],0],
+      ['"I think dogs are the best" is a...',['fact','opinion','question','command'],1],
+      ['Starting with "I believe..." tells a...',['fact','opinion','guess','dream'],1]]),
+    P('w1-akaran-w10','Little Story','📚','A short story has a BEGINNING, MIDDLE, and END.',[
+      ['A story has...',['just an ending','beginning, middle, end','just pictures','one word'],1],
+      ['The middle of a story usually has...',['the title','what happens','the cover','just names'],1],
+      ['A story ends with a...',['beginning','problem','solution or result','title'],2]]),
+  ]);
+  push('akaran','math',[
+    P('w1-akaran-m6','Counting by 10s','🔟','Skip counting by 10: 10, 20, 30, 40, 50...',[
+      ['After 30 comes (counting by 10s)...',['31','40','35','50'],1],
+      ['After 70 comes (counting by 10s)...',['71','80','75','90'],1],
+      ['How many 10s in 50?',['3','4','5','6'],2]]),
+    P('w1-akaran-m7','Adding Tens','➕','Adding tens is easy! 20 + 30 = 50.',[
+      ['30 + 20 = ?',['40','50','60','25'],1],
+      ['40 + 50 = ?',['80','90','95','100'],1],
+      ['60 + 20 = ?',['70','75','80','85'],2]]),
+    P('w1-akaran-m8','Subtracting Tens','➖','Subtracting tens is quick too! 80 − 30 = 50.',[
+      ['70 − 30 = ?',['30','40','50','60'],1],
+      ['90 − 40 = ?',['40','50','60','45'],1],
+      ['60 − 10 = ?',['40','45','50','55'],2]]),
+    P('w1-akaran-m9','Telling Time','🕐','Clocks have an hour hand (short) and minute hand (long).',[
+      ['The SHORT hand on a clock shows...',['minutes','hours','seconds','days'],1],
+      ['When the long hand is on 12, it\'s __ o\'clock',['half','exactly','quarter','middle'],1],
+      ['How many hours in a day?',['12','24','60','30'],1]]),
+    P('w1-akaran-m10','Coin Count','🪙','A nickel = 5¢. A dime = 10¢. A quarter = 25¢.',[
+      ['A dime is worth...',['1¢','5¢','10¢','25¢'],2],
+      ['A quarter is worth...',['25¢','50¢','5¢','1¢'],0],
+      ['3 nickels = ?',['10¢','15¢','20¢','25¢'],1]]),
+  ]);
+  push('akaran','logic',[
+    P('w1-akaran-l6','Pattern Maker','🎨','ABAB, ABCABC — patterns repeat in an order.',[
+      ['Pattern 🔴🔵🔴🔵🔴 — next?',['🔴','🔵','🟡','🟢'],1],
+      ['Pattern 🔺🔵🟡🔺🔵🟡 — next?',['🔺','🟢','🟡','🔵'],0],
+      ['How does ABAB differ from AABB?',['no different','ABAB alternates','they\'re same','neither is pattern'],1]]),
+    P('w1-akaran-l7','Sorting Rules','📦','Group things by a RULE: color, shape, size.',[
+      ['Sorting 🐱🐶🐰 by type — they\'re all...',['fish','animals','toys','plants'],1],
+      ['Sorting 🍎🍌🍇 by type — they\'re all...',['toys','fruits','vehicles','tools'],1],
+      ['The RULE for sorting is a...',['random pick','way to group','color only','price'],1]]),
+    P('w1-akaran-l8','Sudoku Start','🧩','Sudoku grids need each row to have no repeats.',[
+      ['A 2x2 sudoku with numbers 1-2 needs each row to have...',['2 of same','1 and 2 once each','all 1s','blanks'],1],
+      ['In Sudoku, if a row has 1,2 already, next can\'t be...',['3','1 or 2','4','anything'],1],
+      ['Sudoku teaches...',['random picks','logic and rules','drawing','counting loud'],1]]),
+    P('w1-akaran-l9','Odd One Out','❓','Spot which doesn\'t belong in the group.',[
+      ['🐱🐶🐰🚗 — which is odd?',['🐱','🐶','🐰','🚗'],3],
+      ['🍎🍌🍇🏀 — which is odd?',['🍎','🍌','🍇','🏀'],3],
+      ['👟👠👢📕 — which is odd?',['👟','👠','👢','📕'],3]]),
+    P('w1-akaran-l10','Which Doesn\'t Belong','🎯','All but one fit the pattern. Spot the odd!',[
+      ['Red, blue, green, table — odd?',['red','blue','green','table'],3],
+      ['Cat, dog, apple, fish — odd?',['cat','dog','apple','fish'],2],
+      ['Circle, square, triangle, Monday — odd?',['circle','square','triangle','Monday'],3]]),
+  ]);
+  push('akaran','french',[
+    P('w1-akaran-f6','Les Saluts','👋','Greetings: Bonjour (hello), Salut (hi), Bonsoir (good evening).',[
+      ['"Salut" means...',['goodbye','hi','thanks','please'],1],
+      ['"Bonsoir" is used in the...',['morning','evening','noon','week'],1],
+      ['"Bonjour" can mean...',['goodbye','hello or good day','sorry','yes'],1]]),
+    P('w1-akaran-f7','Les Chiffres 1-20','🔢','Numbers 11-20 in French: onze, douze, treize... vingt (20).',[
+      ['"Onze" means...',['10','11','12','13'],1],
+      ['"Vingt" means...',['15','16','20','25'],2],
+      ['"Dix" means...',['5','10','15','20'],1]]),
+    P('w1-akaran-f8','La Famille','👨‍👩‍👧','Family: mère (mother), père (father), sœur (sister), frère (brother).',[
+      ['"Mère" means...',['sister','mother','grandma','aunt'],1],
+      ['"Sœur" means...',['sister','brother','cousin','niece'],0],
+      ['"Père" means...',['brother','father','uncle','grandpa'],1]]),
+    P('w1-akaran-f9','La Nourriture','🍞','Food: pain (bread), fromage (cheese), pomme (apple), eau (water).',[
+      ['"Pain" means...',['bread','pain','pie','pan'],0],
+      ['"Fromage" means...',['fruit','cheese','bread','fish'],1],
+      ['"Eau" means...',['egg','water','milk','oil'],1]]),
+    P('w1-akaran-f10','Les Vêtements','👕','Clothes: chapeau (hat), chaussures (shoes), manteau (coat).',[
+      ['"Chapeau" means...',['shoes','hat','coat','scarf'],1],
+      ['"Chaussures" means...',['shirts','shoes','pants','socks'],1],
+      ['"Manteau" means...',['boots','coat','scarf','hat'],1]]),
+  ]);
+  push('akaran','science',[
+    P('w1-akaran-s6','Plants Need','🌻','Plants need sunlight, water, air, and soil to grow.',[
+      ['Plants need ___ from the sun',['rain','light','wind','snow'],1],
+      ['Plants drink...',['soda','water','milk','oil'],1],
+      ['Plant roots grow in...',['air','water only','soil','rocks only'],2]]),
+    P('w1-akaran-s7','Animal Homes','🏠','Different animals have different homes: dens, nests, burrows, hives.',[
+      ['A BIRD lives in a...',['burrow','nest','hive','cave'],1],
+      ['A BEE lives in a...',['nest','hive','den','pond'],1],
+      ['A RABBIT lives in a...',['tree','burrow','hive','ocean'],1]]),
+    P('w1-akaran-s8','Solid, Liquid, Gas','💧','Matter has 3 states: solid (ice), liquid (water), gas (steam).',[
+      ['Ice is a...',['solid','liquid','gas','plasma'],0],
+      ['Water is a...',['solid','liquid','gas','rock'],1],
+      ['Steam is a...',['solid','liquid','gas','fire'],2]]),
+    P('w1-akaran-s9','My Body','🦴','Our body has many parts: bones, muscles, heart, brain.',[
+      ['Our BONES help us...',['digest','stand up and move','see','think'],1],
+      ['Our HEART pumps...',['air','food','blood','ideas'],2],
+      ['Our BRAIN helps us...',['pump blood','think and remember','digest','grow hair'],1]]),
+    P('w1-akaran-s10','Weather Words','☁️','Weather words: sunny, rainy, snowy, windy, cloudy, stormy.',[
+      ['When lightning flashes, it\'s a...',['snowy day','stormy day','sunny day','cloudy day'],1],
+      ['When leaves blow, it\'s...',['windy','still','wet','snowy'],0],
+      ['A cloudy day means the sky is...',['clear','covered in clouds','raining','snowing'],1]]),
+  ]);
+  push('akaran','social',[
+    P('w1-akaran-c6','Canadian Symbols','🍁','Canadian symbols: maple leaf, beaver, Canada goose, red and white flag.',[
+      ['Canada\'s animal symbol is the...',['lion','beaver','eagle','tiger'],1],
+      ['Canada\'s flag has ___ colors',['1','2','3','many'],1],
+      ['The ___ is the leaf on our flag',['oak','maple','birch','pine'],1]]),
+    P('w1-akaran-c7','Our Provinces','🗺️','Canada has 10 provinces and 3 territories.',[
+      ['Canada has __ provinces',['5','8','10','13'],2],
+      ['Canada has __ territories',['0','3','5','10'],1],
+      ['Canada is the ___ biggest country in the world',['1st','2nd','5th','10th'],1]]),
+    P('w1-akaran-c8','Community Helpers','🚒','Community helpers keep us safe and healthy.',[
+      ['Firefighters put out...',['books','fires','trash','food'],1],
+      ['Doctors help us when we\'re...',['tired','sick','sleeping','eating'],1],
+      ['Police keep us...',['rich','safe','fast','tall'],1]]),
+    P('w1-akaran-c9','Rules at School','🏫','Rules help keep everyone safe and learning.',[
+      ['A good rule is...',['no rules','be kind and listen','yell a lot','skip class'],1],
+      ['Rules are made to...',['hurt us','keep us safe','bore us','make us sad'],1],
+      ['Following rules shows...',['bad choices','respect','weakness','laziness'],1]]),
+    P('w1-akaran-c10','My Neighborhood','🏘️','A neighborhood has houses, stores, parks, and neighbors.',[
+      ['A neighborhood has...',['only houses','houses, shops, parks','just one house','zoos only'],1],
+      ['Neighbors are...',['enemies','people near your home','animals','strangers always'],1],
+      ['A park is where we can...',['shop','play','sleep','read books only'],1]]),
+  ]);
+
+  /* ===== RUSHAN (Grade 2 / 3) ===== */
+  push('rushan','reading',[
+    P('w1-rushan-r6','Main Idea','🎯','The MAIN IDEA is what a whole paragraph or story is about.',[
+      ['Main idea is the...',['tiny detail','big point','author\'s name','color'],1],
+      ['To find it, ask: "What is this MOSTLY about?"',['yes','no','sometimes','maybe'],0],
+      ['A paragraph about dogs playing fetch — main idea is...',['cats','dogs','fish','trees'],1]]),
+    P('w1-rushan-r7','Character Traits','👤','Character traits describe who a character IS: kind, brave, funny, sneaky.',[
+      ['"Brave" is a...',['action','character trait','color','food'],1],
+      ['A helpful character might...',['ignore others','help friends','steal','hide'],1],
+      ['If a character always lies, they\'re...',['honest','dishonest','brave','tired'],1]]),
+    P('w1-rushan-r8','Story Setting','🌲','The setting tells us WHERE and WHEN a story happens.',[
+      ['Setting = ?',['who','where and when','what','why'],1],
+      ['"A dark forest at night" is a...',['character','setting','problem','action'],1],
+      ['"Long ago in a castle" tells us...',['time and place','colors','the ending','the characters'],0]]),
+    P('w1-rushan-r9','Predicting','🔮','Predicting = guessing what happens next using story clues.',[
+      ['Predictions should be based on...',['story clues','random guesses','weather','feelings only'],0],
+      ['If a character is running scared, we might predict...',['they\'ll dance','they\'re chased','they\'ll sleep','they\'ll eat'],1],
+      ['Good predictions use...',['random ideas','evidence from the text','movie guesses','nothing'],1]]),
+    P('w1-rushan-r10','Book Choice','📚','Choose books that are JUST RIGHT — not too easy, not too hard.',[
+      ['A "just right" book is...',['super hard','challenging but readable','super easy','too long'],1],
+      ['The "5-finger rule": if you miss ___ words on a page, it\'s too hard',['1','2','5','10'],2],
+      ['Reading the back cover helps you...',['skip the book','decide if you\'ll like it','read it','hide it'],1]]),
+  ]);
+  push('rushan','writing',[
+    P('w1-rushan-w6','Paragraph Power','📝','A paragraph has a TOPIC sentence, DETAILS, and a CLOSING.',[
+      ['First sentence of a paragraph is the...',['closing','topic','detail','quote'],1],
+      ['Details go in the...',['title','middle','end','cover'],1],
+      ['A paragraph ends with a...',['new topic','closing sentence','question','nothing'],1]]),
+    P('w1-rushan-w7','Descriptive Writing','🌸','Use 5 senses: see, hear, smell, taste, touch.',[
+      ['"The cookie was sweet" uses which sense?',['sight','touch','taste','hearing'],2],
+      ['"Loud thunder" uses...',['sight','hearing','smell','taste'],1],
+      ['"Soft as silk" uses...',['sight','hearing','touch','taste'],2]]),
+    P('w1-rushan-w8','Story Pieces','🧩','Stories need: characters, setting, problem, solution.',[
+      ['The BAD thing that happens is the...',['solution','problem','setting','title'],1],
+      ['The way it gets fixed is the...',['problem','solution','character','hero'],1],
+      ['WHO the story is about = ',['character','setting','problem','ending'],0]]),
+    P('w1-rushan-w9','Letter Writing','💌','A letter has: date, greeting, body, closing, signature.',[
+      ['Letters start with a...',['signature','greeting (Dear...)','P.S.','stamp'],1],
+      ['Letters end with...',['Dear','Sincerely or Love,','To:','From:'],1],
+      ['"Dear Grandma" is a...',['closing','greeting','body','signature'],1]]),
+    P('w1-rushan-w10','Poem Time','✒️','Poems can RHYME, repeat, or just paint pictures with words.',[
+      ['Rhyming lines have ___ sounds at the end',['different','same','loud','silent'],1],
+      ['"The stars above / Shine with love" is an example of...',['prose','rhyme','math','a song'],1],
+      ['Poems use ___ language to paint pictures',['boring','descriptive','long','formal only'],1]]),
+  ]);
+  push('rushan','math',[
+    P('w1-rushan-m6','Multiplication Start','✖️','Multiplication = fast adding. 3×4 = 4+4+4 = 12.',[
+      ['3 × 4 = ?',['7','10','12','14'],2],
+      ['5 × 2 = ?',['10','12','15','25'],0],
+      ['4 × 4 = ?',['8','12','16','20'],2]]),
+    P('w1-rushan-m7','Fractions Intro','🍕','A fraction shows PART of a whole. 1/2 = half!',[
+      ['1/2 means...',['all','half','none','double'],1],
+      ['1/4 means...',['one whole','one third','one quarter','one fifth'],2],
+      ['If a pizza has 4 slices and you eat 1, you ate...',['1/2','1/3','1/4','the whole pizza'],2]]),
+    P('w1-rushan-m8','Measuring Length','📏','Centimeters (cm) are small. Meters (m) are bigger. 100 cm = 1 m.',[
+      ['How many cm in 1 meter?',['10','50','100','1000'],2],
+      ['A pencil is about __ cm long',['1','15','100','1000'],1],
+      ['A door is about __ tall',['1 cm','2 meters','100 meters','a kilometer'],1]]),
+    P('w1-rushan-m9','Area of Rectangles','🔲','Area = length × width. A 3×4 rectangle has area 12.',[
+      ['Area of a 5×2 rectangle?',['7','10','12','25'],1],
+      ['Area of a 3×3 square?',['6','9','12','15'],1],
+      ['Area is measured in...',['square units','lines','dots','sides'],0]]),
+    P('w1-rushan-m10','Division Begin','➗','Division = sharing equally. 12÷3 = 4 each.',[
+      ['12 ÷ 3 = ?',['3','4','5','6'],1],
+      ['10 ÷ 2 = ?',['4','5','6','7'],1],
+      ['20 ÷ 4 = ?',['4','5','6','8'],1]]),
+  ]);
+  push('rushan','logic',[
+    P('w1-rushan-l6','Word Problems','📖','Read carefully, find the math, solve step by step.',[
+      ['Tom has 5 apples. He gets 3 more. How many?',['7','8','9','10'],1],
+      ['Amy has 12 cookies and shares with 3 friends equally. Each gets?',['3','4','5','6'],0],
+      ['A box has 4 rows of 5 toys. Total?',['15','20','25','30'],1]]),
+    P('w1-rushan-l7','Logic Grid','🔲','Use a grid and clues to figure out who/what goes where.',[
+      ['Logic grids help you track...',['colors only','clues and options','time','songs'],1],
+      ['X in a logic grid means...',['"yes"','"no"','"maybe"','nothing'],1],
+      ['✓ in a logic grid means...',['"no"','"yes"','"delete"','"later"'],1]]),
+    P('w1-rushan-l8','If-Then','🔗','If-then statements connect a cause to a result.',[
+      ['"If it rains, then the ground gets wet." The result is...',['rain','wet ground','dry ground','snow'],1],
+      ['"If you study, then you learn." The cause is...',['learning','studying','quiz','grade'],1],
+      ['If-then tells us the order of...',['colors','events','sizes','numbers'],1]]),
+    P('w1-rushan-l9','Pattern Rule','🔢','Find the RULE: what happens from one number to the next?',[
+      ['Pattern 2, 4, 6, 8 — rule?',['+1','+2','×2','−2'],1],
+      ['Pattern 5, 10, 15, 20 — rule?',['+1','+2','+5','×5'],2],
+      ['Pattern 1, 3, 5, 7 — rule?',['+1','+2','+3','−2'],1]]),
+    P('w1-rushan-l10','Clue Finder','🔎','Good detectives read carefully and combine clues.',[
+      ['If the suspect is taller than 5 ft and shorter than 6 ft, they\'re...',['4 ft','5.5 ft','6.5 ft','7 ft'],1],
+      ['Two clues are better than...',['three','one','many','none always'],1],
+      ['A logical deduction uses...',['feelings','evidence','guesses','dreams'],1]]),
+  ]);
+  push('rushan','french',[
+    P('w1-rushan-f6','Les Jours de la Semaine','📅','Days: lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche.',[
+      ['"Lundi" means...',['Sunday','Monday','Tuesday','Wednesday'],1],
+      ['"Samedi" means...',['Friday','Saturday','Sunday','Monday'],1],
+      ['French weekdays start on...',['Sunday','Monday','Friday','Saturday'],1]]),
+    P('w1-rushan-f7','Les Mois','🗓️','Months: janvier, février, mars, avril, mai...',[
+      ['"Janvier" means...',['January','June','July','April'],0],
+      ['"Mai" means...',['March','April','May','June'],2],
+      ['"Décembre" means...',['November','December','October','September'],1]]),
+    P('w1-rushan-f8','Le Temps','☁️','Weather: Il fait beau (nice), Il pleut (rains), Il neige (snows).',[
+      ['"Il pleut" means...',['it\'s snowing','it\'s raining','it\'s sunny','it\'s cold'],1],
+      ['"Il neige" means...',['it\'s windy','it\'s hot','it\'s snowing','it\'s raining'],2],
+      ['"Il fait chaud" means...',['it\'s cold','it\'s hot','it\'s windy','it\'s rainy'],1]]),
+    P('w1-rushan-f9','Les Verbes ER','✍️','-ER verbs: parler (to speak), manger (to eat), jouer (to play).',[
+      ['"Parler" means...',['to run','to speak','to sleep','to eat'],1],
+      ['"Manger" means...',['to play','to sing','to eat','to walk'],2],
+      ['"Jouer" means...',['to study','to play','to read','to sleep'],1]]),
+    P('w1-rushan-f10','Conversation','💬','Short dialogue: "Comment ça va?" (How are you?) — "Ça va bien!" (I\'m good!)',[
+      ['"Comment ça va?" means...',['what\'s your name?','how are you?','where are you?','goodbye'],1],
+      ['"Ça va bien" means...',['I\'m fine','goodbye','please','sorry'],0],
+      ['"Merci beaucoup" means...',['hello a lot','thanks a lot','please','sorry'],1]]),
+  ]);
+  push('rushan','science',[
+    P('w1-rushan-s6','Ecosystems','🌲','An ecosystem is a community of living things and their environment.',[
+      ['An ecosystem includes...',['only animals','only plants','living & non-living things','only water'],2],
+      ['A forest ecosystem has...',['only trees','trees, animals, soil, water','concrete','neon lights'],1],
+      ['If one part of an ecosystem dies, it affects...',['nothing','only that part','the whole system','only humans'],2]]),
+    P('w1-rushan-s7','Water Cycle','💧','Water cycles: evaporation → condensation → precipitation → collection.',[
+      ['Water turning into steam is...',['freezing','evaporation','condensation','rain'],1],
+      ['Clouds forming from vapor is...',['melting','evaporation','condensation','wind'],2],
+      ['Rain falling is called...',['evaporation','precipitation','condensation','freezing'],1]]),
+    P('w1-rushan-s8','Forces & Motion','🏀','A force is a PUSH or PULL that moves things.',[
+      ['Kicking a ball is a...',['pull','push','twist only','nothing'],1],
+      ['Opening a door handle is often a...',['push','pull','spin always','jump'],1],
+      ['Without force, objects...',['speed up','stay still','rise','disappear'],1]]),
+    P('w1-rushan-s9','Simple Machines','⚙️','Simple machines: lever, wheel, pulley, inclined plane.',[
+      ['A see-saw is a...',['wheel','lever','pulley','screw'],1],
+      ['A ramp is a type of...',['screw','inclined plane','wheel','pulley'],1],
+      ['Simple machines make work...',['harder','easier','slower','louder'],1]]),
+    P('w1-rushan-s10','Life Cycles','🐛','Life cycles: egg → caterpillar → chrysalis → butterfly.',[
+      ['A butterfly starts as a...',['butterfly','caterpillar','egg','chrysalis'],2],
+      ['A caterpillar becomes a...',['fish','bee','butterfly','bird'],2],
+      ['Tadpoles grow into...',['butterflies','frogs','fish','birds'],1]]),
+  ]);
+  push('rushan','social',[
+    P('w1-rushan-c6','Canadian History','🍁','Early Canadian history: Indigenous peoples, European settlers, fur trade.',[
+      ['Before Europeans came, Canada was home to...',['no one','Indigenous peoples','only animals','robots'],1],
+      ['The fur trade involved selling...',['gold','fur pelts','books','spices'],1],
+      ['Canada became a country in the year...',['1776','1867','1945','2000'],1]]),
+    P('w1-rushan-c7','Indigenous Peoples','🪶','Indigenous peoples have lived here for thousands of years. First Nations, Métis, Inuit.',[
+      ['Indigenous peoples have lived here for...',['50 years','500 years','thousands of years','100 years'],2],
+      ['Three groups: First Nations, Métis, and...',['French','Inuit','British','Spanish'],1],
+      ['Indigenous peoples have...',['one culture','many rich cultures','no language','one language'],1]]),
+    P('w1-rushan-c8','Canadian Geography','🏔️','Canada has mountains, prairies, lakes, forests, and Arctic tundra.',[
+      ['The Rocky Mountains are in...',['East Canada','West Canada','Central Canada','the Arctic'],1],
+      ['Flat farmland in Canada is called the...',['mountains','prairies','tundra','coast'],1],
+      ['Canada has more ___ than any country',['deserts','lakes','volcanoes','islands'],1]]),
+    P('w1-rushan-c9','Canadian Leaders','👑','Canada\'s government is led by a Prime Minister, not a president.',[
+      ['Canada\'s head of government is the...',['president','king','prime minister','mayor'],2],
+      ['Canadians ___ for the party in power',['march','vote','sing','protest'],1],
+      ['Canada is a...',['dictatorship','democracy','monarchy only','no government'],1]]),
+    P('w1-rushan-c10','Multicultural Canada','🌍','Canada welcomes people from all over the world.',[
+      ['Multiculturalism means...',['one culture','many cultures valued','no culture','one language'],1],
+      ['Canada has __ official languages',['1','2','5','10'],1],
+      ['Canada\'s two official languages are...',['English & French','French & Spanish','English only','French only'],0]]),
+  ]);
+
+  /* ===== AKSHAYAN (Grade 3 / 4) ===== */
+  push('akshayan','reading',[
+    P('w1-akshayan-r6','Author\'s Purpose','✍️','Authors write to PERSUADE, INFORM, or ENTERTAIN (P.I.E.).',[
+      ['A funny story aims to...',['persuade','inform','entertain','argue'],2],
+      ['A news article aims to...',['entertain','inform','persuade','rhyme'],1],
+      ['An ad aims to...',['inform only','persuade you to buy','entertain','complain'],1]]),
+    P('w1-akshayan-r7','Compare Stories','📚','Comparing stories: look for similar and different characters, plots, themes.',[
+      ['When we COMPARE, we find what\'s...',['only different','only same','similar and different','random'],2],
+      ['Two fairy tales with princesses are...',['totally same','totally different','similar in topic','unconnected'],2],
+      ['A Venn diagram helps us...',['draw','compare & contrast','count','sing'],1]]),
+    P('w1-akshayan-r8','Drawing Conclusions','💡','Inferencing: using clues + what you know to figure out what\'s not said.',[
+      ['If a character shivers, you INFER they\'re...',['hot','cold','sleeping','dancing'],1],
+      ['Drawing conclusions needs...',['only the text','only your ideas','clues + experience','nothing'],2],
+      ['If a window is broken and glass is in the room, we INFER someone...',['painted it','broke in','cleaned','left it'],1]]),
+    P('w1-akshayan-r9','Non-Fiction Facts','🔬','Non-fiction is TRUE. Look for text features: headings, captions, diagrams.',[
+      ['Non-fiction means...',['made-up','true','only poems','only comics'],1],
+      ['A CAPTION is usually near a...',['title','picture','table of contents','blank page'],1],
+      ['Headings help you find...',['the price','topics quickly','the plot','the characters'],1]]),
+    P('w1-akshayan-r10','Theme Finder','🎭','A THEME is the big lesson or message of a story.',[
+      ['A theme is like the story\'s...',['title','lesson','character','location'],1],
+      ['"Be kind to others" might be a...',['topic','theme','character','setting'],1],
+      ['Themes are ___ across different stories',['unique','similar often','rare','nonexistent'],1]]),
+  ]);
+  push('akshayan','writing',[
+    P('w1-akshayan-w6','5-Paragraph Essay','📄','Structure: intro + 3 body paragraphs + conclusion.',[
+      ['A 5-paragraph essay has __ body paragraphs',['1','2','3','5'],2],
+      ['The FIRST paragraph is the...',['conclusion','introduction','body','example'],1],
+      ['The LAST paragraph is the...',['intro','body','conclusion','example'],2]]),
+    P('w1-akshayan-w7','Research Report','📊','A research report uses FACTS from trusted sources.',[
+      ['A good source for facts is a...',['random blog','encyclopedia','bathroom wall','rumor'],1],
+      ['When we quote, we use...',['quotation marks','periods','dashes','numbers'],0],
+      ['Listing your sources is called a...',['header','bibliography','title','cover'],1]]),
+    P('w1-akshayan-w8','Dialogue','💬','Dialogue is what characters SAY. Use quotation marks.',[
+      ['Dialogue goes inside...',['brackets','quotation marks','parentheses','periods'],1],
+      ['"I love pizza," said Mia. — Who spoke?',['the writer','Mia','the reader','no one'],1],
+      ['Every new speaker gets a...',['new paragraph','same line','footnote','smaller font'],0]]),
+    P('w1-akshayan-w9','Creative Story','📖','Creative writing needs: vivid details, unique characters, a plot twist.',[
+      ['A PLOT TWIST is a...',['boring ending','surprise change','slow start','title'],1],
+      ['Creative writing lets you...',['copy others','invent worlds','only write facts','only write poems'],1],
+      ['A UNIQUE character is one that...',['is like all others','stands out','has no name','is invisible'],1]]),
+    P('w1-akshayan-w10','Editing','✏️','Editing makes your writing better: check spelling, punctuation, clarity.',[
+      ['Editing comes ___ writing the first draft',['before','at the same time','after','never'],2],
+      ['Editing can include...',['adding details','fixing spelling','all of these','none'],2],
+      ['Revising is part of being a...',['lazy writer','good writer','bad writer','fast writer'],1]]),
+  ]);
+  push('akshayan','math',[
+    P('w1-akshayan-m6','Multi-Digit Multiplication','✖️','Multiply big numbers by breaking into place values.',[
+      ['23 × 10 = ?',['230','203','320','23'],0],
+      ['45 × 2 = ?',['85','90','95','100'],1],
+      ['12 × 11 = ?',['111','121','132','144'],2]]),
+    P('w1-akshayan-m7','Long Division','➗','Long division: how many times does the divisor fit?',[
+      ['84 ÷ 4 = ?',['20','21','22','24'],1],
+      ['100 ÷ 5 = ?',['15','20','25','30'],1],
+      ['144 ÷ 12 = ?',['10','11','12','14'],2]]),
+    P('w1-akshayan-m8','Decimals','🔢','Decimals show parts less than 1. 0.5 = half.',[
+      ['0.5 = ?',['1/2','1/4','2','5'],0],
+      ['0.25 = ?',['1/2','1/4','1/3','2/5'],1],
+      ['Which is biggest: 0.3, 0.9, 0.1?',['0.1','0.3','0.9','all same'],2]]),
+    P('w1-akshayan-m9','Perimeter & Area','📐','Perimeter = distance AROUND. Area = inside space.',[
+      ['A 5×3 rectangle has perimeter...',['8','15','16','20'],2],
+      ['A 5×3 rectangle has area...',['8','15','16','25'],1],
+      ['Perimeter is measured in...',['square units','units','cubic units','fractions'],1]]),
+    P('w1-akshayan-m10','Word Problems','📝','Read. Find the math. Solve. Check.',[
+      ['A bus has 32 kids, 8 get off. How many left?',['22','23','24','40'],2],
+      ['3 packs of 12 cookies. Total cookies?',['15','24','30','36'],3],
+      ['You have $50, spend $23. Left?',['$22','$27','$30','$17'],1]]),
+  ]);
+  push('akshayan','logic',[
+    P('w1-akshayan-l6','Logic Puzzles','🧩','Logic puzzles use clues to deduce the answer.',[
+      ['A logic puzzle has one correct...',['guess','answer','feeling','opinion'],1],
+      ['To solve, use clues to eliminate...',['everything','impossibilities','colors','ideas'],1],
+      ['Logic is based on...',['feelings','reason','luck','random'],1]]),
+    P('w1-akshayan-l7','Variables','𝑥','A variable is a letter that stands for an unknown number.',[
+      ['In x + 3 = 10, x = ?',['3','7','10','13'],1],
+      ['In 2y = 8, y = ?',['2','4','6','8'],1],
+      ['Variables help us solve problems with...',['only colors','unknowns','just addition','no math'],1]]),
+    P('w1-akshayan-l8','Sequences','🔢','A sequence has a rule. 2, 4, 6, 8 — rule is +2.',[
+      ['3, 6, 9, 12 — rule?',['+1','+2','+3','×3'],2],
+      ['1, 4, 9, 16 — these are...',['odd','square numbers','primes','random'],1],
+      ['Next after 10, 20, 30?',['35','40','45','50'],1]]),
+    P('w1-akshayan-l9','Venn Diagrams','⭕','Overlapping circles show what two groups share.',[
+      ['The OVERLAP shows what\'s...',['only in one','in both','in neither','outside'],1],
+      ['Venn diagrams help us...',['compare groups','count','draw','sing'],0],
+      ['A 3-circle Venn diagram can compare...',['2','3','5','10'],1]]),
+    P('w1-akshayan-l10','Reasoning Chains','🔗','Good reasoning: premise → premise → conclusion.',[
+      ['"All dogs bark. Rex is a dog. → Rex...?"',['meows','barks','purrs','swims'],1],
+      ['Reasoning chains connect...',['random facts','logical steps','colors','songs'],1],
+      ['If every premise is TRUE, the conclusion is...',['false','logically true','unknown','silly'],1]]),
+  ]);
+  push('akshayan','french',[
+    P('w1-akshayan-f6','Les Verbes','🔤','Present-tense verbs change with the subject. Je parle, tu parles, il parle.',[
+      ['"Je parle" means...',['you speak','I speak','we speak','he speaks'],1],
+      ['"Tu manges" means...',['I eat','you (singular) eat','they eat','she eats'],1],
+      ['"Nous jouons" means...',['I play','you play','we play','they play'],2]]),
+    P('w1-akshayan-f7','Les Adjectifs','🎨','French adjectives agree with the noun: masculine/feminine, singular/plural.',[
+      ['"Un petit chien" uses adjective...',['before','after','either','never'],0],
+      ['"Une petite fille" — "petite" has an "e" because...',['random','it\'s feminine','it\'s plural','it\'s big'],1],
+      ['"Des grands amis" — "grands" has an "s" because...',['feminine','plural','masculine','small'],1]]),
+    P('w1-akshayan-f8','Questions','❓','Ask questions with "est-ce que..." or raise your voice at the end.',[
+      ['"Est-ce que tu aimes?" means...',['Do you like?','I like','She likes','We like'],0],
+      ['"Tu aimes?" with rising voice = ?',['I love','Do you like?','no question','formal'],1],
+      ['Where do question marks go?',['start','end','nowhere','middle'],1]]),
+    P('w1-akshayan-f9','Le Passé','⏮️','Past tense: J\'ai mangé (I ate), Tu as joué (You played).',[
+      ['"J\'ai mangé" means...',['I eat','I ate','I\'m eating','I will eat'],1],
+      ['Past tense uses the helper verb...',['être','avoir (for most)','aller','finir'],1],
+      ['Past participles end in ___ for -ER verbs',['-e','-é','-er','-ir'],1]]),
+    P('w1-akshayan-f10','Dialogue Complet','💬','A full dialogue has greetings, questions, answers, farewells.',[
+      ['Start a dialogue with...',['goodbye','a greeting','nothing','a name'],1],
+      ['End a dialogue with...',['a greeting','a farewell','a question','silence'],1],
+      ['In a dialogue, each speaker gets a...',['new paragraph','emoji','number','same line'],0]]),
+  ]);
+  push('akshayan','science',[
+    P('w1-akshayan-s6','Matter Changes','🔬','Physical changes (ice melting) vs chemical changes (burning wood).',[
+      ['Ice melting is a ___ change',['chemical','physical','bio','digital'],1],
+      ['Burning wood is a ___ change',['physical','chemical','visual','temporary'],1],
+      ['Physical changes are ___ reversible',['never','often','always','rarely'],1]]),
+    P('w1-akshayan-s7','Energy Forms','⚡','Energy types: kinetic (motion), potential (stored), heat, light, sound.',[
+      ['A ball rolling = ___ energy',['potential','kinetic','light','sound'],1],
+      ['A battery has ___ energy stored',['kinetic','potential','sound','heat'],1],
+      ['The sun gives us ___ energy',['sound','light','silent','liquid'],1]]),
+    P('w1-akshayan-s8','Rocks & Minerals','🪨','Three rock types: igneous, sedimentary, metamorphic.',[
+      ['Rocks from lava cooling are...',['sedimentary','igneous','metamorphic','fake'],1],
+      ['Rocks from layers of sand are...',['igneous','sedimentary','metamorphic','volcanic'],1],
+      ['Rocks changed by heat & pressure are...',['sedimentary','igneous','metamorphic','soft'],2]]),
+    P('w1-akshayan-s9','Solar System','🪐','8 planets orbit the Sun: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune.',[
+      ['Closest planet to the Sun?',['Earth','Mercury','Venus','Mars'],1],
+      ['Biggest planet?',['Earth','Saturn','Jupiter','Mars'],2],
+      ['Our planet is...',['2nd','3rd','4th','5th'],1]]),
+    P('w1-akshayan-s10','Electricity','💡','Circuits need a power source, wires, and a load (like a bulb).',[
+      ['A circuit needs to be ___ for electricity to flow',['broken','complete','wet','magnetic'],1],
+      ['Batteries ___ electricity',['make','store','burn','delete'],1],
+      ['Wires carry ___ through a circuit',['water','electrons','wood','heat'],1]]),
+  ]);
+  push('akshayan','social',[
+    P('w1-akshayan-c6','Confederation','🎩','Canada became a country in 1867 — this was called Confederation.',[
+      ['Canada was formed in...',['1776','1867','1945','2000'],1],
+      ['The first PM of Canada was...',['Trudeau','Macdonald','Harper','Laurier'],1],
+      ['Confederation means ___ provinces joining',['fighting','uniting','dividing','leaving'],1]]),
+    P('w1-akshayan-c7','Canadian Government','🏛️','Three branches: executive (PM), legislative (parliament), judicial (courts).',[
+      ['The PM leads the ___ branch',['judicial','executive','legislative','royal'],1],
+      ['Laws are made by...',['courts','parliament','the PM only','no one'],1],
+      ['Courts interpret...',['laws','songs','food','cars'],0]]),
+    P('w1-akshayan-c8','Indigenous Rights','✊','The Indian Act, residential schools, and Truth & Reconciliation.',[
+      ['Residential schools were harmful to...',['everyone equally','Indigenous children','teachers','parents'],1],
+      ['The Truth & Reconciliation Commission aims to...',['forget','heal & remember','blame','ignore'],1],
+      ['Every Child Matters Day remembers...',['holidays','Indigenous kids harmed by residential schools','birthdays','parents'],1]]),
+    P('w1-akshayan-c9','Canadian Industries','🏭','Canada is rich in natural resources: forestry, mining, oil, fishing.',[
+      ['Forestry uses our...',['trees','fish','oil','farms'],0],
+      ['Mining gets ___ out of the ground',['fish','minerals','trees','cows'],1],
+      ['A natural resource is...',['something man-made','from nature','a person','a building'],1]]),
+    P('w1-akshayan-c10','Canada in the World','🌐','Canada is a peacekeeper and trades with many countries.',[
+      ['Canada is known for...',['war','peacekeeping','aggression','isolation'],1],
+      ['Canada\'s biggest trade partner is...',['UK','USA','China','France'],1],
+      ['Canada is a founding member of...',['UN & NATO','only UN','only NATO','none'],0]]),
+  ]);
+
+  /* ===== ISAIAH (Grade 4 / 5 stretch) ===== */
+  push('isaiah','reading',[
+    P('w1-isaiah-r6','Literary Analysis','📖','Analyze SYMBOLS (a dove = peace) and MOTIFS (repeating ideas).',[
+      ['In stories, a DOVE often symbolizes...',['war','peace','fear','money'],1],
+      ['A symbol is an object that STANDS FOR...',['itself only','an idea','a color','a number'],1],
+      ['A MOTIF is...',['a character','a repeated theme','a prop','a cover'],1]]),
+    P('w1-isaiah-r7','Non-Fiction Strategies','🔍','Non-fiction features: headings, captions, sidebars, index, glossary.',[
+      ['To find a word\'s meaning, use the...',['cover','glossary','title','headline'],1],
+      ['To find a topic quickly, use the...',['index','page 1','back cover','blurb'],0],
+      ['Sidebars usually contain...',['main text','extra info','adverts','footnotes'],1]]),
+    P('w1-isaiah-r8','Character Motive','🎭','Motive = WHY a character acts. Stories explore desire, fear, need.',[
+      ['Motive means...',['how a character looks','why they act','where they live','their age'],1],
+      ['A greedy character\'s motive might be...',['love','wealth','peace','silence'],1],
+      ['Heroes usually act out of...',['selfishness','principle or love','fear only','envy only'],1]]),
+    P('w1-isaiah-r9','Text Evidence','📌','Back up claims with quotes from the text. Cite page numbers.',[
+      ['Text evidence means...',['your opinion','a quote or passage','the cover','a friend\'s view'],1],
+      ['"According to page 5..." is an example of...',['fiction','citing','summarizing','guessing'],1],
+      ['Good arguments use...',['feelings only','evidence','rumors','volume'],1]]),
+    P('w1-isaiah-r10','Literary Devices','✨','Metaphor (is), simile (like/as), personification, hyperbole.',[
+      ['"Life is a journey" is a...',['simile','metaphor','pun','fact'],1],
+      ['"Brave as a lion" is a...',['metaphor','simile','pun','idiom'],1],
+      ['"I told you a million times!" is a...',['fact','hyperbole','simile','metaphor'],1]]),
+  ]);
+  push('isaiah','writing',[
+    P('w1-isaiah-w6','Persuasive Essay','🎯','Persuasive writing: claim + evidence + counter-argument + restate.',[
+      ['A CLAIM is your...',['ending','main argument','intro','counter'],1],
+      ['A COUNTER-ARGUMENT shows you considered...',['your view only','the other side','random things','jokes'],1],
+      ['Persuasive writing aims to...',['inform','entertain','persuade','rhyme'],2]]),
+    P('w1-isaiah-w7','Literary Analysis','🔬','Analyze theme, character, plot, setting, style.',[
+      ['Literary analysis examines...',['math','a story\'s parts','only spelling','the price'],1],
+      ['A THESIS is your main...',['story','argument','character','setting'],1],
+      ['Good analysis uses ___ from the text',['guesses','evidence','colors','numbers only'],1]]),
+    P('w1-isaiah-w8','Research Paper','📚','Research: find sources, take notes, cite, avoid plagiarism.',[
+      ['Plagiarism is...',['citing','copying without credit','paraphrasing','summarizing'],1],
+      ['Reliable sources are...',['random blogs','peer-reviewed or expert','rumors','fiction'],1],
+      ['Citations protect...',['yourself only','the original author','nothing','the publisher only'],1]]),
+    P('w1-isaiah-w9','Creative Fiction','🎨','Full story arc: exposition → rising action → climax → falling action → resolution.',[
+      ['The CLIMAX is...',['the start','the most intense moment','the end','random'],1],
+      ['The EXPOSITION sets up...',['the problem','characters and setting','the end','the title'],1],
+      ['The RESOLUTION wraps up...',['the story','the climax','only setting','the title'],0]]),
+    P('w1-isaiah-w10','Revision Workshop','✏️','Revise: content first (ideas), then edit (spelling, grammar).',[
+      ['Revising means changing...',['spelling only','content and ideas','grammar only','nothing'],1],
+      ['Editing is the ___ step',['first','middle','later polish','only'],2],
+      ['Peer feedback helps you see...',['problems in your work','your strengths only','nothing','the cover'],0]]),
+  ]);
+  push('isaiah','math',[
+    P('w1-isaiah-m6','Long Division Mastery','➗','Divide, Multiply, Subtract, Bring down — repeat!',[
+      ['432 ÷ 4 = ?',['107','108','110','120'],1],
+      ['625 ÷ 5 = ?',['120','125','130','150'],1],
+      ['1000 ÷ 8 = ?',['120','125','150','160'],1]]),
+    P('w1-isaiah-m7','Fractions Operations','🍰','To add fractions, find a common denominator first.',[
+      ['1/4 + 1/4 = ?',['1/8','2/8','1/2','2'],2],
+      ['1/2 × 1/2 = ?',['1/4','1/2','1','2'],0],
+      ['3/4 − 1/4 = ?',['1/4','1/2','2/4','3/8'],1]]),
+    P('w1-isaiah-m8','Decimals & Percentages','💯','50% = 0.5 = 1/2. They\'re all the same!',[
+      ['50% = ?',['0.05','0.5','5','50'],1],
+      ['25% of 100 = ?',['25','50','75','100'],0],
+      ['0.75 = ___ %',['7.5%','75%','0.75%','750%'],1]]),
+    P('w1-isaiah-m9','Ratios & Proportions','⚖️','A ratio compares quantities. 2:3 means "2 for every 3."',[
+      ['If 2:3 = boys:girls and there are 4 boys, how many girls?',['3','5','6','8'],2],
+      ['Ratio 1:1 means...',['imbalanced','equal','double','none'],1],
+      ['A PROPORTION is when two ratios are...',['different','equal','opposite','random'],1]]),
+    P('w1-isaiah-m10','Coordinate Plane','📍','Points are (x, y). x goes right, y goes up.',[
+      ['Point (3, 4) — where is it?',['3 left 4 up','3 right 4 up','3 up 4 right','origin'],1],
+      ['The origin is at...',['(0,0)','(1,1)','(10,10)','anywhere'],0],
+      ['The x-axis is...',['vertical','horizontal','diagonal','curved'],1]]),
+  ]);
+  push('isaiah','logic',[
+    P('w1-isaiah-l6','Algebra Intro','𝑥','Solve for x: do the opposite operation to both sides.',[
+      ['If x + 5 = 12, x = ?',['5','6','7','8'],2],
+      ['If 3x = 15, x = ?',['3','5','12','18'],1],
+      ['If x − 4 = 10, x = ?',['6','10','14','40'],2]]),
+    P('w1-isaiah-l7','Logic Arguments','🗣️','A valid argument: true premises → true conclusion.',[
+      ['"All cats have tails. Mia is a cat. → Mia has...?"',['feathers','a tail','scales','wings'],1],
+      ['If a premise is FALSE, the argument can still be...',['valid in form','always true','always wrong','complete'],0],
+      ['Logical fallacies are...',['strong arguments','flawed reasoning','questions','answers'],1]]),
+    P('w1-isaiah-l8','Probability','🎲','Probability = chance. Flipping a coin = 1/2 for heads.',[
+      ['Rolling a 6 on a die — probability?',['1/4','1/5','1/6','1/2'],2],
+      ['Probability of 0 means...',['certain','impossible','sometimes','always'],1],
+      ['Probability of 1 means...',['impossible','rare','certain','50/50'],2]]),
+    P('w1-isaiah-l9','Graph Reading','📊','Bar graphs, line graphs, pie charts show data visually.',[
+      ['A bar graph compares...',['nothing','categories','only time','only fractions'],1],
+      ['A line graph shows ___ over time',['nothing','change','location','only color'],1],
+      ['A pie chart shows...',['parts of a whole','only lines','colors','motion'],0]]),
+    P('w1-isaiah-l10','Advanced Puzzles','🧠','Complex puzzles combine logic, patterns, and deduction.',[
+      ['To tackle a hard puzzle, first...',['give up','break it down','rush through','skip'],1],
+      ['Working backwards from the answer is...',['cheating','a valid strategy','slow','useless'],1],
+      ['Advanced puzzles teach...',['memorization','reasoning','speed only','nothing'],1]]),
+  ]);
+  push('isaiah','french',[
+    P('w1-isaiah-f6','Conjugaison','🔤','Conjugate across tenses: present, past (passé composé), future.',[
+      ['"J\'ai parlé" is in the ___ tense',['present','past','future','conditional'],1],
+      ['"Je parlerai" means...',['I spoke','I speak','I will speak','I would speak'],2],
+      ['Present tense of "manger" for "je" is...',['mangé','mange','mangerai','mangeais'],1]]),
+    P('w1-isaiah-f7','Culture Française','🗼','French-speaking cultures: France, Quebec, Haiti, parts of Africa.',[
+      ['The capital of France is...',['Lyon','Marseille','Paris','Nice'],2],
+      ['Quebec is in...',['France','Canada','Haiti','Belgium'],1],
+      ['French is spoken in ___ countries',['1','5','many','only 2'],2]]),
+    P('w1-isaiah-f8','Dialogue Avancé','💬','Extended dialogues about school, hobbies, travel, and family.',[
+      ['"Qu\'est-ce que tu fais?" means...',['Where are you?','What are you doing?','Who are you?','How old?'],1],
+      ['"Je vais à l\'école" means...',['I like school','I go to school','I was at school','I am school'],1],
+      ['To say "because" in French, use...',['mais','parce que','donc','et'],1]]),
+    P('w1-isaiah-f9','Lecture','📖','Reading French stories — start with graded readers, then move up.',[
+      ['A "graded reader" matches your...',['height','reading level','age only','hobby'],1],
+      ['Reading in French helps with...',['math','vocabulary','cooking','sports'],1],
+      ['Looking up EVERY word is...',['helpful','too slow; use context','cheating','required'],1]]),
+    P('w1-isaiah-f10','Écriture','✍️','Writing French paragraphs: opinions, stories, journal entries.',[
+      ['A paragraph in French starts with...',['a number','a topic sentence','a period','a blank'],1],
+      ['"En conclusion" means...',['first','in conclusion','maybe','never'],1],
+      ['Good French writing uses ___ verbs',['only present','varied tenses','only past','infinitives only'],1]]),
+  ]);
+  push('isaiah','science',[
+    P('w1-isaiah-s6','Body Systems','🫀','Circulatory (blood), respiratory (breathing), digestive (food), nervous (brain).',[
+      ['The heart is part of the ___ system',['nervous','respiratory','circulatory','digestive'],2],
+      ['Lungs are part of the ___ system',['digestive','respiratory','nervous','skeletal'],1],
+      ['The brain controls the ___ system',['muscular','nervous','skeletal','digestive'],1]]),
+    P('w1-isaiah-s7','Weather Systems','⛈️','Fronts, high/low pressure, jet streams, storms, hurricanes.',[
+      ['Low pressure usually brings...',['clear skies','storms','heat waves','calm'],1],
+      ['A cold front often brings...',['warming','precipitation','no change','deserts'],1],
+      ['Hurricanes form over...',['deserts','warm ocean','mountains','poles'],1]]),
+    P('w1-isaiah-s8','Matter & Atoms','⚛️','Everything is made of ATOMS. Atoms have protons, neutrons, electrons.',[
+      ['Atoms are...',['the biggest unit','tiny building blocks','always liquid','made of wood'],1],
+      ['Protons have a ___ charge',['negative','positive','no','variable'],1],
+      ['Electrons have a ___ charge',['positive','no','negative','variable'],2]]),
+    P('w1-isaiah-s9','Space Exploration','🚀','NASA, Apollo, ISS, Mars rovers, James Webb Telescope.',[
+      ['First humans on the moon — year?',['1945','1969','1985','2000'],1],
+      ['The ISS orbits...',['Mars','the Sun','Earth','the Moon'],2],
+      ['The James Webb telescope studies...',['Earth only','deep space','the Sun only','Mars only'],1]]),
+    P('w1-isaiah-s10','Electricity Circuits','🔌','Series (one path) vs parallel (multiple paths) circuits.',[
+      ['If one bulb goes out and ALL others do, it\'s a ___ circuit',['parallel','series','broken','AC'],1],
+      ['In a parallel circuit, if one bulb breaks, others...',['go out','stay on','explode','turn red'],1],
+      ['Christmas lights with one break that kills all = ___',['parallel','series','AC','DC'],1]]),
+  ]);
+  push('isaiah','social',[
+    P('w1-isaiah-c6','World Wars & Canada','⚔️','Canada fought in WWI and WWII. Vimy Ridge, Juno Beach, remember Nov 11.',[
+      ['Canada\'s famous WWI battle was...',['Juno','Vimy Ridge','D-Day','Gettysburg'],1],
+      ['Remembrance Day is on...',['Nov 1','Nov 11','Dec 25','Jul 1'],1],
+      ['Canada fought in ___ world wars',['1','2','3','5'],1]]),
+    P('w1-isaiah-c7','Canadian Charter Rights','📜','The Charter (1982) protects freedoms, equality, and democratic rights.',[
+      ['Charter year?',['1867','1945','1982','2000'],2],
+      ['The Charter guarantees freedom of...',['only speech','speech, religion, assembly','tax','royalty'],1],
+      ['Charter rights apply to...',['only citizens','everyone in Canada','only adults','kings only'],1]]),
+    P('w1-isaiah-c8','Global Citizenship','🌍','A global citizen acts for the world: environment, rights, peace.',[
+      ['Global citizenship means caring about...',['only yourself','your community and the world','just your country','money'],1],
+      ['Climate change affects...',['one country','the whole world','only Canada','only deserts'],1],
+      ['The UN is...',['a business','a global organization','a country','a sport'],1]]),
+    P('w1-isaiah-c9','Canadian Identity','🍁','Canadian identity: bilingual, multicultural, peacekeeping, hockey!',[
+      ['Canada\'s national sport in winter?',['basketball','hockey','curling','soccer'],1],
+      ['Canada is officially bilingual — languages?',['English/Spanish','English/French','French/Spanish','English only'],1],
+      ['A Canadian symbol of national pride?',['bald eagle','maple leaf','kangaroo','rose'],1]]),
+    P('w1-isaiah-c10','Current Events','📰','Stay informed! Read news, ask questions, think critically.',[
+      ['Reliable news comes from...',['random social media','established sources','rumors','memes'],1],
+      ['Critical thinking means...',['accepting anything','questioning & checking','ignoring news','being negative'],1],
+      ['Multiple sources help us...',['get confused','find the truth','waste time','ignore news'],1]]),
+  ]);
+})();
+
+/* ==========================================================================
    KIDQUEST STORE — REWARD CATALOG + REQUEST SYSTEM
    --------------------------------------------------------------------------
    ▸ EDIT ITEMS: update STORE_ITEMS below — name, price, coinCost, etc.
@@ -5053,7 +5862,12 @@ function getWeekActivities(sid,subj){
   // the fast path unchanged.
   const demo = DEMO_GRADES.find(d=>d.id===sid);
   const resolved = demo ? demo.curriculumSid : sid;
-  return (WEEKS[currentWeek] && WEEKS[currentWeek][resolved] && WEEKS[currentWeek][resolved][subj]) || [];
+  const acts = (WEEKS[currentWeek] && WEEKS[currentWeek][resolved] && WEEKS[currentWeek][resolved][subj]) || [];
+  // Activities marked demoOnly are previews of upcoming content — parents
+  // browsing a demo profile see them so they can gauge depth/progression,
+  // but real students don't, because they haven't earned their way there yet.
+  if(demo) return acts;
+  return acts.filter(a => !a.demoOnly);
 }
 function countDone(sid,subj){const acts=getWeekActivities(sid,subj);const ud=getStudentData(sid);return acts.filter(a=>ud.completedActivities[a.id]).length}
 function isActivityDone(sid,aid){return !!(getStudentData(sid).completedActivities[aid])}
