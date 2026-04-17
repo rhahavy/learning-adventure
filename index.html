@@ -11283,6 +11283,7 @@ function renderCoinAdjuster(){
     // Delta input — positive adds, negative subtracts
     const deltaInput = h('input',{
       type:'number', step:'1', placeholder:'±coins',
+      'aria-label':'Delta coins for '+s.name,
       style:'width:100px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-weight:700;font-size:14px',
     });
     row.appendChild(deltaInput);
@@ -11306,15 +11307,32 @@ function renderCoinAdjuster(){
         try { renderTeacher(document.getElementById('screen')); } catch(e){}
       },
     }, 'Apply Δ'));
+    // Exact-value input — sits next to the Set exact button. We used to use
+    // window.prompt() here, but browsers silently block prompt() in many
+    // embedded / WebView contexts (iOS Safari, some kiosk modes, content
+    // blockers), so the button did nothing for some teachers. Keeping the
+    // input inline means the click path never depends on a modal prompt
+    // that may not open.
+    const exactInput = h('input',{
+      type:'number', step:'1', min:'0', placeholder:'= exact',
+      'aria-label':'Set exact coin balance for '+s.name,
+      style:'width:100px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-weight:700;font-size:14px',
+    });
+    row.appendChild(exactInput);
     row.appendChild(h('button',{
       class:'btn btn-ghost',
       style:'padding:8px 12px;font-size:13px',
       onclick:()=>{
-        const raw = prompt('Set '+s.name+'\'s coin balance to exactly which number?\n\nCurrent: '+current, String(current));
-        if(raw === null) return;
+        const raw = (exactInput.value||'').trim();
+        if(!raw){
+          alert('Enter the exact coin balance you want to set for '+s.name+' in the "= exact" box.');
+          exactInput.focus();
+          return;
+        }
         const next = parseInt(raw, 10);
         if(!Number.isFinite(next) || next < 0){
           alert('Please enter a non-negative whole number.');
+          exactInput.focus();
           return;
         }
         if(next === current){ alert('Already at '+current+' — no change.'); return; }
@@ -11327,7 +11345,7 @@ function renderCoinAdjuster(){
         alert(s.name+'\'s coins set to '+next+'.');
         try { renderTeacher(document.getElementById('screen')); } catch(e){}
       },
-    }, 'Set exact…'));
+    }, 'Set exact'));
     rowsWrap.appendChild(row);
   });
   wrap.appendChild(rowsWrap);
