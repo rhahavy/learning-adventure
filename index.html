@@ -424,6 +424,7 @@ img{max-width:100%}
 .subj-card .s-ico.french{background:linear-gradient(135deg,#ffb8d1,#e84393);color:#fff}
 .subj-card .s-ico.science{background:linear-gradient(135deg,#5eead4,#16a085);color:#fff}
 .subj-card .s-ico.social{background:linear-gradient(135deg,#ff9f9f,#c0392b);color:#fff}
+.subj-card .s-ico.spelling{background:linear-gradient(135deg,#d9b3ff,#8e44ad);color:#fff}
 .subj-card.reading::before{background:linear-gradient(180deg,#74b9ff,#0984e3)}
 .subj-card.writing::before{background:linear-gradient(180deg,#a29bfe,#6c5ce7)}
 .subj-card.math::before{background:linear-gradient(180deg,#fdcb6e,#e17055)}
@@ -431,6 +432,7 @@ img{max-width:100%}
 .subj-card.french::before{background:linear-gradient(180deg,#fd79a8,#e84393)}
 .subj-card.science::before{background:linear-gradient(180deg,#5eead4,#16a085)}
 .subj-card.social::before{background:linear-gradient(180deg,#ff9f9f,#c0392b)}
+.subj-card.spelling::before{background:linear-gradient(180deg,#c299f5,#8e44ad)}
 .subj-card .s-info{flex:1;min-width:0}
 .subj-card .s-name{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.01em}
 .subj-card .s-prog{font-size:13px;color:var(--ink3);font-weight:600;margin-top:3px}
@@ -444,6 +446,7 @@ img{max-width:100%}
 .s-bar i.french{background:linear-gradient(90deg,#fd79a8,#e84393)}
 .s-bar i.science{background:linear-gradient(90deg,#5eead4,#16a085)}
 .s-bar i.social{background:linear-gradient(90deg,#ff9f9f,#c0392b)}
+.s-bar i.spelling{background:linear-gradient(90deg,#d9b3ff,#8e44ad)}
 
 /* ---- WEEK VIEW (level cards) ---- */
 .week-head{margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -1556,6 +1559,7 @@ const STUDENTS = [
    */
   { id:'isaiah',   name:'Isaiah',   grade:'Grade 5',               initial:'I', decoEmoji:'🚀', pin:'🦊', hint:'(f_x)',      colorLight:'#ffd793', colorDark:'#f39c12' },
   { id:'akshayan', name:'Akshayan', grade:'Grade 3',               initial:'A', decoEmoji:'🎮', pin:'🦁', hint:'(l__n)',     colorLight:'#ff9f9f', colorDark:'#d63031' },
+  { id:'axel',     name:'Axel',     grade:'Grade 3',               initial:'X', decoEmoji:'🏎️', pin:'🚀', hint:'(r_ck_t)',   colorLight:'#d9b3ff', colorDark:'#8e44ad' },
   { id:'rushan',   name:'Rushan',   grade:'Grade 2',               initial:'R', decoEmoji:'⚡', pin:'🐶', hint:'(d_g)',      colorLight:'#81ecec', colorDark:'#00b894' },
   { id:'akaran',   name:'Akaran',   grade:'Grade 1',               initial:'A', decoEmoji:'🦖', pin:'⭐', hint:'(s_ar)',     colorLight:'#b6adff', colorDark:'#6c5ce7' },
   { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',   initial:'N', decoEmoji:'🎨', pin:'🌈', hint:'(r_inb_w)', colorLight:'#91c4f5', colorDark:'#0984e3' },
@@ -1624,13 +1628,14 @@ const TEACHER_CREDS = { password: 'Ryerye234' };
    individual lessons, which was confusing kids. The IMG library above has
    topically-accurate photos — reference them on specific lessons only. */
 const SUBJECTS = [
-  { id:'reading', name:'Reading',        emoji:'📖', iconName:'book',   color:'#0984e3', bg:'#e3f2ff' },
-  { id:'writing', name:'Writing',        emoji:'✏️', iconName:'pencil', color:'#6c5ce7', bg:'#ede7f6' },
-  { id:'math',    name:'Math',           emoji:'🔢', iconName:'hash',   color:'#e17055', bg:'#fff8e1' },
-  { id:'logic',   name:'Logic',          emoji:'🧩', iconName:'puzzle', color:'#00b894', bg:'#e0f7f5' },
-  { id:'french',  name:'French',         emoji:'🇫🇷', iconName:'globe',  color:'#e84393', bg:'#ffe4ef' },
-  { id:'science', name:'Science',        emoji:'🔬', iconName:'flask',  color:'#16a085', bg:'#d1f2eb' },
-  { id:'social',  name:'Social Studies', emoji:'🍁', iconName:'maple',  color:'#c0392b', bg:'#fde8e6' },
+  { id:'reading',  name:'Reading',        emoji:'📖', iconName:'book',   color:'#0984e3', bg:'#e3f2ff' },
+  { id:'writing',  name:'Writing',        emoji:'✏️', iconName:'pencil', color:'#6c5ce7', bg:'#ede7f6' },
+  { id:'spelling', name:'Spelling',       emoji:'🔤', iconName:'abc',    color:'#8e44ad', bg:'#f3e8ff' },
+  { id:'math',     name:'Math',           emoji:'🔢', iconName:'hash',   color:'#e17055', bg:'#fff8e1' },
+  { id:'logic',    name:'Logic',          emoji:'🧩', iconName:'puzzle', color:'#00b894', bg:'#e0f7f5' },
+  { id:'french',   name:'French',         emoji:'🇫🇷', iconName:'globe',  color:'#e84393', bg:'#ffe4ef' },
+  { id:'science',  name:'Science',        emoji:'🔬', iconName:'flask',  color:'#16a085', bg:'#d1f2eb' },
+  { id:'social',   name:'Social Studies', emoji:'🍁', iconName:'maple',  color:'#c0392b', bg:'#fde8e6' },
 ];
 
 /* ========== VIDEO LINKS (YouTube search queries per activity) ==========
@@ -3918,6 +3923,320 @@ isaiah: {
 }};
 
 /* ==========================================================================
+   AXEL (Grade 3) — curriculum mirrors Akshayan's Grade 3 content, with
+   re-IDed activities so progress, stars, and completion track per-student.
+   --------------------------------------------------------------------------
+   Cloned at load time from WEEKS[1].akshayan. Each activity gets a new
+   ID of the form w1-axel-* so Axel's completion doesn't leak into
+   Akshayan's progress (and vice-versa). Videos / lesson text are shared.
+   ========================================================================== */
+(function addAxelCurriculum(){
+  const src = WEEKS[1].akshayan;
+  if(!src) return;
+  const cloneActs = (acts) => acts.map(a => {
+    const copy = JSON.parse(JSON.stringify(a));
+    // Re-ID: w1-akshayan-* → w1-axel-*
+    if(copy.id && copy.id.startsWith('w1-akshayan-')) {
+      copy.id = copy.id.replace('w1-akshayan-', 'w1-axel-');
+    }
+    return copy;
+  });
+  WEEKS[1].axel = {};
+  Object.keys(src).forEach(subj => { WEEKS[1].axel[subj] = cloneActs(src[subj]); });
+})();
+
+/* ==========================================================================
+   SPELLING — new subject, grade-appropriate word patterns per student.
+   --------------------------------------------------------------------------
+   Nishan (SK): first letters, CVC words.
+   Akaran (G1): short vowels, sight words.
+   Rushan (G2): blends, long vowels, word families.
+   Akshayan / Axel (G3): prefixes/suffixes, silent letters, tricky spellings.
+   Isaiah (G5): homophones, Greek/Latin roots, commonly misspelled words.
+   ========================================================================== */
+(function addSpellingCurriculum(){
+  const SP = (id, title, emoji, intro, example, hint, qs) => ({
+    id, title, emoji,
+    lesson:{ title:title, intro:intro, example:example, hint:hint },
+    questions: qs.map(r => ({type:'mcq', q:r[0], choices:r[1], answer:r[2]})),
+  });
+  const put = (sid, activities) => { if(WEEKS[1][sid]) WEEKS[1][sid].spelling = activities; };
+
+  /* --- Nishan (SK) --- */
+  put('nishan', [
+    SP('w1-nishan-sp1','First Letters','🔤',
+      'Every word starts with a letter. Listen to the first sound.',
+      '🐶 = "Dog" starts with D. 🐱 = "Cat" starts with C.',
+      'Say the word aloud — what\'s the VERY first sound?',[
+      ['🐶 = "Dog" — first letter?',['A','D','G','O'],1],
+      ['🐱 = "Cat" — first letter?',['B','C','T','A'],1],
+      ['☀️ = "Sun" — first letter?',['S','U','N','M'],0],
+      ['🍎 = "Apple" — first letter?',['B','E','A','P'],2],
+      ['🚗 = "Car" — first letter?',['R','A','C','K'],2],
+    ]),
+    SP('w1-nishan-sp2','Last Letters','🔚',
+      'Words also end with a letter. Listen to the LAST sound.',
+      '"Cat" ends with T. "Dog" ends with G.',
+      'Whisper the word — the final sound is the last letter.',[
+      ['"Dog" ends with...',['D','G','O','S'],1],
+      ['"Cat" ends with...',['C','T','A','S'],1],
+      ['"Sun" ends with...',['S','U','N','M'],2],
+      ['"Run" ends with...',['R','U','N','T'],2],
+      ['"Bat" ends with...',['B','A','T','D'],2],
+    ]),
+    SP('w1-nishan-sp3','CVC Words','🧱',
+      'CVC = Consonant-Vowel-Consonant. Easy 3-letter words: cat, dog, sun, bat.',
+      '"C-A-T" has 3 letters: C (consonant), A (vowel), T (consonant).',
+      'The middle letter is usually A, E, I, O, or U.',[
+      ['Which is a CVC word?',['Cake','Cat','Star','Rain'],1],
+      ['Spell "dog":',['dag','dog','deg','dug'],1],
+      ['Spell "bat":',['bat','bet','bot','but'],0],
+      ['Spell "sun":',['san','son','sun','sen'],2],
+      ['Which letter is the vowel in "pig"?',['p','i','g','none'],1],
+    ]),
+    SP('w1-nishan-sp4','Sight Words','💡',
+      'Sight words we see all the time: the, and, I, is, a, go.',
+      '"I am happy" — the words "I" and "am" are sight words.',
+      'Know sight words by heart — don\'t sound them out.',[
+      ['Spell the word for "number 1 as a word I":',['eye','I','iy','ie'],1],
+      ['Spell the connecting word:',['and','ant','end','ond'],0],
+      ['Spell the "3-letter" word for "yes it is":',['iz','ies','is','iss'],2],
+      ['"Go" is spelled...',['go','goe','gow','gou'],0],
+      ['"The" is spelled...',['thu','the','tha','thy'],1],
+    ]),
+    SP('w1-nishan-sp5','My Name','✏️',
+      'We all have special names. Names start with a CAPITAL letter.',
+      '"sam" → SAM or Sam. Not "sam".',
+      'Capital letters are taller than lowercase.',[
+      ['Names start with a...',['number','capital letter','small letter','emoji'],1],
+      ['Which is spelled like a name?',['dog','Tom','run','eat'],1],
+      ['"maria" should be...',['maria','mAria','Maria','MARiA'],2],
+      ['Your name starts with a ___ letter',['small','capital','number','silent'],1],
+      ['"Canada" starts with a...',['small c','capital C','number','emoji'],1],
+    ]),
+  ]);
+
+  /* --- Akaran (Grade 1) --- */
+  put('akaran', [
+    SP('w1-akaran-sp1','Short Vowels','🔤',
+      'Short vowels: a (cat), e (bed), i (pig), o (hot), u (sun).',
+      '"cat" has short A. "bed" has short E.',
+      'Listen for the quick vowel sound in the middle.',[
+      ['Which has short A?',['cake','cat','rain','day'],1],
+      ['Which has short E?',['bee','bed','bee','seat'],1],
+      ['Which has short I?',['pie','pig','bike','five'],1],
+      ['Which has short O?',['bone','hot','boat','go'],1],
+      ['Which has short U?',['use','sun','cute','blue'],1],
+    ]),
+    SP('w1-akaran-sp2','Digraphs ch, sh, th','🔠',
+      'Two letters, one sound: CH (chair), SH (ship), TH (think).',
+      '"chair" starts with CH. "ship" starts with SH. "think" starts with TH.',
+      'Say the sound — it\'s NOT the same as each letter alone.',[
+      ['"chop" starts with...',['c','h','ch','cop'],2],
+      ['"ship" starts with...',['s','h','sh','si'],2],
+      ['"think" starts with...',['t','h','th','ti'],2],
+      ['"fish" ends with...',['f','s','h','sh'],3],
+      ['"bath" ends with...',['b','a','t','th'],3],
+    ]),
+    SP('w1-akaran-sp3','Blends st, bl, gr','✨',
+      'Blends: two consonants together, each sounds. ST (stop), BL (blue), GR (green).',
+      '"stop" starts with S + T = ST. You hear both letters.',
+      'Blends blend sounds — you hear each letter.',[
+      ['"stop" starts with...',['s','t','st','sto'],2],
+      ['"blue" starts with...',['b','l','bl','blu'],2],
+      ['"green" starts with...',['g','r','gr','gee'],2],
+      ['"flag" starts with...',['f','l','fl','lag'],2],
+      ['"clap" starts with...',['c','l','cl','lap'],2],
+    ]),
+    SP('w1-akaran-sp4','Tricky Words','💡',
+      'Some words don\'t follow rules. Memorize: said, was, of, the, you, are.',
+      '"said" is NOT spelled "sed". "was" is NOT spelled "wuz".',
+      'Read these 5 words 5 times each to remember.',[
+      ['"sed" or "said"?',['sed','said','saed','saide'],1],
+      ['"wuz" or "was"?',['wuz','was','waz','wos'],1],
+      ['"ov" or "of"?',['ov','of','offe','ofe'],1],
+      ['"yoo" or "you"?',['yoo','you','yu','yew'],1],
+      ['"ar" or "are"?',['ar','are','aar','err'],1],
+    ]),
+    SP('w1-akaran-sp5','Word Families','🏠',
+      'Word families share endings. -AT: cat, bat, hat. -IT: sit, bit, hit.',
+      'Add a letter to -AT: c+AT = cat, b+AT = bat, h+AT = hat.',
+      'Change the first letter to make new words.',[
+      ['c + at = ?',['cat','kit','cut','bat'],0],
+      ['h + at = ?',['hot','hat','hit','hut'],1],
+      ['s + it = ?',['sat','set','sit','sot'],2],
+      ['p + op = ?',['pip','pop','pup','pap'],1],
+      ['r + un = ?',['ran','run','rin','ron'],1],
+    ]),
+  ]);
+
+  /* --- Rushan (Grade 2) --- */
+  put('rushan', [
+    SP('w1-rushan-sp1','Long Vowels & Silent E','🎩',
+      'Silent E at the end makes the vowel say its name! cap → cape, pin → pine.',
+      '"cap" (short A) + E = "cape" (long A — says its name!)',
+      'Silent E is bossy — it changes the vowel sound.',[
+      ['"cap" + silent e = ?',['cape','capy','capt','caps'],0],
+      ['"pin" + silent e = ?',['pins','piny','pine','pint'],2],
+      ['"hop" + silent e = ?',['hope','hops','hopy','hob'],0],
+      ['"tub" + silent e = ?',['tubs','tube','tuby','tubb'],1],
+      ['Silent E makes vowels say their...',['short sound','name','different letter','nothing'],1],
+    ]),
+    SP('w1-rushan-sp2','Vowel Teams','👫',
+      'Two vowels walk together, the first does the talking: ai (rain), ea (team), oa (boat).',
+      '"rain" uses AI — A says its name, I is silent.',
+      'When 2 vowels touch, the FIRST one "speaks."',[
+      ['"rain" uses which vowel team?',['ai','ae','ei','eu'],0],
+      ['"team" uses which vowel team?',['ea','ee','eu','ei'],0],
+      ['"boat" uses which vowel team?',['oa','oe','ou','oo'],0],
+      ['Which word uses "ee"?',['toe','meet','pie','boy'],1],
+      ['Which word uses "ai"?',['rain','bone','cube','fish'],0],
+    ]),
+    SP('w1-rushan-sp3','Plurals (s vs es)','👥',
+      'Most words: add S. Words ending in s, ch, sh, x: add ES.',
+      '"cat" → "cats". "bus" → "buses" (add ES because it ends in S).',
+      'Say it — if adding just S sounds weird, use ES.',[
+      ['Plural of "cat":',['cats','cates','catss','catz'],0],
+      ['Plural of "box":',['boxs','boxes','boxies','boxs'],1],
+      ['Plural of "dish":',['dishs','dishes','dishies','dish'],1],
+      ['Plural of "book":',['books','bookes','bookies','bookys'],0],
+      ['Plural of "bus":',['bus','buses','busses','buss'],1],
+    ]),
+    SP('w1-rushan-sp4','Silent Letters','🤫',
+      'Some letters are silent! KN (knee), WR (write), GH (night), MB (thumb).',
+      '"knee" — the K is silent! We only say "nee".',
+      'Silent letters trick your ear — memorize them.',[
+      ['"knee" has a silent...',['K','N','E','both E\'s'],0],
+      ['"write" has a silent...',['R','I','T','W'],3],
+      ['"night" has a silent...',['N','G','H','T'],1],
+      ['"thumb" has a silent...',['T','H','U','B'],3],
+      ['"knight" has silent letters...',['K only','GH only','K and GH','none'],2],
+    ]),
+    SP('w1-rushan-sp5','Compound Words','🔗',
+      'Two words joined: sun + shine = sunshine. rain + bow = rainbow.',
+      '"backpack" = back + pack. Two small words = one big word.',
+      'Look for two smaller words inside.',[
+      ['sun + shine = ?',['sunshien','sunshine','suneshin','sunshin'],1],
+      ['rain + bow = ?',['rainbow','ranebow','rainbuw','ranbow'],0],
+      ['back + pack = ?',['bakpack','backpack','bakepak','bacpak'],1],
+      ['"cupcake" = ?',['cup + cake','cups + cake','cup + cakes','cap + cake'],0],
+      ['"playground" = ?',['play + ground','plays + ground','play + grounds','plaid + ground'],0],
+    ]),
+  ]);
+
+  /* --- Akshayan (Grade 3) --- */
+  const g3Spelling = [
+    SP('w1-akshayan-sp1','Prefixes: un-, re-, pre-','⬅️',
+      'A PREFIX is added to the start of a word to change its meaning. UN- (not), RE- (again), PRE- (before).',
+      '"happy" + UN = "unhappy" (not happy). "do" + RE = "redo" (do again).',
+      'Prefixes attach to the FRONT of the word.',[
+      ['"unhappy" means...',['very happy','not happy','happy again','sad'],1],
+      ['"redo" means...',['do before','do less','do again','undo'],2],
+      ['"preview" means...',['view again','view less','view before','big view'],2],
+      ['"unlock" means...',['lock again','not locked','lock before','double-lock'],1],
+      ['Prefix meaning "before":',['un-','re-','pre-','mis-'],2],
+    ]),
+    SP('w1-akshayan-sp2','Suffixes: -ing, -ed, -er','➡️',
+      'Suffixes are endings. -ING (doing now), -ED (did already), -ER (one who does).',
+      '"jump" + ING = "jumping". "jump" + ED = "jumped". "teach" + ER = "teacher".',
+      'Drop the silent E before adding -ING or -ED.',[
+      ['"jump" + ing = ?',['jumpin','jumping','jumpinng','jumped'],1],
+      ['"play" + ed = ?',['playd','played','plaed','plaid'],1],
+      ['"teach" + er = ?',['teachr','teacher','techer','tacher'],1],
+      ['"write" + ing = ? (drop silent E!)',['writing','writeing','writtng','writting'],0],
+      ['"bake" + ed = ? (drop silent E!)',['baked','bakeed','bakd','backed'],0],
+    ]),
+    SP('w1-akshayan-sp3','Silent Letters Advanced','🤫',
+      'Silent letters in longer words: listen (silent T), island (silent S), sword (silent W).',
+      '"listen" — we say "LIS-en" with no T sound.',
+      'These aren\'t rules — they\'re memorized.',[
+      ['"listen" has a silent...',['L','S','T','N'],2],
+      ['"island" has a silent...',['I','S','L','A'],1],
+      ['"sword" has a silent...',['S','W','O','D'],1],
+      ['"lamb" has a silent...',['L','A','M','B'],3],
+      ['"comb" has a silent...',['C','O','M','B'],3],
+    ]),
+    SP('w1-akshayan-sp4','Tricky "i before e"','📏',
+      '"I before E, except after C, or when sounding like A as in neighbor and weigh."',
+      '"field" → I before E. "receive" → E before I (after C). "weight" → sounds like A.',
+      'Memorize the rhyme — it helps!',[
+      ['Which is correct?',['feild','field','fiald','feeld'],1],
+      ['Which is correct?',['recieve','receive','receve','reciave'],1],
+      ['"ceiling" follows which rule?',['I before E','E before I after C','I before A','no rule'],1],
+      ['"believe" follows which rule?',['E before I','I before E','A before I','backwards'],1],
+      ['Which is correct?',['wiegh','weigh','waigh','wegih'],1],
+    ]),
+    SP('w1-akshayan-sp5','Double Consonants','🔠',
+      'Double the last consonant before -ING or -ED when word is 1 syllable + short vowel + 1 consonant.',
+      '"run" → "running" (double N). "stop" → "stopped" (double P).',
+      'Rule: short vowel + 1 consonant → double it.',[
+      ['"run" + ing = ?',['runing','running','runng','runneing'],1],
+      ['"stop" + ed = ?',['stoped','stopped','stoppd','stopt'],1],
+      ['"swim" + ing = ?',['swiming','swimming','swimmng','swemming'],1],
+      ['"hop" + ed = ?',['hoped','hopped','hopt','hoped'],1],
+      ['"sit" + ing = ?',['siting','sitting','sittng','sitten'],1],
+    ]),
+  ];
+  put('akshayan', g3Spelling);
+  // Axel gets the same Grade 3 spelling content, but re-IDed.
+  put('axel', g3Spelling.map(a => ({...a, id: a.id.replace('w1-akshayan-', 'w1-axel-')})));
+
+  /* --- Isaiah (Grade 5 stretch) --- */
+  put('isaiah', [
+    SP('w1-isaiah-sp1','Homophones','👯',
+      'Homophones sound the same, spelled different: to/too/two, there/their/they\'re.',
+      '"I went TO the store TOO" — TO (direction), TOO (also).',
+      'Use context — what role does the word play?',[
+      ['"I want ___ come." (direction)',['to','too','two','tu'],0],
+      ['"Me ___!" (also)',['to','too','two','tu'],1],
+      ['"I have ___ dogs." (number)',['to','too','two','tu'],2],
+      ['"___ going home." (they are)',['There','Their','They\'re','Thier'],2],
+      ['"Put it over ___." (place)',['There','Their','They\'re','Thair'],0],
+    ]),
+    SP('w1-isaiah-sp2','Greek & Latin Roots','🏛️',
+      'Many English words come from Greek/Latin. TELE (far), PHONE (sound), BIO (life), GRAPH (write).',
+      '"telephone" = TELE (far) + PHONE (sound) = sound from far.',
+      'Break big words into roots.',[
+      ['"telephone" means...',['near sound','far sound','no sound','many sounds'],1],
+      ['"biography" means...',['math writing','life writing','death writing','fake writing'],1],
+      ['"photograph" means...',['water writing','light writing','sound writing','no writing'],1],
+      ['"TELE" means...',['near','far','big','fast'],1],
+      ['"BIO" means...',['death','life','water','sound'],1],
+    ]),
+    SP('w1-isaiah-sp3','Commonly Misspelled Words','⚠️',
+      'Watch out: separate (not seperate), definitely (not definately), necessary (not nessary).',
+      '"separate" has "a RAT" in the middle. "definitely" has FINITE.',
+      'Memory tricks help tricky spellings stick.',[
+      ['Which is correct?',['seperate','separate','seprate','sepparate'],1],
+      ['Which is correct?',['definately','definitely','defenately','definetly'],1],
+      ['Which is correct?',['nessary','neccesary','necessary','necesary'],2],
+      ['Which is correct?',['wensday','wednesday','wensdae','wednsday'],1],
+      ['Which is correct?',['recieve','receive','recive','reciave'],1],
+    ]),
+    SP('w1-isaiah-sp4','Contractions','🔗',
+      'Contractions shorten two words: do not → don\'t. I am → I\'m. They are → they\'re.',
+      'The apostrophe REPLACES missing letters.',
+      'The apostrophe goes where the letters are cut.',[
+      ['"do not" shortens to...',['dont','don\'t','donot','d\'not'],1],
+      ['"I am" shortens to...',['Im','I am','I\'m','Ima'],2],
+      ['"they are" shortens to...',['theyr','they\'re','theyre','they\'r'],1],
+      ['"cannot" shortens to...',['cant','can\'t','ca\'nt','can not'],1],
+      ['"would not" shortens to...',['wouldnt','would\'nt','wouldn\'t','wuldnt'],2],
+    ]),
+    SP('w1-isaiah-sp5','Advanced Suffixes','➡️',
+      'Suffixes can change word type: -tion (noun), -ful (adj), -ly (adv), -able (can be).',
+      '"act" + ION = "action" (noun). "care" + FUL = "careful" (adj). "quick" + LY = "quickly" (adv).',
+      'Changing a suffix can change a word\'s job.',[
+      ['"act" + ion = ?',['action','actton','aktion','actshun'],0],
+      ['"care" + ful = ? (keep the E)',['careful','carful','caruful','carefull'],0],
+      ['"quick" + ly = ?',['quicly','quickly','quicklly','quicley'],1],
+      ['"read" + able = ?',['readable','readible','readabel','readibull'],0],
+      ['The suffix "-ly" usually makes an...',['noun','verb','adverb','article'],2],
+    ]),
+  ]);
+})();
+
+/* ==========================================================================
    PREVIEW LEVELS 6–10 — demoOnly, parents-only curriculum previews
    --------------------------------------------------------------------------
    These activities are appended to each subject's array at load time. They
@@ -5447,39 +5766,68 @@ function isActivityUnlocked(userId, activityId){
   return false;
 }
 
+// Returns the student's CURRENT "next-in-line" activity in a subject: the
+// lowest-indexed activity that is (a) not completed and (b) unlocked.
+// This is what the Daily Mission picks from — guarantees the mission always
+// recommends the kid's actual next step per subject, never a random deeper
+// level that happened to be unlocked. For a first-time login, this returns
+// Level 1 of every subject (index 0 is always unlocked).
+function nextActivityInSubject(userId, subjectId){
+  const ud = allData.users[userId]; if(!ud) return null;
+  const acts = getWeekActivities(userId, subjectId) || [];
+  for(let i=0; i<acts.length; i++){
+    const a = acts[i];
+    if(!a || !a.id) continue;
+    if(ud.completedActivities && ud.completedActivities[a.id]) continue;
+    if(!isActivityUnlocked(userId, a.id)) continue;
+    return a;
+  }
+  return null;
+}
+
 function ensureDailyMission(userId){
   const ud = allData.users[userId]; if(!ud) return null;
   const today = todayKey();
   const cur = ud.dailyMission;
-  // Reuse today's stored mission ONLY if every activity in it is still
-  // unlocked. Completed entries stay (they show as checked ✓), but a
-  // stored LOCKED entry would be unplayable and should trigger a rebuild.
-  // (Guards against missions generated before the gating fix shipped.)
-  if(cur && cur.date === today && Array.isArray(cur.activityIds) && cur.activityIds.length){
-    const allPlayable = cur.activityIds.every(aid => {
-      // Already completed is fine — they can see the checkmark.
-      if(ud.completedActivities && ud.completedActivities[aid]) return true;
-      return isActivityUnlocked(userId, aid);
-    });
-    if(allPlayable) return cur;
-  }
-  // Build a fresh mission — pick 2 uncompleted+unlocked activities across subjects
-  const pool = [];
+  // Build a set of every activity that IS currently "next-in-line" for some
+  // subject — used both to validate stored missions and to build new ones.
+  // For a fresh student this is {Level 1 of every subject}.
+  const nextBySubject = {};
+  const nextSet = {};
   SUBJECTS.forEach(sub=>{
-    const acts = getWeekActivities(userId, sub.id) || [];
-    acts.forEach(a=>{
-      if(!a || !a.id) return;
-      if(ud.completedActivities && ud.completedActivities[a.id]) return;
-      // Only include activities the student can actually open today.
-      if(!isActivityUnlocked(userId, a.id)) return;
-      pool.push({ id:a.id, title:a.title, emoji:a.emoji, subject:sub.id, subjectName:sub.name });
-    });
+    const a = nextActivityInSubject(userId, sub.id);
+    if(a){
+      nextBySubject[sub.id] = a;
+      nextSet[a.id] = { a, subject:sub.id, subjectName:sub.name };
+    }
   });
+  // Reuse today's stored mission ONLY if every activity in it is either
+  // (a) already completed — shows as checkmark, or
+  // (b) STILL the current next-in-line for its subject.
+  // Rebuild if any stored pick references a "skipped ahead" activity (a
+  // deeper level that slipped through the old random-shuffle picker), or
+  // if the student's progression has moved past a stored pick.
+  if(cur && cur.date === today && Array.isArray(cur.activityIds) && cur.activityIds.length){
+    const allCurrent = cur.activityIds.every(aid => {
+      if(ud.completedActivities && ud.completedActivities[aid]) return true;
+      return !!nextSet[aid];
+    });
+    if(allCurrent) return cur;
+  }
+  // Build a fresh mission — pool = exactly ONE next-in-line per subject.
+  // This guarantees "level in order" behavior: Level 1 on first login,
+  // Level N+1 after finishing Level N, etc. Never a deeper level from a
+  // different branch.
+  const pool = Object.values(nextSet).map(x => ({
+    id: x.a.id, title: x.a.title, emoji: x.a.emoji,
+    subject: x.subject, subjectName: x.subjectName,
+  }));
   let picks;
   if(pool.length <= 2){
     picks = pool.slice(0,2);
   } else {
-    // Seeded shuffle by date+userId
+    // Seeded shuffle by date+userId — stable per kid per day, so the
+    // mission doesn't re-roll on every page refresh.
     const seed = dailySeed(userId);
     const shuffled = pool.slice();
     for(let i=shuffled.length-1;i>0;i--){
@@ -5488,7 +5836,8 @@ function ensureDailyMission(userId){
       const tmp = shuffled[i]; shuffled[i]=shuffled[jj]; shuffled[jj]=tmp;
     }
     picks = shuffled.slice(0,2);
-    // Prefer 2 DIFFERENT subjects if possible
+    // Prefer 2 DIFFERENT subjects if possible (pool already has unique
+    // subjects by construction, but defensive in case that ever changes).
     if(picks.length===2 && picks[0].subject===picks[1].subject){
       const other = shuffled.find(x=>x.subject!==picks[0].subject);
       if(other) picks[1] = other;
