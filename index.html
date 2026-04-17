@@ -6108,11 +6108,13 @@ function getActivityVideoIds(activityId, builtinIds){
 
 /* Teacher-only modal: edit the YouTube video embedded on a specific lesson.
    Password-gated with the same password as the teacher login (TEACHER_CREDS).
-   Auth is session-scoped via window.__kqLessonVideoAuth, so the teacher only
-   types the password once per page load — editing multiple lessons in a row
-   stays frictionless. Overrides persist in allData.videoOverrides and sync
-   to the cloud like any other state change. After save/reset the lesson
-   re-renders so the teacher sees the change immediately. */
+   The password is required EVERY time the gear is opened — we deliberately
+   don't cache the unlock. Shared tutoring devices mean the teacher may hand
+   the iPad to a kid right after editing a lesson; a cached unlock would let
+   the kid reopen the gear without a password. Typing the password a second
+   time is a fine price for that guarantee. Overrides persist in
+   allData.videoOverrides and sync to the cloud like any other state change.
+   After save/reset the lesson re-renders so the change is visible immediately. */
 function openLessonVideoSettings(activityId, builtinIds){
   if(!activityId) return;
   const overlay = h('div',{class:'mg-win-overlay'});
@@ -6204,8 +6206,9 @@ function openLessonVideoSettings(activityId, builtinIds){
     const msg = h('div',{class:'lvs-msg'}, '');
     card.appendChild(msg);
     const tryUnlock = ()=>{
-      if(pw.value === TEACHER_CREDS.password){
-        window.__kqLessonVideoAuth = true;
+      // Require a non-empty password AND a strict match. Empty-string short-
+      // circuit matters if TEACHER_CREDS.password were ever misconfigured.
+      if(pw.value && pw.value === TEACHER_CREDS.password){
         buildUnlocked();
       } else {
         msg.textContent = 'Wrong password.';
@@ -6222,8 +6225,8 @@ function openLessonVideoSettings(activityId, builtinIds){
     setTimeout(()=>{ try{ pw.focus(); }catch(e){} }, 30);
   };
 
-  if(window.__kqLessonVideoAuth === true) buildUnlocked();
-  else buildPasswordPrompt();
+  // Always start on the password prompt — no cached unlock (see header comment).
+  buildPasswordPrompt();
 }
 
 function renderLesson(card,q){
