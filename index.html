@@ -405,13 +405,18 @@ img{max-width:100%}
 .week-head .back-btn{padding:8px 16px;border-radius:999px;background:rgba(0,0,0,.05);font-weight:700;font-size:14px;color:var(--ink2);transition:all .2s}
 .week-head .back-btn:hover{background:rgba(0,0,0,.1)}
 .levels{margin-top:16px;display:flex;flex-direction:column;gap:12px}
-/* Wraps each level card so a teacher-only gear can sit in the corner WITHOUT
+/* Wraps each level card so a teacher-only gear can sit BESIDE the card WITHOUT
    nesting a <button> inside the level-card <button> (invalid HTML + bad clicks).
-   The wrap is a sibling of the gear; both live in the flex grid. */
-.level-wrap{position:relative;width:100%}
-.level-wrap .level-card{width:100%}
-.lv-gear-card{position:absolute;top:10px;right:10px;z-index:2;min-width:34px;height:30px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800;color:var(--ink2);background:rgba(108,92,231,.1);border:1px solid rgba(108,92,231,.25);cursor:pointer;opacity:.7;transition:all .18s var(--spring);font-family:inherit;display:inline-flex;align-items:center;justify-content:center}
-.lv-gear-card:hover{opacity:1;background:rgba(108,92,231,.2);color:var(--primary);transform:translateY(-1px)}
+   The gear is a sibling of the card, sitting to its right as a standalone
+   control — clearly separate from the student's level content. */
+.level-wrap{width:100%;display:flex;align-items:stretch;gap:8px}
+.level-wrap .level-card{flex:1 1 auto;width:auto;min-width:0}
+.lv-gear-card{flex:0 0 auto;align-self:center;width:40px;height:40px;padding:0;border-radius:12px;font-size:15px;font-weight:800;color:var(--ink3);background:#fff;border:1px solid var(--line);cursor:pointer;opacity:.55;transition:all .18s var(--spring);font-family:inherit;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow)}
+.lv-gear-card:hover{opacity:1;color:var(--primary);border-color:rgba(108,92,231,.4);background:rgba(108,92,231,.05);transform:translateY(-1px)}
+@media (max-width:480px){
+  .level-wrap{gap:6px}
+  .lv-gear-card{width:34px;height:34px;font-size:13px;border-radius:10px}
+}
 .level-card{display:flex;align-items:center;gap:16px;padding:18px 20px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);transition:all .35s var(--spring);width:100%}
 .level-card:hover:not(.locked){transform:translateX(8px) scale(1.01);box-shadow:var(--shadow-lg)}
 .level-card:hover:not(.locked) .l-emoji{transform:scale(1.15) rotate(-5deg)}
