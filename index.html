@@ -7685,14 +7685,17 @@ function findActivityById(activityId){
   return null;
 }
 
-/* Teacher-only modal: edit the YouTube video embedded on a specific lesson.
-   Password-gated with the same password as the teacher login (TEACHER_CREDS).
-   The password is required EVERY time the gear is opened — we deliberately
-   don't cache the unlock. Shared tutoring devices mean the teacher may hand
-   the iPad to a kid right after editing a lesson; a cached unlock would let
-   the kid reopen the gear without a password. Typing the password a second
-   time is a fine price for that guarantee. Overrides persist in
-   allData.videoOverrides and sync to the cloud like any other state change.
+/* Adult-gated modal: edit the YouTube video embedded on a specific lesson.
+   Gating rule:
+     - Already logged in as TEACHER   → skip prompt (they entered TEACHER_CREDS to get here).
+     - In the parent DEMO session     → skip prompt (they entered DEMO_PIN to get here).
+     - Any kid profile (real student) → require TEACHER_CREDS every time — no cached
+       unlock, because a kid could hand the iPad around mid-lesson.
+   The demo skip is deliberate: owners demo the app at a kid's home, want to
+   curate the video list for that family, and shouldn't have to log out of
+   demo → into each kid → edit → log out to do it.
+   Overrides persist in allData.videoOverrides (mirrored to a dedicated local
+   key so cloud wipes can't clobber them) and sync to cloud via saveState().
    After save/reset the lesson re-renders so the change is visible immediately. */
 function openLessonVideoSettings(activityId, builtinIds){
   if(!activityId) return;
@@ -7899,8 +7902,15 @@ function openLessonVideoSettings(activityId, builtinIds){
     setTimeout(()=>{ try{ pw.focus(); }catch(e){} }, 30);
   };
 
-  // Always start on the password prompt — no cached unlock (see header comment).
-  buildPasswordPrompt();
+  // Skip the password prompt when the session is already adult-authenticated:
+  //   • isTeacher      — teacher entered TEACHER_CREDS at login
+  //   • isDemoUser(..) — parent entered DEMO_PIN at home screen
+  // Kid profiles still get the password prompt every time (see header comment).
+  if(isTeacher || isDemoUser(currentUser)){
+    buildUnlocked();
+  } else {
+    buildPasswordPrompt();
+  }
 }
 
 function renderLesson(card,q){
@@ -7956,11 +7966,13 @@ function renderLesson(card,q){
   const builtinIds  = (quiz && quiz.activity && Array.isArray(quiz.activity.videoIds))
                         ? quiz.activity.videoIds.filter(Boolean) : [];
   const vidIds = getActivityVideoIds(activityId, builtinIds);
-  // Teacher-only gear — opens the password-gated lesson video settings modal.
+  // Adult-gated gear — opens the lesson video settings modal.
+  // • Teacher / parent-demo: opens straight into the editor (already adult-authed).
+  // • Kid profiles: password-gated — see openLessonVideoSettings() for details.
   const gearBtn = ()=>h('button',{
     class:'lv-gear',
     onclick:(e)=>{ e.preventDefault(); e.stopPropagation(); openLessonVideoSettings(activityId, builtinIds); },
-    title:'Edit lesson video (teacher only)',
+    title: (isTeacher || isDemoUser(currentUser)) ? 'Edit lesson video' : 'Edit lesson video (teacher)',
     'aria-label':'Edit lesson video',
   }, '⚙ Settings');
   if(vidIds.length){
