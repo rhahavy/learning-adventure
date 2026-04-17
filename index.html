@@ -267,8 +267,11 @@ img{max-width:100%}
   border:1.5px solid rgba(255,255,255,.9);
   border-radius:var(--r-lg);box-shadow:var(--shadow-lg);
   display:flex;align-items:center;gap:22px;flex-wrap:wrap;position:relative;overflow:hidden}
-.dash-hero::after{content:'👋';position:absolute;top:50%;right:28px;font-size:56px;transform:translateY(-50%);pointer-events:none;animation:wave 2.4s ease-in-out infinite;filter:drop-shadow(0 4px 8px rgba(26,16,53,.12))}
+/* Nova (inline SVG mascot) replaces the old '👋' emoji on the dashboard hero.
+   We keep @keyframes wave in case other screens still reference it. */
 @keyframes wave{0%,100%{transform:translateY(-50%) rotate(0)}25%{transform:translateY(-50%) rotate(15deg)}75%{transform:translateY(-50%) rotate(-15deg)}}
+.dash-hero .mascot-wrap{margin-left:auto;align-self:center}
+@media(max-width:640px){.dash-hero .mascot-wrap{margin-left:0;width:100%;justify-content:flex-start}.dash-hero .mascot-wrap .speech-bubble{max-width:none}}
 .dash-hero .av{width:100px;height:100px;border-radius:28px;display:grid;place-items:center;font-size:52px;color:#fff;font-weight:700;font-family:var(--font-display);border:3px solid #fff;box-shadow:0 12px 26px rgba(26,16,53,.2),inset 0 -4px 0 rgba(0,0,0,.18);flex-shrink:0;transition:transform .4s var(--spring)}
 .dash-hero:hover .av{transform:rotate(-4deg) scale(1.04)}
 .dash-hero .info{flex:1;min-width:200px}
@@ -557,6 +560,57 @@ img{max-width:100%}
 .t-maint-foot{font-size:11px;color:var(--ink3);margin-top:10px;font-weight:600}
 .btn-danger{background:linear-gradient(180deg,#ff6b6b 0%,#c0392b 100%);color:#fff;border-color:#fff;box-shadow:0 8px 22px rgba(192,57,43,.35),inset 0 -4px 0 rgba(0,0,0,.2)}
 .btn-danger:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 14px 30px rgba(192,57,43,.5),inset 0 -4px 0 rgba(0,0,0,.2)}
+
+/* ==========================================================================
+   NOVA — the KidQuest alien mascot
+   --------------------------------------------------------------------------
+   Pure inline SVG. Renders anywhere via createMascot({size, message, tone}).
+   Cheeks pulse, antenna bobs, arm waves — CSS-only, no JS animation loops.
+   ========================================================================== */
+.mascot-wrap{display:inline-flex;align-items:flex-end;gap:14px;position:relative}
+.mascot{display:inline-block;flex-shrink:0;filter:drop-shadow(0 10px 18px rgba(108,92,231,.25));animation:novaBob 3.2s ease-in-out infinite}
+@keyframes novaBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+.mascot .nova-antenna-tip{animation:novaAntenna 2.2s ease-in-out infinite;transform-origin:60px 12px}
+@keyframes novaAntenna{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.75}}
+.mascot .nova-arm{animation:novaWave 2.6s ease-in-out infinite;transform-origin:20px 70px}
+@keyframes novaWave{0%,100%{transform:rotate(0)}30%{transform:rotate(-18deg) translateY(-4px)}60%{transform:rotate(14deg)}}
+.mascot .nova-cheek{animation:novaCheek 3.2s ease-in-out infinite}
+@keyframes novaCheek{0%,100%{opacity:.45}50%{opacity:.75}}
+.mascot .nova-eye-pupil{animation:novaBlink 5s ease-in-out infinite;transform-origin:center}
+@keyframes novaBlink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.05)}}
+.speech-bubble{position:relative;background:#fff;color:var(--ink);padding:14px 18px;border-radius:18px;box-shadow:0 8px 22px rgba(26,16,53,.12);font-weight:700;font-size:15px;max-width:260px;border:2px solid rgba(108,92,231,.12);animation:bubbleIn .6s var(--spring)}
+@keyframes bubbleIn{0%{opacity:0;transform:translateY(6px) scale(.92)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.speech-bubble::before{content:'';position:absolute;bottom:16px;left:-10px;width:0;height:0;border-style:solid;border-width:8px 12px 8px 0;border-color:transparent #fff transparent transparent;filter:drop-shadow(-2px 0 0 rgba(108,92,231,.12))}
+.speech-bubble .sb-small{display:block;font-size:12px;font-weight:600;color:var(--ink3);margin-top:2px}
+
+/* ==========================================================================
+   DAILY MISSION — highlighted card on the dashboard
+   --------------------------------------------------------------------------
+   2 hand-picked activities per day. Elevated with animated border glow.
+   ========================================================================== */
+.daily-mission{margin-top:22px;padding:24px;position:relative;border-radius:var(--r-lg);background:linear-gradient(135deg,#fff6e0 0%,#ffe3f1 55%,#e7e4ff 100%);box-shadow:var(--shadow-lg);overflow:hidden;border:2px solid rgba(255,255,255,.9)}
+.daily-mission::before{content:'';position:absolute;inset:-2px;background:conic-gradient(from 0deg,#6C5CE7,#FD79A8,#FDCB6E,#00CEC9,#6C5CE7);border-radius:var(--r-lg);z-index:-1;animation:missionSpin 8s linear infinite;opacity:.55}
+@keyframes missionSpin{to{transform:rotate(360deg)}}
+.daily-mission::after{content:'';position:absolute;inset:2px;background:linear-gradient(135deg,#fff6e0 0%,#ffe3f1 55%,#e7e4ff 100%);border-radius:calc(var(--r-lg) - 2px);z-index:-1}
+.dm-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dm-title{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.dm-title-emoji{font-size:26px;animation:targetPulse 2s ease-in-out infinite;display:inline-block}
+@keyframes targetPulse{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.12) rotate(-8deg)}}
+.dm-reset{font-size:12px;font-weight:700;color:var(--ink3);background:rgba(255,255,255,.7);padding:6px 12px;border-radius:999px;border:1.5px solid rgba(108,92,231,.15)}
+.dm-progress-wrap{height:10px;border-radius:999px;background:rgba(108,92,231,.15);overflow:hidden;margin-bottom:14px}
+.dm-progress{height:100%;border-radius:999px;background:linear-gradient(90deg,#6C5CE7,#FD79A8,#FDCB6E);transition:width .6s var(--spring);box-shadow:0 0 14px rgba(253,121,168,.5)}
+.dm-tasks{display:grid;gap:10px}
+.dm-task{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.85);border:1.5px solid rgba(108,92,231,.12);cursor:pointer;transition:all .3s var(--spring);text-align:left;font-family:inherit;font-weight:700;color:var(--ink);font-size:14px;width:100%}
+.dm-task:hover:not(.done){transform:translateY(-3px);box-shadow:0 10px 24px rgba(108,92,231,.18);border-color:var(--primary)}
+.dm-task.done{opacity:.55;background:rgba(0,206,201,.12);border-color:rgba(0,206,201,.3);cursor:default}
+.dm-task .dm-task-emoji{font-size:28px;flex-shrink:0}
+.dm-task .dm-task-info{flex:1;min-width:0}
+.dm-task .dm-task-sub{font-size:12px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+.dm-task .dm-task-name{font-size:15px;font-weight:800;color:var(--ink);margin-top:2px}
+.dm-task .dm-task-check{width:28px;height:28px;border-radius:50%;border:2px solid rgba(108,92,231,.25);display:grid;place-items:center;flex-shrink:0;font-weight:900;font-size:14px;color:transparent}
+.dm-task.done .dm-task-check{background:var(--mint);color:#fff;border-color:var(--mint);box-shadow:0 4px 10px rgba(0,206,201,.4)}
+.dm-complete{margin-top:14px;padding:14px;border-radius:16px;background:linear-gradient(135deg,#fff,rgba(0,206,201,.12));border:2px dashed rgba(0,206,201,.35);text-align:center;font-weight:800;color:var(--ink)}
+.dm-complete-emoji{font-size:32px;display:block;margin-bottom:4px}
 
 /* ---- REWARD OVERLAY ---- */
 .reward-overlay{position:fixed;inset:0;z-index:100;background:rgba(26,16,53,.45);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px}
@@ -3743,6 +3797,228 @@ function h(tag,a={},c=[]){
 }
 
 /* ==========================================================================
+   NOVA — mascot factory
+   --------------------------------------------------------------------------
+   createMascot({size, message, subMessage, tone}) returns a DOM element
+   with an SVG alien + optional speech bubble. Tone tweaks the body gradient.
+   ========================================================================== */
+const NOVA_TONES = {
+  cheerful: ['#74B9FF','#00CEC9'],
+  warm: ['#FDCB6E','#FD79A8'],
+  magic: ['#A29BFE','#6C5CE7'],
+  victory: ['#55efc4','#00cec9'],
+};
+function novaSVG(tone, size){
+  const [c1,c2] = NOVA_TONES[tone] || NOVA_TONES.cheerful;
+  const id = 'novaGrad_' + Math.random().toString(36).slice(2,8);
+  const w = size || 110;
+  const h = Math.round(w * 140 / 120);
+  return ''
+    + '<svg class="mascot" width="'+w+'" height="'+h+'" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg" aria-label="Nova the alien">'
+    +   '<defs>'
+    +     '<linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1">'
+    +       '<stop offset="0%" stop-color="'+c1+'"/>'
+    +       '<stop offset="100%" stop-color="'+c2+'"/>'
+    +     '</linearGradient>'
+    +     '<radialGradient id="'+id+'_shine" cx="35%" cy="30%" r="45%">'
+    +       '<stop offset="0%" stop-color="#fff" stop-opacity=".35"/>'
+    +       '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>'
+    +     '</radialGradient>'
+    +   '</defs>'
+    // Antenna
+    +   '<line x1="60" y1="30" x2="60" y2="18" stroke="'+c2+'" stroke-width="3" stroke-linecap="round"/>'
+    +   '<circle class="nova-antenna-tip" cx="60" cy="12" r="6" fill="#FD79A8"/>'
+    // Waving arm (left side)
+    +   '<circle class="nova-arm" cx="14" cy="74" r="9" fill="url(#'+id+')"/>'
+    // Right arm (static little stub)
+    +   '<circle cx="106" cy="86" r="7" fill="url(#'+id+')"/>'
+    // Body (blobby alien shape)
+    +   '<path d="M60 32 C92 32 106 58 106 84 C106 112 86 128 60 128 C34 128 14 112 14 84 C14 58 28 32 60 32 Z" fill="url(#'+id+')"/>'
+    // Shine overlay
+    +   '<path d="M60 32 C92 32 106 58 106 84 C106 112 86 128 60 128 C34 128 14 112 14 84 C14 58 28 32 60 32 Z" fill="url(#'+id+'_shine)"/>'
+    // Eyes
+    +   '<circle cx="45" cy="72" r="13" fill="#fff"/>'
+    +   '<circle cx="75" cy="72" r="13" fill="#fff"/>'
+    +   '<circle class="nova-eye-pupil" cx="47" cy="75" r="7" fill="#1A1035"/>'
+    +   '<circle class="nova-eye-pupil" cx="77" cy="75" r="7" fill="#1A1035"/>'
+    +   '<circle cx="50" cy="72" r="2.5" fill="#fff"/>'
+    +   '<circle cx="80" cy="72" r="2.5" fill="#fff"/>'
+    // Cheeks
+    +   '<ellipse class="nova-cheek" cx="32" cy="92" rx="7" ry="5" fill="#FD79A8"/>'
+    +   '<ellipse class="nova-cheek" cx="88" cy="92" rx="7" ry="5" fill="#FD79A8"/>'
+    // Smile
+    +   '<path d="M48 100 Q60 112 72 100" stroke="#1A1035" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+    + '</svg>';
+}
+function createMascot(opts){
+  opts = opts || {};
+  const wrap = h('div',{class:'mascot-wrap'});
+  const svgHolder = document.createElement('div');
+  svgHolder.innerHTML = novaSVG(opts.tone||'cheerful', opts.size||110);
+  wrap.appendChild(svgHolder.firstChild);
+  if(opts.message){
+    const bubble = h('div',{class:'speech-bubble'});
+    bubble.appendChild(document.createTextNode(opts.message));
+    if(opts.subMessage) bubble.appendChild(h('span',{class:'sb-small'}, opts.subMessage));
+    wrap.appendChild(bubble);
+  }
+  return wrap;
+}
+
+/* ==========================================================================
+   PERSONALITY — rotating cheer lines from Nova
+   --------------------------------------------------------------------------
+   Time-of-day greetings + random pep talks. Deterministic per-day so a kid
+   sees the SAME greeting if they reload the dashboard (less jarring).
+   ========================================================================== */
+const NOVA_GREETINGS_MORNING = [
+  "Morning, explorer! 🌅",
+  "Good morning! Ready to learn?",
+  "Rise and quest! Today's going to be awesome.",
+  "Up with the sun? Love that energy!",
+];
+const NOVA_GREETINGS_AFTERNOON = [
+  "Afternoon adventure time!",
+  "Hey there! Let's tackle something fun.",
+  "Welcome back, brain builder!",
+  "Ready for a challenge?",
+];
+const NOVA_GREETINGS_EVENING = [
+  "Evening session — nice!",
+  "Let's end the day smart.",
+  "One more quest before bed?",
+  "Night owl mode: activated.",
+];
+function dailySeed(salt){
+  // Deterministic per-day int — same kid sees same greeting across reloads
+  const d = new Date();
+  const key = d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+  let n = key + (salt ? salt.split('').reduce((a,c)=>a+c.charCodeAt(0),0) : 0);
+  // Mulberry32-ish — not cryptographic, just stable
+  n |= 0; n = n + 0x6D2B79F5 | 0; let t = Math.imul(n ^ n>>>15, 1|n); t = t + Math.imul(t ^ t>>>7, 61|t) ^ t; return ((t^t>>>14)>>>0);
+}
+function pickNovaGreeting(userId){
+  const hr = new Date().getHours();
+  const pool = hr < 12 ? NOVA_GREETINGS_MORNING
+             : hr < 18 ? NOVA_GREETINGS_AFTERNOON
+             :          NOVA_GREETINGS_EVENING;
+  return pool[dailySeed(userId||'') % pool.length];
+}
+
+/* ==========================================================================
+   DAILY MISSION — 2 activities per day, refreshes at midnight
+   --------------------------------------------------------------------------
+   Deterministic pick from uncompleted activities (stable per kid per day).
+   State lives on user.dailyMission = {date, activityIds, completed[]}.
+   ========================================================================== */
+function todayKey(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function ensureDailyMission(userId){
+  const ud = allData.users[userId]; if(!ud) return null;
+  const today = todayKey();
+  const cur = ud.dailyMission;
+  if(cur && cur.date === today && Array.isArray(cur.activityIds) && cur.activityIds.length) return cur;
+  // Build a fresh mission — pick 2 uncompleted activities across subjects
+  const pool = [];
+  SUBJECTS.forEach(sub=>{
+    const acts = getWeekActivities(userId, sub.id) || [];
+    acts.forEach(a=>{
+      if(!a || !a.id) return;
+      if(ud.completedActivities && ud.completedActivities[a.id]) return;
+      pool.push({ id:a.id, title:a.title, emoji:a.emoji, subject:sub.id, subjectName:sub.name });
+    });
+  });
+  let picks;
+  if(pool.length <= 2){
+    picks = pool.slice(0,2);
+  } else {
+    // Seeded shuffle by date+userId
+    const seed = dailySeed(userId);
+    const shuffled = pool.slice();
+    for(let i=shuffled.length-1;i>0;i--){
+      const j = (seed + i*2654435761) % (i+1);
+      const jj = ((j%(i+1))+(i+1))%(i+1);
+      const tmp = shuffled[i]; shuffled[i]=shuffled[jj]; shuffled[jj]=tmp;
+    }
+    picks = shuffled.slice(0,2);
+    // Prefer 2 DIFFERENT subjects if possible
+    if(picks.length===2 && picks[0].subject===picks[1].subject){
+      const other = shuffled.find(x=>x.subject!==picks[0].subject);
+      if(other) picks[1] = other;
+    }
+  }
+  ud.dailyMission = {
+    date: today,
+    activityIds: picks.map(p=>p.id),
+    completed: [],
+  };
+  saveState();
+  return ud.dailyMission;
+}
+function markDailyMissionProgress(activityId){
+  if(!currentUser) return;
+  const ud = allData.users[currentUser]; if(!ud || !ud.dailyMission) return;
+  if(ud.dailyMission.date !== todayKey()) return;
+  if(!ud.dailyMission.activityIds.includes(activityId)) return;
+  if(!ud.dailyMission.completed.includes(activityId)){
+    ud.dailyMission.completed.push(activityId);
+    saveState();
+  }
+}
+function renderDailyMission(userId){
+  const m = ensureDailyMission(userId);
+  if(!m || !m.activityIds.length) return null;
+  // Resolve activity details
+  const tasks = m.activityIds.map(aid=>{
+    for(const sub of SUBJECTS){
+      const acts = getWeekActivities(userId, sub.id) || [];
+      const a = acts.find(x=>x && x.id===aid);
+      if(a) return { id:aid, title:a.title, emoji:a.emoji, subject:sub.id, subjectName:sub.name };
+    }
+    return { id:aid, title:'Activity', emoji:'✨', subject:'', subjectName:'' };
+  });
+  const completedCount = m.completed.length;
+  const pct = Math.round(completedCount / tasks.length * 100);
+  const allDone = completedCount === tasks.length;
+  const wrap = h('div',{class:'daily-mission'});
+  const head = h('div',{class:'dm-head'},[
+    h('div',{class:'dm-title'},[
+      h('span',{class:'dm-title-emoji'},'🎯'),
+      h('span',{},"Today's Mission"),
+    ]),
+    h('span',{class:'dm-reset'}, completedCount+' / '+tasks.length+' done · resets at midnight'),
+  ]);
+  wrap.appendChild(head);
+  wrap.appendChild(h('div',{class:'dm-progress-wrap'},[h('div',{class:'dm-progress',style:'width:'+pct+'%'})]));
+  const list = h('div',{class:'dm-tasks'});
+  tasks.forEach(t=>{
+    const done = m.completed.includes(t.id);
+    const btn = h('button',{class:'dm-task'+(done?' done':''),onclick:()=>{
+      if(done) return;
+      go('activity',{activityId:t.id, subject:t.subject});
+    }},[
+      h('div',{class:'dm-task-emoji'}, t.emoji || '✨'),
+      h('div',{class:'dm-task-info'},[
+        h('div',{class:'dm-task-sub'}, t.subjectName || 'Quest'),
+        h('div',{class:'dm-task-name'}, t.title || 'Activity'),
+      ]),
+      h('div',{class:'dm-task-check'}, done ? '✓' : ''),
+    ]);
+    list.appendChild(btn);
+  });
+  wrap.appendChild(list);
+  if(allDone){
+    wrap.appendChild(h('div',{class:'dm-complete'},[
+      h('span',{class:'dm-complete-emoji'},'🎉'),
+      h('span',{},"Mission complete! You're on fire today."),
+    ]));
+  }
+  return wrap;
+}
+
+/* ==========================================================================
    TEXT-TO-SPEECH — browser-native Web Speech API with natural voice picking
    --------------------------------------------------------------------------
    ▸ Free, offline-capable, built into Chrome/Safari/Edge/Firefox.
@@ -4617,6 +4893,16 @@ function renderDashboard(root){
       h('span',{class:'grade-pill'},s.grade),
     ]),
   ]);
+  // Nova the alien mascot — greets by time-of-day, deterministic per kid per day.
+  try {
+    const mascot = createMascot({
+      tone: 'cheerful',
+      size: 110,
+      message: pickNovaGreeting(currentUser),
+      subMessage: "I'm Nova — let's learn together!",
+    });
+    hero.appendChild(mascot);
+  } catch(e){ console.warn('[KidQuest] Nova mascot render failed:', e); }
   root.appendChild(hero);
   // Stats — perfect activities replaces Badges (badges feature de-emphasized)
   const perfectCount = Object.keys(state.perfectActivities||{}).length;
@@ -4627,6 +4913,12 @@ function renderDashboard(root){
     h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'💯'),h('span',{},String(perfectCount))]),h('div',{class:'lbl'},'Perfect')]),
   ]);
   root.appendChild(stats);
+  // Daily Mission — 2 hand-picked activities per day, stable per kid per day.
+  // Renders right after stats so it gets eyeballs before the full subject grid.
+  try {
+    const dm = renderDailyMission(currentUser);
+    if(dm) root.appendChild(dm);
+  } catch(e){ console.warn('[KidQuest] renderDailyMission failed:', e); }
   // Subjects
   root.appendChild(h('h2',{style:'margin-top:24px;font-size:20px;font-weight:800'},'Week '+currentWeek+' · Subjects'));
   const subjs=h('div',{class:'subjects stagger'});
@@ -5259,7 +5551,11 @@ function finishActivity(){
   // ONLY mark the activity as completed when they meet the pass threshold.
   // This gates the level gating / badges / next-level unlock behind
   // actually learning the material (not just clicking through).
-  if(passed) state.completedActivities[a.id]=true;
+  if(passed){
+    state.completedActivities[a.id]=true;
+    // If this activity is part of today's Nova Daily Mission, check it off.
+    try { markDailyMissionProgress(a.id); } catch(e){ console.warn('[KidQuest] markDailyMissionProgress failed:', e); }
+  }
   state.totalStars+=stars;
   state.coins+=coins;
   // Badges
