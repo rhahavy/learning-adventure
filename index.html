@@ -629,7 +629,20 @@ img{max-width:100%}
 .lesson-videos-empty .lv-gear{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#6c5ce7,#a29bfe);border:none;cursor:pointer;transition:all .2s var(--spring)}
 .lesson-videos-empty .lv-gear:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(108,92,231,.35)}
 /* Lesson video settings modal */
-.lvs-card{max-width:460px;text-align:left}
+.lvs-card{max-width:480px;text-align:left;max-height:calc(100vh - 48px);overflow-y:auto}
+.lvs-card .lvs-preview{background:linear-gradient(135deg,rgba(108,92,231,.05),rgba(162,155,254,.04));border:1px solid rgba(108,92,231,.18);border-radius:12px;padding:12px 14px;margin:6px 0 14px;max-height:240px;overflow-y:auto}
+.lvs-card .lvs-preview-label{font-size:10px;font-weight:800;color:var(--primary);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+.lvs-card .lvs-preview-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.lvs-card .lvs-preview-emoji{font-size:22px;line-height:1}
+.lvs-card .lvs-preview-title{font-weight:800;color:var(--ink);font-size:15px}
+.lvs-card .lvs-preview-sub{font-weight:700;color:var(--ink2);font-size:13px;margin:4px 0 6px}
+.lvs-card .lvs-preview-body{font-size:13px;color:var(--ink2);line-height:1.5;margin-bottom:6px}
+.lvs-card .lvs-preview-ex{font-size:12px;color:var(--ink2);line-height:1.5;margin:6px 0;padding:8px 10px;background:rgba(255,255,255,.65);border-radius:8px;display:flex;gap:8px;align-items:flex-start}
+.lvs-card .lvs-preview-ex-label{font-size:10px;font-weight:800;color:var(--primary);letter-spacing:.05em;flex:0 0 auto;padding-top:2px}
+.lvs-card .lvs-preview-steps{font-size:12px;color:var(--ink2);line-height:1.5;padding-left:18px;margin:6px 0 0}
+.lvs-card .lvs-preview-steps li{margin-bottom:3px}
+.lvs-card .lvs-preview-steps li b{color:var(--ink)}
+.lvs-card .lvs-preview-empty{font-style:italic;color:var(--ink3)}
 .lvs-card h2{font-family:var(--font-display);font-size:22px;font-weight:800;margin:0 0 4px;color:var(--ink);text-align:center}
 .lvs-card .lvs-sub{font-size:13px;color:var(--ink3);text-align:center;margin-bottom:16px}
 .lvs-card label{display:block;font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px}
@@ -6180,6 +6193,28 @@ function getActivityVideoIds(activityId, builtinIds){
   return Array.isArray(builtinIds) ? builtinIds.filter(Boolean) : [];
 }
 
+// Walk WEEKS → student → subject and return the first activity matching id.
+// Used by the settings gear to render a read-only lesson preview so the
+// teacher can SEE what content the videos are paired with — especially
+// handy for locked levels the teacher hasn't opened yet.
+function findActivityById(activityId){
+  if(!activityId || typeof WEEKS !== 'object' || !WEEKS) return null;
+  for(const wk in WEEKS){
+    const week = WEEKS[wk]; if(!week) continue;
+    for(const student in week){
+      const subjects = week[student]; if(!subjects) continue;
+      for(const sub in subjects){
+        const list = subjects[sub];
+        if(!Array.isArray(list)) continue;
+        for(const a of list){
+          if(a && a.id === activityId) return a;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 /* Teacher-only modal: edit the YouTube video embedded on a specific lesson.
    Password-gated with the same password as the teacher login (TEACHER_CREDS).
    The password is required EVERY time the gear is opened — we deliberately
@@ -6201,6 +6236,47 @@ function openLessonVideoSettings(activityId, builtinIds){
     card.innerHTML = '';
     card.appendChild(h('h2', {}, '⚙ Lesson Video Settings'));
     card.appendChild(h('div',{class:'lvs-sub'}, 'Paste a YouTube URL to replace the embedded video for this lesson.'));
+
+    // Lesson preview — read-only snapshot of the lesson content (title,
+    // intro, example, steps) so the teacher can SEE what the videos are
+    // paired with. Critical for locked levels the teacher hasn't opened.
+    const act = findActivityById(activityId);
+    const L = (act && act.lesson) || null;
+    const preview = h('div',{class:'lvs-preview'});
+    preview.appendChild(h('div',{class:'lvs-preview-label'}, 'Lesson preview'));
+    if(act){
+      preview.appendChild(h('div',{class:'lvs-preview-head'}, [
+        h('span',{class:'lvs-preview-emoji'}, act.emoji || '📖'),
+        h('span',{class:'lvs-preview-title'}, act.title || '(untitled activity)'),
+      ]));
+      if(L){
+        if(L.title) preview.appendChild(h('div',{class:'lvs-preview-sub'}, L.title));
+        if(L.intro) preview.appendChild(h('div',{class:'lvs-preview-body'}, L.intro));
+        if(L.example && typeof L.example === 'string'){
+          preview.appendChild(h('div',{class:'lvs-preview-ex'}, [
+            h('span',{class:'lvs-preview-ex-label'}, 'EX'),
+            h('span',{}, L.example),
+          ]));
+        }
+        if(Array.isArray(L.steps) && L.steps.length){
+          const ol = document.createElement('ol');
+          ol.className = 'lvs-preview-steps';
+          L.steps.forEach(s=>{
+            const li = document.createElement('li');
+            // Steps may contain inline HTML (e.g. <b>); trust the authored
+            // content, same as renderLesson does.
+            li.innerHTML = s;
+            ol.appendChild(li);
+          });
+          preview.appendChild(ol);
+        }
+      } else {
+        preview.appendChild(h('div',{class:'lvs-preview-body lvs-preview-empty'}, 'This activity jumps straight to the quiz — no lesson card.'));
+      }
+    } else {
+      preview.appendChild(h('div',{class:'lvs-preview-body lvs-preview-empty'}, 'Could not find lesson content for activity “' + activityId + '”.'));
+    }
+    card.appendChild(preview);
 
     const current = getActivityVideoIds(activityId, builtinIds);
     const hasOverride = !!(allData && allData.videoOverrides && Object.prototype.hasOwnProperty.call(allData.videoOverrides, activityId));
