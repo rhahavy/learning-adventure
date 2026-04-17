@@ -4160,18 +4160,54 @@ function todayKey(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+// Is this activity currently reachable by the student? Matches the same
+// rule that the Week screen uses (renderWeek): the activity's batch must be
+// unlocked AND either (a) it's the first activity in its batch or (b) the
+// previous activity in its subject is completed.
+// Doesn't check completion — completion is a separate filter at the call
+// site. This function is purely about "can they open it right now".
+function isActivityUnlocked(userId, activityId){
+  if(!activityId) return false;
+  const unlockedBatch = maxUnlockedBatch(userId);
+  for(const sub of SUBJECTS){
+    const acts = getWeekActivities(userId, sub.id) || [];
+    const i = acts.findIndex(a => a && a.id === activityId);
+    if(i < 0) continue;
+    const actBatch = Math.floor(i / BATCH_SIZE) + 1;
+    if(actBatch > unlockedBatch) return false;                // batch gated by cross-subject progress
+    const firstOfBatch = (i % BATCH_SIZE) === 0;
+    if(firstOfBatch) return true;
+    const prev = acts[i-1];
+    return !!(prev && isActivityDone(userId, prev.id));
+  }
+  return false;
+}
+
 function ensureDailyMission(userId){
   const ud = allData.users[userId]; if(!ud) return null;
   const today = todayKey();
   const cur = ud.dailyMission;
-  if(cur && cur.date === today && Array.isArray(cur.activityIds) && cur.activityIds.length) return cur;
-  // Build a fresh mission — pick 2 uncompleted activities across subjects
+  // Reuse today's stored mission ONLY if every activity in it is still
+  // unlocked. Completed entries stay (they show as checked ✓), but a
+  // stored LOCKED entry would be unplayable and should trigger a rebuild.
+  // (Guards against missions generated before the gating fix shipped.)
+  if(cur && cur.date === today && Array.isArray(cur.activityIds) && cur.activityIds.length){
+    const allPlayable = cur.activityIds.every(aid => {
+      // Already completed is fine — they can see the checkmark.
+      if(ud.completedActivities && ud.completedActivities[aid]) return true;
+      return isActivityUnlocked(userId, aid);
+    });
+    if(allPlayable) return cur;
+  }
+  // Build a fresh mission — pick 2 uncompleted+unlocked activities across subjects
   const pool = [];
   SUBJECTS.forEach(sub=>{
     const acts = getWeekActivities(userId, sub.id) || [];
     acts.forEach(a=>{
       if(!a || !a.id) return;
       if(ud.completedActivities && ud.completedActivities[a.id]) return;
+      // Only include activities the student can actually open today.
+      if(!isActivityUnlocked(userId, a.id)) return;
       pool.push({ id:a.id, title:a.title, emoji:a.emoji, subject:sub.id, subjectName:sub.name });
     });
   });
