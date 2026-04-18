@@ -2069,6 +2069,11 @@ const STUDENTS = [
   { id:'rushan',   name:'Rushan',   grade:'Grade 2',               initial:'R', decoEmoji:'⚡', pin:'🐶', hint:'(d_g)',      colorLight:'#81ecec', colorDark:'#00b894' },
   { id:'akaran',   name:'Akaran',   grade:'Grade 1',               initial:'A', decoEmoji:'🦖', pin:'⭐', hint:'(s_ar)',     colorLight:'#b6adff', colorDark:'#6c5ce7' },
   { id:'nishan',   name:'Nishan',   grade:'Senior Kindergarten',   initial:'N', decoEmoji:'🎨', pin:'🌈', hint:'(r_inb_w)', colorLight:'#91c4f5', colorDark:'#0984e3' },
+  // Evan — Grade 7, ESL. Curriculum leans hardest on Writing (grammar) and
+  // Reading, with G7-level math/logic/science/social and a French track. See
+  // WEEKS[1].evan below. Palette = growth-green (distinct from rushan's bright
+  // teal and nishan's sky blue).
+  { id:'evan',     name:'Evan',     grade:'Grade 7',               initial:'E', decoEmoji:'📘', pin:'🦋', hint:'(b_tt_rfly)', colorLight:'#b8e994', colorDark:'#388e3c' },
 ];
 // Back-compat: keep `color` populated as the dark hex so legacy code paths
 // that read `student.color` (e.g. dashboard avatar gradient style) still work.
@@ -2190,6 +2195,14 @@ const VIDEOS = {
   'w1-rushan-c1':'canada+10+provinces+and+3+territories+for+kids','w1-rushan-c2':'first+nations+inuit+metis+for+kids','w1-rushan-c3':'canada+bilingual+english+french+for+kids','w1-rushan-c4':'canadian+geography+rivers+mountains+great+lakes+kids','w1-rushan-c5':'rules+and+laws+why+they+matter+kids',
   'w1-akshayan-c1':'early+indigenous+communities+canada+grade+3','w1-akshayan-c2':'canadian+provinces+and+capitals+kids','w1-akshayan-c3':'urban+rural+communities+canada+grade+3','w1-akshayan-c4':'canadian+government+prime+minister+three+levels+kids','w1-akshayan-c5':'canadian+explorers+cartier+champlain+grade+3',
   'w1-isaiah-c1':'first+nations+metis+inuit+canada+grade+5','w1-isaiah-c2':'european+contact+settlement+canada+history+grade+5','w1-isaiah-c3':'canadian+government+federal+provincial+municipal+grade+5','w1-isaiah-c4':'canadian+provinces+territories+capitals+grade+5','w1-isaiah-c5':'canadian+charter+of+rights+and+freedoms+grade+5',
+  // EVAN (G7, ESL — heavy on writing/grammar, supported reading)
+  'w1-evan-r1':'context+clues+vocabulary+grade+7+esl','w1-evan-r2':'main+idea+and+supporting+details+grade+7','w1-evan-r3':'making+inferences+reading+grade+7','w1-evan-r4':'figurative+language+idioms+esl+learners','w1-evan-r5':'how+to+summarize+a+passage+grade+7',
+  'w1-evan-w1':'complete+sentences+and+fragments+esl+grammar','w1-evan-w2':'verb+tenses+past+present+future+esl','w1-evan-w3':'subject+verb+agreement+esl+english','w1-evan-w4':'articles+a+an+the+english+esl','w1-evan-w5':'prepositions+of+time+and+place+in+on+at+esl',
+  'w1-evan-m1':'integers+negative+numbers+grade+7','w1-evan-m2':'order+of+operations+bedmas+pemdas+grade+7','w1-evan-m3':'fractions+decimals+percents+converting+grade+7','w1-evan-m4':'one+step+equations+solving+for+x+grade+7','w1-evan-m5':'ratios+proportions+unit+rates+grade+7',
+  'w1-evan-l1':'arithmetic+geometric+sequences+grade+7','w1-evan-l2':'deductive+reasoning+syllogisms+kids','w1-evan-l3':'math+word+problems+into+equations+grade+7','w1-evan-l4':'venn+diagrams+set+logic+grade+7','w1-evan-l5':'multi+step+logic+puzzles+grade+7',
+  'w1-evan-f1':'french+regular+verb+conjugation+present+tense+er+ir+re','w1-evan-f2':'french+passe+compose+avoir+etre+intro','w1-evan-f3':'french+adjective+agreement+gender+number','w1-evan-f4':'french+question+words+qui+que+quand+ou+pourquoi+comment','w1-evan-f5':'french+short+reading+passage+intermediate+grade+7',
+  'w1-evan-s1':'atoms+elements+compounds+pure+substances+mixtures+grade+7','w1-evan-s2':'plant+and+animal+cells+organelles+grade+7','w1-evan-s3':'heat+conduction+convection+radiation+grade+7','w1-evan-s4':'ecosystems+producers+consumers+decomposers+grade+7','w1-evan-s5':'simple+machines+levers+pulleys+mechanical+advantage+grade+7',
+  'w1-evan-c1':'new+france+cartier+champlain+fur+trade+grade+7','w1-evan-c2':'british+north+america+conquest+war+of+1812+grade+7','w1-evan-c3':'rebellions+1837+upper+lower+canada+grade+7','w1-evan-c4':'charlottetown+quebec+london+conferences+confederation+1867','w1-evan-c5':'canadian+pacific+railway+sir+john+a+macdonald+grade+7',
 };
 
 /* ========== BADGES ========== */
@@ -4564,6 +4577,560 @@ isaiah: {
   ],
 },
 
+// =========================================================================
+// EVAN (Grade 7, ESL) — English is his second language. Writing (grammar)
+// is the star subject: complete sentences, verb tenses, subject-verb
+// agreement, articles, prepositions — the classic ESL pain points, taught
+// explicitly. Reading uses shorter passages with ESL-friendly vocab +
+// context-clue strategies. Math/Logic/Science/Social are honest Grade 7
+// content but worded plainly (no idioms baked into word problems). Bump
+// any level's difficulty once he's consistently first-try-perfecting it.
+// =========================================================================
+evan: {
+  reading: [
+    { id:'w1-evan-r1', title:'Context Clues', emoji:'🔍',
+      lesson:{title:'Guessing New Words From Context',intro:'When you see a word you don\'t know, DON\'T stop and look it up every time. Use CONTEXT CLUES — the words around it — to figure out what it probably means. This is the #1 reading skill for any second-language reader.',example:'"The teacher was ELATED when the whole class passed the test. She smiled for hours afterward." → You don\'t know ELATED? Clue: "smiled for hours" = very happy. ELATED means "very happy".',steps:[
+        '<b>Read the whole sentence</b> — don\'t stop at the unknown word.',
+        '<b>Look at the words BEFORE and AFTER.</b> What feeling, action, or idea do they describe?',
+        '<b>Guess</b> a simple meaning in your own language or English.',
+        '<b>Plug your guess back in</b> and see if the sentence makes sense.',
+        '<b>Only look it up</b> if context doesn\'t help — most of the time, it will.',
+      ],hint:'Good readers guess meaning 80% of the time. Stopping to look up every word kills comprehension.'},
+      questions:[
+        {type:'passage',passage:'The ancient ruins were DILAPIDATED — the walls had crumbled, the roof had fallen in, and plants grew through the cracks.',q:'What does DILAPIDATED most likely mean?',choices:['Brand new','In very bad condition','Brightly painted','Easy to move'],answer:1},
+        {type:'passage',passage:'Marco felt APPREHENSIVE about his first day at the new school. He kept checking his watch and his hands were shaking.',q:'APPREHENSIVE most likely means...',choices:['Excited and happy','Nervous or worried','Bored and tired','Angry'],answer:1},
+        {type:'passage',passage:'The soup was so SCALDING that Mia dropped the spoon and blew on her fingers.',q:'SCALDING most likely means...',choices:['Cold','Sweet','Extremely hot','Spicy'],answer:2},
+        {type:'mcq',q:'Good readers use context clues to...',choices:['Skip hard words forever','Guess what new words mean','Write longer essays','Spell better'],answer:1},
+        {type:'passage',passage:'The children were OVERJOYED to see the snow. They ran outside shouting and laughing without even grabbing their coats.',q:'OVERJOYED most likely means...',choices:['Slightly sad','Very happy','Confused','Cold'],answer:1},
+      ]},
+    { id:'w1-evan-r2', title:'Main Idea & Details', emoji:'📚',
+      lesson:{title:'Finding What the Passage Is About',intro:'Every passage has ONE main idea — the big thing it\'s mostly about. The other sentences give SUPPORTING DETAILS that back up or explain the main idea.',example:'MAIN IDEA: "Bees are important for growing food." DETAILS: They pollinate flowers. Farmers rent bees for their fields. Without bees, many fruits would disappear.',steps:[
+        '<b>Read the whole passage</b> once without stopping.',
+        '<b>Ask:</b> "What is this mostly about?" Try to say it in ONE short sentence.',
+        '<b>Check the answer choices</b> — pick the one closest to your sentence.',
+        '<b>Details</b> (names, numbers, examples) are smaller facts. They\'re NOT the main idea — they SUPPORT it.',
+      ],hint:'If you can only say ONE sentence about the passage, what would you say?'},
+      questions:[
+        {type:'passage',passage:'Sleep is more important than many people realize. Teenagers need 8 to 10 hours of sleep every night. Without enough sleep, their grades drop, their mood gets worse, and they catch colds more often. Scientists now believe that getting enough sleep is as important as eating well.',q:'What is the main idea?',choices:['Teenagers like to stay up late','Sleep is very important for teenagers','Scientists study sleep','Colds are easy to catch'],answer:1},
+        {type:'passage',passage:'The Amazon rainforest is home to millions of species. Jaguars hunt in its dark corners. Thousands of bird species fly above its trees. Tiny insects crawl on every leaf. Even today, scientists discover new animals there every year.',q:'What is the main idea?',choices:['Jaguars are dangerous','Scientists travel a lot','The Amazon is full of different animals','Insects are everywhere'],answer:2},
+        {type:'mcq',q:'A supporting detail is...',choices:['The main point of the passage','A fact or example that backs up the main idea','The title of the article','A question'],answer:1},
+        {type:'passage',passage:'Learning a second language takes time, but it is worth the effort. Bilingual people often find it easier to get good jobs. They can talk with more people around the world. Some studies even say that speaking two languages keeps the brain healthy as people get older.',q:'What is the main idea?',choices:['Jobs are hard to find','Learning a second language has many benefits','Brains need exercise','Older people forget things'],answer:1},
+        {type:'mcq',q:'Where do writers often put the main idea?',choices:['Only at the end','Only in the middle','Often in the first or last sentence of a paragraph','Hidden randomly'],answer:2},
+      ]},
+    { id:'w1-evan-r3', title:'Making Inferences', emoji:'🕵️',
+      lesson:{title:'Reading Between the Lines',intro:'An INFERENCE is a smart guess using CLUES from the text + what you already know about the world. Writers don\'t say everything directly — you have to figure some things out.',example:'TEXT: "Sarah zipped up her thick coat and wrapped a scarf around her neck before stepping outside." You can INFER it is cold, even though the text never says the word "cold".',steps:[
+        '<b>Notice details</b> — what characters do, say, wear, or feel.',
+        '<b>Ask:</b> "What do these details suggest?"',
+        '<b>Add what you already know</b> about the real world.',
+        '<b>Make a smart guess</b> that fits the clues.',
+      ],hint:'A detective uses clues. A reader does the same thing.'},
+      questions:[
+        {type:'passage',passage:'Leo walked into the kitchen and saw the broken glass on the floor. Flour was everywhere. His little sister sat in the corner, trying to hide a small handprint of flour on her shirt.',q:'What can you infer?',choices:['Leo broke the glass','A stranger came in','Leo\'s sister made the mess','The family was cooking together'],answer:2},
+        {type:'passage',passage:'Aisha checked her phone for the tenth time. She paced back and forth by the door. Every time a car drove past, she ran to the window. Her mother was already an hour late.',q:'How is Aisha most likely feeling?',choices:['Bored','Worried','Happy','Sleepy'],answer:1},
+        {type:'passage',passage:'The coach patted David\'s shoulder but didn\'t say much. David took off his jersey slowly and didn\'t look at his teammates. On the scoreboard: HOME 0, VISITORS 4.',q:'What can you infer about David\'s team?',choices:['They won the game','They lost the game','The game was a tie','The game was cancelled'],answer:1},
+        {type:'mcq',q:'To make an inference, you combine...',choices:['Random guessing','Text clues + what you already know','Only the title','Only the last sentence'],answer:1},
+        {type:'passage',passage:'The waiter brought two plates of pasta. He lit a small candle in the middle of the table. Soft music played in the background. The young couple smiled at each other and held hands.',q:'What type of dinner is this, most likely?',choices:['A business meeting','A romantic date','A school lunch','A fast-food stop'],answer:1},
+      ]},
+    { id:'w1-evan-r4', title:'Idioms & Figurative Language', emoji:'🎭',
+      lesson:{title:'When Words Don\'t Mean What They Say',intro:'English speakers often use FIGURATIVE LANGUAGE — words that don\'t mean exactly what they say. An IDIOM is a fixed phrase with a hidden meaning. This is tricky for anyone learning English — you have to LEARN idioms the same way you learn vocabulary.',example:'"It\'s raining cats and dogs" does NOT mean animals are falling. It means "it\'s raining very hard." "Break a leg!" does NOT mean hurt yourself. It means "good luck!" (often said to performers before a show).',steps:[
+        '<b>Simile</b> — compares two things using "like" or "as": "brave as a lion", "sings like an angel".',
+        '<b>Metaphor</b> — compares directly, no "like" or "as": "Life is a journey."',
+        '<b>Idiom</b> — a fixed phrase whose meaning is NOT the words: "piece of cake" (easy), "hit the books" (start studying), "under the weather" (sick).',
+        '<b>Personification</b> — giving a non-human thing human actions: "The wind whispered."',
+        '<b>When you hear a phrase that sounds strange</b>, ask an English speaker or look it up — it\'s probably an idiom.',
+      ],hint:'Idioms can\'t be translated word-for-word. Learn each one as a whole phrase.'},
+      questions:[
+        {type:'mcq',q:'"That math test was a PIECE OF CAKE" means the test was...',choices:['Delicious','Very easy','Very long','About baking'],answer:1},
+        {type:'mcq',q:'"She was UNDER THE WEATHER yesterday" means she was...',choices:['Outside in the rain','Sick','On the roof','Cold'],answer:1},
+        {type:'mcq',q:'"Brave as a lion" is an example of a...',choices:['Idiom','Simile','Metaphor','Pun'],answer:1},
+        {type:'mcq',q:'"Time is money" is an example of a...',choices:['Simile','Metaphor','Idiom','Question'],answer:1},
+        {type:'mcq',q:'If someone tells you to "HIT THE BOOKS", they mean...',choices:['Throw books','Start studying hard','Close the library','Read slowly'],answer:1},
+      ],
+      stretchQuestions:[
+        {type:'mcq',q:'"It\'s not rocket science" means the task is...',choices:['About space','Not complicated','Very difficult','About engineering'],answer:1},
+        {type:'mcq',q:'"The whispering wind" is an example of...',choices:['Simile','Idiom','Personification','Metaphor'],answer:2},
+        {type:'mcq',q:'"She was on cloud nine" means she was...',choices:['Very sad','Very happy','Very tired','Flying a plane'],answer:1},
+        {type:'mcq',q:'"Cost an arm and a leg" means something is...',choices:['Very cheap','Very expensive','Free','Heavy'],answer:1},
+        {type:'mcq',q:'"His eyes were diamonds" is a...',choices:['Simile','Metaphor','Idiom','Fact'],answer:1},
+      ]},
+    { id:'w1-evan-r5', title:'Summarizing a Passage', emoji:'✂️',
+      lesson:{title:'Shrinking a Long Passage Into a Short Summary',intro:'A SUMMARY retells a passage in your own words, much shorter than the original. Good summaries keep the main idea + 2-3 key points and leave out the small details.',example:'Original (3 sentences): "Pandas eat mostly bamboo. They need up to 12 kg of it every day. Pandas live only in China\'s mountain forests." Summary (1 sentence): "Pandas are Chinese mountain animals who eat large amounts of bamboo every day."',steps:[
+        '<b>Read</b> the passage once, fully, without stopping.',
+        '<b>Find the main idea</b> — what is this mostly about?',
+        '<b>Pick 2-3 most important points</b>. Leave out examples, names, and small facts unless they really matter.',
+        '<b>Say it in your own words</b>, not the author\'s — this proves you understood.',
+        '<b>Keep it short</b> — a summary should be MUCH shorter than the passage.',
+      ],hint:'Ask: "If I only had 15 seconds to explain this passage, what would I say?"'},
+      questions:[
+        {type:'passage',passage:'The Great Wall of China is one of the longest structures ever built. Work on it began more than 2,000 years ago. The Chinese built it to protect themselves from enemies from the north. Many different emperors added to it over hundreds of years. Today, it stretches for over 21,000 kilometres — so long that parts of it can be seen from very high above.',q:'Which is the BEST summary?',choices:['The Great Wall is in China','The Great Wall was built over centuries to protect China from northern enemies, and today it stretches more than 21,000 km','Many emperors worked on walls','China has many old buildings'],answer:1},
+        {type:'passage',passage:'Recycling helps the planet in several ways. Making new products from used materials uses less energy. It also keeps trash out of landfills. Finally, recycling saves natural resources like trees, water, and metal. Many countries now have recycling programs, but scientists say we need to do much more.',q:'Which is the BEST summary?',choices:['People like recycling','Recycling saves energy, reduces landfill waste, and saves resources — but we need to do more','Landfills are bad','Trees are important'],answer:1},
+        {type:'mcq',q:'A good summary should...',choices:['Repeat every sentence','Include the main idea + a few key points, in your own words','Be longer than the original','Only contain the title'],answer:1},
+        {type:'passage',passage:'Marie Curie was a scientist born in Poland in 1867. She moved to France to study, where women were rarely allowed in universities. She discovered two new elements: polonium and radium. She became the first person to win the Nobel Prize twice — once for physics, once for chemistry. Her work helped lead to modern X-rays and cancer treatment.',q:'Which detail is LEAST important for a summary?',choices:['She discovered polonium and radium','She won the Nobel Prize twice','She was born in 1867','Her work helped lead to cancer treatment'],answer:2},
+        {type:'mcq',q:'When summarizing, write the summary...',choices:['Using the author\'s exact words','In your own words','Word for word','In another language'],answer:1},
+      ]},
+  ],
+  writing: [
+    { id:'w1-evan-w1', title:'Complete Sentences', emoji:'🧱',
+      lesson:{title:'Every Sentence Needs These Three Things',intro:'A COMPLETE SENTENCE in English must have: (1) a SUBJECT (who or what), (2) a VERB (what they do or are), and (3) a COMPLETE THOUGHT. If any one is missing, it\'s a FRAGMENT — not a real sentence.',example:'✅ "The dog runs." (Subject = dog, verb = runs, complete thought.) ❌ "Running in the park." (No subject. FRAGMENT.) ❌ "Because I was tired." (No complete thought — because WHAT? FRAGMENT.)',steps:[
+        '<b>Find the SUBJECT</b> — ask "Who or what is this about?" (A person, place, thing, or idea.)',
+        '<b>Find the VERB</b> — ask "What does the subject DO, or what IS the subject?"',
+        '<b>Check for a complete thought</b> — can the sentence stand alone and make sense?',
+        '<b>If missing any of the three</b>, it\'s a fragment. Fix it by adding what\'s missing.',
+        '<b>Capital letter</b> at the start. <b>Period / question mark / exclamation</b> at the end.',
+      ],hint:'Read the sentence out loud. If it sounds "cut off" or "waiting for more", it\'s probably a fragment.'},
+      questions:[
+        {type:'mcq',q:'Which is a COMPLETE sentence?',choices:['Running down the street.','My brother plays soccer.','Because it was raining.','The tall boy in the red shirt.'],answer:1},
+        {type:'mcq',q:'Which is a FRAGMENT (not a complete sentence)?',choices:['She smiled at me.','The cat sleeps on the couch.','When I finished my homework.','The bus arrived late.'],answer:2},
+        {type:'mcq',q:'What is the SUBJECT in: "The students study every evening"?',choices:['study','every','The students','evening'],answer:2},
+        {type:'mcq',q:'What is the VERB in: "Evan learns new words quickly"?',choices:['Evan','learns','new','quickly'],answer:1},
+        {type:'mcq',q:'How can you fix the fragment "Because it was cold"?',choices:['Leave it as it is','Add a complete thought: "Because it was cold, I wore a coat."','Remove "because"','Add more commas'],answer:1},
+      ],
+      stretchQuestions:[
+        {type:'mcq',q:'Which sentence is a RUN-ON (two complete thoughts smashed together with no punctuation)?',choices:['I studied all night.','I studied all night I was very tired.','I studied all night, and I was very tired.','Although I studied all night, I failed.'],answer:1},
+        {type:'mcq',q:'Which is a COMPOUND sentence (two complete ideas joined by "and/but/or")?',choices:['I like pizza.','I like pizza, but my sister hates it.','Running fast.','When I run.'],answer:1},
+        {type:'mcq',q:'Which fragment could be fixed by adding a subject?',choices:['Ran to the store.','My dad is friendly.','The red car sped by.','Birds fly.'],answer:0},
+        {type:'mcq',q:'"After we ate dinner." This is a fragment because...',choices:['It has no subject','It has no verb','It has no complete thought','It has no capital letter'],answer:2},
+        {type:'mcq',q:'Which is the BEST way to turn "Running in the park" into a complete sentence?',choices:['"Running in the park."','"In the park."','"I love running in the park."','"Running."'],answer:2},
+      ]},
+    { id:'w1-evan-w2', title:'Verb Tenses', emoji:'⏰',
+      lesson:{title:'Past, Present, Future — And When to Use Each',intro:'VERB TENSE tells WHEN the action happens. Three main tenses: PRESENT (now / always), PAST (before), FUTURE (later). Each has a regular form you can build, plus some irregular verbs you have to memorize.',example:'Regular verb "to walk": PRESENT = "I walk to school every day." PAST = "I walked to school yesterday." FUTURE = "I will walk to school tomorrow." Irregular verb "to go": PRESENT = "I go." PAST = "I went." (NOT "goed") FUTURE = "I will go."',steps:[
+        '<b>Present tense:</b> base verb. Add -s for he/she/it. "I play" / "She plays".',
+        '<b>Past tense (regular):</b> add -ed. "I played yesterday." "He worked last week."',
+        '<b>Past tense (irregular):</b> memorize. go→went, eat→ate, see→saw, come→came, take→took, give→gave, run→ran, buy→bought.',
+        '<b>Future tense:</b> "will" + base verb. "I will study tomorrow." OR "going to" + base: "I am going to study."',
+        '<b>Consistency:</b> don\'t switch tenses in the same paragraph without a reason.',
+      ],hint:'Time words are your clue. "Yesterday" → past. "Now / every day" → present. "Tomorrow / next week" → future.'},
+      questions:[
+        {type:'mcq',q:'Yesterday, I ___ my homework. (to finish)',choices:['finish','finished','will finish','finishing'],answer:1},
+        {type:'mcq',q:'Tomorrow, she ___ to the doctor. (to go)',choices:['goes','went','will go','gone'],answer:2},
+        {type:'mcq',q:'Every morning, he ___ coffee. (to drink)',choices:['drinks','drank','will drink','drinking'],answer:0},
+        {type:'mcq',q:'What is the past tense of EAT?',choices:['eated','ate','eaten','eat'],answer:1},
+        {type:'mcq',q:'What is the past tense of GO?',choices:['goed','gone','went','going'],answer:2},
+      ],
+      stretchQuestions:[
+        {type:'mcq',q:'Last night, we ___ a movie together. (to see)',choices:['see','saw','will see','seeing'],answer:1},
+        {type:'mcq',q:'Right now, Evan ___ his English book. (to read)',choices:['read','is reading','will read','readed'],answer:1},
+        {type:'mcq',q:'By next year, I ___ a lot of English. (to learn — future)',choices:['learn','learned','will learn','learning'],answer:2},
+        {type:'mcq',q:'Which sentence mixes tenses INCORRECTLY?',choices:['Yesterday I walked home and ate dinner.','Tomorrow I will wake up early and go to school.','Yesterday I walked home and will eat dinner.','Every day I wake up at seven and have breakfast.'],answer:2},
+        {type:'mcq',q:'The past tense of BUY is...',choices:['buyed','boughten','bought','buyt'],answer:2},
+      ]},
+    { id:'w1-evan-w3', title:'Subject-Verb Agreement', emoji:'🤝',
+      lesson:{title:'The Verb Must Match the Subject',intro:'In English, the VERB changes to match the SUBJECT. SINGULAR subjects (one) use a different verb form than PLURAL subjects (more than one). This is a top-3 ESL mistake — native speakers notice it instantly.',example:'✅ "She WALKS to school." (singular subject "she" → verb +s) ✅ "They WALK to school." (plural subject "they" → verb stays plain) ✅ "He IS happy." (singular → "is") ✅ "We ARE happy." (plural → "are") ❌ "They walks" / ❌ "He are"',steps:[
+        '<b>Find the subject.</b> Is it ONE (singular) or MORE THAN ONE (plural)?',
+        '<b>Present tense rule:</b> he/she/it → verb + s. I/you/we/they → base verb. "She plays" / "They play".',
+        '<b>"to be" has its own forms:</b> I am · You are · He/she/it is · We/they are.',
+        '<b>"to have":</b> I have · You have · He/she/it HAS · We/they have.',
+        '<b>Watch for tricky subjects:</b> "Each student" is SINGULAR. "Everyone" is SINGULAR. "My friends AND I" is PLURAL.',
+      ],hint:'Ask yourself: "Is the subject one thing or more than one?" Then match the verb.'},
+      questions:[
+        {type:'mcq',q:'She ___ soccer every weekend.',choices:['play','plays','played','playing'],answer:1},
+        {type:'mcq',q:'My brothers ___ very tall.',choices:['is','am','are','be'],answer:2},
+        {type:'mcq',q:'The teacher ___ the book.',choices:['have','has','having','haves'],answer:1},
+        {type:'mcq',q:'Everyone ___ happy today.',choices:['are','is','were','be'],answer:1},
+        {type:'mcq',q:'Evan and his friend ___ studying English.',choices:['is','are','was','be'],answer:1},
+      ],
+      stretchQuestions:[
+        {type:'mcq',q:'Each of the students ___ a notebook.',choices:['have','has','having','haves'],answer:1},
+        {type:'mcq',q:'Neither the cat nor the dogs ___ hungry right now.',choices:['is','are','am','be'],answer:1},
+        {type:'mcq',q:'The news ___ surprising.',choices:['were','are','is','be'],answer:2},
+        {type:'mcq',q:'Either Mia or her sisters ___ coming to the party.',choices:['is','are','was','be'],answer:1},
+        {type:'mcq',q:'My family ___ from Sri Lanka. (family = singular unit)',choices:['are','is','were','be'],answer:1},
+      ]},
+    { id:'w1-evan-w4', title:'Articles (a / an / the)', emoji:'🔤',
+      lesson:{title:'When to Use A, An, The — and When to Skip',intro:'ARTICLES are tiny words that come before nouns: A, AN, THE. They confuse almost every ESL learner because many languages don\'t use them the same way English does.',example:'"A" / "AN" = one (any one, not a specific one). Use "A" before a consonant sound ("a dog", "a university"). Use "AN" before a vowel sound ("an apple", "an hour"). "THE" = a specific one both speaker and listener know about. "I saw A dog yesterday. THE dog was brown."',steps:[
+        '<b>A / AN</b> = one of something, the first time you mention it, any example will do.',
+        '<b>A</b> before consonant sound: a book, a car, a tree.',
+        '<b>AN</b> before vowel sound: an apple, an orange, an hour (silent h!). Hint: listen to the SOUND, not the letter.',
+        '<b>THE</b> = a specific one the listener already knows about, OR the only one of something. "THE sun", "THE president", "THE book I bought yesterday".',
+        '<b>NO article</b> with most plural / uncountable / general statements: "Dogs are loyal." / "Water is wet." / "I like music."',
+      ],hint:'Rule of thumb: First mention = a/an. Second mention = the. One-of-a-kind (sun, moon) = the. General statement about all of something = no article.'},
+      questions:[
+        {type:'mcq',q:'I ate ___ apple for breakfast.',choices:['a','an','the','(nothing)'],answer:1},
+        {type:'mcq',q:'___ sun rises in the east.',choices:['A','An','The','(nothing)'],answer:2},
+        {type:'mcq',q:'I need ___ pen. Do you have one?',choices:['a','an','the','(nothing)'],answer:0},
+        {type:'mcq',q:'___ dogs are loyal animals. (general statement)',choices:['A','An','The','(nothing)'],answer:3},
+        {type:'mcq',q:'I waited for ___ hour.',choices:['a','an','the','(nothing)'],answer:1},
+      ],
+      stretchQuestions:[
+        {type:'mcq',q:'I bought ___ book yesterday. ___ book is about space. (first mention, then second mention)',choices:['a / a','an / the','a / the','the / a'],answer:2},
+        {type:'mcq',q:'She plays ___ piano every day.',choices:['a','an','the','(nothing)'],answer:2},
+        {type:'mcq',q:'He goes to ___ school by bus. (as a student, general)',choices:['a','an','the','(nothing)'],answer:3},
+        {type:'mcq',q:'My father is ___ honest man.',choices:['a','an','the','(nothing)'],answer:1},
+        {type:'mcq',q:'Pick the sentence with the CORRECT articles.',choices:['I have a dog. A dog is brown.','I have the dog. A dog is brown.','I have a dog. The dog is brown.','I have an dog. The dog is brown.'],answer:2},
+      ]},
+    { id:'w1-evan-w5', title:'Prepositions of Time & Place', emoji:'📍',
+      lesson:{title:'In, On, At — The Three Tiny Words That Trip Everyone',intro:'PREPOSITIONS show position or time. The English "in / on / at" rules are different from most languages, so you have to memorize them.',example:'TIME — IN a month/year/season: "in July", "in 2026", "in winter". ON a day/date: "on Monday", "on April 17". AT a clock time: "at 3pm", "at noon", "at night". PLACE — IN a container/building/country: "in the box", "in Canada". ON a surface: "on the table", "on the wall". AT a point/address: "at the bus stop", "at home", "at 123 Main Street".',steps:[
+        '<b>TIME — IN:</b> longer periods. in 2026, in July, in the morning.',
+        '<b>TIME — ON:</b> specific days / dates. on Monday, on my birthday, on April 17.',
+        '<b>TIME — AT:</b> exact clock times + special phrases. at 3pm, at noon, at night, at the weekend.',
+        '<b>PLACE — IN:</b> enclosed spaces. in the kitchen, in Toronto, in the car.',
+        '<b>PLACE — ON:</b> surfaces or lines. on the desk, on the floor, on the bus (public transport uses ON).',
+        '<b>PLACE — AT:</b> specific points or addresses. at the door, at the corner, at home, at school.',
+      ],hint:'Memorize common pairs. "At home", "on Monday", "in July" — these are fixed, don\'t translate from your native language.'},
+      questions:[
+        {type:'mcq',q:'I was born ___ April.',choices:['in','on','at','by'],answer:0},
+        {type:'mcq',q:'The meeting is ___ Tuesday.',choices:['in','on','at','by'],answer:1},
+        {type:'mcq',q:'She wakes up ___ 7 a.m. every day.',choices:['in','on','at','by'],answer:2},
+        {type:'mcq',q:'My keys are ___ the table.',choices:['in','on','at','by'],answer:1},
+        {type:'mcq',q:'We live ___ Canada.',choices:['in','on','at','by'],answer:0},
+      ],
+      stretchQuestions:[
+        {type:'mcq',q:'I\'ll see you ___ the weekend.',choices:['in','on','at','by'],answer:2},
+        {type:'mcq',q:'The bus arrives ___ the corner of King Street.',choices:['in','on','at','by'],answer:2},
+        {type:'mcq',q:'He was born ___ 2013.',choices:['in','on','at','by'],answer:0},
+        {type:'mcq',q:'Please wait ___ the door.',choices:['in','on','at','by'],answer:2},
+        {type:'mcq',q:'The cat is sleeping ___ the couch.',choices:['in','on','at','by'],answer:1},
+      ]},
+  ],
+  math: [
+    { id:'w1-evan-m1', title:'Integers & Negative Numbers', emoji:'➖',
+      lesson:{title:'Numbers Below Zero',intro:'INTEGERS are whole numbers including NEGATIVE numbers. Think of a number line: positives go right, negatives go left, zero in the middle. Adding a negative means moving LEFT. Subtracting a negative means moving RIGHT (double-negative = positive).',example:'5 + (−3) = 2 (start at 5, move 3 left). 4 − (−2) = 4 + 2 = 6. −3 + −5 = −8. (−4) × 3 = −12. (−4) × (−3) = +12 (two negatives multiply to a positive).',steps:[
+        '<b>Adding integers:</b> same signs → add and keep the sign. Different signs → subtract and keep the sign of the bigger number.',
+        '<b>Subtracting:</b> change the subtraction to addition of the opposite. 5 − (−3) → 5 + 3 = 8.',
+        '<b>Multiplying / dividing:</b> same signs → positive. Different signs → negative. (−) × (−) = (+). (−) × (+) = (−).',
+        '<b>Zero</b> is neither positive nor negative. Anything × 0 = 0.',
+      ],hint:'Two negatives multiplied (or divided) make a positive. Two minus signs in a row (−−) cancel to a plus.'},
+      questions:[
+        {type:'mcq',q:'−5 + 3 = ?',choices:['−8','−2','2','8'],answer:1},
+        {type:'mcq',q:'4 − 7 = ?',choices:['−3','3','11','−11'],answer:0},
+        {type:'mcq',q:'−6 × (−2) = ?',choices:['−12','−8','8','12'],answer:3},
+        {type:'mcq',q:'10 + (−4) = ?',choices:['14','−14','6','−6'],answer:2},
+        {type:'mcq',q:'Which is the SMALLEST?',choices:['−10','−5','0','3'],answer:0},
+      ]},
+    { id:'w1-evan-m2', title:'Order of Operations (BEDMAS)', emoji:'🔢',
+      lesson:{title:'The Correct Order for Mixed Math',intro:'When a math problem has more than one operation, solve it in a strict ORDER. In Canada we use BEDMAS: Brackets → Exponents → Division & Multiplication (left to right) → Addition & Subtraction (left to right). If you skip the rule, you get a wrong answer.',example:'2 + 3 × 4 = ? Do multiplication FIRST → 2 + 12 = 14. NOT 5 × 4 = 20. (10 − 2) × 3 = 8 × 3 = 24 (brackets first). 6 + 2² × 3 = 6 + 4 × 3 = 6 + 12 = 18.',steps:[
+        '<b>B — Brackets</b> ( ) first.',
+        '<b>E — Exponents</b> (like 2³ = 8) next.',
+        '<b>D / M — Division and Multiplication</b>, working left to right.',
+        '<b>A / S — Addition and Subtraction</b>, working left to right.',
+        '<b>Same level (× and ÷, or + and −)</b> → go LEFT TO RIGHT in the order they appear.',
+      ],hint:'Some schools use PEMDAS (Parentheses, Exponents, MD, AS) — same rule, different acronym.'},
+      questions:[
+        {type:'mcq',q:'2 + 3 × 4 = ?',choices:['14','20','9','12'],answer:0},
+        {type:'mcq',q:'(6 + 2) × 3 = ?',choices:['8','12','18','24'],answer:3},
+        {type:'mcq',q:'10 − 2 × 3 = ?',choices:['4','24','6','16'],answer:0},
+        {type:'mcq',q:'3² + 4 × 2 = ?',choices:['17','26','14','22'],answer:0},
+        {type:'mcq',q:'What is the FIRST step in BEDMAS?',choices:['Addition','Brackets','Division','Exponents'],answer:1},
+      ]},
+    { id:'w1-evan-m3', title:'Fractions, Decimals & Percents', emoji:'💯',
+      lesson:{title:'Three Ways to Say the Same Thing',intro:'Fractions, decimals, and percents are three ways of writing the same number. 1/2 = 0.5 = 50%. Being able to switch between them is a Grade 7 must.',example:'Fraction → Decimal: divide top by bottom. 3/4 = 3 ÷ 4 = 0.75. Decimal → Percent: multiply by 100. 0.75 × 100 = 75%. Percent → Fraction: put over 100, simplify. 20% = 20/100 = 1/5.',steps:[
+        '<b>Fraction → Decimal:</b> numerator ÷ denominator. 1/4 = 1 ÷ 4 = 0.25.',
+        '<b>Decimal → Percent:</b> ×100 (move the decimal point two places to the right). 0.6 → 60%.',
+        '<b>Percent → Decimal:</b> ÷100 (move the decimal point two places to the left). 35% → 0.35.',
+        '<b>Percent → Fraction:</b> put over 100, then simplify. 75% = 75/100 = 3/4.',
+        '<b>Finding X% of a number:</b> convert the % to a decimal, then multiply. 20% of 80 = 0.20 × 80 = 16.',
+      ],hint:'Memorize the common ones: 1/2 = 0.5 = 50%. 1/4 = 0.25 = 25%. 1/10 = 0.1 = 10%. Everything else you can calculate quickly from these.'},
+      questions:[
+        {type:'mcq',q:'1/2 = ?',choices:['0.2','0.5','0.25','0.75'],answer:1},
+        {type:'mcq',q:'0.75 = ___ %',choices:['7.5%','75%','0.75%','750%'],answer:1},
+        {type:'mcq',q:'25% = ?',choices:['1/2','1/4','1/8','2/5'],answer:1},
+        {type:'mcq',q:'What is 20% of 50?',choices:['5','10','15','20'],answer:1},
+        {type:'mcq',q:'Which is the LARGEST?',choices:['0.6','55%','1/2','0.45'],answer:0},
+      ]},
+    { id:'w1-evan-m4', title:'Solving for x (1-step)', emoji:'🧮',
+      lesson:{title:'Finding the Mystery Number',intro:'In algebra, X (or any letter) stands for an unknown number. To SOLVE an equation means to find X. The big rule: whatever you do to one side, do to the other — so the equation stays balanced.',example:'Solve: x + 5 = 12. Subtract 5 from BOTH sides → x = 7. Check: 7 + 5 = 12. ✅ Solve: 3x = 15. Divide BOTH sides by 3 → x = 5. Solve: x − 4 = 10. Add 4 to both sides → x = 14.',steps:[
+        '<b>Goal:</b> get X alone on one side.',
+        '<b>Ask:</b> "What is being done to X?" (added, subtracted, multiplied, divided?)',
+        '<b>Do the OPPOSITE operation</b> to both sides.',
+        '<b>Opposites:</b> + ↔ − · × ↔ ÷.',
+        '<b>Always check:</b> plug your answer back into the original equation. It should be true.',
+      ],hint:'If something is added to x, subtract it. If multiplied, divide it. The "undo" is the key.'},
+      questions:[
+        {type:'mcq',q:'x + 7 = 10. x = ?',choices:['3','17','7','−3'],answer:0},
+        {type:'mcq',q:'x − 4 = 6. x = ?',choices:['2','10','24','−2'],answer:1},
+        {type:'mcq',q:'3x = 21. x = ?',choices:['3','7','18','24'],answer:1},
+        {type:'mcq',q:'x ÷ 5 = 4. x = ?',choices:['9','20','1','0.8'],answer:1},
+        {type:'mcq',q:'To solve x + 8 = 15, you should...',choices:['Add 8 to both sides','Subtract 8 from both sides','Multiply by 8','Divide by 8'],answer:1},
+      ]},
+    { id:'w1-evan-m5', title:'Ratios & Unit Rates', emoji:'⚖️',
+      lesson:{title:'Comparing Two Quantities',intro:'A RATIO compares two amounts: 3 apples to 2 oranges → 3:2. A UNIT RATE is a ratio where the second term is 1 (how much per ONE): 120 km in 2 hours = 60 km per hour.',example:'Ratio: "2 boys for every 3 girls" → 2:3. If there are 6 boys, how many girls? 6:? Since 2×3=6, multiply girls by 3 too → 9 girls. Unit rate: 5 apples cost $2. 1 apple costs $2 ÷ 5 = $0.40 each.',steps:[
+        '<b>Write the ratio</b> in the right order. "3 boys to 2 girls" = 3:2 (NOT 2:3).',
+        '<b>Simplify</b> if you can — divide both terms by the same number. 6:4 = 3:2.',
+        '<b>For a unit rate:</b> divide the first quantity by the second. "90 km in 3 hours" → 90 ÷ 3 = 30 km/hour.',
+        '<b>For a proportion (equal ratios):</b> cross-multiply. 2/3 = 8/x → 2·x = 3·8 → x = 12.',
+        '<b>Common unit rates:</b> km/h (speed), $/item (price), words per minute.',
+      ],hint:'"Per" means "for every 1". "Per hour" = unit rate with hours as the "1".'},
+      questions:[
+        {type:'mcq',q:'A pack of 6 pencils costs $3. How much per pencil?',choices:['$0.25','$0.50','$1.00','$2.00'],answer:1},
+        {type:'mcq',q:'If 2:3 = boys:girls and there are 4 boys, how many girls?',choices:['3','5','6','8'],answer:2},
+        {type:'mcq',q:'Simplify the ratio 10:4',choices:['5:4','5:2','10:2','2:5'],answer:1},
+        {type:'mcq',q:'A car travels 180 km in 3 hours. What is the unit rate?',choices:['50 km/h','60 km/h','90 km/h','180 km/h'],answer:1},
+        {type:'mcq',q:'A "ratio" compares...',choices:['Only one number','Two quantities','A number and a shape','A word and a number'],answer:1},
+      ]},
+  ],
+  logic: [
+    { id:'w1-evan-l1', title:'Patterns & Sequences', emoji:'🔢',
+      lesson:{title:'Finding the Rule',intro:'A SEQUENCE is a list of numbers with a pattern. ARITHMETIC sequences add/subtract the same number each time (2, 5, 8, 11 → +3). GEOMETRIC sequences multiply/divide by the same number (3, 6, 12, 24 → ×2).',example:'2, 5, 8, 11, ? → rule is +3 → next is 14. 3, 6, 12, 24, ? → rule is ×2 → next is 48. 100, 90, 80, ? → rule is −10 → next is 70.',steps:[
+        '<b>Subtract</b> consecutive pairs. Same result? It\'s arithmetic.',
+        '<b>Divide</b> consecutive pairs. Same result? It\'s geometric.',
+        '<b>Once you know the rule</b>, apply it to find the next term.',
+        '<b>Some sequences are tricky:</b> squares (1, 4, 9, 16, 25), Fibonacci (1, 1, 2, 3, 5, 8).',
+      ],hint:'Always test your rule on 2-3 pairs, not just one.'},
+      questions:[
+        {type:'mcq',q:'Next in sequence: 4, 8, 12, 16, ?',choices:['17','20','24','32'],answer:1},
+        {type:'mcq',q:'Next in sequence: 3, 6, 12, 24, ?',choices:['30','36','48','72'],answer:2},
+        {type:'mcq',q:'Missing: 5, 10, ?, 20, 25',choices:['12','15','16','18'],answer:1},
+        {type:'mcq',q:'Next in sequence: 100, 90, 80, 70, ?',choices:['50','60','65','75'],answer:1},
+        {type:'mcq',q:'The rule for 2, 4, 8, 16, 32 is...',choices:['+2','×2','+4','×3'],answer:1},
+      ]},
+    { id:'w1-evan-l2', title:'Deductive Reasoning', emoji:'🧠',
+      lesson:{title:'If-Then Thinking',intro:'DEDUCTIVE REASONING means using true facts to reach a certain conclusion. Classic form: "If A is true, and B is true, then C must be true." The conclusion can\'t be wrong if the facts are right.',example:'Fact 1: All mammals have hair. Fact 2: A whale is a mammal. Conclusion: A whale has hair. ✅ (It does — tiny whiskers count!)',steps:[
+        '<b>Identify the facts</b> (premises). Are they actually true?',
+        '<b>Combine them</b> step by step.',
+        '<b>Watch for tricky wording:</b> "All dogs bark" does NOT mean "everything that barks is a dog".',
+        '<b>A conclusion is only as strong as the facts</b> supporting it.',
+      ],hint:'Draw a diagram or write a chain: A → B → C.'},
+      questions:[
+        {type:'mcq',q:'All birds have feathers. An eagle is a bird. Therefore...',choices:['Eagles can fly','Eagles have feathers','Eagles eat fish','Eagles are big'],answer:1},
+        {type:'mcq',q:'If it rains, the ground gets wet. The ground is wet. Can we be SURE it rained?',choices:['Yes — it must have rained','No — someone might have used a hose','Yes — always','No — the ground can\'t get wet'],answer:1},
+        {type:'mcq',q:'Every student at this school wears a blue uniform. Maya goes to this school. Therefore...',choices:['Maya owns many clothes','Maya wears a blue uniform','Maya likes blue','Maya is a student anywhere'],answer:1},
+        {type:'mcq',q:'All roses are flowers. All flowers need water. Therefore...',choices:['All water is a flower','All roses need water','Only roses need water','Flowers don\'t need water'],answer:1},
+        {type:'mcq',q:'Which argument has a LOGIC ERROR?',choices:['All cats are mammals. Fluffy is a cat. So Fluffy is a mammal.','All mammals have fur. Fluffy has fur. So Fluffy is a mammal.','All dogs bark. Rex is a dog. So Rex barks.','All triangles have 3 sides. This is a triangle. So it has 3 sides.'],answer:1},
+      ]},
+    { id:'w1-evan-l3', title:'Word Problems → Equations', emoji:'📝',
+      lesson:{title:'Turning English Into Algebra',intro:'Word problems tell you a situation. Your job is to turn the words into an equation and solve it. Key: label the unknown as X, write what you know, and write the relationship as an equation.',example:'"A number plus 7 is 15. What is the number?" Let the number = x. Equation: x + 7 = 15 → x = 8. "Three times a number is 21." → 3x = 21 → x = 7.',steps:[
+        '<b>Read the problem twice.</b> What is it asking for?',
+        '<b>Let X</b> = the unknown thing.',
+        '<b>Look for key words:</b> "sum / more / total" = +. "difference / less / fewer" = −. "product / times / of" = ×. "per / each / quotient" = ÷. "is / equals" = =.',
+        '<b>Write the equation</b> using X and the key words.',
+        '<b>Solve and check</b> by re-reading the problem with your answer in place.',
+      ],hint:'Underline the question sentence — that tells you what X is.'},
+      questions:[
+        {type:'mcq',q:'A number plus 9 equals 15. What equation is this?',choices:['x + 15 = 9','9x = 15','x + 9 = 15','x − 9 = 15'],answer:2},
+        {type:'mcq',q:'Twice a number is 18. The number is...',choices:['9','18','20','36'],answer:0},
+        {type:'mcq',q:'Mia has some stickers. She buys 5 more. Now she has 12. How many did she start with?',choices:['5','7','12','17'],answer:1},
+        {type:'mcq',q:'"5 less than a number is 11." The number is...',choices:['6','11','15','16'],answer:3},
+        {type:'mcq',q:'"A number divided by 4 is 9." The number is...',choices:['13','24','32','36'],answer:3},
+      ]},
+    { id:'w1-evan-l4', title:'Venn Diagrams', emoji:'🔵',
+      lesson:{title:'Two Circles, Three Zones',intro:'A VENN DIAGRAM uses overlapping circles to show how groups share members. The OVERLAP (middle) = things in BOTH groups. The outer parts = things in only ONE group. The outside of all circles = things in NEITHER.',example:'In a class, 18 students play soccer, 12 play basketball, and 7 play BOTH. How many play ONLY soccer? 18 − 7 = 11. Only basketball: 12 − 7 = 5. Overlap: 7. Total playing at least one sport: 11 + 5 + 7 = 23.',steps:[
+        '<b>Start with the OVERLAP</b> (people in both groups). Write that number in the middle first.',
+        '<b>Subtract the overlap from each circle\'s total</b> to get the "only this" number.',
+        '<b>Add up all three zones</b> to count total people in at least one group.',
+        '<b>Check with "neither":</b> if 30 total kids and 23 play a sport → 7 play neither.',
+      ],hint:'The overlap gets counted in BOTH circles\' totals — that\'s why you subtract it.'},
+      questions:[
+        {type:'mcq',q:'15 kids like pizza, 10 like burgers, and 4 like BOTH. How many like ONLY pizza?',choices:['4','10','11','15'],answer:2},
+        {type:'mcq',q:'In the above, how many like ONLY burgers?',choices:['4','6','10','14'],answer:1},
+        {type:'mcq',q:'In the above, how many like AT LEAST ONE of pizza or burgers?',choices:['21','25','15','11'],answer:0},
+        {type:'mcq',q:'The OVERLAP of two circles in a Venn diagram shows...',choices:['Things in only one group','Things in both groups','Things in neither','Random things'],answer:1},
+        {type:'mcq',q:'If 25 students total, and 21 play at least one sport, how many play NEITHER?',choices:['0','4','21','25'],answer:1},
+      ]},
+    { id:'w1-evan-l5', title:'Multi-Step Reasoning', emoji:'🎯',
+      lesson:{title:'Combining Clues',intro:'Some puzzles need TWO OR MORE steps. You combine facts, eliminate options, and narrow down to one answer. This is the core skill of every logic puzzle, mystery, and science investigation.',example:'Three friends — Ali, Ben, Carla — each have one pet: a dog, a cat, or a bird. Ali does NOT have a cat. Ben has the dog. Who has the bird? Step 1: Ben = dog (given). Step 2: Ali ≠ cat, so Ali = bird. Step 3: Carla = cat.',steps:[
+        '<b>Write down all the clues</b> in a list.',
+        '<b>Make a chart</b> — people along one side, items along the other.',
+        '<b>Start with certain facts</b> (e.g. "Ben has the dog" → fill in immediately).',
+        '<b>Use elimination</b> — cross off impossible combinations.',
+        '<b>Check:</b> does your answer fit ALL the clues?',
+      ],hint:'A chart with ✓ and ✗ beats trying to hold it all in your head.'},
+      questions:[
+        {type:'mcq',q:'Sara is taller than Ben. Ben is taller than Carla. Who is SHORTEST?',choices:['Sara','Ben','Carla','Can\'t tell'],answer:2},
+        {type:'mcq',q:'Three boxes: red, blue, green. The red box is NOT on the left. The green box is in the middle. In what order are they (left to right)?',choices:['Red, Green, Blue','Blue, Green, Red','Green, Blue, Red','Red, Blue, Green'],answer:1},
+        {type:'mcq',q:'Four people in a line. Mia is NOT first. Raj is directly behind Sam. Lin is last. Who could be FIRST?',choices:['Raj','Sam','Mia','Lin'],answer:1},
+        {type:'mcq',q:'A number is greater than 10 but less than 20. It is even. It is a multiple of 4. Which number?',choices:['12','14','16','18'],answer:0},
+        {type:'mcq',q:'Evan studies either math, reading, or science. He does NOT study science. He does NOT study math. He studies...',choices:['Math','Reading','Science','None'],answer:1},
+      ]},
+  ],
+  french: [
+    { id:'w1-evan-f1', title:'Verbes Réguliers (−ER)', emoji:'🇫🇷',
+      lesson:{title:'Conjugating Regular −ER Verbs',intro:'Most French verbs follow a pattern. For regular −ER verbs (parler = to speak), drop the −er and add these endings: je −e, tu −es, il/elle −e, nous −ons, vous −ez, ils/elles −ent.',example:'PARLER (to speak): je parle, tu parles, il parle, nous parlons, vous parlez, ils parlent. MANGER (to eat): je mange, tu manges, elle mange, nous mangeons, vous mangez, elles mangent.',steps:[
+        '<b>Identify the infinitive:</b> a verb ending in −ER, like parler (speak), manger (eat), regarder (watch).',
+        '<b>Drop the −ER ending</b> to find the stem: parl−.',
+        '<b>Add the correct ending</b> based on the subject.',
+        '<b>−ent at the end is usually silent</b> in spoken French. "Ils parlent" sounds like "ill parl".',
+      ],hint:'Memorize the 6 endings: e, es, e, ons, ez, ent.'},
+      questions:[
+        {type:'mcq',q:'"Je ___" (to speak — parler)',choices:['parle','parles','parlons','parlez'],answer:0},
+        {type:'mcq',q:'"Nous ___" (to eat — manger)',choices:['mange','manges','mangeons','mangez'],answer:2},
+        {type:'mcq',q:'"Ils ___" (to watch — regarder)',choices:['regarde','regardes','regardons','regardent'],answer:3},
+        {type:'mcq',q:'"Vous ___" (to play — jouer)',choices:['joue','joues','jouez','jouent'],answer:2},
+        {type:'mcq',q:'"Tu ___" (to work — travailler)',choices:['travaille','travailles','travaillons','travaillent'],answer:1},
+      ]},
+    { id:'w1-evan-f2', title:'Passé Composé (Intro)', emoji:'⏪',
+      lesson:{title:'Talking About the Past',intro:'PASSÉ COMPOSÉ = the main past tense in French. Formula: AVOIR (to have) or ÊTRE (to be) + past participle. Most verbs use AVOIR. The past participle of regular −ER verbs ends in −É.',example:'PARLER (to speak) → past participle = parlé. "J\'ai parlé" = I spoke. "Tu as mangé" = You ate. "Nous avons regardé" = We watched. A few verbs use ÊTRE (mostly movement verbs like aller, venir, partir, arriver): "Je suis allé" = I went.',steps:[
+        '<b>Decide: AVOIR or ÊTRE?</b> Most verbs = avoir. Movement/state verbs = être.',
+        '<b>Conjugate the helper verb</b> in the present: j\'ai, tu as, il a, nous avons, vous avez, ils ont.',
+        '<b>Add the past participle.</b> −ER → −é. −IR → −i. −RE → −u. (parler → parlé, finir → fini, vendre → vendu)',
+        '<b>With être, the participle agrees</b> with the subject: "Elle est allée" (feminine +e), "Ils sont allés" (plural +s).',
+      ],hint:'"I have spoken" in English is literally "J\'ai parlé" in French — same idea, helper verb + past participle.'},
+      questions:[
+        {type:'mcq',q:'"J\'ai ___" (spoken — parler)',choices:['parle','parlé','parlés','parlée'],answer:1},
+        {type:'mcq',q:'"Nous avons ___" (eaten — manger)',choices:['mange','mangé','manger','mangent'],answer:1},
+        {type:'mcq',q:'"Elle ___ allée au parc." (went — uses être)',choices:['a','est','as','ai'],answer:1},
+        {type:'mcq',q:'Passé composé uses which TWO parts?',choices:['avoir/être + past participle','present + infinitive','two past participles','future + participle'],answer:0},
+        {type:'mcq',q:'The past participle of FINIR (to finish) is...',choices:['finé','fini','finu','finir'],answer:1},
+      ]},
+    { id:'w1-evan-f3', title:'Adjective Agreement', emoji:'🔀',
+      lesson:{title:'Adjectives Match the Noun',intro:'In French, ADJECTIVES change their ending to match the noun they describe. A masculine noun → masculine adjective. A feminine noun → usually +e. Plural → usually +s.',example:'PETIT (small): masculine singular = petit (un petit chien). Feminine singular = petite (une petite maison). Masculine plural = petits. Feminine plural = petites. GRAND (big): grand / grande / grands / grandes.',steps:[
+        '<b>Identify the noun:</b> masculine (un, le) or feminine (une, la)? Singular or plural?',
+        '<b>Start with the masculine singular</b> form of the adjective (dictionary form).',
+        '<b>Feminine?</b> Usually add −e. (petit → petite)',
+        '<b>Plural?</b> Usually add −s. (petit → petits, petite → petites)',
+        '<b>Watch for irregular adjectives:</b> beau/belle, vieux/vieille, blanc/blanche.',
+      ],hint:'If the noun is feminine AND plural, you often end up adding BOTH −e and −s.'},
+      questions:[
+        {type:'mcq',q:'"Une ___ maison" (small — feminine singular)',choices:['petit','petite','petits','petites'],answer:1},
+        {type:'mcq',q:'"Des ___ chiens" (big — masculine plural)',choices:['grand','grande','grands','grandes'],answer:2},
+        {type:'mcq',q:'"Les ___ fleurs" (red — feminine plural: rouge)',choices:['rouge','rouges','rouged','rouger'],answer:1},
+        {type:'mcq',q:'In French, adjectives change to match...',choices:['Only number','Only gender','Both gender and number','Nothing'],answer:2},
+        {type:'mcq',q:'"Un livre ___" (interesting — intéressant, masc singular)',choices:['intéressant','intéressante','intéressants','intéressantes'],answer:0},
+      ]},
+    { id:'w1-evan-f4', title:'Question Words', emoji:'❓',
+      lesson:{title:'Asking Questions in French',intro:'Learn the 6 main QUESTION WORDS to ask about anything: QUI = who, QUE / QU\'EST-CE QUE = what, QUAND = when, OÙ = where, POURQUOI = why, COMMENT = how.',example:'"Qui es-tu?" = Who are you? "Qu\'est-ce que tu fais?" = What are you doing? "Quand?" = When? "Où habites-tu?" = Where do you live? "Pourquoi?" = Why? "Comment ça va?" = How are you?',steps:[
+        '<b>QUI</b> = who (people). "Qui est-ce?" = Who is it?',
+        '<b>QUE / QU\'EST-CE QUE</b> = what. "Que fais-tu?" = What are you doing?',
+        '<b>QUAND</b> = when. "Quand partons-nous?" = When are we leaving?',
+        '<b>OÙ</b> = where. "Où est ma bouteille?" = Where is my bottle?',
+        '<b>POURQUOI</b> = why. "Pourquoi?" is often asked alone.',
+        '<b>COMMENT</b> = how. "Comment ça va?" = How is it going?',
+      ],hint:'Kids in French class often remember them as "the 6 W\'s + how" — same as English.'},
+      questions:[
+        {type:'mcq',q:'"___ habites-tu?" = Where do you live?',choices:['Qui','Que','Où','Quand'],answer:2},
+        {type:'mcq',q:'"___ est ton professeur?" = Who is your teacher?',choices:['Qui','Que','Où','Quand'],answer:0},
+        {type:'mcq',q:'"Comment" means...',choices:['Who','What','How','Why'],answer:2},
+        {type:'mcq',q:'"Quand partons-nous?" means...',choices:['Where are we going?','When are we leaving?','Why are we leaving?','How are we leaving?'],answer:1},
+        {type:'mcq',q:'"Pourquoi?" means...',choices:['What?','When?','Where?','Why?'],answer:3},
+      ]},
+    { id:'w1-evan-f5', title:'Short Reading Passage', emoji:'📖',
+      lesson:{title:'Understanding Intermediate French',intro:'Read short French texts to build comfort with the language. You don\'t need to understand every word — use the same context-clue strategies as English.',example:'« Bonjour ! Je m\'appelle Marie. J\'ai treize ans. J\'habite à Montréal avec ma famille. Ma matière préférée est la science. Après l\'école, je joue au soccer avec mes amis. » Hello! My name is Marie. I am 13 years old. I live in Montreal with my family. My favourite subject is science. After school, I play soccer with my friends.',hint:'Look for cognates (French words that look like English): famille = family, musique = music, important = important. They\'re free vocabulary!'},
+      questions:[
+        {type:'passage',passage:'« Je m\'appelle Louis. J\'ai douze ans. J\'habite à Toronto avec mes parents et ma sœur. J\'adore jouer au hockey. »',q:'Where does Louis live?',choices:['Montreal','Toronto','Paris','Quebec'],answer:1},
+        {type:'passage',passage:'Same passage as above.',q:'Louis "adore jouer au hockey" means he...',choices:['Hates hockey','Loves playing hockey','Watches hockey','Is afraid of hockey'],answer:1},
+        {type:'passage',passage:'« Aujourd\'hui, il fait très froid. Je porte un manteau et un chapeau. »',q:'What is the weather like today?',choices:['Very hot','Very cold','Rainy','Windy'],answer:1},
+        {type:'mcq',q:'"Ma matière préférée" means my favourite...',choices:['Sport','Subject','Family','Friend'],answer:1},
+        {type:'passage',passage:'« Marie a trois frères et deux sœurs. »',q:'How many SIBLINGS does Marie have in total?',choices:['2','3','5','6'],answer:2},
+      ]},
+  ],
+  science: [
+    { id:'w1-evan-s1', title:'Pure Substances & Mixtures', emoji:'⚗️',
+      lesson:{title:'What Matter Is Made Of',intro:'All MATTER is either a PURE SUBSTANCE (made of one type of particle) or a MIXTURE (two or more substances physically combined). Pure substances can be ELEMENTS (one kind of atom, like oxygen) or COMPOUNDS (two+ elements chemically bonded, like water H₂O).',example:'Pure substance: gold (element), water (compound), salt (compound NaCl). Mixture: salad dressing, air, sea water, sand + salt. Mixtures can be separated physically (filtering, evaporating). Compounds can only be broken apart chemically.',steps:[
+        '<b>Atom</b> = the tiniest particle of an element.',
+        '<b>Element</b> = one kind of atom. Gold (Au), oxygen (O), iron (Fe).',
+        '<b>Compound</b> = two or more elements chemically bonded. Water (H₂O), salt (NaCl), carbon dioxide (CO₂).',
+        '<b>Mixture</b> = two or more substances physically mixed, not chemically bonded. Can be separated by filtering, sifting, or evaporating.',
+        '<b>Homogeneous mixture (solution):</b> looks uniform, like salt water. <b>Heterogeneous:</b> you can see the different parts, like salad.',
+      ],hint:'Chemistry-bonded = compound. Just-mixed-together = mixture.'},
+      questions:[
+        {type:'mcq',q:'Water (H₂O) is a...',choices:['Element','Compound','Mixture','Atom'],answer:1},
+        {type:'mcq',q:'Salt water is a...',choices:['Element','Compound','Mixture','Atom'],answer:2},
+        {type:'mcq',q:'The smallest particle of an element is a(n)...',choices:['Atom','Molecule','Compound','Mixture'],answer:0},
+        {type:'mcq',q:'Which is an ELEMENT?',choices:['Water','Air','Gold','Salad'],answer:2},
+        {type:'mcq',q:'Mixtures can be separated by...',choices:['Only chemical reactions','Physical methods (filtering, evaporating)','Nothing','Magic'],answer:1},
+      ]},
+    { id:'w1-evan-s2', title:'Cells: Plant vs Animal', emoji:'🔬',
+      lesson:{title:'The Building Blocks of Life',intro:'All living things are made of CELLS. Plant and animal cells share many parts but have some differences. Plant cells have a CELL WALL, CHLOROPLASTS (for photosynthesis), and a large central VACUOLE. Animal cells do NOT.',example:'BOTH have: cell membrane, nucleus (control centre with DNA), cytoplasm, mitochondria (energy). ONLY plants have: cell wall (stiff outer layer), chloroplasts (green, make food from sunlight), large vacuole (water storage).',steps:[
+        '<b>Cell membrane</b> (both) — thin outer boundary, controls what enters/leaves.',
+        '<b>Nucleus</b> (both) — the "brain" of the cell, holds DNA.',
+        '<b>Mitochondria</b> (both) — make energy from food.',
+        '<b>Cell wall</b> (PLANTS ONLY) — stiff outer layer, gives shape.',
+        '<b>Chloroplasts</b> (PLANTS ONLY) — green, turn sunlight + CO₂ + water into food.',
+        '<b>Vacuole</b> (both, but huge in plants) — storage of water and nutrients.',
+      ],hint:'Plants are STUCK IN PLACE — so they need stiff cell walls AND the ability to make their own food (chloroplasts).'},
+      questions:[
+        {type:'mcq',q:'Which is found in PLANT cells but NOT in animal cells?',choices:['Nucleus','Cell membrane','Chloroplasts','Mitochondria'],answer:2},
+        {type:'mcq',q:'The "brain" of a cell, holding DNA, is the...',choices:['Mitochondria','Nucleus','Cell wall','Vacuole'],answer:1},
+        {type:'mcq',q:'Chloroplasts make food from...',choices:['Sugar only','Sunlight + CO₂ + water','Oxygen only','Minerals only'],answer:1},
+        {type:'mcq',q:'Mitochondria are found in...',choices:['Only plants','Only animals','Both plants and animals','Neither'],answer:2},
+        {type:'mcq',q:'The CELL WALL is made of...',choices:['Fat','Cellulose (tough fibre)','Water','Bone'],answer:1},
+      ]},
+    { id:'w1-evan-s3', title:'Heat Transfer', emoji:'🔥',
+      lesson:{title:'How Heat Moves',intro:'HEAT (thermal energy) moves in three ways: CONDUCTION (through a solid by touch), CONVECTION (through a liquid or gas by moving particles), and RADIATION (through empty space by waves).',example:'CONDUCTION: a metal spoon in hot soup — the handle gets hot as heat travels through the metal. CONVECTION: hot air rising from a heater, cooler air sinking → a cycle. RADIATION: feeling the Sun\'s warmth on your skin, even though space is empty.',steps:[
+        '<b>Conduction</b> — direct contact, solid to solid. Metals are great conductors.',
+        '<b>Convection</b> — moving currents in fluids (liquids + gases). Hot rises, cool sinks.',
+        '<b>Radiation</b> — waves across empty space. That\'s how the Sun warms Earth.',
+        '<b>Insulators</b> slow heat transfer: wool, feathers, styrofoam, air gaps.',
+        '<b>Conductors</b> speed it up: metal, water.',
+      ],hint:'Think of the heat coming OFF a fire: the poker in it gets hot (conduction), the air above rises (convection), and you feel warmth standing nearby (radiation).'},
+      questions:[
+        {type:'mcq',q:'A metal spoon gets hot in hot soup. This is...',choices:['Conduction','Convection','Radiation','Insulation'],answer:0},
+        {type:'mcq',q:'Hot air rising from a heater is...',choices:['Conduction','Convection','Radiation','Insulation'],answer:1},
+        {type:'mcq',q:'Feeling the Sun\'s heat on Earth is...',choices:['Conduction','Convection','Radiation','Insulation'],answer:2},
+        {type:'mcq',q:'Which is a good INSULATOR?',choices:['Metal','Water','Wool','Copper'],answer:2},
+        {type:'mcq',q:'Radiation works even in...',choices:['Only solids','Only water','Only air','Empty space (vacuum)'],answer:3},
+      ]},
+    { id:'w1-evan-s4', title:'Ecosystems', emoji:'🌿',
+      lesson:{title:'Producers, Consumers, Decomposers',intro:'An ECOSYSTEM is all the living things in an area + their non-living environment. Living things play three roles: PRODUCERS (plants — make food from sunlight), CONSUMERS (animals — eat other things), and DECOMPOSERS (fungi, bacteria — break down dead matter).',example:'In a forest: grass (producer) → rabbit (consumer, herbivore) → fox (consumer, carnivore) → when the fox dies, mushrooms + bacteria (decomposers) break it down and return nutrients to the soil, feeding new grass. This is the cycle of life.',steps:[
+        '<b>Producer</b> = makes its own food. Plants, algae. Base of every food chain.',
+        '<b>Consumer</b> = eats other living things. Herbivore (plants only), carnivore (meat only), omnivore (both).',
+        '<b>Decomposer</b> = breaks down dead things. Returns nutrients to the soil.',
+        '<b>Food chain:</b> producer → herbivore → carnivore.',
+        '<b>Food web:</b> a network of connected food chains — most real ecosystems look like this.',
+      ],hint:'Without decomposers, dead stuff would pile up forever and nutrients would be trapped.'},
+      questions:[
+        {type:'mcq',q:'Plants are called ___ because they make their own food.',choices:['consumers','producers','decomposers','omnivores'],answer:1},
+        {type:'mcq',q:'An animal that eats ONLY plants is a...',choices:['Carnivore','Herbivore','Omnivore','Decomposer'],answer:1},
+        {type:'mcq',q:'Mushrooms and bacteria that break down dead things are...',choices:['Producers','Consumers','Decomposers','Predators'],answer:2},
+        {type:'mcq',q:'In the chain "grass → rabbit → fox", the rabbit is a...',choices:['Producer','Primary consumer (herbivore)','Decomposer','Apex predator'],answer:1},
+        {type:'mcq',q:'Why are decomposers important?',choices:['They eat plants','They return nutrients to the soil','They make sunlight','They attack animals'],answer:1},
+      ]},
+    { id:'w1-evan-s5', title:'Simple Machines', emoji:'⚙️',
+      lesson:{title:'Levers, Pulleys, Ramps',intro:'A SIMPLE MACHINE makes work easier by changing the SIZE or DIRECTION of a force. Six classic ones: LEVER (seesaw), PULLEY (raising a flag), WEDGE (axe), SCREW (bolt), INCLINED PLANE (ramp), WHEEL AND AXLE (bicycle wheel).',example:'LEVER: a crowbar lifts a heavy rock — your small push on the long handle becomes a big lift on the short side. RAMP: pushing a heavy box up a gentle ramp is easier than lifting it straight up — you push over a longer distance for less force.',steps:[
+        '<b>Lever:</b> bar + fulcrum. Seesaw, crowbar, scissors, wheelbarrow.',
+        '<b>Pulley:</b> wheel + rope. Changes direction (pull down to lift up).',
+        '<b>Wedge:</b> two inclined planes back-to-back. Axes, knives.',
+        '<b>Screw:</b> inclined plane wrapped around a shaft. Jar lids, bolts.',
+        '<b>Inclined plane (ramp):</b> slope. Easier to push than lift.',
+        '<b>Wheel and axle:</b> wheel spins a shaft. Bikes, cars, doorknobs.',
+        '<b>MECHANICAL ADVANTAGE</b> = input force needed / output force. Higher = less effort.',
+      ],hint:'Simple machines trade FORCE for DISTANCE. You pull or push further, but with less effort.'},
+      questions:[
+        {type:'mcq',q:'A seesaw is an example of a...',choices:['Pulley','Lever','Wedge','Screw'],answer:1},
+        {type:'mcq',q:'A ramp is an example of a(n)...',choices:['Lever','Wedge','Inclined plane','Pulley'],answer:2},
+        {type:'mcq',q:'A doorknob is an example of a...',choices:['Wedge','Wheel and axle','Screw','Lever'],answer:1},
+        {type:'mcq',q:'Simple machines make work easier by changing...',choices:['Only the colour','The size or direction of force','Only the weight','Nothing'],answer:1},
+        {type:'mcq',q:'An axe has two inclined planes back-to-back. An axe is a...',choices:['Pulley','Wedge','Lever','Screw'],answer:1},
+      ]},
+  ],
+  social: [
+    { id:'w1-evan-c1', title:'New France (1500s-1700s)', emoji:'⛵',
+      lesson:{title:'Early French Settlement in Canada',intro:'NEW FRANCE was the name for the French colony in North America from the 1500s to 1763. Key figures: JACQUES CARTIER (claimed the land for France in 1534), SAMUEL DE CHAMPLAIN (founded Quebec City in 1608), COUREURS DES BOIS (French fur traders who lived with and learned from First Nations). The economy ran on the FUR TRADE.',example:'Cartier sailed up the St. Lawrence River in 1534 and called the land "Canada" (from the Iroquois word "kanata" = village). Champlain founded Quebec as a trading post in 1608 — the first permanent French settlement. For the next 150 years, French settlers, missionaries, and fur traders built a small but important colony along the St. Lawrence.',hint:'The St. Lawrence River was the highway of New France — everyone, every trade, moved along it.'},
+      questions:[
+        {type:'mcq',q:'Who claimed Canada for France in 1534?',choices:['Champlain','Cartier','Columbus','Cabot'],answer:1},
+        {type:'mcq',q:'Who founded Quebec City in 1608?',choices:['Cartier','Champlain','Macdonald','Papineau'],answer:1},
+        {type:'mcq',q:'The main industry of New France was the...',choices:['Gold mining','Fur trade','Fishing only','Wheat farming'],answer:1},
+        {type:'mcq',q:'"Canada" comes from an Iroquois word meaning...',choices:['Big water','Village','Cold land','Fur'],answer:1},
+        {type:'mcq',q:'COUREURS DES BOIS were...',choices:['Soldiers','French fur traders in the forests','Priests','Farmers'],answer:1},
+      ]},
+    { id:'w1-evan-c2', title:'British North America', emoji:'🇬🇧',
+      lesson:{title:'From Conquest to the War of 1812',intro:'In 1759, British forces defeated the French on the PLAINS OF ABRAHAM. In 1763, the Treaty of Paris gave New France to Britain — the colony was renamed the PROVINCE OF QUEBEC (later split into Upper and Lower Canada in 1791). The WAR OF 1812 was a British-American conflict fought partly on Canadian soil — Canadian militia, British soldiers, and First Nations allies (led by TECUMSEH) defended the colony.',example:'The Plains of Abraham battle (Sept 13, 1759) lasted about 15 minutes but changed North American history. In 1812, Laura Secord famously walked 30 km through enemy territory to warn the British of an American attack.',hint:'1759 = French lose to British. 1812 = British + Canadians defend against Americans.'},
+      questions:[
+        {type:'mcq',q:'The Plains of Abraham battle (1759) was won by...',choices:['The French','The British','The Americans','The Iroquois'],answer:1},
+        {type:'mcq',q:'In what year did the Treaty of Paris hand New France to Britain?',choices:['1759','1763','1791','1812'],answer:1},
+        {type:'mcq',q:'In 1791, the Province of Quebec was split into...',choices:['East and West Canada','Upper and Lower Canada','North and South Canada','Old and New Canada'],answer:1},
+        {type:'mcq',q:'The War of 1812 was between the British Empire and...',choices:['France','Spain','The United States','Russia'],answer:2},
+        {type:'mcq',q:'Laura Secord is remembered for...',choices:['Founding Quebec','Warning the British of an American attack in 1812','Signing Confederation','Leading the 1837 rebellion'],answer:1},
+      ]},
+    { id:'w1-evan-c3', title:'Rebellions of 1837', emoji:'⚔️',
+      lesson:{title:'Colonists Demand Change',intro:'In 1837, rebellions broke out in both UPPER CANADA (led by WILLIAM LYON MACKENZIE) and LOWER CANADA (led by LOUIS-JOSEPH PAPINEAU). Colonists were angry about: small ruling groups ("the Family Compact" in Upper Canada, "Château Clique" in Lower Canada), no real democracy, and unfair land/tax rules. Both rebellions FAILED militarily — but forced Britain to send LORD DURHAM, whose 1839 Report led to real democratic reforms (responsible government by 1848).',example:'Mackenzie led a small force down Toronto\'s Yonge Street in Dec 1837. They were defeated quickly. Papineau\'s Lower Canada rebellion was larger and more violent — hundreds died. Both leaders fled to the U.S. But the REBELLIONS WORKED in the long run: Britain realized it had to give the colonies more self-rule.',hint:'Failed in battle, succeeded in history: the rebellions pushed Canada toward responsible government.'},
+      questions:[
+        {type:'mcq',q:'Who led the Upper Canada rebellion of 1837?',choices:['Papineau','Macdonald','Mackenzie','Cartier'],answer:2},
+        {type:'mcq',q:'Who led the Lower Canada rebellion of 1837?',choices:['Papineau','Macdonald','Mackenzie','Champlain'],answer:0},
+        {type:'mcq',q:'What was the main complaint of the rebels?',choices:['Taxes were too low','A small elite ran everything — no real democracy','Too many immigrants','The British left'],answer:1},
+        {type:'mcq',q:'Lord Durham\'s 1839 Report led to...',choices:['More rebellions','Democratic reform — responsible government','Canada joining the U.S.','Banning French'],answer:1},
+        {type:'mcq',q:'The rebellions of 1837...',choices:['Won easily','Failed in battle, but forced political change','Were invented in textbooks','Were led by Americans'],answer:1},
+      ]},
+    { id:'w1-evan-c4', title:'Confederation (1867)', emoji:'🍁',
+      lesson:{title:'Four Colonies Become One Country',intro:'By the 1860s, British North America was several separate colonies. Leaders from CANADA (Ontario + Quebec), NEW BRUNSWICK, and NOVA SCOTIA met at three conferences — CHARLOTTETOWN (1864), QUEBEC (1864), and LONDON (1866) — to plan a union. The BRITISH NORTH AMERICA ACT (July 1, 1867) created the DOMINION OF CANADA with four provinces: Ontario, Quebec, New Brunswick, Nova Scotia.',example:'SIR JOHN A. MACDONALD became Canada\'s first Prime Minister. GEORGE-ÉTIENNE CARTIER led Quebec into Confederation. Reasons for union: defence (against a possible U.S. invasion after the American Civil War), trade (the British dropped trade deals with the colonies), and building a railway across the continent. Other provinces joined later: Manitoba (1870), BC (1871), PEI (1873), Alberta + Saskatchewan (1905), Newfoundland (1949).',hint:'July 1, 1867 = Canada\'s birthday. Four original provinces: ON, QC, NB, NS.'},
+      questions:[
+        {type:'mcq',q:'On what date did Canada become a country?',choices:['July 1, 1867','May 24, 1867','November 11, 1867','December 25, 1867'],answer:0},
+        {type:'mcq',q:'Who was Canada\'s first Prime Minister?',choices:['George-Étienne Cartier','John A. Macdonald','Louis Riel','Wilfrid Laurier'],answer:1},
+        {type:'mcq',q:'Which four provinces formed the original Dominion of Canada?',choices:['ON, QC, NB, NS','ON, QC, MB, BC','NS, NB, PEI, NL','QC, ON, AB, BC'],answer:0},
+        {type:'mcq',q:'The three conferences that led to Confederation were held in...',choices:['Ottawa, Toronto, Montreal','Charlottetown, Quebec, London','Halifax, Saint John, Kingston','Boston, New York, Halifax'],answer:1},
+        {type:'mcq',q:'Which was a main REASON for Confederation?',choices:['They just liked each other','Defence, trade, and a national railway','To fight France','To ban immigration'],answer:1},
+      ]},
+    { id:'w1-evan-c5', title:'Building the Nation', emoji:'🚂',
+      lesson:{title:'Post-Confederation Growth (Stretch!)',intro:'After 1867, Canada grew fast. The CANADIAN PACIFIC RAILWAY (completed 1885) connected east and west — built with huge contributions from Chinese labourers, many of whom died in the dangerous work. New provinces joined the Dominion. Indigenous Peoples, however, were pushed off their lands by NUMBERED TREATIES and the RESIDENTIAL SCHOOL SYSTEM — a dark chapter Canada is still reckoning with today.',example:'1870: Manitoba joins (after the Red River Resistance led by LOUIS RIEL, a Métis leader). 1871: BC joins on the promise of a railway. 1885: the railway is completed — the "last spike" driven at Craigellachie, BC. 1876: the Indian Act passes, assimilating First Nations. Residential schools continued until 1996. The Truth and Reconciliation Commission (2008-2015) documented their abuses.',hint:'The railway was a triumph of engineering — and built on tremendous human cost, especially for Chinese workers and First Nations communities.'},
+      questions:[
+        {type:'mcq',q:'The Canadian Pacific Railway was completed in...',choices:['1867','1870','1885','1914'],answer:2},
+        {type:'mcq',q:'Louis Riel led the resistance of which Indigenous group?',choices:['Iroquois','Métis','Inuit','Mi\'kmaq'],answer:1},
+        {type:'mcq',q:'Residential schools aimed to...',choices:['Support Indigenous languages','Forcibly assimilate Indigenous children','Teach French','Build railways'],answer:1},
+        {type:'mcq',q:'Which group suffered heavy loss of life building the railway?',choices:['British officers','Chinese labourers','French explorers','American tourists'],answer:1},
+        {type:'mcq',q:'The Truth and Reconciliation Commission (2008-2015) documented...',choices:['Weather records','The harms of the residential school system','Railway accidents','Parliament debates'],answer:1},
+      ]},
+  ],
+},
+
 }};
 
 /* ==========================================================================
@@ -4965,6 +5532,103 @@ isaiah: {
       ['"quick" + ly = ?',['quicly','quickly','quicklly','quicley'],1],
       ['"read" + able = ?',['readable','readible','readabel','readibull'],0],
       ['The suffix "-ly" usually makes an...',['noun','verb','adverb','article'],2],
+    ]),
+  ]);
+
+  /* --- Evan (Grade 7, ESL) ---
+     Spelling is the ONLY place in Evan's curriculum where we hit the
+     classic ESL spelling pitfalls head-on: homophones he mixes up in
+     writing, silent letters that don't exist in most other languages,
+     -OUGH (the 6-sound trap), confusable pairs (affect/effect, lose/loose),
+     and productive word endings (-tion, -sion, -ture, -ous). Each level
+     teaches the RULE in the intro so he can apply it to words we don't
+     cover — not just memorize 5 words. Stretch pools on the hardest
+     levels add adult-speaker-stumpers. */
+  put('evan', [
+    SP('w1-evan-sp1','Homophones: Their / There / They\'re','👯',
+      'Homophones sound identical but mean different things. The three THERE words trip up almost every ESL writer because they sound 100% the same. THEIR = belongs to them. THERE = that place. THEY\'RE = they are.',
+      '"Their car is parked over there because they\'re visiting." TRICK: if you can say "they are" in the sentence, use THEY\'RE.',
+      'THEIR has an I like "his/her" (possession). THERE has HERE in it (place). THEY\'RE is they + are.',[
+      ['"___ going to the store." (they are)',['There','Their','They\'re','Thier'],2],
+      ['"I left my bag over ___." (that place)',['there','their','they\'re','thier'],0],
+      ['"___ dog is friendly." (belongs to them)',['There','Their','They\'re','Thier'],1],
+      ['Which sentence is correct?',['Their late.','There late.','They\'re late.','Theyre late.'],2],
+      ['"Put it ___." (that place)',['their','they\'re','there','thair'],2],
+    ],[
+      // Stretch: other high-frequency ESL homophones.
+      ['"You\'re / Your" — "___ book is on the table."',['You\'re','Your','Youre','Yore'],1],
+      ['"It\'s / Its" — "The dog wagged ___ tail."',['it\'s','its\'','its','it is'],2],
+      ['"To / Too / Two" — "I want ___ come also."',['to too','too to','to, too','to'],3],
+      ['"Whose / Who\'s" — "___ coming to dinner?" (who is)',['Whose','Who\'s','Whos','Who\'se'],1],
+      ['"Lose / Loose" — "Don\'t ___ your keys!" (to misplace)',['lose','loose','looze','loos'],0],
+    ]),
+    SP('w1-evan-sp2','Silent Letters','🤫',
+      'English keeps old spellings even when we stopped pronouncing letters centuries ago. KN (knee, know, knight), silent B at the end (thumb, lamb, climb), WR (write, wrap, wrong), PS at the start (psychology, psalm), and silent L (calm, half, walk).',
+      '"Knight" sounds like "nite" — the K and GH are both silent. "Wrap" sounds like "rap" — the W is silent.',
+      'When a word starts with KN-, WR-, or PS-, the first letter is silent. When it ends in -MB, the B is silent.',[
+      ['Which is spelled correctly?',['nee','knee','neigh','knei'],1],
+      ['Which is spelled correctly?',['rite','wright','write','wrighte'],2],
+      ['Which is spelled correctly?',['thum','thumb','thume','thumbe'],1],
+      ['"To climb" is spelled...',['clime','climb','clim','climbe'],1],
+      ['"Psychology" starts with which silent letter?',['P','S','Y','H'],0],
+    ],[
+      // Stretch: less common but common in academic writing.
+      ['Which is correct?',['onor','honor','honnor','honour is wrong'],1],
+      ['"Whole" has a silent...',['W','H','O','L'],0],
+      ['"Debt" has a silent...',['D','E','B','T'],2],
+      ['"Pneumonia" starts with which silent letter?',['N','P','E','U'],1],
+      ['"Subtle" has a silent...',['S','U','B','L'],2],
+    ]),
+    SP('w1-evan-sp3','The Tricky -OUGH','🎭',
+      'Six words. Six different pronunciations. This is the HARDEST pattern in English. You cannot guess -OUGH — you have to learn each word.',
+      'tough = "tuff" | through = "throo" | though = "tho" | cough = "coff" | thought = "thawt" | bough = "bow"',
+      'Memorize this short list. If you see OUGH in a new word, it\'s one of these 6 pronunciations.',[
+      ['"Tough" rhymes with...',['though','rough','through','cow'],1],
+      ['"Through" sounds like...',['throw','threw','tru','thur'],1],
+      ['"Though" rhymes with...',['now','go','too','up'],1],
+      ['Which word sounds like "coff"?',['cough','cow','cuff','calf'],0],
+      ['"Thought" is the past tense of...',['thick','throw','think','thin'],2],
+    ],[
+      // Stretch: more -ough words plus similar "spelling doesn't match sound" patterns.
+      ['"Dough" (bread) rhymes with...',['cow','go','too','now'],1],
+      ['"Borough" (a town division) ends with the sound...',['-oh','-uh','-ow','-oof'],1],
+      ['"Drought" (no rain) rhymes with...',['boot','out','oat','cut'],1],
+      ['"Ought" rhymes with "thought" and ends with...',['-awt','-oot','-owt','-oot'],0],
+      ['"Plough" (old spelling of plow) rhymes with...',['so','too','now','up'],2],
+    ]),
+    SP('w1-evan-sp4','Confusable Pairs','⚠️',
+      'These word pairs mean DIFFERENT things but are mixed up constantly — even by native speakers. AFFECT (verb: to influence) vs EFFECT (noun: the result). THEN (time) vs THAN (comparison). ADVICE (noun) vs ADVISE (verb). LOSE (misplace) vs LOOSE (not tight).',
+      '"The weather will AFFECT (verb) the game. The EFFECT (noun) was a cancellation." "I\'m taller THAN (comparison) him. THEN (time) we went home."',
+      'Try substituting the definition into the sentence — if "the result" fits, use EFFECT. If "to influence" fits, use AFFECT.',[
+      ['"The rain will ___ the picnic." (influence, verb)',['affect','effect','afect','effekt'],0],
+      ['"I\'m faster ___ you." (comparison)',['then','than','thenn','thann'],1],
+      ['"Let me give you some ___." (noun — a suggestion)',['advise','advice','adwice','advyce'],1],
+      ['"Don\'t ___ your keys." (misplace)',['loose','lose','lous','lossee'],1],
+      ['"What was the ___ of the medicine?" (result, noun)',['affect','effect','afect','effekt'],1],
+    ],[
+      // Stretch: next tier of confusables — academic and business writing.
+      ['"Accept / Except" — "I ___ your invitation." (receive)',['accept','except','acept','exept'],0],
+      ['"Principal / Principle" — "The school ___ spoke to us." (person)',['principle','principal','princeple','principel'],1],
+      ['"Stationary / Stationery" — "I bought nice ___." (paper/envelopes)',['stationary','stationery','stationnary','stashionery'],1],
+      ['"Complement / Compliment" — "She gave me a nice ___." (praise)',['complement','compliment','complementt','complimant'],1],
+      ['"Breath / Breathe" — "Take a deep ___." (noun)',['breathe','breath','breadth','breth'],1],
+    ]),
+    SP('w1-evan-sp5','Word Endings: -TION, -SION, -TURE, -OUS','➡️',
+      'These four suffixes build thousands of English words. -TION and -SION both say "shun" but attach to different stems. -TURE says "cher" (picture, nature, future). -OUS means "full of" (famous, dangerous, nervous).',
+      '"action" (act+ion), "decision" (decide→decision — SION after D/S), "future" (fut+ure), "famous" (fame+ous — drop the silent E).',
+      'If the root ends in T → usually -TION (act/action). If it ends in D or S → usually -SION (decide/decision). -OUS attaches to noun stems (fame/famous, danger/dangerous).',[
+      ['"act" + suffix = ?',['acttion','action','acshion','aktion'],1],
+      ['"decide" + suffix = ? (D → S, add -ion)',['decidetion','decision','decishion','deciddion'],1],
+      ['"picture" ends with which suffix?',['-tion','-sion','-ture','-ous'],2],
+      ['"fame" + -ous = ? (drop the E)',['fameous','famous','fammous','famus'],1],
+      ['"Dangerous" means...',['without danger','full of danger','no danger','small danger'],1],
+    ],[
+      // Stretch: trickier applications of the same rules.
+      ['"Discuss" + -ion = ? (double S stays)',['discusion','discussion','dicussion','discution'],1],
+      ['"Possess" + -ion = ?',['posession','possesion','possession','possetion'],2],
+      ['"Nature" uses which ending?',['-tion','-sion','-ture','-sure'],2],
+      ['"Nerve" + -ous = ? (drop the E)',['nervous','nerveous','nerveus','nerveouss'],0],
+      ['"Adventure" ends with which suffix?',['-tion','-sion','-ture','-ous'],2],
     ]),
   ]);
 })();
@@ -5904,6 +6568,189 @@ isaiah: {
       ['"Analyze" means to...',['ignore','break down & study','forget','copy'],1],
       ['"Evidence" is another word for...',['proof','song','color','number'],0],
       ['"Summarize" means to...',['make longer','give the main ideas briefly','repeat word-for-word','argue'],1]]),
+  ]);
+
+  /* ===== EVAN (Grade 7, ESL) =====
+     Preview levels 6–10 telegraph where his Week 2+ curriculum is heading:
+     deeper grammar (clauses, modifiers), reading that pushes analysis,
+     harder algebra/geometry, logical reasoning, passé composé extensions,
+     physics/biology topics, and Canadian civics. Keeps writing & reading
+     density high because that\'s the ESL focus. */
+  push('evan','reading',[
+    P('w1-evan-r6','Author\'s Purpose','🎯','Writers write to INFORM, PERSUADE, or ENTERTAIN. Ask: why did they write this?',[
+      ['A textbook chapter is mostly written to...',['entertain','inform','persuade','sell'],1],
+      ['A political speech is mostly written to...',['inform','describe','persuade','confuse'],2],
+      ['A comic book is mostly written to...',['inform','persuade','entertain','complain'],2]]),
+    P('w1-evan-r7','Fact vs. Opinion','⚖️','Facts can be proven. Opinions are beliefs. Watch for signal words like "best," "should," "I think."',[
+      ['"Water boils at 100°C" is a...',['opinion','fact','guess','rumor'],1],
+      ['"Pizza is the best food" is a...',['fact','opinion','question','command'],1],
+      ['Which word signals an opinion?',['measured','recorded','believe','occurred'],2]]),
+    P('w1-evan-r8','Tone & Mood','🎭','TONE = how the author feels. MOOD = how the reader feels. Words like "gloomy," "cheerful," "bitter" signal tone.',[
+      ['"The rain beat mercilessly on the cold window" — the mood is...',['joyful','gloomy','funny','hopeful'],1],
+      ['Tone describes the author\'s...',['spelling','attitude','age','nationality'],1],
+      ['Mood is what the ___ feels.',['author','reader','character','narrator'],1]]),
+    P('w1-evan-r9','Compare & Contrast','🔀','Comparing shows similarities. Contrasting shows differences. Signal words: "similarly," "however," "whereas," "on the other hand."',[
+      ['"However" signals a...',['comparison','contrast','repetition','summary'],1],
+      ['"Similarly" signals a...',['contrast','comparison','cause','time shift'],1],
+      ['Comparing two books, you might look at their...',['price only','themes and style','page color','barcodes'],1]]),
+    P('w1-evan-r10','Theme Hunting','🎯','A THEME is the big life lesson in a story — like "friendship matters" or "courage costs something." Characters and events point to it.',[
+      ['A theme is the story\'s...',['setting','main idea about life','main character','title'],1],
+      ['"Crime does not pay" is a...',['setting','theme','plot','genre'],1],
+      ['To find theme, ask: "What does the story teach about...?"',['weather','life or people','grammar','spelling'],1]]),
+  ]);
+  push('evan','writing',[
+    P('w1-evan-w6','Clauses: Independent & Dependent','🧱','An INDEPENDENT clause is a complete sentence. A DEPENDENT clause can\'t stand alone — it starts with "because," "when," "although," "if."',[
+      ['"Because I was tired" is a...',['complete sentence','dependent clause','noun phrase','question'],1],
+      ['"I went home" is a...',['fragment','independent clause','dependent clause','phrase'],1],
+      ['Which word starts a DEPENDENT clause?',['and','although','so','but'],1]]),
+    P('w1-evan-w7','Combining Sentences','🔗','Use conjunctions (and, but, so, because) or a semicolon to join two short sentences into one smoother sentence.',[
+      ['"I was tired. I went home." — best joined with...',['and','but','so','because'],2],
+      ['Which joins two complete sentences?',[', and',';','FANBOYS with comma','all of these'],3],
+      ['A run-on sentence happens when you join without a...',['noun','conjunction or period','verb','adjective'],1]]),
+    P('w1-evan-w8','Commas in Lists & Addresses','➰','Use commas to separate items in a list of 3+. Also between city and province: "Toronto, Ontario."',[
+      ['"I bought apples oranges and bread." Where do commas go?',['after apples only','after apples and oranges','no commas','after bread'],1],
+      ['Commas in "Vancouver British Columbia" — correct form:',['Vancouver British, Columbia','Vancouver, British Columbia','Vancouver,British,Columbia','no comma'],1],
+      ['A list of 2 items ___ a comma between.',['needs','does NOT need','always has','must have'],1]]),
+    P('w1-evan-w9','Modifiers & Description','🎨','Adjectives describe nouns. Adverbs describe verbs (usually end in -LY). Place modifiers NEAR what they modify.',[
+      ['"She ran quickly" — "quickly" is an...',['adjective','adverb','noun','verb'],1],
+      ['"The red car" — "red" is an...',['adjective','adverb','verb','noun'],0],
+      ['Most adverbs end in...',['-ed','-ly','-ing','-s'],1]]),
+    P('w1-evan-w10','Paragraph Structure','📝','A strong paragraph has a TOPIC sentence, 2–3 SUPPORTING details, and a CONCLUDING sentence.',[
+      ['The FIRST sentence of a paragraph usually states the...',['conclusion','topic','counter-argument','setting'],1],
+      ['Supporting sentences give...',['the title','evidence and details','only opinions','definitions only'],1],
+      ['A good paragraph sticks to...',['many topics','one topic','no topic','random ideas'],1]]),
+  ]);
+  push('evan','math',[
+    P('w1-evan-m6','Two-Step Equations','🧮','Solve for x by doing inverse operations in reverse order. Handle addition/subtraction BEFORE multiplication/division when isolating x.',[
+      ['If 2x + 3 = 11, x = ?',['2','3','4','5'],2],
+      ['If 3x − 5 = 10, x = ?',['3','5','15','10'],1],
+      ['If x/2 + 1 = 5, x = ?',['4','6','8','10'],2]]),
+    P('w1-evan-m7','Percent of a Number','💯','To find X% of Y: multiply Y by (X ÷ 100). 20% of 50 = 50 × 0.20 = 10.',[
+      ['15% of 80 = ?',['10','12','15','20'],1],
+      ['30% of 200 = ?',['30','60','90','120'],1],
+      ['What is 25% of 40?',['10','15','20','25'],0]]),
+    P('w1-evan-m8','Area & Perimeter','📐','Rectangle area = length × width. Perimeter = 2(l + w). Triangle area = (base × height) ÷ 2.',[
+      ['Rectangle 8×5 — area = ?',['13','26','40','45'],2],
+      ['Rectangle 8×5 — perimeter = ?',['13','26','40','16'],1],
+      ['Triangle base 10, height 6 — area = ?',['16','30','60','10'],1]]),
+    P('w1-evan-m9','Angles','📐','A straight line = 180°. A right angle = 90°. A full circle = 360°. Angles on a straight line add to 180°.',[
+      ['A right angle is ___ degrees.',['45','90','180','360'],1],
+      ['Angles on a straight line sum to...',['90°','180°','270°','360°'],1],
+      ['A triangle\'s three angles add to...',['90°','180°','270°','360°'],1]]),
+    P('w1-evan-m10','Data & Mean','📊','MEAN = average (add all, divide by count). MEDIAN = middle number. MODE = most frequent.',[
+      ['Mean of 4, 6, 8, 10 = ?',['6','7','8','9'],1],
+      ['Median of 3, 7, 9 = ?',['3','7','9','6'],1],
+      ['Mode of 2, 3, 3, 4, 5 = ?',['2','3','4','5'],1]]),
+  ]);
+  push('evan','logic',[
+    P('w1-evan-l6','If-Then Statements','🔗','A conditional has an IF (hypothesis) and a THEN (conclusion). Valid only if the IF actually happens.',[
+      ['"If it rains, the ground gets wet. The ground is wet." — does it PROVE it rained?',['yes always','no — other things wet the ground','only in summer','only if cold'],1],
+      ['"If A, then B" — knowing B is true means A is...',['definitely true','not necessarily','false','unknown order'],1],
+      ['A conditional\'s "IF" part is called the...',['conclusion','hypothesis','contrapositive','inverse'],1]]),
+    P('w1-evan-l7','Set Theory Basics','🔵','INTERSECTION (∩) = what\'s in BOTH sets. UNION (∪) = what\'s in EITHER set. Venn diagrams show this visually.',[
+      ['Set A = {1,2,3} and Set B = {2,3,4}. A ∩ B = ?',['{1}','{2,3}','{1,2,3,4}','{}'],1],
+      ['A ∪ B for above sets = ?',['{2,3}','{1,2,3,4}','{1,4}','{}'],1],
+      ['Intersection means...',['both','either','neither','opposite'],0]]),
+    P('w1-evan-l8','Counting & Combinations','🎲','If you have 3 shirts and 2 pants, you have 3 × 2 = 6 possible outfits. Multiply independent choices.',[
+      ['3 pizza toppings, 2 sizes — how many combos?',['3','5','6','9'],2],
+      ['4 flavors × 3 cone types = ?',['7','10','12','24'],2],
+      ['The multiplication principle works when choices are...',['dependent','independent','the same','empty'],1]]),
+    P('w1-evan-l9','Probability Intro','🎯','Probability = favourable outcomes ÷ total outcomes. Rolling a 6 on a die: 1/6.',[
+      ['Probability of flipping heads on one fair coin?',['1/4','1/3','1/2','2/3'],2],
+      ['Probability of rolling an EVEN number on a 6-sided die?',['1/6','1/3','1/2','2/3'],2],
+      ['Probability 0 means the event is...',['certain','likely','impossible','50/50'],2]]),
+    P('w1-evan-l10','Logical Puzzles','🧠','Break big puzzles into small steps. Track what you KNOW vs. what you need to FIND.',[
+      ['First step with a hard puzzle?',['give up','read it twice','guess','skip'],1],
+      ['If Alex is taller than Sam, and Sam is taller than Lee, then ___ is tallest.',['Lee','Sam','Alex','unknown'],2],
+      ['Good reasoning uses...',['emotions only','evidence and logic','loudness','speed'],1]]),
+  ]);
+  push('evan','french',[
+    P('w1-evan-f6','Verbes au Passé','⏳','Past tense (passé composé): avoir/être + past participle. "J\'ai mangé" = I ate.',[
+      ['"J\'ai parlé" means...',['I speak','I spoke','I will speak','I was speaking'],1],
+      ['"Passé composé" uses which helper verbs?',['only avoir','only être','avoir or être','faire'],2],
+      ['"Tu as fini" means...',['you finish','you finished','you will finish','you were finishing'],1]]),
+    P('w1-evan-f7','Le Futur Simple','🚀','Simple future: add -ai, -as, -a, -ons, -ez, -ont to the infinitive. "parler" → "je parlerai" (I will speak).',[
+      ['"Je parlerai" means...',['I speak','I spoke','I will speak','I was speaking'],2],
+      ['"Nous mangerons" means...',['we eat','we ate','we will eat','we are eating'],2],
+      ['The future endings attach to the...',['stem','root','infinitive','past'],2]]),
+    P('w1-evan-f8','La Négation','🚫','To negate: put NE before the verb and PAS after. "Je ne sais pas" = I don\'t know.',[
+      ['"Je ne mange pas" means...',['I eat','I don\'t eat','I ate','I will eat'],1],
+      ['The two parts of French negation are...',['ne + pas','no + not','non + pas','pas + non'],0],
+      ['Where does PAS go?',['before the verb','after the verb','at the end','anywhere'],1]]),
+    P('w1-evan-f9','Les Pronoms','👤','Subject pronouns: je (I), tu (you), il/elle (he/she), nous (we), vous (you pl), ils/elles (they).',[
+      ['"Nous" means...',['I','you','we','they'],2],
+      ['"Ils" means...',['he','she','they (m)','they (f)'],2],
+      ['Formal "you" in French is...',['tu','vous','toi','te'],1]]),
+    P('w1-evan-f10','Lecture Guidée','📖','Read short French texts and extract meaning using context clues and cognates (words that look like English).',[
+      ['"Le restaurant est excellent" — likely means...',['the kitchen is open','the restaurant is excellent','the meal was bad','the menu is long'],1],
+      ['Cognates are words that...',['sound different','look similar across languages','are always wrong','are made up'],1],
+      ['When you don\'t know a word, you should...',['skip and use context','stop reading','translate every word','give up'],0]]),
+  ]);
+  push('evan','science',[
+    P('w1-evan-s6','Acids, Bases & pH','⚗️','pH scale: 0-6 acidic, 7 neutral, 8-14 basic. Lemon = acidic. Baking soda = basic. Water = neutral.',[
+      ['Pure water has a pH of about...',['1','4','7','13'],2],
+      ['Lemon juice is...',['acidic','neutral','basic','pure'],0],
+      ['The pH scale goes from...',['0 to 14','1 to 10','1 to 100','-1 to 14'],0]]),
+    P('w1-evan-s7','Forces & Motion','⚙️','Newton\'s laws: objects stay still or moving unless acted on by a force. F = ma.',[
+      ['An object at rest tends to...',['start moving','stay at rest','bounce','vanish'],1],
+      ['Force = mass × ___?',['volume','acceleration','density','height'],1],
+      ['Friction is a force that...',['helps motion','opposes motion','creates energy','has no effect'],1]]),
+    P('w1-evan-s8','Cells & Organelles','🔬','Cell parts: nucleus (control), mitochondria (energy), ribosomes (protein), cell membrane (boundary).',[
+      ['The "powerhouse" of the cell is the...',['nucleus','mitochondria','ribosome','membrane'],1],
+      ['The nucleus controls the...',['outside','cell\'s activities','walls','environment'],1],
+      ['Ribosomes make...',['energy','proteins','water','DNA'],1]]),
+    P('w1-evan-s9','The Water Cycle','💧','Water moves: evaporation → condensation → precipitation → collection. Repeat forever.',[
+      ['When water turns to vapor, it has...',['condensed','evaporated','frozen','melted'],1],
+      ['Rain is an example of...',['evaporation','condensation','precipitation','collection'],2],
+      ['Clouds form through...',['evaporation','condensation','precipitation','freezing'],1]]),
+    P('w1-evan-s10','Scientific Method','🔬','Steps: ask a question, make a hypothesis, experiment, observe, conclude. Repeat if needed.',[
+      ['A hypothesis is a(n)...',['proven fact','educated guess','random opinion','final answer'],1],
+      ['Experiments test a...',['rumor','hypothesis','feeling','song'],1],
+      ['The final step of the method is usually the...',['question','hypothesis','experiment','conclusion'],3]]),
+  ]);
+  push('evan','social',[
+    P('w1-evan-c6','Canada\'s Government','🏛️','Canada is a parliamentary democracy with a Prime Minister (head of government) and a monarch (head of state).',[
+      ['Canada\'s head of government is the...',['President','Prime Minister','King','Governor'],1],
+      ['Canada has how many main levels of government?',['1','2','3','4'],2],
+      ['The elected body that passes laws federally is called...',['Senate','Parliament','Cabinet','Court'],1]]),
+    P('w1-evan-c7','Rights & Freedoms','⚖️','Canada\'s Charter (1982) protects freedoms: expression, religion, assembly, and equality rights.',[
+      ['The Charter of Rights and Freedoms was signed in...',['1867','1967','1982','2001'],2],
+      ['Freedom of expression means you can...',['do anything','speak and write freely within limits','break laws','silence others'],1],
+      ['Equality rights mean...',['everyone gets same treatment','only citizens get rights','courts decide everything','no protections'],0]]),
+    P('w1-evan-c8','Indigenous Peoples','🪶','First Nations, Métis, and Inuit are the Indigenous peoples of Canada — each with distinct languages, lands, and treaties.',[
+      ['Canada\'s three Indigenous groups are First Nations, Inuit, and...',['Inuit','Métis','Loyalists','Acadians'],1],
+      ['Inuit traditionally lived in Canada\'s...',['south','prairies','Arctic','Atlantic'],2],
+      ['Treaties are agreements between...',['two provinces','Crown and Indigenous nations','cities and towns','schools and families'],1]]),
+    P('w1-evan-c9','Immigration to Canada','🌍','Canada\'s population grew through waves of immigration — from Europe, Asia, Africa, and the Americas — shaping a multicultural society.',[
+      ['Multiculturalism became official Canadian policy in...',['1867','1971','2001','2015'],1],
+      ['Newcomers to Canada are called...',['tourists','immigrants','exiles','nationalists'],1],
+      ['Canada\'s two official languages are...',['English and Spanish','English and French','French and Chinese','English only'],1]]),
+    P('w1-evan-c10','Global Citizenship','🌐','Global citizens understand that local actions (like reducing waste) connect to global issues (climate, trade, rights).',[
+      ['A global citizen cares about...',['only their town','the whole world','no one','one country'],1],
+      ['Climate change is an example of a ___ issue.',['local only','national only','global','fictional'],2],
+      ['The UN stands for...',['United Nations','Universal News','Urban Network','Unified North'],0]]),
+  ]);
+  push('evan','spelling',[
+    P('w1-evan-sp6','Tricky Plurals','🌀','Most plurals add S, but: -f → -ves (leaf/leaves), -y after consonant → -ies (baby/babies), some stay the same (sheep/sheep).',[
+      ['Plural of "leaf"?',['leafs','leafes','leaves','leafs\''],2],
+      ['Plural of "baby"?',['babys','babies','babyes','babeys'],1],
+      ['Plural of "sheep"?',['sheep','sheeps','sheepes','shepsies'],0]]),
+    P('w1-evan-sp7','Commonly Misspelled in Writing','⚠️','Seven words that stump almost every writer: necessary, occurred, separate, definitely, believe, beginning, achieve.',[
+      ['Which is correct?',['neccessary','necessary','nessesary','neccesary'],1],
+      ['Which is correct?',['ocurred','occured','occurred','ocured'],2],
+      ['Which is correct?',['seperate','separate','separete','sepparate'],1]]),
+    P('w1-evan-sp8','Apostrophes: Possessive vs Contraction','🔗','Possessive: "Sara\'s book." Contraction: "don\'t" = do + not. The trap: "it\'s" = it is. "its" = belongs to it.',[
+      ['"The dog wagged ___ tail." (belongs to it)',['it\'s','its','its\'','it is'],1],
+      ['"___ raining." (it is)',['Its','It\'s','Its\'','Itis'],1],
+      ['"Don\'t" is a contraction of...',['do not','did not','does not','do no'],0]]),
+    P('w1-evan-sp9','British vs Canadian Spelling','🍁','Canadians often prefer British spellings: colour (not color), centre (not center), travelled (not traveled). Both are accepted in Canada.',[
+      ['Canadian/British spelling of "color"?',['color','colour','collour','colur'],1],
+      ['Canadian/British spelling of "center"?',['center','centar','centre','centure'],2],
+      ['Canadian/British past tense of "travel"?',['traveled','travelled','travled','trevelled'],1]]),
+    P('w1-evan-sp10','Academic Vocabulary','🎓','Essay and classroom words: analyze, evaluate, interpret, hypothesis, infer, describe, summarize, compare.',[
+      ['"Infer" means to...',['copy exactly','guess with evidence','ignore','delete'],1],
+      ['"Evaluate" means to...',['avoid','judge carefully','list','repeat'],1],
+      ['"Summarize" means to give the...',['full text','main ideas briefly','opposite view','next chapter'],1]]),
   ]);
 })();
 
