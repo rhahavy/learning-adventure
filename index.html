@@ -8619,6 +8619,10 @@ function attachNovaTapReaction(wrap, svg){
     // Animation sparks
     svg.classList.add('nova-reacting');
     const quip = NOVA_TAP_QUIPS[Math.floor(Math.random()*NOVA_TAP_QUIPS.length)];
+    // Give her a voice — tap triggers both the bubble and the audio so
+    // the reaction feels complete. Silently no-ops if TTS is off for
+    // the student, so teachers who prefer quiet mode stay unbothered.
+    try{ speakAsNova(quip); }catch(e){}
     // If there's no existing speech bubble, inject a short-lived one.
     // If there IS one, briefly replace its first child text with the quip
     // and restore on cooldown release — so the tap still feels reactive
@@ -9700,6 +9704,14 @@ function _normalizeForTts(text){
 // identically in that mode, just with the local system voice.
 const TTS_PROXY_URL = 'https://kidquest-tts-proxy.rhahavy-b.workers.dev';
 
+// Nova the alien mascot's dedicated voice. When she speaks (tap quips,
+// dashboard "Nova Says" thoughts), we override the default Worker voice
+// with this one via speak()'s opts.voiceId. Keeps the main narrator
+// voice warm + human for math/reading, while Nova gets to sound like
+// the friendly little Learnian she is.
+// Leave blank to have Nova use the default narrator voice.
+const NOVA_VOICE_ID = 'qtCMar7dQv8W7hDWqEdZ';
+
 // Request timeout. Flash v2.5 typically returns in 300-900ms; 3s is a
 // generous ceiling that still feels responsive on failure. A hung
 // request can't freeze the UI.
@@ -9905,6 +9917,30 @@ function speak(text, lang, opts){
     _speakViaBrowser(text, lang, o);
   });
 }
+
+/* speakAsNova(text) — give Nova her own voice
+   -------------------------------------------
+   Wraps speak() with Nova's dedicated ElevenLabs voice ID. Used where
+   Nova explicitly speaks (tap quips, Nova Says card) so she sounds
+   distinct from the main narrator. Browser-fallback case still works —
+   speechSynthesis doesn't honor voiceId, so the fallback just uses the
+   system voice. Kid always hears audio, only the timbre differs.
+
+   Respects the per-student ttsEnabled gate (same rule as
+   buildTtsButtons) so teachers who disable TTS for a student don't
+   suddenly hear Nova speak anyway.
+*/
+function speakAsNova(text){
+  if(!text) return;
+  try{
+    const ud = currentUser && allData && allData.users && allData.users[currentUser];
+    if(!ud || !ud.ttsEnabled) return;
+  }catch(e){ return; }
+  // If NOVA_VOICE_ID is blank, fall through to the default narrator
+  // voice — still better than silence.
+  speak(text, 'en-CA', NOVA_VOICE_ID ? { voiceId: NOVA_VOICE_ID } : {});
+}
+
 // Prime the voice list (some browsers load voices asynchronously).
 if(typeof window.speechSynthesis !== 'undefined'){
   try{
@@ -11539,6 +11575,10 @@ function renderDashboard(root){
       void lineEl.offsetWidth;
       lineEl.textContent = next;
       lineEl.classList.add('pop');
+      // Speak the new thought in Nova's voice. Click is a user gesture,
+      // so autoplay policies allow it. Gated by ttsEnabled inside
+      // speakAsNova — silent if the student has TTS off.
+      try{ speakAsNova(next); }catch(e){}
     };
     says.addEventListener('click', rotateThought);
     says.addEventListener('keydown', (e) => {
