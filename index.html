@@ -1026,6 +1026,71 @@ img{max-width:100%}
 .curr-modal-base[open] > summary{color:var(--primary);margin-bottom:8px}
 .curr-modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 .curr-modal-actions .btn{padding:10px 18px}
+
+/* Form-based curriculum editor (replaces the raw JSON textarea as the
+   default editing surface). The tutor should never see JSON unless they
+   explicitly open the "Advanced (raw JSON)" escape hatch. */
+.cf-section{border:1px solid var(--line);border-radius:12px;background:#fafaff;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.cf-section-title{font-size:13px;font-weight:800;color:var(--ink);text-transform:uppercase;letter-spacing:.5px;margin:0}
+.cf-section-sub{font-size:12px;color:var(--ink3);margin:-6px 0 2px;line-height:1.4}
+.cf-field{display:flex;flex-direction:column;gap:5px}
+.cf-field-label{font-size:12px;font-weight:700;color:var(--ink2)}
+.cf-field-hint{font-size:11px;color:var(--ink3);font-style:italic;line-height:1.3}
+.cf-input,.cf-textarea,.cf-select{padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;line-height:1.4;width:100%;box-sizing:border-box}
+.cf-input:focus,.cf-textarea:focus,.cf-select:focus{outline:2px solid var(--primary);outline-offset:-1px}
+.cf-textarea{resize:vertical;min-height:58px;font-family:inherit}
+.cf-textarea-lg{min-height:100px}
+.cf-row{display:flex;gap:10px;flex-wrap:wrap}
+.cf-row > *{flex:1;min-width:120px}
+.cf-toggle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;user-select:none}
+.cf-toggle input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
+.cf-hidden-toggle{background:rgba(253,121,168,.08);border:1px solid rgba(253,121,168,.3);padding:10px 12px;border-radius:8px}
+.cf-qlist{display:flex;flex-direction:column;gap:12px}
+.cf-qcard{background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;position:relative}
+.cf-qcard-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cf-qcard-num{font-size:11px;font-weight:800;color:var(--primary);background:rgba(108,92,231,.1);padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.cf-qcard-type{font-size:12px;font-weight:700;color:var(--ink2);padding:5px 8px;border:1.5px solid var(--line);border-radius:6px;background:#fff;cursor:pointer}
+.cf-qcard-spacer{flex:1}
+.cf-qcard-btns{display:flex;gap:4px;flex-wrap:wrap}
+.cf-icon-btn{background:transparent;border:1px solid var(--line);color:var(--ink3);padding:4px 8px;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer;line-height:1}
+.cf-icon-btn:hover{background:rgba(0,0,0,.04);color:var(--ink)}
+.cf-icon-btn.danger:hover{background:rgba(255,59,48,.08);color:#c92a2a;border-color:rgba(255,59,48,.3)}
+.cf-choices{display:flex;flex-direction:column;gap:6px}
+.cf-choice-row{display:flex;align-items:center;gap:8px}
+.cf-choice-radio{width:18px;height:18px;cursor:pointer;accent-color:#4caf50;flex-shrink:0}
+.cf-choice-radio-label{font-size:11px;color:var(--ink3);min-width:16px;text-align:center;flex-shrink:0}
+.cf-choice-input{flex:1}
+.cf-choice-rm{background:transparent;border:0;color:var(--ink3);font-size:18px;cursor:pointer;padding:2px 6px;line-height:1;border-radius:4px}
+.cf-choice-rm:hover{background:rgba(255,59,48,.08);color:#c92a2a}
+.cf-add-btn{background:transparent;border:1.5px dashed var(--line);color:var(--ink3);padding:7px 12px;font-size:12px;font-weight:700;border-radius:8px;cursor:pointer;align-self:flex-start}
+.cf-add-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(108,92,231,.04)}
+.cf-pairs{display:flex;flex-direction:column;gap:6px}
+.cf-pair-row{display:flex;align-items:center;gap:8px}
+.cf-pair-row input{flex:1}
+.cf-pair-sep{color:var(--ink3);font-weight:700;flex-shrink:0}
+.cf-items{display:flex;flex-direction:column;gap:6px}
+.cf-item-row{display:flex;align-items:center;gap:8px}
+.cf-item-handle{font-size:11px;color:var(--ink3);min-width:22px;text-align:center;background:rgba(108,92,231,.08);border-radius:4px;padding:3px 0;flex-shrink:0;font-weight:700}
+.cf-item-row input{flex:1}
+.cf-item-reorder{display:flex;flex-direction:column;gap:1px}
+.cf-item-reorder button{background:transparent;border:1px solid var(--line);color:var(--ink3);font-size:10px;padding:1px 6px;cursor:pointer;line-height:1}
+.cf-item-reorder button:hover{background:rgba(0,0,0,.04);color:var(--ink)}
+.cf-item-reorder button:first-child{border-radius:4px 4px 0 0}
+.cf-item-reorder button:last-child{border-radius:0 0 4px 4px}
+.cf-tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--line);margin-bottom:12px}
+.cf-tab{background:transparent;border:0;padding:8px 14px;font-size:13px;font-weight:700;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1.5px}
+.cf-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.cf-tab:hover:not(.active){color:var(--ink2)}
+.cf-compare-sides{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cf-compare-side{background:#fafaff;border:1.5px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.cf-compare-side.picked{border-color:#4caf50;background:rgba(76,175,80,.06)}
+.cf-compare-side label{font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;display:flex;align-items:center;gap:6px;cursor:pointer}
+.cf-advanced{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.cf-advanced > summary{cursor:pointer;color:var(--ink3);font-weight:700;font-size:12px;padding:4px 0;user-select:none;text-transform:uppercase;letter-spacing:.5px}
+.cf-advanced > summary:hover{color:var(--primary)}
+.cf-advanced[open] > summary{color:var(--primary);margin-bottom:8px}
+.cf-advanced-hint{font-size:12px;color:var(--ink3);line-height:1.5;margin:0 0 8px}
+
 @media(max-width:480px){
   .curr-ctrls{flex-direction:column}
   .curr-ctrl{min-width:0}
@@ -1033,6 +1098,7 @@ img{max-width:100%}
   .curr-row .btn-sm{width:100%}
   .curr-modal-inner{padding:16px}
   .curr-modal-textarea{min-height:200px;font-size:12px}
+  .cf-compare-sides{grid-template-columns:1fr}
 }
 
 /* ---- REPORT CARD ---- */
@@ -11992,47 +12058,600 @@ function renderTeacherCurriculum(root){
   root.appendChild(wrap);
 }
 
+/* Form-based curriculum editor. Replaces the older JSON-textarea flow so
+   the tutor can edit titles, lessons, and questions without touching raw
+   JSON. Save logic:
+
+   1. Collect form values into a "proposed" full activity object.
+   2. Diff proposed vs base. Only fields that changed land in the override
+      patch. Empty patch → override removed entirely. This keeps the
+      cloud blob tight and means `Reset` is meaningful.
+   3. Merge in whatever the tutor typed into the "Advanced (raw JSON)"
+      escape hatch — those keys always win, so power users can still set
+      exotic fields (stack, pictures, heroImage, videoIds, audioLang…)
+      the form doesn't expose.
+
+   Diff semantics are deep-equal for lesson + questions/stretchQuestions,
+   shallow for the 2 top-level scalars (title, emoji). The _hidden toggle
+   is always written explicitly when true (or absent when false). */
 function openCurriculumEdit(baseActivity){
-  // Ensure the overrides map exists even if the loader didn't see a
-  // curriculum field (old localStorage shapes).
   if(!allData.curriculum) allData.curriculum = { overrides:{}, updatedAt:0 };
   if(!allData.curriculum.overrides) allData.curriculum.overrides = {};
 
   const existing = allData.curriculum.overrides[baseActivity.id] || null;
+  // Merged view = what the student actually sees today. That's our
+  // starting point for the form.
+  const merged = Object.assign({}, baseActivity, existing || {}, { id: baseActivity.id });
 
   const backdrop = h('div',{class:'curr-modal'});
   const close = () => backdrop.remove();
-  // Click the backdrop (but NOT the modal) to dismiss — standard UX.
   backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) close(); });
 
-  const initial = existing
-    ? JSON.stringify(existing, null, 2)
-    : '{\n  \n}';
-
-  const textarea = h('textarea',{class:'curr-modal-textarea', spellcheck:'false', 'aria-label':'JSON override editor'}, initial);
   const errMsg = h('div',{class:'curr-modal-err', style:'display:none'}, '');
 
+  // --- Build the form ---
+  // Each "build*" helper returns { el, getValue }. getValue() reads the
+  // current DOM state into a plain JS value. We call them all at save
+  // time to serialize.
+
+  const fields = [];
+  const registerField = (f) => { fields.push(f); return f; };
+
+  // META: title, emoji, hidden toggle ---------------------------------
+  const metaSection = h('div',{class:'cf-section'});
+  metaSection.appendChild(h('h3',{class:'cf-section-title'},'Activity info'));
+
+  const titleInput = h('input',{type:'text', class:'cf-input', value: merged.title || '', placeholder:'e.g. Two-Digit Addition'});
+  const emojiInput = h('input',{type:'text', class:'cf-input', value: merged.emoji || '', placeholder:'📘', style:'max-width:100px'});
+  const metaRow = h('div',{class:'cf-row'},[
+    h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Title'), titleInput ]),
+    h('div',{class:'cf-field',style:'flex:0 0 120px'},[ h('label',{class:'cf-field-label'},'Emoji'), emojiInput ]),
+  ]);
+  metaSection.appendChild(metaRow);
+  registerField({ key:'title', get:()=>titleInput.value.trim() });
+  registerField({ key:'emoji', get:()=>emojiInput.value.trim() });
+
+  const hiddenCb = h('input',{type:'checkbox'});
+  if(existing && existing._hidden) hiddenCb.checked = true;
+  const hiddenLabel = h('label',{class:'cf-toggle cf-hidden-toggle'},[
+    hiddenCb,
+    h('span',{},'🙈 Hide from students (soft-delete — base stays in code)'),
+  ]);
+  metaSection.appendChild(hiddenLabel);
+  registerField({ key:'_hidden', get:()=> hiddenCb.checked ? true : undefined });
+
+  // LESSON fields ------------------------------------------------------
+  // The lesson object is nested, but from the tutor's POV it's just a
+  // handful of short text fields. We treat lesson.steps as an optional
+  // chip-list (one per line in the textarea for simplicity).
+  const baseLesson = baseActivity.lesson || {};
+  const mergedLesson = merged.lesson || {};
+
+  const lessonSection = h('div',{class:'cf-section'});
+  lessonSection.appendChild(h('h3',{class:'cf-section-title'},'Lesson (shown before questions)'));
+  lessonSection.appendChild(h('p',{class:'cf-section-sub'},'The short "Quick Lesson" screen kids see first. Leave blank to inherit from the base. If you clear a field that the base has, the base will show through.'));
+
+  const lTitle  = h('input',   {type:'text',  class:'cf-input',    value: mergedLesson.title || '',   placeholder:'e.g. Two-Digit Addition'});
+  const lIntro  = h('textarea',{class:'cf-textarea',               placeholder:'Short intro sentence shown at the top of the lesson card.'}, mergedLesson.intro || '');
+  const lExample= h('textarea',{class:'cf-textarea cf-textarea-lg',placeholder:'Worked example — usually a single problem with the steps spelled out.'}, mergedLesson.example || '');
+  const lHint   = h('textarea',{class:'cf-textarea',               placeholder:'Nudge shown when a kid uses the Hint button.'}, mergedLesson.hint || '');
+
+  lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Lesson title'), lTitle ]));
+  lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Intro'), lIntro ]));
+  lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Worked example'), lExample ]));
+  lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Hint'), lHint ]));
+
+  const getLessonValue = () => {
+    const out = {};
+    const t = lTitle.value.trim(); if(t) out.title = t;
+    const i = lIntro.value.trim(); if(i) out.intro = i;
+    const e = lExample.value.trim(); if(e) out.example = e;
+    const h = lHint.value.trim(); if(h) out.hint = h;
+    // Preserve any exotic lesson fields the form doesn't edit (stack,
+    // pictures, heroImage, audioLang, steps, visual, …). Start from the
+    // merged view so edits the tutor made via "Advanced" persist.
+    const passthrough = ['steps','stack','pictures','heroImage','audioLang','visual'];
+    passthrough.forEach(k => { if(mergedLesson[k] !== undefined) out[k] = mergedLesson[k]; });
+    return Object.keys(out).length ? out : null;
+  };
+  registerField({ key:'lesson', get:getLessonValue });
+
+  // QUESTIONS --------------------------------------------------------
+  // Two tabs: regular questions and stretch questions. Inside each tab
+  // a list of question cards. Each card can switch type via a dropdown;
+  // we rebuild the card body so only fields relevant to the new type
+  // show. Order + insert + delete via little icon buttons.
+
+  const questionsSection = h('div',{class:'cf-section'});
+  questionsSection.appendChild(h('h3',{class:'cf-section-title'},'Questions'));
+
+  // Tabs
+  const tabBtns = {
+    main: h('button',{class:'cf-tab active', type:'button'}, 'Regular questions'),
+    stretch: h('button',{class:'cf-tab', type:'button'}, '✨ Stretch questions'),
+  };
+  const tabRow = h('div',{class:'cf-tabs'},[tabBtns.main, tabBtns.stretch]);
+  questionsSection.appendChild(tabRow);
+
+  const lists = {
+    main: h('div',{class:'cf-qlist'}),
+    stretch: h('div',{class:'cf-qlist', style:'display:none'}),
+  };
+  questionsSection.appendChild(lists.main);
+  questionsSection.appendChild(lists.stretch);
+
+  tabBtns.main.onclick = () => {
+    tabBtns.main.classList.add('active'); tabBtns.stretch.classList.remove('active');
+    lists.main.style.display = ''; lists.stretch.style.display = 'none';
+  };
+  tabBtns.stretch.onclick = () => {
+    tabBtns.stretch.classList.add('active'); tabBtns.main.classList.remove('active');
+    lists.stretch.style.display = ''; lists.main.style.display = 'none';
+  };
+
+  // State: arrays of question objects we mutate directly. We render
+  // once and re-render on add/delete/type-change. For pure field edits
+  // we read from DOM at save time.
+  const qState = {
+    main: (merged.questions || []).map(cloneDeep),
+    stretch: (merged.stretchQuestions || []).map(cloneDeep),
+  };
+
+  const EMPTY_Q_BY_TYPE = {
+    mcq:     () => ({type:'mcq', q:'', choices:['','','',''], answer:0}),
+    passage: () => ({type:'passage', passage:'', q:'', choices:['','','',''], answer:0}),
+    compare: () => ({type:'compare', q:'', a:'', b:'', answer:'a'}),
+    order:   () => ({type:'order', q:'', items:['','',''], correctOrder:[0,1,2]}),
+    match:   () => ({type:'match', q:'', pairs:[['',''],['',''],['','']]}),
+    write:   () => ({type:'write', q:'', prompt:'', placeholder:'', minWords:6, goodWords:10, keywords:[]}),
+  };
+
+  function renderQuestionList(which){
+    const list = lists[which];
+    list.innerHTML = '';
+    const arr = qState[which];
+    if(arr.length === 0){
+      list.appendChild(h('p',{class:'cf-section-sub',style:'text-align:center;padding:12px'}, 'No questions yet. Click "+ Add question" below to start.'));
+    }
+    arr.forEach((q, idx) => list.appendChild(renderQuestionCard(which, q, idx)));
+    const addBtn = h('button',{type:'button', class:'cf-add-btn', onclick:()=>{
+      arr.push(EMPTY_Q_BY_TYPE.mcq());
+      renderQuestionList(which);
+    }}, '+ Add question');
+    list.appendChild(addBtn);
+  }
+
+  function renderQuestionCard(which, q, idx){
+    const arr = qState[which];
+    const card = h('div',{class:'cf-qcard'});
+
+    // Header: number + type selector + move/delete buttons
+    const typeSel = h('select',{class:'cf-qcard-type'},[
+      h('option',{value:'mcq',     ...(q.type==='mcq'?{selected:'selected'}:{})},     'Multiple choice'),
+      h('option',{value:'passage', ...(q.type==='passage'?{selected:'selected'}:{})}, 'Passage + question'),
+      h('option',{value:'compare', ...(q.type==='compare'?{selected:'selected'}:{})}, 'Compare A vs B'),
+      h('option',{value:'order',   ...(q.type==='order'?{selected:'selected'}:{})},   'Put in order'),
+      h('option',{value:'match',   ...(q.type==='match'?{selected:'selected'}:{})},   'Match pairs'),
+      h('option',{value:'write',   ...(q.type==='write'?{selected:'selected'}:{})},   'Writing prompt'),
+    ]);
+    typeSel.onchange = () => {
+      // Preserve the question text when switching types — it's usually
+      // still meaningful. Everything else resets to the new type's shape.
+      const keepQ = arr[idx].q || '';
+      arr[idx] = EMPTY_Q_BY_TYPE[typeSel.value]();
+      if(keepQ) arr[idx].q = keepQ;
+      renderQuestionList(which);
+    };
+
+    const btnUp = h('button',{type:'button', class:'cf-icon-btn', title:'Move up', onclick:()=>{
+      commitCardValues(which, q, idx, card);
+      if(idx === 0) return;
+      [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+      renderQuestionList(which);
+    }}, '↑');
+    const btnDown = h('button',{type:'button', class:'cf-icon-btn', title:'Move down', onclick:()=>{
+      commitCardValues(which, q, idx, card);
+      if(idx === arr.length-1) return;
+      [arr[idx+1], arr[idx]] = [arr[idx], arr[idx+1]];
+      renderQuestionList(which);
+    }}, '↓');
+    const btnDup = h('button',{type:'button', class:'cf-icon-btn', title:'Duplicate', onclick:()=>{
+      commitCardValues(which, q, idx, card);
+      arr.splice(idx+1, 0, cloneDeep(arr[idx]));
+      renderQuestionList(which);
+    }}, '⎘');
+    const btnDel = h('button',{type:'button', class:'cf-icon-btn danger', title:'Delete', onclick:()=>{
+      if(!confirm('Delete question '+(idx+1)+'?')) return;
+      arr.splice(idx,1);
+      renderQuestionList(which);
+    }}, '✕');
+
+    card.appendChild(h('div',{class:'cf-qcard-head'},[
+      h('span',{class:'cf-qcard-num'}, 'Q'+(idx+1)),
+      typeSel,
+      h('div',{class:'cf-qcard-spacer'}),
+      h('div',{class:'cf-qcard-btns'},[btnUp, btnDown, btnDup, btnDel]),
+    ]));
+
+    // Body: type-specific fields. We stamp a body element with a
+    // `data-qbody` marker so commitCardValues can find it.
+    const body = h('div',{'data-qbody':'1'});
+    buildQuestionBody(body, q);
+    card.appendChild(body);
+
+    return card;
+  }
+
+  function buildQuestionBody(body, q){
+    body.innerHTML = '';
+    if(q.type === 'mcq' || q.type === 'passage'){
+      if(q.type === 'passage'){
+        const pasEl = h('textarea',{class:'cf-textarea cf-textarea-lg', 'data-k':'passage', placeholder:'The reading passage students see at the top.'}, q.passage || '');
+        body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Passage'), pasEl ]));
+      }
+      const qEl = h('textarea',{class:'cf-textarea', 'data-k':'q', placeholder:'The question you\'re asking.'}, q.q || '');
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Question'), qEl ]));
+
+      // Choices — up to 6. Radio selects the correct answer. At least 2 required.
+      const choicesWrap = h('div',{class:'cf-choices','data-k':'choices'});
+      const radioName = 'ans-'+Math.random().toString(36).slice(2,9);
+      const drawChoices = () => {
+        choicesWrap.innerHTML = '';
+        (q.choices || []).forEach((c, ci) => {
+          const radio = h('input',{type:'radio', class:'cf-choice-radio', name:radioName, ...(ci===q.answer?{checked:'checked'}:{})});
+          radio.addEventListener('change', ()=>{ q.answer = ci; });
+          const inp = h('input',{type:'text', class:'cf-input cf-choice-input', value:c||'', placeholder:'Choice '+String.fromCharCode(65+ci)});
+          inp.addEventListener('input', ()=>{ q.choices[ci] = inp.value; });
+          const rm = h('button',{type:'button', class:'cf-choice-rm', title:'Remove this choice', onclick:()=>{
+            if(q.choices.length <= 2){ alert('Need at least 2 choices.'); return; }
+            q.choices.splice(ci,1);
+            if(q.answer >= q.choices.length) q.answer = q.choices.length - 1;
+            drawChoices();
+          }}, '×');
+          choicesWrap.appendChild(h('div',{class:'cf-choice-row'},[
+            radio,
+            h('span',{class:'cf-choice-radio-label'}, String.fromCharCode(65+ci)),
+            inp, rm,
+          ]));
+        });
+        if((q.choices||[]).length < 6){
+          const addC = h('button',{type:'button', class:'cf-add-btn', onclick:()=>{
+            q.choices.push('');
+            drawChoices();
+          }}, '+ Add choice');
+          choicesWrap.appendChild(addC);
+        }
+      };
+      drawChoices();
+      body.appendChild(h('div',{class:'cf-field'},[
+        h('label',{class:'cf-field-label'},'Choices (select the correct answer with the radio)'),
+        choicesWrap,
+      ]));
+
+    } else if(q.type === 'compare'){
+      const qEl = h('textarea',{class:'cf-textarea', 'data-k':'q', placeholder:'e.g. Which is BIGGER?'}, q.q || '');
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Question'), qEl ]));
+      const drawSides = () => {
+        const sides = h('div',{class:'cf-compare-sides'});
+        ['a','b'].forEach(side => {
+          const picked = q.answer === side;
+          const sideBox = h('div',{class:'cf-compare-side'+(picked?' picked':'')});
+          const radio = h('input',{type:'radio', name:'ans-'+Math.random().toString(36).slice(2,9), ...(picked?{checked:'checked'}:{})});
+          radio.addEventListener('change', ()=>{ q.answer = side; drawSides(); });
+          const inp = h('input',{type:'text', class:'cf-input', value:q[side]||'', placeholder: side==='a' ? '🌲 Tree' : '🌷 Flower'});
+          inp.addEventListener('input', ()=>{ q[side] = inp.value; });
+          sideBox.appendChild(h('label',{},[radio, h('span',{},'Option '+side.toUpperCase()+' (correct)')]));
+          sideBox.appendChild(inp);
+          sides.appendChild(sideBox);
+        });
+        const fld = body.querySelector('[data-k="sides"]');
+        if(fld){ fld.replaceWith(wrappedSides(sides)); }
+        else{ body.appendChild(wrappedSides(sides)); }
+      };
+      const wrappedSides = (sides) => {
+        const f = h('div',{class:'cf-field','data-k':'sides'},[
+          h('label',{class:'cf-field-label'},'Options'),
+          sides,
+        ]);
+        return f;
+      };
+      drawSides();
+
+    } else if(q.type === 'order'){
+      const qEl = h('textarea',{class:'cf-textarea', 'data-k':'q', placeholder:'e.g. Put these in order from smallest to biggest'}, q.q || '');
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Question'), qEl ]));
+      body.appendChild(h('p',{class:'cf-field-hint'}, 'List items in their CORRECT order here — the app shuffles them for the student automatically.'));
+      const itemsWrap = h('div',{class:'cf-items'});
+      const drawItems = () => {
+        itemsWrap.innerHTML = '';
+        const n = (q.items || []).length;
+        (q.items || []).forEach((it, ii) => {
+          const inp = h('input',{type:'text', class:'cf-input', value:it||'', placeholder:'Item '+(ii+1)});
+          inp.addEventListener('input', ()=>{ q.items[ii] = inp.value; });
+          const up = h('button',{type:'button', onclick:()=>{
+            if(ii===0) return;
+            [q.items[ii-1], q.items[ii]] = [q.items[ii], q.items[ii-1]];
+            drawItems();
+          }}, '▲');
+          const down = h('button',{type:'button', onclick:()=>{
+            if(ii===n-1) return;
+            [q.items[ii+1], q.items[ii]] = [q.items[ii], q.items[ii+1]];
+            drawItems();
+          }}, '▼');
+          const rm = h('button',{type:'button', class:'cf-choice-rm', onclick:()=>{
+            if(q.items.length <= 2){ alert('Need at least 2 items.'); return; }
+            q.items.splice(ii,1);
+            drawItems();
+          }}, '×');
+          itemsWrap.appendChild(h('div',{class:'cf-item-row'},[
+            h('span',{class:'cf-item-handle'}, String(ii+1)),
+            inp,
+            h('div',{class:'cf-item-reorder'},[up, down]),
+            rm,
+          ]));
+        });
+        const addBtn = h('button',{type:'button', class:'cf-add-btn', onclick:()=>{
+          q.items.push('');
+          drawItems();
+        }}, '+ Add item');
+        itemsWrap.appendChild(addBtn);
+      };
+      drawItems();
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Items (in correct order)'), itemsWrap ]));
+
+    } else if(q.type === 'match'){
+      const qEl = h('textarea',{class:'cf-textarea', 'data-k':'q', placeholder:'e.g. Match each BIG letter to its small letter.'}, q.q || '');
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Question'), qEl ]));
+      const pairsWrap = h('div',{class:'cf-pairs'});
+      const drawPairs = () => {
+        pairsWrap.innerHTML = '';
+        (q.pairs || []).forEach((p, pi) => {
+          const left  = h('input',{type:'text', class:'cf-input', value:p[0]||'', placeholder:'Left'});
+          const right = h('input',{type:'text', class:'cf-input', value:p[1]||'', placeholder:'Right'});
+          left.addEventListener('input', ()=>{ q.pairs[pi][0] = left.value; });
+          right.addEventListener('input', ()=>{ q.pairs[pi][1] = right.value; });
+          const rm = h('button',{type:'button', class:'cf-choice-rm', onclick:()=>{
+            if(q.pairs.length <= 2){ alert('Need at least 2 pairs.'); return; }
+            q.pairs.splice(pi,1);
+            drawPairs();
+          }}, '×');
+          pairsWrap.appendChild(h('div',{class:'cf-pair-row'},[
+            left, h('span',{class:'cf-pair-sep'}, '↔'), right, rm,
+          ]));
+        });
+        const addBtn = h('button',{type:'button', class:'cf-add-btn', onclick:()=>{
+          q.pairs.push(['','']);
+          drawPairs();
+        }}, '+ Add pair');
+        pairsWrap.appendChild(addBtn);
+      };
+      drawPairs();
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Pairs (each row is one match)'), pairsWrap ]));
+
+    } else if(q.type === 'write'){
+      const qEl = h('textarea',{class:'cf-textarea', 'data-k':'q', placeholder:'e.g. Write about your favorite animal.'}, q.q || '');
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Short question (shown above the prompt)'), qEl ]));
+      const promptEl = h('textarea',{class:'cf-textarea', 'data-k':'prompt', placeholder:'🐾 What is your favorite animal? Write 2 sentences.'}, q.prompt || '');
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Full prompt'), promptEl ]));
+      const phEl = h('input',{type:'text', class:'cf-input', 'data-k':'placeholder', value:q.placeholder||'', placeholder:'Grey text inside the writing box.'});
+      body.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Placeholder'), phEl ]));
+      const minEl = h('input',{type:'number', class:'cf-input', 'data-k':'minWords', value:q.minWords==null?6:q.minWords, min:'1'});
+      const goodEl = h('input',{type:'number', class:'cf-input', 'data-k':'goodWords', value:q.goodWords==null?10:q.goodWords, min:'1'});
+      body.appendChild(h('div',{class:'cf-row'},[
+        h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Minimum words'), minEl ]),
+        h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'"Good length" words'), goodEl ]),
+      ]));
+      const kwEl = h('input',{type:'text', class:'cf-input', 'data-k':'keywords', value: (q.keywords||[]).join(', '), placeholder:'comma, separated, list'});
+      body.appendChild(h('div',{class:'cf-field'},[
+        h('label',{class:'cf-field-label'},'Bonus keywords'),
+        kwEl,
+        h('span',{class:'cf-field-hint'},'Kids get a small bonus for using any of these words. Optional.'),
+      ]));
+    }
+  }
+
+  // Pull current DOM values back into the q object before we re-render
+  // (e.g. on move/duplicate). For type-specific DOM we set up change
+  // handlers that mutate q directly, so this mostly handles the
+  // textarea/input fields without handlers.
+  function commitCardValues(which, q, idx, card){
+    const body = card.querySelector('[data-qbody]');
+    if(!body) return;
+    body.querySelectorAll('[data-k]').forEach(el => {
+      const k = el.getAttribute('data-k');
+      if(el.tagName === 'TEXTAREA' || el.tagName === 'INPUT'){
+        if(el.type === 'number'){
+          q[k] = Number(el.value);
+        } else if(k === 'keywords'){
+          q[k] = el.value.split(',').map(s=>s.trim()).filter(Boolean);
+        } else {
+          q[k] = el.value;
+        }
+      }
+    });
+  }
+
+  // Collect all questions on save: sweep every card once more so in-
+  // flight text-edits land before we diff.
+  const collectQuestions = (which) => {
+    const arr = qState[which];
+    const cards = lists[which].querySelectorAll('.cf-qcard');
+    arr.forEach((q, idx) => {
+      if(cards[idx]) commitCardValues(which, q, idx, cards[idx]);
+    });
+    return arr.map(cleanQuestion);
+  };
+
+  // Strip empty/default fields so the diff is tight. We also preserve
+  // any fields the form doesn't edit (e.g. `visual:'🐙'`, `picture`,
+  // per-question hints) so a no-op save produces an empty patch and
+  // doesn't nuke those decorations from the base.
+  const Q_FORM_OWNED = {
+    mcq:     new Set(['type','q','choices','answer']),
+    passage: new Set(['type','passage','q','choices','answer']),
+    compare: new Set(['type','q','a','b','answer']),
+    order:   new Set(['type','q','items','correctOrder']),
+    match:   new Set(['type','q','pairs']),
+    write:   new Set(['type','q','prompt','placeholder','minWords','goodWords','keywords']),
+  };
+  function cleanQuestion(q){
+    const out = { type: q.type };
+    if(q.type === 'mcq' || q.type === 'passage'){
+      if(q.type === 'passage') out.passage = q.passage || '';
+      out.q = q.q || '';
+      out.choices = (q.choices||[]).map(c => c || '');
+      out.answer = Number(q.answer)||0;
+    } else if(q.type === 'compare'){
+      out.q = q.q || '';
+      out.a = q.a || '';
+      out.b = q.b || '';
+      out.answer = q.answer === 'b' ? 'b' : 'a';
+    } else if(q.type === 'order'){
+      out.q = q.q || '';
+      out.items = (q.items||[]).map(i => i || '');
+      // Tutor typed items in correct order → correctOrder is 0..N-1. At
+      // render time the app shuffles them for the student.
+      out.correctOrder = out.items.map((_,i)=>i);
+    } else if(q.type === 'match'){
+      out.q = q.q || '';
+      out.pairs = (q.pairs||[]).map(p => [ p[0] || '', p[1] || '' ]);
+    } else if(q.type === 'write'){
+      out.q = q.q || '';
+      if(q.prompt) out.prompt = q.prompt || '';
+      if(q.placeholder) out.placeholder = q.placeholder || '';
+      if(q.minWords != null) out.minWords = Number(q.minWords)||6;
+      if(q.goodWords != null) out.goodWords = Number(q.goodWords)||10;
+      if(q.keywords && q.keywords.length) out.keywords = q.keywords.slice();
+    }
+    // Preserve exotic fields (`visual`, `picture`, per-question hints, …)
+    // so a no-op edit produces an empty diff and doesn't silently strip
+    // decorations the tutor wasn't asked about.
+    const owned = Q_FORM_OWNED[q.type] || new Set(['type']);
+    Object.keys(q).forEach(k => { if(!owned.has(k) && q[k] !== undefined) out[k] = q[k]; });
+    return out;
+  }
+
+  registerField({ key:'questions', get:()=>collectQuestions('main') });
+  registerField({ key:'stretchQuestions', get:()=>{
+    // Only emit stretchQuestions if the base had them or the tutor
+    // added some — otherwise we'd pollute overrides with empty arrays.
+    const arr = collectQuestions('stretch');
+    if(arr.length === 0 && !(baseActivity.stretchQuestions || []).length) return undefined;
+    return arr;
+  }});
+
+  // ADVANCED escape hatch -------------------------------------------
+  // Any JSON typed here merges on top of the form-derived patch, so a
+  // power user can still set exotic fields (stack, pictures, heroImage,
+  // videoIds, audioLang…) or override anything the form got wrong.
+  const advArea = h('textarea',{class:'curr-modal-textarea', spellcheck:'false', style:'min-height:120px'}, '');
+  // Seed the advanced textarea with any existing exotic fields that the
+  // form didn't absorb, so nothing silently disappears on save.
+  const FORM_OWNED = new Set(['id','title','emoji','_hidden','lesson','questions','stretchQuestions']);
+  const LESSON_FORM_OWNED = new Set(['title','intro','example','hint']);
+  const exotic = {};
+  if(existing){
+    Object.keys(existing).forEach(k => {
+      if(!FORM_OWNED.has(k)) exotic[k] = existing[k];
+    });
+    // If the existing lesson patch had fields beyond the 4 the form
+    // edits, preserve them via advanced.
+    if(existing.lesson && typeof existing.lesson === 'object'){
+      const exoticLesson = {};
+      Object.keys(existing.lesson).forEach(k => {
+        if(!LESSON_FORM_OWNED.has(k)) exoticLesson[k] = existing.lesson[k];
+      });
+      if(Object.keys(exoticLesson).length){
+        exotic.lesson = exoticLesson;
+      }
+    }
+  }
+  if(Object.keys(exotic).length){
+    advArea.value = JSON.stringify(exotic, null, 2);
+  }
+  const advSection = h('details',{class:'cf-advanced'},[
+    h('summary',{},'▸ Advanced (raw JSON patch)'),
+    h('p',{class:'cf-advanced-hint'}, 'Power-user escape hatch for fields the form doesn\'t expose (e.g. picture lessons, math stacks, video IDs). Whatever you put here merges on top of the form patch at save time.'),
+    advArea,
+  ]);
+
+  // ---------- SAVE ----------
   const save = () => {
-    const raw = (textarea.value || '').trim();
-    let parsed;
-    try {
-      parsed = raw ? JSON.parse(raw) : {};
-    } catch(e){
-      errMsg.textContent = 'Invalid JSON: ' + (e.message || 'parse error');
-      errMsg.style.display = 'block';
-      return;
+    errMsg.style.display = 'none';
+    errMsg.textContent = '';
+
+    // Collect form-owned fields
+    const proposed = {};
+    const titleVal = titleInput.value.trim();
+    const emojiVal = emojiInput.value.trim();
+    if(titleVal) proposed.title = titleVal;
+    if(emojiVal) proposed.emoji = emojiVal;
+    const lessonVal = getLessonValue();
+    if(lessonVal) proposed.lesson = lessonVal;
+    proposed.questions = collectQuestions('main');
+    const stretch = collectQuestions('stretch');
+    if(stretch.length || (baseActivity.stretchQuestions || []).length){
+      proposed.stretchQuestions = stretch;
     }
-    if(typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null){
-      errMsg.textContent = 'Must be a JSON object like {"title":"..."} — not an array or primitive.';
-      errMsg.style.display = 'block';
-      return;
+
+    // Diff proposed vs base → only keep fields that actually differ.
+    const patch = {};
+    if(proposed.title !== undefined && proposed.title !== (baseActivity.title||'')){
+      patch.title = proposed.title;
     }
-    // Empty object (no fields) = no override → remove it instead of
-    // storing a useless empty patch.
-    if(Object.keys(parsed).length === 0){
+    if(proposed.emoji !== undefined && proposed.emoji !== (baseActivity.emoji||'')){
+      patch.emoji = proposed.emoji;
+    }
+    if(proposed.lesson && !deepEqual(proposed.lesson, baseActivity.lesson || null)){
+      patch.lesson = proposed.lesson;
+    } else if(!proposed.lesson && baseActivity.lesson){
+      // Tutor cleared the lesson entirely — that's a deliberate wipe, so
+      // store an empty object (which will shadow the base's lesson).
+      patch.lesson = {};
+    }
+    if(!deepEqual(proposed.questions || [], baseActivity.questions || [])){
+      patch.questions = proposed.questions;
+    }
+    if(proposed.stretchQuestions !== undefined && !deepEqual(proposed.stretchQuestions, baseActivity.stretchQuestions || [])){
+      patch.stretchQuestions = proposed.stretchQuestions;
+    }
+
+    // Hidden toggle is explicit — always write when true, never write
+    // when false (cleaner than keeping _hidden:false in the override).
+    if(hiddenCb.checked){ patch._hidden = true; }
+
+    // Merge advanced JSON (whatever the tutor typed wins).
+    const advRaw = (advArea.value || '').trim();
+    if(advRaw){
+      let adv;
+      try {
+        adv = JSON.parse(advRaw);
+      } catch(e){
+        errMsg.textContent = 'Advanced JSON is invalid: '+(e.message||'parse error')+'. Fix or clear it to save.';
+        errMsg.style.display = 'block';
+        return;
+      }
+      if(typeof adv !== 'object' || Array.isArray(adv) || adv === null){
+        errMsg.textContent = 'Advanced JSON must be an object like {"videoIds":[...]} — not an array or primitive.';
+        errMsg.style.display = 'block';
+        return;
+      }
+      // Shallow merge — advanced keys replace form keys at the top level.
+      // For nested lesson exotic fields, merge inside.
+      Object.keys(adv).forEach(k => {
+        if(k === 'lesson' && patch.lesson && typeof adv.lesson === 'object' && adv.lesson){
+          patch.lesson = Object.assign({}, patch.lesson, adv.lesson);
+        } else {
+          patch[k] = adv[k];
+        }
+      });
+    }
+
+    // Empty patch → no override at all (falls back to base).
+    if(Object.keys(patch).length === 0){
       delete allData.curriculum.overrides[baseActivity.id];
     } else {
-      allData.curriculum.overrides[baseActivity.id] = parsed;
+      allData.curriculum.overrides[baseActivity.id] = patch;
     }
     allData.curriculum.updatedAt = Date.now();
     saveState();
@@ -12041,22 +12660,25 @@ function openCurriculumEdit(baseActivity){
     go('teacher-curriculum');
   };
 
+  // Initial render of the two question lists.
+  renderQuestionList('main');
+  renderQuestionList('stretch');
+
   const modal = h('div',{class:'curr-modal-inner'},[
     h('div',{class:'curr-modal-head'},[
       h('div',{},[
         h('div',{class:'curr-modal-title'}, baseActivity.id),
-        h('div',{class:'curr-modal-sub'}, 'Base: '+(baseActivity.title || '(untitled)')),
+        h('div',{class:'curr-modal-sub'}, 'Base title: '+(baseActivity.title || '(untitled)')),
       ]),
       h('button',{class:'curr-modal-x', onclick:close, 'aria-label':'Close'}, '×'),
     ]),
     h('p',{class:'curr-modal-help'},
-      'This is a JSON PATCH. Any field you include replaces that field on the base. Missing fields fall through. Set "_hidden": true to hide the activity from students. Clear everything (empty object {}) to remove the override.'),
+      'Edit any field below. The app only saves fields you actually changed — empty out the whole thing and it\'ll behave as "no override."'),
     errMsg,
-    textarea,
-    h('details',{class:'curr-modal-base'},[
-      h('summary',{}, '▸ Show base activity (source-of-truth, read-only)'),
-      h('pre',{class:'curr-json'}, JSON.stringify(baseActivity, null, 2)),
-    ]),
+    metaSection,
+    lessonSection,
+    questionsSection,
+    advSection,
     h('div',{class:'curr-modal-actions'},[
       h('button',{class:'btn btn-ghost', onclick:close}, 'Cancel'),
       h('button',{class:'btn btn-primary', onclick:save}, '💾 Save Override'),
@@ -12064,7 +12686,23 @@ function openCurriculumEdit(baseActivity){
   ]);
   backdrop.appendChild(modal);
   document.body.appendChild(backdrop);
-  setTimeout(()=>{ try{ textarea.focus(); }catch(e){} }, 40);
+  setTimeout(()=>{ try{ titleInput.focus(); }catch(e){} }, 40);
+}
+
+// Small helpers used by the curriculum form. Kept local to this section
+// since they're implementation details of the editor, not general app
+// utilities.
+function cloneDeep(x){ return x == null ? x : JSON.parse(JSON.stringify(x)); }
+function deepEqual(a, b){
+  if(a === b) return true;
+  if(a == null || b == null) return a === b;
+  if(typeof a !== typeof b) return false;
+  if(typeof a !== 'object') return a === b;
+  if(Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  if(ka.length !== kb.length) return false;
+  for(const k of ka){ if(!deepEqual(a[k], b[k])) return false; }
+  return true;
 }
 
 function resetCurriculumOverride(activityId){
