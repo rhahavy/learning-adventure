@@ -6373,12 +6373,17 @@ function loginTeacher(){
   go('teacher');
 }
 
-function logout(){
+// Optional `dest` so callers can control the landing screen after clearing
+// the session. The student "👤 Switch" button passes 'profiles' to drop the
+// kid straight on the "Who's learning today?" picker (they're switching,
+// not exiting). The teacher "🚪 Log Out" uses the default 'home' since
+// that's a real exit back to the public landing.
+function logout(dest){
   currentUser=null; isTeacher=false; state=null;
   // Reset topbar bump-cache so the next login doesn't see a bogus delta.
   _prevTopbarUser = null; _prevTopbarStars = 0; _prevTopbarCoins = 0;
   try{localStorage.removeItem(LOCAL_USER_KEY)}catch(e){}
-  go('home');
+  go(dest || 'home');
 }
 
 /* ========== CLOUD SYNC ========== */
@@ -7667,7 +7672,9 @@ function updateTopbar(screen){
   if(!currentUser) return;
   const items=[{id:'dashboard',label:'🏠 Home'},{id:'store',label:'🛍️ Store'}];
   items.forEach(i=>{nav.appendChild(h('button',{class:'nav-btn'+(screen===i.id?' active':''),onclick:()=>go(i.id)},i.label))});
-  nav.appendChild(h('button',{class:'nav-btn',onclick:logout},'👤 Switch'));
+  // "Switch" goes straight to the profile picker ("Who's learning today?"),
+  // not the welcome hero — the kid is changing accounts, not exiting.
+  nav.appendChild(h('button',{class:'nav-btn',onclick:()=>logout('profiles')},'👤 Switch'));
   if(state){
     // Bump only when the SAME user's value went UP since last update —
     // avoids false positives on first render / user switch.
