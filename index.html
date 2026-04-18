@@ -9692,22 +9692,24 @@ function finishActivity(){
   const correct=quiz.correct;
   const pct = correct/scorable;
   const passed = pct >= PASS_THRESHOLD;
-  let stars=1;if(pct>=.5)stars++;if(correct===scorable)stars++;
-  // -------------------- COIN ANTI-FARM RULE --------------------
-  // Coins pay out ONCE per level — on the first-ever pass — at 2 coins
-  // per correct answer. After that, retrying awards 0 coins no matter
-  // the score, so kids can't farm the store by replaying an aced level
-  // on repeat. Failed attempts also pay 0: stars still give effort
-  // credit (min 1 star), but coins are a reward for completion, not
-  // participation.
-  // Stretch Mode is the exception — it ALWAYS pays, because the content
-  // is genuinely harder than what earned the original coins, and we
-  // want to reward kids who opt into the stretch pool.
+  // -------------------- STAR + COIN ANTI-FARM RULE --------------------
+  // Stars AND coins both pay out ONCE per level — on the first-ever pass.
+  // Retries of an already-passed level award 0 of both, no matter the
+  // score, so kids can't inflate the pill count by replaying aced levels.
+  // Failed attempts also pay 0: effort still lives in the attempts counter
+  // + the progress bar, but the stars/coins totals stay meaningful as a
+  // measure of completed content, not clicks.
+  // Stretch Mode is the exception — it ALWAYS pays (full stars + coins)
+  // because the content is genuinely harder than what earned the original
+  // rewards, and we want to reward kids who opt into the stretch pool.
+  // (Stars previously paid on every attempt, including replays and fails,
+  // which inflated the counter; April 2026 unified them with coins.)
   const prevProgForCoins = state.progress[a.id] || {};
   const wasAlreadyDone = prevProgForCoins.done === true;
-  const coins = isStretch
-    ? correct * 2
-    : (passed && !wasAlreadyDone ? correct * 2 : 0);
+  const shouldReward = isStretch || (passed && !wasAlreadyDone);
+  let starsCalc = 1; if(pct>=.5) starsCalc++; if(correct===scorable) starsCalc++;
+  const stars = shouldReward ? starsCalc : 0;
+  const coins = shouldReward ? correct * 2 : 0;
   // ------------------------------------------------------------
   // STRETCH MODE vs NORMAL MODE
   // ------------------------------------------------------------
