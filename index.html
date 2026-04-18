@@ -1132,6 +1132,78 @@ img{max-width:100%}
 .coop-chip .coop-chip-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
 .coop-chip .coop-chip-earned{font-weight:900;color:var(--primary)}
 .coop-bonus-banner{margin-top:10px;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#4A2A00;font-weight:900;font-size:14px;text-align:center;box-shadow:inset 0 -3px 0 rgba(0,0,0,.1);animation:coopCelebrate .5s var(--spring)}
+
+/* ---- ANALYTICS ---- */
+.analytics{display:grid;gap:20px;margin-top:8px}
+.ana-section{background:#fff;border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow);border:1.5px solid var(--line)}
+.ana-section h3{font-family:var(--font-display);font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.ana-section .ana-sub{font-size:12px;color:var(--ink3);font-weight:600;margin-bottom:14px}
+/* 30-day wrong-answer timeline */
+.ana-timeline{display:flex;align-items:flex-end;gap:3px;height:80px;padding:6px 0;border-bottom:1.5px solid var(--line)}
+.ana-tl-bar{flex:1;min-width:4px;background:linear-gradient(180deg,#FF7675,#E17055);border-radius:3px 3px 0 0;min-height:2px;transition:height .3s var(--spring);position:relative;cursor:pointer}
+.ana-tl-bar.zero{background:rgba(108,92,231,.08);min-height:2px;border-radius:2px}
+.ana-tl-bar:hover{filter:brightness(1.15)}
+.ana-tl-bar::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s ease;z-index:5}
+.ana-tl-bar:hover::after{opacity:1}
+.ana-tl-labels{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;font-weight:700;color:var(--ink3)}
+/* Subject accuracy heatmap */
+.ana-heatmap{width:100%;border-collapse:separate;border-spacing:4px;font-size:13px}
+.ana-heatmap th{background:rgba(108,92,231,.08);padding:8px 10px;border-radius:10px;font-weight:800;text-align:left;color:var(--ink);font-size:12px}
+.ana-heatmap th.c{text-align:center}
+.ana-heatmap td{padding:10px;border-radius:10px;text-align:center;font-weight:800;background:#fafaff}
+.ana-heatmap td.student{text-align:left;background:rgba(108,92,231,.06);color:var(--ink);font-weight:700}
+.ana-heatmap td.none{color:var(--ink3);background:rgba(108,92,231,.04)}
+/* Accuracy color gradient — red→yellow→green */
+.ana-heatmap td.p0{background:#FFE0E0;color:#C62828}
+.ana-heatmap td.p1{background:#FFE8CC;color:#D84315}
+.ana-heatmap td.p2{background:#FFF4CC;color:#E65100}
+.ana-heatmap td.p3{background:#E8F5E9;color:#2E7D32}
+.ana-heatmap td.p4{background:#C8E6C9;color:#1B5E20}
+/* Struggle concepts */
+.ana-struggles{display:grid;gap:10px}
+.ana-strug{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px 14px;border-radius:14px;background:#fafaff;border:1.5px solid var(--line)}
+.ana-strug .as-title{font-weight:800;color:var(--ink);font-size:14px}
+.ana-strug .as-meta{font-size:11px;color:var(--ink3);font-weight:700;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap}
+.ana-strug .as-meta .as-kid{padding:2px 8px;border-radius:999px;background:rgba(108,92,231,.1);color:var(--primary);font-weight:800;font-size:10px;letter-spacing:.03em}
+.ana-strug .as-count{font-family:var(--font-display);font-size:22px;font-weight:900;color:var(--coral);line-height:1}
+.ana-strug .as-count-lbl{font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center}
+/* Diagnostic: timeout vs wrong ratio per student */
+.ana-diag{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.ana-diag-card{padding:14px;border-radius:14px;background:#fafaff;border:1.5px solid var(--line);text-align:center}
+.ana-diag-card .adc-name{font-weight:800;color:var(--ink);font-size:14px;margin-bottom:6px}
+.ana-diag-card .adc-ratio{font-family:var(--font-display);font-size:26px;font-weight:900;color:var(--primary);line-height:1}
+.ana-diag-card .adc-sub{font-size:11px;color:var(--ink3);font-weight:700;margin-top:4px}
+.ana-diag-card.warn .adc-ratio{color:var(--coral)}
+.ana-diag-card.good .adc-ratio{color:#00B894}
+/* Parent read-only view — shared-link dashboard for a single kid.
+   No nav, no activities, just the weekly summary + subject grid. */
+.parent-view{max-width:860px;margin:28px auto;padding:0 18px}
+.pv-hero{background:linear-gradient(135deg,var(--pv-l,#ffd793) 0%,var(--pv-d,#f39c12) 100%);border-radius:var(--r-lg);padding:24px 26px;color:#fff;box-shadow:0 12px 32px rgba(0,0,0,.12);display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.pv-hero .pv-av{width:84px;height:84px;border-radius:50%;background:rgba(255,255,255,.25);border:3px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:900;font-size:34px;color:#fff;flex-shrink:0}
+.pv-hero .pv-meta{flex:1;min-width:0}
+.pv-hero .pv-tag{display:inline-block;padding:3px 10px;border-radius:999px;background:rgba(0,0,0,.18);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.pv-hero h1{font-family:var(--font-display);font-size:30px;font-weight:900;margin:0 0 4px;line-height:1.1}
+.pv-hero .pv-grade{font-size:13px;font-weight:700;opacity:.9}
+.pv-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+.pv-stat{background:#fff;border-radius:14px;padding:16px;text-align:center;border:1.5px solid var(--line);box-shadow:var(--shadow)}
+.pv-stat .pvs-num{font-family:var(--font-display);font-size:26px;font-weight:900;color:var(--primary);line-height:1}
+.pv-stat .pvs-lbl{font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}
+.pv-section{background:#fff;border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow);border:1.5px solid var(--line);margin-bottom:18px}
+.pv-section h2{font-family:var(--font-display);font-size:18px;font-weight:800;margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.pv-section .pv-sub{font-size:12px;color:var(--ink3);font-weight:600;margin-top:-8px;margin-bottom:14px}
+.pv-subj-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.pv-subj{padding:14px;border-radius:14px;background:#fafaff;border:1.5px solid var(--line)}
+.pv-subj .pvs-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.pv-subj .pvs-head .pvs-name{font-weight:800;font-size:14px;color:var(--ink);display:flex;align-items:center;gap:6px}
+.pv-subj .pvs-lv{font-size:10px;font-weight:800;padding:3px 8px;border-radius:999px;background:rgba(108,92,231,.12);color:var(--primary);letter-spacing:.04em;text-transform:uppercase}
+.pv-subj .pvs-bar{height:8px;border-radius:999px;background:rgba(108,92,231,.12);overflow:hidden}
+.pv-subj .pvs-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#6C5CE7,#FD79A8);transition:width .6s var(--spring)}
+.pv-subj .pvs-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);font-weight:700;margin-top:8px}
+.pv-foot{text-align:center;font-size:11px;color:var(--ink3);font-weight:600;padding:12px 0 20px}
+.pv-empty{text-align:center;padding:30px 20px;color:var(--ink3);font-weight:600;font-size:13px}
+.pv-err{background:#fff;border-radius:var(--r-lg);padding:36px 24px;text-align:center;max-width:460px;margin:60px auto;box-shadow:var(--shadow);border:1.5px solid var(--line)}
+.pv-err h2{font-family:var(--font-display);font-size:22px;margin:0 0 8px}
+.pv-err p{color:var(--ink3);font-weight:600;font-size:13px;margin:0}
 .daily-mission::before{content:'';position:absolute;inset:-2px;background:conic-gradient(from 0deg,#6C5CE7,#FD79A8,#FDCB6E,#00CEC9,#6C5CE7);border-radius:var(--r-lg);z-index:-1;animation:missionSpin 8s linear infinite;opacity:.55}
 @keyframes missionSpin{to{transform:rotate(360deg)}}
 .daily-mission::after{content:'';position:absolute;inset:2px;background:linear-gradient(135deg,#fff6e0 0%,#ffe3f1 55%,#e7e4ff 100%);border-radius:calc(var(--r-lg) - 2px);z-index:-1}
@@ -7692,6 +7764,14 @@ try{
 let isTeacher = false;
 let state = currentUser ? allData.users[currentUser] : null;
 
+/* ---- PARENT VIEW ----
+   A parent can get a read-only snapshot of their kid's progress via a
+   shareable URL like `?parent=isaiah`. No login, no PIN, no mutations —
+   just stats. The tutor copies the URL once per family and pastes it into
+   the parent's weekly email. The view hides teacher controls, locks out
+   the normal nav, and short-circuits boot routing. */
+let parentViewSid = null;
+
 /* ---- Weekly content clock (per-student) ----
    `currentWeek` is NOT a global calendar week — it's the active student's
    own week number, counted from their joinedAt. A kid who first logged in
@@ -9070,6 +9150,164 @@ function buildCoopGoalCard(opts){
   return card;
 }
 
+/* buildAnalyticsPanel()  →  HTMLElement
+   -------------------------------------
+   Family-wide learning analytics for the tutor. Distinct from the existing
+   Detailed Report Cards panel — that shows one kid at a time, this shows
+   CROSS-kid patterns so the tutor sees where THE FAMILY is struggling vs.
+   where a specific kid is. Four sections:
+
+     1. 30-day wrong-answer timeline — bar per day, helps spot bad weeks
+        vs. steady growth. Reads wrongAnswers[].at from every student.
+     2. Subject accuracy heatmap — students × subjects matrix, coloured
+        red→green by questionAccuracy. Quickly surfaces "everyone
+        struggles in Spelling" vs "Isaiah is lagging in Math".
+     3. Top struggle concepts — lessonTitles that appear most often in
+        wrongAnswers across the family, with per-kid chips showing who
+        struggled. This points the weekly-report prompt at the right
+        lessons without the tutor having to dig.
+     4. Timeout vs. wrong diagnostic — per-student % of errors that
+        were timed-out answers. High timeout% = knew it, too slow
+        (give more time). High wrong% = needs reteaching. */
+function buildAnalyticsPanel(){
+  const wrap = h('div',{class:'analytics'});
+
+  // Collect the last 30 days of wrong-answer events across every student.
+  const now = Date.now();
+  const dayMs = 24*60*60*1000;
+  const buckets = new Array(30).fill(0);
+  STUDENTS.forEach(s=>{
+    const ud = allData.users[s.id] || {};
+    (ud.wrongAnswers||[]).forEach(w=>{
+      if(!w || !w.at) return;
+      const ageDays = Math.floor((now - w.at) / dayMs);
+      if(ageDays >= 0 && ageDays < 30) buckets[29 - ageDays]++;  // rightmost = today
+    });
+  });
+  const maxBucket = Math.max(1, ...buckets);
+  // Timeline section
+  const tl = h('div',{class:'ana-section'});
+  tl.appendChild(h('h3',{},[h('span',{},'📉'),h('span',{},'Wrong answers — last 30 days')]));
+  tl.appendChild(h('div',{class:'ana-sub'}, 'Daily total across every student. Low bars = smooth week, tall bars = time to adjust.'));
+  const bars = h('div',{class:'ana-timeline'});
+  buckets.forEach((count, i)=>{
+    const daysAgo = 29 - i;
+    const dateLabel = new Date(now - daysAgo*dayMs).toLocaleDateString('en-CA',{month:'short',day:'numeric'});
+    const pct = count>0 ? (count / maxBucket * 100) : 0;
+    bars.appendChild(h('div',{
+      class:'ana-tl-bar'+(count===0?' zero':''),
+      style:'height:'+Math.max(pct, count>0?8:2)+'%',
+      'data-tip': dateLabel+' · '+count+' wrong',
+    }));
+  });
+  tl.appendChild(bars);
+  tl.appendChild(h('div',{class:'ana-tl-labels'},[
+    h('span',{},'30 days ago'),
+    h('span',{},'Today'),
+  ]));
+  wrap.appendChild(tl);
+
+  // Subject-accuracy heatmap
+  const hm = h('div',{class:'ana-section'});
+  hm.appendChild(h('h3',{},[h('span',{},'🎯'),h('span',{},'Accuracy by subject')]));
+  hm.appendChild(h('div',{class:'ana-sub'}, 'Per-student question accuracy (green = strong, red = needs work). Blanks = not attempted yet.'));
+  const table = h('table',{class:'ana-heatmap'});
+  const thead = h('tr',{},[h('th',{},'Student')].concat(SUBJECTS.map(sub=>h('th',{class:'c'}, sub.emoji+' '+sub.name))));
+  table.appendChild(thead);
+  STUDENTS.forEach(s=>{
+    const row = h('tr',{});
+    row.appendChild(h('td',{class:'student'}, s.name));
+    SUBJECTS.forEach(sub=>{
+      try{
+        const stt = computeSubjectStats(s.id, sub.id);
+        if(!stt || !stt.touched){
+          row.appendChild(h('td',{class:'none'}, '—'));
+          return;
+        }
+        const pct = Math.round((stt.questionAccuracy||0)*100);
+        const cls = pct>=85?'p4' : pct>=70?'p3' : pct>=50?'p2' : pct>=30?'p1' : 'p0';
+        row.appendChild(h('td',{class:cls}, pct+'%'));
+      }catch(e){
+        row.appendChild(h('td',{class:'none'}, '—'));
+      }
+    });
+    table.appendChild(row);
+  });
+  hm.appendChild(table);
+  wrap.appendChild(hm);
+
+  // Top struggle concepts (family-wide)
+  const concepts = {};
+  STUDENTS.forEach(s=>{
+    const ud = allData.users[s.id] || {};
+    (ud.wrongAnswers||[]).forEach(w=>{
+      const key = (w.lessonTitle||w.qText||'Unknown').slice(0,80);
+      if(!concepts[key]) concepts[key] = { count:0, kids:new Set() };
+      concepts[key].count++;
+      concepts[key].kids.add(s.name);
+    });
+  });
+  const topConcepts = Object.entries(concepts)
+    .sort((a,b)=>b[1].count - a[1].count)
+    .slice(0, 8);
+  const sc = h('div',{class:'ana-section'});
+  sc.appendChild(h('h3',{},[h('span',{},'🧠'),h('span',{},'Top struggle concepts (family)')]));
+  sc.appendChild(h('div',{class:'ana-sub'}, 'Concepts with the most wrong answers across every student. Use these to target the next week\'s content.'));
+  if(!topConcepts.length){
+    sc.appendChild(h('div',{class:'ana-sub',style:'text-align:center;padding:20px'},'No wrong answers logged yet — everyone\'s crushing it.'));
+  } else {
+    const grid = h('div',{class:'ana-struggles'});
+    topConcepts.forEach(([title, info])=>{
+      const kidChips = Array.from(info.kids).map(name=>h('span',{class:'as-kid'}, name));
+      const item = h('div',{class:'ana-strug'},[
+        h('div',{},[
+          h('div',{class:'as-title'}, title),
+          h('div',{class:'as-meta'}, kidChips.length ? kidChips : [h('span',{}, '—')]),
+        ]),
+        h('div',{},[
+          h('div',{class:'as-count'}, String(info.count)),
+          h('div',{class:'as-count-lbl'}, 'misses'),
+        ]),
+      ]);
+      grid.appendChild(item);
+    });
+    sc.appendChild(grid);
+  }
+  wrap.appendChild(sc);
+
+  // Timeout vs wrong-answer diagnostic (per-student)
+  const diag = h('div',{class:'ana-section'});
+  diag.appendChild(h('h3',{},[h('span',{},'⏱️'),h('span',{},'Timeout ratio — is it speed or knowledge?')]));
+  diag.appendChild(h('div',{class:'ana-sub'}, 'High timeout% = "knew it, was too slow — give them more time." Low timeout% with lots of misses = needs reteaching.'));
+  const diagGrid = h('div',{class:'ana-diag'});
+  STUDENTS.forEach(s=>{
+    const ud = allData.users[s.id] || {};
+    const entries = (ud.wrongAnswers||[]);
+    if(!entries.length){
+      diagGrid.appendChild(h('div',{class:'ana-diag-card'},[
+        h('div',{class:'adc-name'}, s.name),
+        h('div',{class:'adc-ratio'}, '—'),
+        h('div',{class:'adc-sub'}, 'no data'),
+      ]));
+      return;
+    }
+    const total = entries.length;
+    const timeouts = entries.filter(w=>w.timedOut).length;
+    const pct = Math.round(timeouts / total * 100);
+    const cls = pct >= 50 ? 'warn' : (pct <= 15 && total >= 10) ? 'good' : '';
+    const label = pct >= 50 ? 'mostly speed' : pct <= 15 ? 'mostly knowledge' : 'mixed';
+    diagGrid.appendChild(h('div',{class:'ana-diag-card '+cls},[
+      h('div',{class:'adc-name'}, s.name),
+      h('div',{class:'adc-ratio'}, pct+'%'),
+      h('div',{class:'adc-sub'}, label+' · '+total+' total'),
+    ]));
+  });
+  diag.appendChild(diagGrid);
+  wrap.appendChild(diag);
+
+  return wrap;
+}
+
 /* ==========================================================================
    TEXT-TO-SPEECH — browser-native Web Speech API with natural voice picking
    --------------------------------------------------------------------------
@@ -9827,6 +10065,7 @@ function go(screen,opts={}){
     else if(screen==='orders') renderOrders(root);
     else if(screen==='teacher') renderTeacher(root);
     else if(screen==='teacher-curriculum') renderTeacherCurriculum(root);
+    else if(screen==='parent') renderParentView(root);
     else renderHome(root); // unknown screen → safe fallback
   }catch(err){
     console.error('[KidQuest] Render error on screen "'+screen+'":',err);
@@ -10490,6 +10729,108 @@ function renderLegend(){
   wrap.appendChild(head);
   wrap.appendChild(body);
   return wrap;
+}
+
+/* ========== PARENT READ-ONLY VIEW ==========
+   Entry: URL like `?parent=<sid>` — e.g. /?parent=isaiah
+   Reads straight out of allData.users[sid] with zero mutation. Shows the
+   hero (name/grade/avatar), a stats strip (stars/streak/coins/perfects),
+   subject-by-subject progress bars with Level + question accuracy, and
+   a footer with the last-active timestamp. If the sid is bad we show an
+   error card instead of silently routing home — the parent should know
+   the link is broken so they can ask for a fresh one. */
+function renderParentView(root){
+  const sid = parentViewSid;
+  const stu = sid && STUDENTS.find(s=>s.id===sid);
+  const ud  = sid && allData.users && allData.users[sid];
+  if(!stu || !ud){
+    const err = h('div',{class:'pv-err'},[
+      h('h2',{},'Student not found'),
+      h('p',{},'This link may be out of date. Ask your tutor for a fresh parent link.'),
+    ]);
+    root.appendChild(err);
+    return;
+  }
+  // Wrapper applies the max-width + centering layout rules from CSS. All
+  // subsequent sections attach to this rather than directly to `root`.
+  const wrap = h('div',{class:'parent-view'});
+  root.appendChild(wrap);
+  // Hero card — uses the student's palette so two kids' parent links
+  // look visibly different to the parent.
+  const hero = h('div',{class:'pv-hero'},[
+    h('div',{class:'pv-av'}, stu.initial || stu.name[0]),
+    h('div',{class:'pv-meta'},[
+      h('span',{class:'pv-tag'},'Parent view'),
+      h('h1',{}, stu.name+'’s progress'),
+      h('div',{class:'pv-grade'}, stu.grade || ''),
+    ]),
+  ]);
+  hero.style.setProperty('--pv-l', stu.colorLight || '#6C5CE7');
+  hero.style.setProperty('--pv-d', stu.colorDark || '#4834D4');
+  wrap.appendChild(hero);
+
+  // Stats strip — top-line numbers at a glance
+  const perfectsCount = Object.keys(ud.perfectActivities||{}).length;
+  const completedCount = Object.keys(ud.completedActivities||{}).length;
+  const stats = h('div',{class:'pv-stats'},[
+    h('div',{class:'pv-stat'},[
+      h('div',{class:'pvs-num'}, String(Number(ud.totalStars||0))),
+      h('div',{class:'pvs-lbl'},'⭐ Stars'),
+    ]),
+    h('div',{class:'pv-stat'},[
+      h('div',{class:'pvs-num'}, String(Number(ud.streak||0))),
+      h('div',{class:'pvs-lbl'},'🔥 Day streak'),
+    ]),
+    h('div',{class:'pv-stat'},[
+      h('div',{class:'pvs-num'}, String(perfectsCount)),
+      h('div',{class:'pvs-lbl'},'💯 Perfects'),
+    ]),
+    h('div',{class:'pv-stat'},[
+      h('div',{class:'pvs-num'}, String(completedCount)),
+      h('div',{class:'pvs-lbl'},'✅ Completed'),
+    ]),
+  ]);
+  wrap.appendChild(stats);
+
+  // Per-subject progress — reuses computeSubjectStats so parent numbers
+  // match whatever the tutor sees inside Detailed Report Cards.
+  const sec = h('div',{class:'pv-section'});
+  sec.appendChild(h('h2',{},[h('span',{},'📚'),h('span',{},'This week by subject')]));
+  sec.appendChild(h('div',{class:'pv-sub'},'Completion bar shows how many of this week’s activities '+stu.name+' has finished. The Level tag reflects effort + accuracy together.'));
+  const grid = h('div',{class:'pv-subj-grid'});
+  let anySubject = false;
+  SUBJECTS.forEach(sub=>{
+    let stt;
+    try{ stt = computeSubjectStats(sid, sub.id); }catch(e){ return; }
+    if(!stt || !stt.total) return;  // subject isn't in this kid's curriculum
+    anySubject = true;
+    const levelNames = ['', 'Growing', 'Steady', 'Strong', 'Mastering'];
+    const card = h('div',{class:'pv-subj'},[
+      h('div',{class:'pvs-head'},[
+        h('div',{class:'pvs-name'},[h('span',{}, sub.emoji),h('span',{}, sub.name)]),
+        h('div',{class:'pvs-lv'}, levelNames[stt.lv] || '—'),
+      ]),
+      h('div',{class:'pvs-bar'},[ h('div',{class:'pvs-fill', style:'width:'+Math.round(stt.completion*100)+'%'}) ]),
+      h('div',{class:'pvs-meta'},[
+        h('span',{}, stt.done+' of '+stt.total+' done'),
+        h('span',{}, stt.touched ? (stt.pctAccuracy+'% accuracy') : 'not started'),
+      ]),
+    ]);
+    grid.appendChild(card);
+  });
+  if(anySubject) sec.appendChild(grid);
+  else sec.appendChild(h('div',{class:'pv-empty'},'No subjects started yet — '+stu.name+' is brand new to KidQuest.'));
+  wrap.appendChild(sec);
+
+  // Footer — when was this kid last active (helps parent know if the
+  // numbers are fresh or stale). lastActiveDate is a YYYY-MM-DD string
+  // written any time the kid earns stars.
+  const last = ud.lastActiveDate || '';
+  const foot = h('div',{class:'pv-foot'},
+    last ? ('Last active: '+last+' · Data updates automatically — just refresh this page anytime.')
+         : 'Data updates automatically — just refresh this page anytime.'
+  );
+  wrap.appendChild(foot);
 }
 
 /* ========== STUDENT DASHBOARD ========== */
@@ -14215,6 +14556,7 @@ function renderTeacher(root){
     { id:'curriculum',  icon:'📚', title:'Curriculum Editor',     build: buildCurriculumLink },
     { id:'messages',    icon:'💬', title:'Messages',              badge: unreadTotal, build: renderTeacherMessages },
     { id:'reports',     icon:'📊', title:'Detailed Report Cards', build: buildReportCardsPanel },
+    { id:'analytics',   icon:'📈', title:'Learning Analytics',    build: buildAnalyticsPanel },
     { id:'parents',     icon:'📧', title:'Parent Reports',        build: renderParentReports },
     { id:'store',       icon:'🛍️', title:'Store Management',      build: renderTeacherStore },
     { id:'maintenance', icon:'🔧', title:'Maintenance',           build: renderMaintenanceControls },
@@ -15729,6 +16071,32 @@ function renderParentReports(){
         class:'btn btn-ghost',
         onclick:()=>previewProgressReport(s.id)
       },'📄 Preview'),
+      // Copy a read-only shareable URL. Parents open it anytime to see their
+      // kid's progress — no login, no PIN, no mutations possible.
+      h('button',{
+        class:'btn btn-ghost',
+        title:'Copy a read-only link parents can open anytime (no login needed)',
+        onclick:(e)=>{
+          const btn = e.currentTarget;
+          const url = location.origin + location.pathname + '?parent=' + encodeURIComponent(s.id);
+          const done = (ok)=>{
+            const orig = btn.textContent;
+            btn.textContent = ok ? '✓ Link copied' : '✗ Copy failed';
+            setTimeout(()=>{ btn.textContent = orig; }, 1600);
+          };
+          try{
+            if(navigator.clipboard && navigator.clipboard.writeText){
+              navigator.clipboard.writeText(url).then(()=>done(true)).catch(()=>done(false));
+            } else {
+              // Fallback for older browsers
+              const ta = document.createElement('textarea'); ta.value = url;
+              document.body.appendChild(ta); ta.select();
+              const ok = document.execCommand && document.execCommand('copy');
+              document.body.removeChild(ta); done(!!ok);
+            }
+          }catch(err){ done(false); }
+        }
+      },'🔗 Parent link'),
       h('button',{
         class:'btn btn-primary' + (hasEmail ? '' : ' btn-disabled'),
         disabled: hasEmail ? null : '',
@@ -16151,15 +16519,42 @@ function promptMaintenanceUnlock(){
 function isMaintenanceBypassed(){
   try{ return sessionStorage.getItem(MAINTENANCE_BYPASS_KEY) === '1'; }catch(e){ return false; }
 }
+// Parent read-only view — if the URL has `?parent=<sid>` AND sid matches a
+// real student, skip the normal picker flow and render the read-only
+// progress summary. Nothing in parent mode writes state, so we clear any
+// leftover session first (a parent sharing a device with a kid shouldn't
+// accidentally see teacher controls or the kid's dashboard). Detected
+// BEFORE the maintenance check so parents can read static progress even
+// while the tutor is editing curriculum.
+// Capture the raw `?parent=` value (if any) plus whether it maps to a
+// real student. If the parent param is present but invalid, we STILL
+// route to the parent screen so renderParentView shows the "link is
+// stale" error card — that's clearer than silently landing on the
+// generic profile picker.
+let __parentParamPresent = false;
+let __parentQuerySid = null;
+try{
+  const pu = new URL(location.href);
+  const pv = pu.searchParams.get('parent');
+  if(pv !== null){
+    __parentParamPresent = true;
+    if(STUDENTS.find(s=>s.id===pv)) __parentQuerySid = pv;
+  }
+}catch(e){}
+
 const __maintenanceActive = (function(){
   const m = allData && allData.maintenance;
   if(!m || !m.active) return false;
   if(isMaintenanceBypassed()) return false;
+  // Parent links (valid OR stale) bypass maintenance — they're read-only
+  // and don't mutate. Stale links still need to render the error card so
+  // the parent gets a clear "ask for a fresh link" message.
+  if(__parentParamPresent) return false;
   renderMaintenanceScreen();
   return true;
 })();
 
-// Always land on the home screen on fresh page load.
+// Always land on the home screen on fresh page load (non-parent links).
 // The profile picker handles multi-student sharing — each kid picks their
 // name + re-enters the PIN every session. This prevents the site from
 // opening into whoever was last logged in on that device (which is wrong
@@ -16168,7 +16563,12 @@ if(!__maintenanceActive){
   try {
     currentUser = null; state = null; isTeacher = false;
     try{ localStorage.removeItem(LOCAL_USER_KEY); }catch(e){}
-    go('home');
+    if(__parentParamPresent){
+      parentViewSid = __parentQuerySid;  // may be null → error card
+      go('parent');
+    } else {
+      go('home');
+    }
   } catch(e) {
     console.error('[KidQuest] Initial routing failed, forcing home:',e);
     currentUser=null; state=null;
