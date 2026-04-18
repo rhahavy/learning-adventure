@@ -948,6 +948,67 @@ img{max-width:100%}
   .t-acc-body{padding:14px 14px 16px}
 }
 
+/* ---- CURRICULUM EDITOR ----
+   Full-screen teacher page for editing activity content. Reachable via a
+   link from the teacher dashboard. Edits are stored as JSON patches in
+   allData.curriculum.overrides and merged at read time — see
+   applyCurriculumOverride() in the JS. */
+.curr-editor{margin-top:24px;max-width:980px;margin-left:auto;margin-right:auto}
+.curr-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.curr-head h2{font-size:22px;font-weight:800;margin:0}
+.curr-intro{color:var(--ink2);font-size:14px;line-height:1.55;background:rgba(108,92,231,.05);border-left:3px solid var(--primary);padding:10px 14px;border-radius:8px;margin:12px 0 18px}
+.curr-ctrls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.curr-ctrl{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
+.curr-ctrl-label{font-size:11px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px}
+.curr-ctrl select{padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer}
+.curr-ctrl select:focus{outline:2px solid var(--primary);outline-offset:-1px}
+.curr-empty{padding:40px;text-align:center;color:var(--ink3);font-style:italic;background:var(--card);border:1px dashed var(--line);border-radius:var(--r)}
+.curr-list{display:flex;flex-direction:column;gap:10px}
+.curr-row{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);transition:border-color .2s}
+.curr-row.is-modified{border-color:rgba(253,121,168,.5);background:linear-gradient(to right,rgba(253,121,168,.04),var(--card) 60%)}
+.curr-row.is-hidden{opacity:.55}
+.curr-row-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.curr-row .curr-emoji{font-size:22px;flex-shrink:0;line-height:1}
+.curr-row .curr-meta{flex:1;min-width:180px}
+.curr-row .curr-title{font-weight:800;font-size:15px;color:var(--ink);line-height:1.2}
+.curr-row .curr-id{font-size:11px;color:var(--ink3);font-family:ui-monospace,Menlo,monospace;margin-top:2px}
+.curr-row.is-modified .curr-id{color:#c2185b;font-weight:700}
+.curr-row .btn-sm{padding:6px 12px;font-size:12px;font-weight:700;border-radius:8px;flex-shrink:0}
+.curr-row .btn-sm.btn-ghost{background:transparent;color:var(--ink3);border:1px solid var(--line)}
+.curr-row .btn-sm.btn-ghost:hover{background:rgba(0,0,0,.04);color:var(--ink)}
+.curr-details{margin-top:10px;font-size:13px}
+.curr-details > summary{cursor:pointer;color:var(--ink3);font-weight:600;padding:4px 0;user-select:none}
+.curr-details > summary:hover{color:var(--primary)}
+.curr-details[open] > summary{color:var(--primary);margin-bottom:8px}
+.curr-json{background:#1a1035;color:#f0e9ff;padding:14px;border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;max-height:400px;overflow:auto;white-space:pre;margin:0}
+
+/* Edit modal */
+.curr-modal{position:fixed;inset:0;background:rgba(20,20,35,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:300;display:grid;place-items:center;padding:20px;animation:fadeIn .2s ease}
+.curr-modal-inner{background:var(--card);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.3);padding:22px;width:min(760px,100%);max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.curr-modal-head{display:flex;align-items:flex-start;gap:12px}
+.curr-modal-head > div:first-child{flex:1;min-width:0}
+.curr-modal-title{font-size:18px;font-weight:800;color:var(--ink);font-family:ui-monospace,Menlo,monospace}
+.curr-modal-sub{font-size:13px;color:var(--ink3);margin-top:2px;font-weight:600}
+.curr-modal-x{background:transparent;border:0;font-size:26px;cursor:pointer;color:var(--ink3);line-height:1;padding:0 8px;flex-shrink:0;border-radius:6px}
+.curr-modal-x:hover{background:rgba(0,0,0,.06);color:var(--ink)}
+.curr-modal-help{font-size:13px;color:var(--ink2);line-height:1.5;margin:0;background:rgba(253,203,110,.1);border-left:3px solid #fdcb6e;padding:10px 12px;border-radius:8px}
+.curr-modal-err{background:rgba(255,59,48,.1);border:1px solid rgba(255,59,48,.3);color:#c92a2a;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;font-family:ui-monospace,Menlo,monospace}
+.curr-modal-textarea{width:100%;min-height:260px;padding:14px;border:1.5px solid var(--line);border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;color:var(--ink);background:#fafaff;resize:vertical;tab-size:2}
+.curr-modal-textarea:focus{outline:2px solid var(--primary);outline-offset:-1px;background:#fff}
+.curr-modal-base > summary{cursor:pointer;color:var(--ink3);font-weight:600;font-size:13px;padding:4px 0;user-select:none}
+.curr-modal-base > summary:hover{color:var(--primary)}
+.curr-modal-base[open] > summary{color:var(--primary);margin-bottom:8px}
+.curr-modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.curr-modal-actions .btn{padding:10px 18px}
+@media(max-width:480px){
+  .curr-ctrls{flex-direction:column}
+  .curr-ctrl{min-width:0}
+  .curr-row-header{align-items:stretch}
+  .curr-row .btn-sm{width:100%}
+  .curr-modal-inner{padding:16px}
+  .curr-modal-textarea{min-height:200px;font-size:12px}
+}
+
 /* ---- REPORT CARD ---- */
 .report-card{margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:clamp(18px,3vw,28px);box-shadow:var(--shadow);position:relative;overflow:hidden}
 .report-card::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,#6c5ce7,#0984e3,#00b894,#fdcb6e,#e84393);background-size:200% 100%;animation:shimmer 4s ease-in-out infinite}
@@ -6096,6 +6157,17 @@ const defaultAll = () => ({
   // Synced via cloud so the teacher sees student messages within one poll
   // (~25s) on their own device and vice-versa.
   messages: Object.fromEntries(STUDENTS.map(s=>[s.id, []])),
+  // Curriculum overrides — teacher edits to WEEKS[...] activities made
+  // from the Curriculum Editor. Keyed by activity.id (e.g.
+  // 'w1-isaiah-m1'). Value is a PATCH: any field present replaces the
+  // same field from the base activity in WEEKS. Missing fields fall
+  // through to the base. A `_hidden: true` flag soft-deletes — the base
+  // activity stays in index.html but students don't see it.
+  // Kept separate from catalogOverrides (store items) and videoOverrides
+  // (per-lesson YT video id lists) because the lifecycle and merge
+  // semantics are different — curriculum overrides are JSON patches, not
+  // full replacements or flags. See applyCurriculumOverride below.
+  curriculum: { overrides: {}, updatedAt: 0 },
   // Maintenance mode — teacher toggles from dashboard, synced via cloud.
   maintenance: { active: false, message: DEFAULT_MAINTENANCE_MESSAGE, updatedAt: 0 },
   updatedAt:0
@@ -6134,6 +6206,13 @@ let allData = (function(){
     d.orders = Array.isArray(p.orders) ? p.orders : [];
     d.catalogOverrides = (p.catalogOverrides && typeof p.catalogOverrides==='object') ? p.catalogOverrides : {};
     d.videoOverrides  = (p.videoOverrides  && typeof p.videoOverrides ==='object') ? p.videoOverrides  : {};
+    // Curriculum overrides — be defensive, this is a nested object.
+    d.curriculum = (p.curriculum && typeof p.curriculum === 'object')
+      ? {
+          overrides: (p.curriculum.overrides && typeof p.curriculum.overrides === 'object') ? p.curriculum.overrides : {},
+          updatedAt: typeof p.curriculum.updatedAt === 'number' ? p.curriculum.updatedAt : 0,
+        }
+      : { overrides: {}, updatedAt: 0 };
     // Chat messages — per-student thread arrays. Tolerate missing/legacy
     // stored shapes (pre-chat backups won't have the field).
     if(p.messages && typeof p.messages === 'object'){
@@ -6286,6 +6365,15 @@ async function pullCloud(init){
     if(Array.isArray(d.orders))allData.orders=d.orders;
     if(d.catalogOverrides&&typeof d.catalogOverrides==='object')allData.catalogOverrides=d.catalogOverrides;
     if(d.videoOverrides &&typeof d.videoOverrides ==='object')allData.videoOverrides =d.videoOverrides;
+    // Curriculum overrides — full-replacement merge keyed by activity.id.
+    // Last-writer-wins is fine here: the teacher is the only one editing,
+    // and the editor always sends the full overrides map.
+    if(d.curriculum&&typeof d.curriculum==='object'){
+      allData.curriculum={
+        overrides: (d.curriculum.overrides && typeof d.curriculum.overrides==='object') ? d.curriculum.overrides : {},
+        updatedAt: typeof d.curriculum.updatedAt==='number' ? d.curriculum.updatedAt : 0,
+      };
+    }
     // Chat merge — union local + remote by (from|ts|text) signature so a
     // message sent on THIS device doesn't get wiped by a remote pull that
     // hasn't seen it yet (last-write-wins at the allData level would lose
@@ -7226,6 +7314,29 @@ function getStudentData(sid){return allData.users[sid]||defaultUser()}
 function getStudentInfo(sid){
   return STUDENTS.find(s=>s.id===sid) || DEMO_GRADES.find(d=>d.id===sid);
 }
+/* Curriculum override merge — teacher edits from the Curriculum Editor live
+   in allData.curriculum.overrides[activityId]. The override is a PATCH:
+   any field present REPLACES the same field on the base activity; missing
+   fields fall through. A `_hidden: true` flag soft-deletes the activity
+   (returns null so callers drop it from lists).
+
+   Shallow merge is intentional — teachers edit the whole `lesson` or whole
+   `questions` array, not individual nested fields. Deep-merging would make
+   "remove a question" impossible because the removed index would fall
+   back to the base array. The id is always preserved from the base so
+   existing progress/stats keyed on id keep working.
+
+   Returns the merged activity, or null if hidden. Pure function — does not
+   mutate base or override. Safe to call on any activity, including those
+   without overrides (fast path: returns the base unchanged). */
+function applyCurriculumOverride(activity){
+  if(!activity || !activity.id) return activity;
+  const ov = allData && allData.curriculum && allData.curriculum.overrides && allData.curriculum.overrides[activity.id];
+  if(!ov) return activity;
+  if(ov._hidden) return null;
+  return Object.assign({}, activity, ov, { id: activity.id });
+}
+
 function getWeekActivities(sid,subj){
   // Demo profiles reuse an existing student's curriculum via curriculumSid
   // so we don't duplicate the big WEEKS data structure. Real students hit
@@ -7233,11 +7344,14 @@ function getWeekActivities(sid,subj){
   const demo = DEMO_GRADES.find(d=>d.id===sid);
   const resolved = demo ? demo.curriculumSid : sid;
   const acts = (WEEKS[currentWeek] && WEEKS[currentWeek][resolved] && WEEKS[currentWeek][resolved][subj]) || [];
+  // Apply teacher overrides at read time — demos see them too, because the
+  // whole point of the demo preview is "what students will experience."
+  const merged = acts.map(applyCurriculumOverride).filter(Boolean);
   // Activities marked demoOnly are previews of upcoming content — parents
   // browsing a demo profile see them so they can gauge depth/progression,
   // but real students don't, because they haven't earned their way there yet.
-  if(demo) return acts;
-  return acts.filter(a => !a.demoOnly);
+  if(demo) return merged;
+  return merged.filter(a => !a.demoOnly);
 }
 function countDone(sid,subj){const acts=getWeekActivities(sid,subj);const ud=getStudentData(sid);return acts.filter(a=>ud.completedActivities[a.id]).length}
 function isActivityDone(sid,aid){return !!(getStudentData(sid).completedActivities[aid])}
@@ -7590,6 +7704,7 @@ function go(screen,opts={}){
     else if(screen==='store') renderStore(root);
     else if(screen==='orders') renderOrders(root);
     else if(screen==='teacher') renderTeacher(root);
+    else if(screen==='teacher-curriculum') renderTeacherCurriculum(root);
     else renderHome(root); // unknown screen → safe fallback
   }catch(err){
     console.error('[KidQuest] Render error on screen "'+screen+'":',err);
@@ -8868,7 +8983,16 @@ function findActivityById(activityId){
         const list = subjects[sub];
         if(!Array.isArray(list)) continue;
         for(const a of list){
-          if(a && a.id === activityId) return a;
+          // Apply curriculum override at lookup time so teacher edits are
+          // reflected everywhere findActivityById is used (reports, quests,
+          // recommendations, etc.). Hidden activities still return the base
+          // here — hiding is a rendering concern (handled in list views),
+          // not a lookup concern; callers looking up by ID usually need
+          // the base shape even if it's soft-deleted.
+          if(a && a.id === activityId){
+            const merged = applyCurriculumOverride(a);
+            return merged || a;
+          }
         }
       }
     }
@@ -11554,11 +11678,33 @@ function renderTeacher(root){
     }},'🧹 Clear Orders'),
   ]);
 
+  // Curriculum editor launcher — lives in the accordion for consistency
+  // but clicking "Open Editor" navigates away to the full-screen editor
+  // (renderTeacherCurriculum). Kept as a section instead of a naked
+  // dashboard button so it sits alongside the other tutor tools without
+  // introducing a second UI pattern.
+  const buildCurriculumLink = () => {
+    const overrideCount = Object.keys((allData && allData.curriculum && allData.curriculum.overrides) || {}).length;
+    return h('div',{style:'display:flex;flex-direction:column;gap:12px'},[
+      h('p',{style:'color:var(--ink2);font-size:14px;line-height:1.55;margin:0'},
+        'Edit lessons, questions, answers, titles — any field on any activity. Changes sync to all devices. The base curriculum lives in the app code; edits here are overrides you can reset at any time.'),
+      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},[
+        h('button',{class:'btn btn-primary', onclick:()=>go('teacher-curriculum')}, '📚 Open Curriculum Editor →'),
+        h('span',{style:'font-size:13px;color:'+(overrideCount>0?'#c2185b':'var(--ink3)')+';font-weight:700'},
+          overrideCount > 0
+            ? '● '+overrideCount+' active override'+(overrideCount===1?'':'s')
+            : 'No active overrides'),
+      ]),
+    ]);
+  };
+
   // Section manifest — order matches the old linear layout so tutors who
   // had muscle memory for "scroll down to find X" still find X in roughly
-  // the same place.
+  // the same place. Curriculum Editor sits second — it's the single most
+  // important tutor-authoring tool.
   const sections = [
     { id:'students',    icon:'👥', title:'Students Overview',     build: buildOverviewGrid },
+    { id:'curriculum',  icon:'📚', title:'Curriculum Editor',     build: buildCurriculumLink },
     { id:'messages',    icon:'💬', title:'Messages',              badge: unreadTotal, build: renderTeacherMessages },
     { id:'reports',     icon:'📊', title:'Detailed Report Cards', build: buildReportCardsPanel },
     { id:'parents',     icon:'📧', title:'Parent Reports',        build: renderParentReports },
@@ -11614,6 +11760,221 @@ function renderTeacher(root){
   });
   dash.appendChild(acc);
   root.appendChild(dash);
+}
+
+/* ==========================================================================
+   CURRICULUM EDITOR — full-screen teacher page
+   --------------------------------------------------------------------------
+   Teachers edit lesson content without touching source code. Edits are
+   stored as JSON patches in allData.curriculum.overrides keyed by
+   activity.id, synced via the cloud blob, and merged at read time by
+   applyCurriculumOverride() (see above in this file).
+
+   Design choices:
+   - Overlay architecture (not cloud-first): preserves git as curriculum
+     source-of-truth. Tutor can always roll back to the committed version
+     via Reset — no git surgery needed. Students still see fresh content
+     even if the cloud blob is temporarily unavailable.
+   - Edit-as-JSON: powerful but requires care. Cheaper than building a
+     form for every activity shape (which vary widely — text lessons,
+     picture lessons, math stacks, audio lessons, etc.). Future v2 could
+     add form-based editing per activity type.
+   - Whole-field PATCH semantics: any field in the override REPLACES that
+     field on the base. Arrays are replaced, not merged — so to edit one
+     question, the tutor supplies the whole questions array. This avoids
+     confusing partial-array behavior.
+   - _hidden: true soft-deletes an activity from student lists. The base
+     stays in index.html (so you can unhide any time with Reset) but
+     students don't see it.
+
+   Selectors default to the most-recent week + first student + first
+   subject, and remember the tutor's last choice across page visits via
+   curriculumEditorState. ========================================================================== */
+let curriculumEditorState = { week: null, student: null, subject: null };
+
+function renderTeacherCurriculum(root){
+  if(!isTeacher){ go('home'); return; }
+
+  const availableWeeks = Object.keys(WEEKS).map(n=>parseInt(n,10)).filter(n=>!isNaN(n) && n>0).sort((a,b)=>a-b);
+  if(curriculumEditorState.week === null) curriculumEditorState.week = availableWeeks[availableWeeks.length-1] || 1;
+  if(curriculumEditorState.student === null) curriculumEditorState.student = STUDENTS[0].id;
+  if(curriculumEditorState.subject === null) curriculumEditorState.subject = SUBJECTS[0].id;
+
+  const wrap = h('div',{class:'curr-editor'});
+
+  wrap.appendChild(h('div',{class:'curr-head'},[
+    h('button',{class:'back-btn', onclick:()=>go('teacher')}, '← Back to Dashboard'),
+    h('h2',{}, '📚 Curriculum Editor'),
+  ]));
+
+  wrap.appendChild(h('p',{class:'curr-intro'},
+    'Edit the lessons, questions, and answers shown to students. Every activity below pulls from the committed curriculum in the app code; edits here are overrides stored in the cloud blob and merged at read time. Use Reset to fall back to the base any time — no code changes needed.'));
+
+  // Selector row
+  const ctrls = h('div',{class:'curr-ctrls'});
+  const mkSelect = (label, options, current, onChange) => {
+    const opts = options.map(o => {
+      const attrs = {value:o.value};
+      if(String(o.value) === String(current)) attrs.selected = 'selected';
+      return h('option', attrs, o.label);
+    });
+    const sel = h('select', { onchange: (e)=>onChange(e.target.value) }, opts);
+    return h('label',{class:'curr-ctrl'},[
+      h('span',{class:'curr-ctrl-label'}, label),
+      sel,
+    ]);
+  };
+  ctrls.appendChild(mkSelect('Week',
+    availableWeeks.map(w=>({value:String(w), label:'Week '+w})),
+    String(curriculumEditorState.week),
+    v => { curriculumEditorState.week = parseInt(v,10); go('teacher-curriculum'); }
+  ));
+  ctrls.appendChild(mkSelect('Student',
+    STUDENTS.map(s=>({value:s.id, label:s.name+' · '+s.grade})),
+    curriculumEditorState.student,
+    v => { curriculumEditorState.student = v; go('teacher-curriculum'); }
+  ));
+  ctrls.appendChild(mkSelect('Subject',
+    SUBJECTS.map(s=>({value:s.id, label:(s.emoji||'')+' '+s.name})),
+    curriculumEditorState.subject,
+    v => { curriculumEditorState.subject = v; go('teacher-curriculum'); }
+  ));
+  wrap.appendChild(ctrls);
+
+  // Fetch the raw base list — not getWeekActivities(), which filters
+  // demoOnly and uses `currentWeek`. The tutor needs ALL activities for
+  // the chosen week/student/subject, including hidden ones (so they can
+  // un-hide them).
+  const wk = WEEKS[curriculumEditorState.week];
+  const rawActs = (wk && wk[curriculumEditorState.student] && wk[curriculumEditorState.student][curriculumEditorState.subject]) || [];
+
+  if(rawActs.length === 0){
+    const stName = (STUDENTS.find(s=>s.id===curriculumEditorState.student) || {}).name || curriculumEditorState.student;
+    const subName = (SUBJECTS.find(s=>s.id===curriculumEditorState.subject) || {}).name || curriculumEditorState.subject;
+    wrap.appendChild(h('div',{class:'curr-empty'},
+      'No activities defined for '+stName+' · '+subName+' · Week '+curriculumEditorState.week+'. Add them in index.html to edit them here.'
+    ));
+  } else {
+    const list = h('div',{class:'curr-list'});
+    rawActs.forEach(base => {
+      const override = (allData && allData.curriculum && allData.curriculum.overrides && allData.curriculum.overrides[base.id]) || null;
+      const merged = applyCurriculumOverride(base) || base;
+      const isModified = !!override;
+      const isHidden = !!(override && override._hidden);
+
+      const row = h('div',{class:'curr-row'+(isModified?' is-modified':'')+(isHidden?' is-hidden':'')});
+      const buttons = [
+        h('button',{class:'btn btn-sm btn-primary', onclick: ()=>openCurriculumEdit(base)}, isModified ? '✎ Edit' : '+ Override'),
+      ];
+      if(isModified){
+        buttons.push(h('button',{class:'btn btn-sm btn-ghost', onclick: ()=>resetCurriculumOverride(base.id)}, '↺ Reset'));
+      }
+      const header = h('div',{class:'curr-row-header'},[
+        h('span',{class:'curr-emoji'}, merged.emoji || '📘'),
+        h('div',{class:'curr-meta'},[
+          h('div',{class:'curr-title'}, merged.title || '(untitled)'),
+          h('div',{class:'curr-id'}, base.id + (isModified ? ' · Modified' : '') + (isHidden ? ' · Hidden from students' : '')),
+        ]),
+        ...buttons,
+      ]);
+      row.appendChild(header);
+
+      const body = h('details',{class:'curr-details'},[
+        h('summary',{}, '▸ Show full merged content ('+Object.keys(merged).length+' fields)'),
+        h('pre',{class:'curr-json'}, JSON.stringify(merged, null, 2)),
+      ]);
+      row.appendChild(body);
+      list.appendChild(row);
+    });
+    wrap.appendChild(list);
+  }
+
+  root.appendChild(wrap);
+}
+
+function openCurriculumEdit(baseActivity){
+  // Ensure the overrides map exists even if the loader didn't see a
+  // curriculum field (old localStorage shapes).
+  if(!allData.curriculum) allData.curriculum = { overrides:{}, updatedAt:0 };
+  if(!allData.curriculum.overrides) allData.curriculum.overrides = {};
+
+  const existing = allData.curriculum.overrides[baseActivity.id] || null;
+
+  const backdrop = h('div',{class:'curr-modal'});
+  const close = () => backdrop.remove();
+  // Click the backdrop (but NOT the modal) to dismiss — standard UX.
+  backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) close(); });
+
+  const initial = existing
+    ? JSON.stringify(existing, null, 2)
+    : '{\n  \n}';
+
+  const textarea = h('textarea',{class:'curr-modal-textarea', spellcheck:'false', 'aria-label':'JSON override editor'}, initial);
+  const errMsg = h('div',{class:'curr-modal-err', style:'display:none'}, '');
+
+  const save = () => {
+    const raw = (textarea.value || '').trim();
+    let parsed;
+    try {
+      parsed = raw ? JSON.parse(raw) : {};
+    } catch(e){
+      errMsg.textContent = 'Invalid JSON: ' + (e.message || 'parse error');
+      errMsg.style.display = 'block';
+      return;
+    }
+    if(typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null){
+      errMsg.textContent = 'Must be a JSON object like {"title":"..."} — not an array or primitive.';
+      errMsg.style.display = 'block';
+      return;
+    }
+    // Empty object (no fields) = no override → remove it instead of
+    // storing a useless empty patch.
+    if(Object.keys(parsed).length === 0){
+      delete allData.curriculum.overrides[baseActivity.id];
+    } else {
+      allData.curriculum.overrides[baseActivity.id] = parsed;
+    }
+    allData.curriculum.updatedAt = Date.now();
+    saveState();
+    try { syncToCloud(); } catch(e){ console.warn('[KidQuest] curriculum sync failed:', e); }
+    close();
+    go('teacher-curriculum');
+  };
+
+  const modal = h('div',{class:'curr-modal-inner'},[
+    h('div',{class:'curr-modal-head'},[
+      h('div',{},[
+        h('div',{class:'curr-modal-title'}, baseActivity.id),
+        h('div',{class:'curr-modal-sub'}, 'Base: '+(baseActivity.title || '(untitled)')),
+      ]),
+      h('button',{class:'curr-modal-x', onclick:close, 'aria-label':'Close'}, '×'),
+    ]),
+    h('p',{class:'curr-modal-help'},
+      'This is a JSON PATCH. Any field you include replaces that field on the base. Missing fields fall through. Set "_hidden": true to hide the activity from students. Clear everything (empty object {}) to remove the override.'),
+    errMsg,
+    textarea,
+    h('details',{class:'curr-modal-base'},[
+      h('summary',{}, '▸ Show base activity (source-of-truth, read-only)'),
+      h('pre',{class:'curr-json'}, JSON.stringify(baseActivity, null, 2)),
+    ]),
+    h('div',{class:'curr-modal-actions'},[
+      h('button',{class:'btn btn-ghost', onclick:close}, 'Cancel'),
+      h('button',{class:'btn btn-primary', onclick:save}, '💾 Save Override'),
+    ]),
+  ]);
+  backdrop.appendChild(modal);
+  document.body.appendChild(backdrop);
+  setTimeout(()=>{ try{ textarea.focus(); }catch(e){} }, 40);
+}
+
+function resetCurriculumOverride(activityId){
+  if(!confirm('Remove override for "'+activityId+'"?\n\nThe activity will fall back to the base curriculum committed in index.html. This cannot be undone (but you can re-apply the same override by editing again).')) return;
+  if(!allData.curriculum || !allData.curriculum.overrides) return;
+  delete allData.curriculum.overrides[activityId];
+  allData.curriculum.updatedAt = Date.now();
+  saveState();
+  try { syncToCloud(); } catch(e){ console.warn('[KidQuest] curriculum sync failed:', e); }
+  go('teacher-curriculum');
 }
 
 /* Coin adjuster — per-student +/- coin control for the teacher dashboard.
