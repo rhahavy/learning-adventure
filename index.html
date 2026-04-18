@@ -2073,7 +2073,12 @@ const STUDENTS = [
   // Reading, with G7-level math/logic/science/social and a French track. See
   // WEEKS[1].evan below. Palette = growth-green (distinct from rushan's bright
   // teal and nishan's sky blue).
-  { id:'evan',     name:'Evan',     grade:'Grade 7',               initial:'E', decoEmoji:'📘', pin:'🦋', hint:'(b_tt_rfly)', colorLight:'#b8e994', colorDark:'#388e3c' },
+  //
+  // No preset pin/hint — Evan chooses his own emoji password + hint on first
+  // login (renderPinSetup triggers when allData.users.evan.customPin is null,
+  // which it is by default from defaultUser()). The pin/hint fields on the
+  // older students are legacy and not read by the auth flow.
+  { id:'evan',     name:'Evan',     grade:'Grade 7',               initial:'E', decoEmoji:'📘', colorLight:'#b8e994', colorDark:'#388e3c' },
 ];
 // Back-compat: keep `color` populated as the dark hex so legacy code paths
 // that read `student.color` (e.g. dashboard avatar gradient style) still work.
