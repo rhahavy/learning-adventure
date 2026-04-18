@@ -33,24 +33,37 @@ Anyone whose **raw** week (from joinedAt) is greater than their displayed
 capped week is about to hit the "you're ahead" banner. They need fresh
 content.
 
-### 2. Draft next week's content
+### 2. Draft next week's content — all students at once
 
-For each student rolling into a new week, run:
+One command builds a personalized prompt for every student:
 
 ```bash
-node scripts/draft-week.mjs --student isaiah --week 2 > /tmp/isaiah-w2.txt
+node scripts/draft-week.mjs --week 2 --out-dir /tmp/kidquest-w2
 ```
 
 This:
-- Fetches Isaiah's current cloud state (completed activities + recent
-  wrong-answer concepts).
-- Builds a complete Claude-ready prompt that tells Claude exactly what
-  shape to produce, which concepts to re-teach, and which to build on.
-- Writes the prompt to stdout.
+- Fetches the cloud blob ONCE (shared across students — no wasted requests).
+- For each of the 6 students, summarizes their completed activities,
+  first-try-perfects, struggles, and recent wrong-answer concepts.
+- Writes a per-student Claude-ready prompt to
+  `/tmp/kidquest-w2/<student-id>.prompt.txt`.
+- Prints the file paths to stdout so you can see exactly what it wrote.
 
-Open the prompt in any Claude session (Claude Code CLI, claude.ai,
-Claude Desktop — all work). Paste it in. Claude gives you a draft
-WEEKS[2].isaiah block.
+Why per-file instead of one mega-prompt: Claude gives better output when
+it's focused on one kid at a time. Isaiah (Grade 5) and Akaran (Grade 1)
+need completely different vocabulary and math — keep those conversations
+separate so neither one is compromised by averaging.
+
+**To use:** open each file, paste into its own Claude session (Claude
+Code CLI, claude.ai, Claude Desktop — all work). Claude gives you a
+draft `WEEKS[2].<student-id>` block.
+
+You can still target a single student if you're patching in the middle
+of the week:
+
+```bash
+node scripts/draft-week.mjs --student isaiah --week 2
+```
 
 > **Why not have Claude do this automatically from a GitHub Action?**
 > Because educational content for a tutoring business is your product.

@@ -13,24 +13,40 @@
  * drafts, you review + paste into index.html.
  *
  * Usage:
+ *   # Default: build a prompt for EVERY student, write each to its own
+ *   # file in --out-dir (prints paths to stdout).
+ *   node scripts/draft-week.mjs --week 2 --out-dir /tmp/kidquest-w2
+ *
+ *   # Or stream all prompts to stdout separated by banners:
+ *   node scripts/draft-week.mjs --week 2
+ *
+ *   # Or target ONE student:
  *   node scripts/draft-week.mjs --student isaiah --week 2
- *   node scripts/draft-week.mjs --student akshayan --week 3 --grade "Grade 3"
  *   node scripts/draft-week.mjs --student isaiah --week 2 > /tmp/prompt.txt
  *
  * Flags:
- *   --student <id>   Required. One of: isaiah, akshayan, axel, rushan,
- *                    akaran, nishan. (If you add a new student to
- *                    index.html, add them to STUDENTS here too.)
  *   --week <N>       Required. Week number to author (e.g. 2, 3).
- *   --grade <name>   Optional override. Defaults to the grade in STUDENTS.
+ *   --student <id>   Optional filter — one of: isaiah, akshayan, axel,
+ *                    rushan, akaran, nishan. Default is ALL students.
+ *   --out-dir <path> Optional. If set, writes each student's prompt to
+ *                    <path>/<student-id>.prompt.txt. Prints a summary to
+ *                    stdout listing what it wrote. Best for the "paste
+ *                    each into a separate Claude session" flow.
+ *   --grade <name>   Optional override. Single-student runs only; for
+ *                    multi-student it's ignored (grades come from STUDENTS).
  *   --bucket <id>    Optional textdb.dev bucket override. Defaults to
  *                    the same one the web app + weekly-reports use.
- *   --no-cloud       Skip the cloud fetch — useful if you want a prompt
- *                    for a brand-new student with no history yet.
+ *   --no-cloud       Skip the cloud fetch — useful if you want prompts
+ *                    for brand-new students with no history yet.
  *
- * Output: a big prompt on stdout. Copy it into Claude. Review + tweak
- * the draft Claude gives you, then paste into index.html under
- * WEEKS[<N>] = { ... }.
+ * Output:
+ *   - With --out-dir: one file per student. stdout shows a summary.
+ *   - Without --out-dir: prompts stream to stdout, separated by banners
+ *     so you can eyeball or pipe to `pbcopy` / a file.
+ *
+ * Recommended flow: always use --out-dir + paste each file into its own
+ * Claude session. Keeps Claude focused on one kid at a time — quality
+ * goes up, responses stay under token limits.
  */
 
 // --- Student roster — mirror of STUDENTS in index.html. -------------------
@@ -290,40 +306,93 @@ review, tweak, and paste.`;
 // ----- Main -------------------------------------------------------------
 
 async function main(){
-  const args = parseArgs(process.argv.slice(2));
-
-  const sid    = args.student;
+  const args   = parseArgs(process.argv.slice(2));
   const weekN  = parseInt(args.week, 10);
   const bucket = args.bucket || DEFAULT_BUCKET;
   const noCloud= !!args['no-cloud'];
+  const outDir = args['out-dir'] || '';
+  const sidFilter = args.student || '';
 
-  if(!sid)        fail('Missing --student <id>.');
   if(!weekN || weekN < 2) fail('Missing --week <N>. Must be 2 or higher (Week 1 already exists).');
 
-  const student = STUDENTS.find(s => s.id === sid);
-  if(!student) fail(`Unknown student "${sid}". Known: ${STUDENTS.map(s=>s.id).join(', ')}`);
-  if(args.grade) student.grade = args.grade;
+  // Pick which students to process. No --student → everyone. With a
+  // --student filter → just that one (and still validate the id).
+  let targets;
+  if(sidFilter){
+    const s = STUDENTS.find(x => x.id === sidFilter);
+    if(!s) fail(`Unknown student "${sidFilter}". Known: ${STUDENTS.map(x=>x.id).join(', ')}`);
+    targets = [s];
+  } else {
+    targets = STUDENTS.slice();
+  }
+  // --grade only makes sense for a single-student run. For multi, we
+  // use the grades from STUDENTS as-is (no way to apply one override to
+  // multiple kids with different grades).
+  if(args.grade && targets.length === 1) targets[0].grade = args.grade;
+  else if(args.grade) console.error('[draft-week] --grade ignored for multi-student run.');
 
-  let ud = null;
+  // One cloud fetch serves every student (they share the blob).
+  let blob = null;
   if(!noCloud){
     try {
-      console.error(`[draft-week] Fetching cloud state for ${sid}…`);
-      const blob = await fetchCloud(bucket);
-      ud = (blob && blob.users && blob.users[sid]) || null;
-      if(!ud){
-        console.error(`[draft-week] No cloud record for ${sid} yet — treating as brand-new student.`);
-      }
+      console.error(`[draft-week] Fetching cloud state (1 request for ${targets.length} student${targets.length===1?'':'s'})…`);
+      blob = await fetchCloud(bucket);
     } catch(e){
       console.error(`[draft-week] Cloud fetch failed (${e.message}). Proceeding without history.`);
     }
   }
 
-  const summary = summarizeStudent(ud);
-  const prompt  = buildPrompt({ student, weekN, summary });
+  // Optional: prep the out-dir.
+  let fs, path;
+  if(outDir){
+    fs   = await import('node:fs');
+    path = await import('node:path');
+    fs.mkdirSync(outDir, { recursive: true });
+  }
 
-  // stdout = prompt (for copy-paste or redirect); stderr = logs.
-  process.stdout.write(prompt + '\n');
-  console.error('[draft-week] Prompt ready. Pipe into a file with `> /tmp/prompt.txt` or pipe directly into Claude CLI.');
+  const results = []; // [{ sid, name, filePath?, bytes }]
+  for(const student of targets){
+    const ud = (blob && blob.users && blob.users[student.id]) || null;
+    if(!ud && !noCloud){
+      console.error(`[draft-week] ${student.id}: no cloud record yet — treating as brand-new.`);
+    }
+    const summary = summarizeStudent(ud);
+    const prompt  = buildPrompt({ student, weekN, summary });
+
+    if(outDir){
+      const filePath = path.join(outDir, `${student.id}.prompt.txt`);
+      fs.writeFileSync(filePath, prompt + '\n', 'utf8');
+      results.push({ sid: student.id, name: student.name, filePath, bytes: prompt.length });
+    } else {
+      // Stream to stdout. Banner ONLY when we're printing more than one
+      // student — single-student runs stay clean so `> prompt.txt` gives
+      // a paste-ready file with no header noise.
+      if(targets.length > 1){
+        const banner = '═'.repeat(70);
+        process.stdout.write(`\n${banner}\n  ${student.name} (${student.id}) — Week ${weekN}\n${banner}\n\n`);
+      }
+      process.stdout.write(prompt + '\n');
+      results.push({ sid: student.id, name: student.name, filePath: '', bytes: prompt.length });
+    }
+  }
+
+  // Summary to stderr so --out-dir's stdout can stay clean if piped.
+  if(outDir){
+    console.error('');
+    console.error(`[draft-week] Wrote ${results.length} prompt${results.length===1?'':'s'} to ${outDir}:`);
+    for(const r of results){
+      console.error(`  • ${r.filePath}  (${r.name}, ${r.bytes.toLocaleString()} chars)`);
+    }
+    console.error('');
+    console.error('Next: open each file, paste into a separate Claude session,');
+    console.error('      review the draft, then paste into index.html under WEEKS[' + weekN + '].');
+    // Also print the paths to stdout so it's scriptable (xargs friendly).
+    for(const r of results) process.stdout.write(r.filePath + '\n');
+  } else {
+    console.error('');
+    console.error(`[draft-week] Done. ${results.length} prompt${results.length===1?'':'s'} printed above.`);
+    console.error('Tip: re-run with --out-dir /tmp/kidquest-w' + weekN + ' to write one file per student.');
+  }
 }
 
 main().catch(err => { console.error('[draft-week] ERROR:', err.stack || err.message); process.exit(1); });
