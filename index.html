@@ -44,6 +44,62 @@
   --font-display: 'DM Sans', system-ui, -apple-system, sans-serif;
   --spring: cubic-bezier(.34,1.56,.64,1);
 }
+
+/* ============================================================
+   THEME PALETTES
+   ------------------------------------------------------------
+   Kids pick one from their dashboard (stored in state.theme).
+   Each theme just re-skins a handful of hue variables — layout,
+   ink colours, radii, shadows stay identical so nothing breaks.
+   Default ("cosmos") matches the original purple+pink vibe.
+
+   Implementation: applyTheme(id) sets <html data-theme="id"> and
+   swaps the <meta name="theme-color"> for the phone chrome bar.
+   ============================================================ */
+html[data-theme="ocean"] {
+  --bg: #E4F3FD;
+  --primary: #0984E3;
+  --primary-dark: #0762a8;
+  --primary2: #74B9FF;
+  --pink: #00B894;
+  --coral: #00CEC9;
+  --sun: #FDCB6E;
+  --mint: #55EFC4;
+  --sky: #4DA8E8;
+}
+html[data-theme="forest"] {
+  --bg: #E8F5E9;
+  --primary: #00B894;
+  --primary-dark: #00916e;
+  --primary2: #55EFC4;
+  --pink: #FDCB6E;
+  --coral: #F39C12;
+  --sun: #FAB005;
+  --mint: #81ECEC;
+  --sky: #A29BFE;
+}
+html[data-theme="sunset"] {
+  --bg: #FFF0E8;
+  --primary: #E17055;
+  --primary-dark: #b85a43;
+  --primary2: #FDCB6E;
+  --pink: #FF7675;
+  --coral: #FD79A8;
+  --sun: #F39C12;
+  --mint: #FAB005;
+  --sky: #FFB88A;
+}
+html[data-theme="candy"] {
+  --bg: #FFE8F2;
+  --primary: #E91E63;
+  --primary-dark: #b3154c;
+  --primary2: #FD79A8;
+  --pink: #FD79A8;
+  --coral: #FF7675;
+  --sun: #FDCB6E;
+  --mint: #A29BFE;
+  --sky: #74B9FF;
+}
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0;scroll-behavior:smooth}
 body{font-family:var(--font);color:var(--ink);background:var(--bg);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;font-weight:600}
@@ -409,9 +465,22 @@ img{max-width:100%}
 .avatar-choice .ac-letter{font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--primary)}
 .avatar-choice .ac-emoji{font-family:'Apple Color Emoji','Segoe UI Emoji',system-ui,sans-serif;font-size:36px}
 
+/* ---- Theme picker ---- */
+.theme-grid{margin-top:18px;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.theme-choice{background:#fff;border:3px solid var(--line);border-radius:22px;padding:16px;cursor:pointer;transition:all .25s var(--spring);text-align:center;box-shadow:var(--shadow);font-family:inherit;color:var(--ink);position:relative}
+.theme-choice:hover{transform:translateY(-4px);border-color:var(--primary);box-shadow:var(--shadow-lg)}
+.theme-choice.active{border-color:var(--primary);box-shadow:0 0 0 4px rgba(108,92,231,.25),var(--shadow-lg)}
+.theme-choice.active::after{content:'✓';position:absolute;top:8px;right:10px;width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;font-size:14px;font-weight:900;display:grid;place-items:center;box-shadow:0 2px 6px rgba(108,92,231,.4)}
+.theme-choice .tc-swatch{width:100%;height:96px;border-radius:14px;margin-bottom:10px;display:grid;place-items:center;font-size:42px;box-shadow:inset 0 -4px 0 rgba(0,0,0,.1),inset 0 2px 0 rgba(255,255,255,.4)}
+.theme-choice .tc-label{font-weight:800;font-size:16px;color:var(--ink)}
+.theme-choice .tc-sub{font-size:12px;color:var(--ink3);font-weight:600;margin-top:2px}
+
 /* "Change avatar" button on the dashboard hero */
 .dash-hero .change-avatar-btn{margin-top:6px;background:rgba(108,92,231,.12);color:var(--primary);border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit}
 .dash-hero .change-avatar-btn:hover{background:rgba(108,92,231,.22);transform:translateY(-1px)}
+/* Matching "Change theme" button — twin to change-avatar-btn */
+.dash-hero .change-theme-btn{margin-top:6px;margin-left:6px;background:rgba(108,92,231,.12);color:var(--primary);border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit}
+.dash-hero .change-theme-btn:hover{background:rgba(108,92,231,.22);transform:translateY(-1px)}
 /* Read-aloud toggle pill — a twin to .change-avatar-btn but with a
    tangible on/off state. The ON variant uses the same purple gradient as
    the primary TTS button so kids associate the two UIs. */
@@ -1017,6 +1086,52 @@ img{max-width:100%}
 .rv-item .rv-name{font-size:15px;font-weight:800;color:var(--ink);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rv-item .rv-hint{font-size:12px;font-weight:600;color:var(--ink3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rv-item .rv-go{font-size:14px;font-weight:800;color:#00805a;flex-shrink:0}
+
+/* ---- FAMILY SCOREBOARD ----
+   A ranked list of every student on the account. Primary sort is totalStars
+   desc; ties broken by perfected-activities count, then current streak.
+   Rendered in two modes:
+     - compact (student dashboard): top 3 + the viewer's own row if below
+     - full (teacher dashboard): every student, more detail columns
+   Current viewer's row is highlighted and gets a "You" chip so siblings
+   can spot themselves quickly in a shared-device setup. */
+.scoreboard{margin-top:22px;padding:20px 22px;border-radius:var(--r-lg);background:linear-gradient(135deg,#fff7e3 0%,#ffe8f2 50%,#e4f3fd 100%);box-shadow:var(--shadow-lg);border:2px solid rgba(255,255,255,.9)}
+.scoreboard .sb-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.scoreboard .sb-title{font-family:var(--font-display);font-size:18px;font-weight:800;display:flex;align-items:center;gap:6px}
+.scoreboard .sb-sub{font-size:12px;color:var(--ink3);font-weight:700;margin-left:auto}
+.scoreboard .sb-list{display:grid;gap:8px}
+.sb-row{display:grid;grid-template-columns:38px 44px 1fr auto;gap:12px;align-items:center;padding:10px 14px;border-radius:16px;background:rgba(255,255,255,.9);border:1.5px solid rgba(108,92,231,.1);font-weight:700;color:var(--ink);font-size:14px}
+.sb-row.me{border-color:var(--primary);background:linear-gradient(135deg,rgba(108,92,231,.12),rgba(253,121,168,.08));box-shadow:0 0 0 2px rgba(108,92,231,.25)}
+.sb-row .sb-rank{font-family:var(--font-display);font-size:22px;font-weight:800;text-align:center;color:var(--ink2)}
+.sb-row .sb-rank.gold{color:#D4AF37;font-size:26px}
+.sb-row .sb-rank.silver{color:#A8A8A8;font-size:24px}
+.sb-row .sb-rank.bronze{color:#CD7F32;font-size:22px}
+.sb-row .sb-avatar{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px;font-family:var(--font-display);box-shadow:inset 0 -3px 0 rgba(0,0,0,.14)}
+.sb-row .sb-name{font-size:14px;font-weight:800;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-row .sb-stats{font-size:11px;color:var(--ink3);font-weight:700;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap}
+.sb-row .sb-stats span{white-space:nowrap}
+.sb-row .sb-stars{font-size:16px;font-weight:900;color:var(--primary);white-space:nowrap}
+.sb-row .sb-me-chip{font-size:10px;font-weight:900;color:#fff;background:var(--primary);padding:2px 8px;border-radius:999px;letter-spacing:.05em;margin-left:6px;text-transform:uppercase}
+
+/* ---- CO-OP WEEKLY GOAL ---- */
+.coop-goal{margin-top:22px;padding:20px 22px;border-radius:var(--r-lg);background:linear-gradient(135deg,#e9f3ff 0%,#fff3e0 60%,#ffeef4 100%);box-shadow:var(--shadow-lg);border:2px solid rgba(255,255,255,.9);position:relative;overflow:hidden}
+.coop-goal.achieved{background:linear-gradient(135deg,#fff8e1 0%,#ffe082 45%,#ffd54f 100%);animation:coopCelebrate .6s var(--spring)}
+@keyframes coopCelebrate{0%{transform:scale(.97)}60%{transform:scale(1.03)}100%{transform:scale(1)}}
+.coop-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.coop-title{font-family:var(--font-display);font-size:18px;font-weight:800;display:flex;align-items:center;gap:6px}
+.coop-sub{font-size:12px;color:var(--ink3);font-weight:700;margin-left:auto}
+.coop-progress-wrap{height:14px;border-radius:999px;background:rgba(108,92,231,.15);overflow:hidden;margin:8px 0 14px;position:relative;box-shadow:inset 0 2px 4px rgba(0,0,0,.08)}
+.coop-progress{height:100%;border-radius:999px;background:linear-gradient(90deg,#6C5CE7,#FD79A8,#FDCB6E);transition:width .8s var(--spring);box-shadow:0 0 14px rgba(253,121,168,.5)}
+.coop-goal.achieved .coop-progress{background:linear-gradient(90deg,#FFD700,#FF9500,#FF6B35)}
+.coop-stats{display:flex;justify-content:space-between;font-size:14px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.coop-stats .coop-count{color:var(--primary);font-size:18px}
+.coop-goal.achieved .coop-stats .coop-count{color:#E65100}
+.coop-cheer{font-size:13px;font-weight:700;color:var(--ink2);margin-top:4px;text-align:center}
+.coop-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed rgba(108,92,231,.2)}
+.coop-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.85);font-size:12px;font-weight:700;color:var(--ink2);border:1.5px solid rgba(108,92,231,.15)}
+.coop-chip .coop-chip-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.coop-chip .coop-chip-earned{font-weight:900;color:var(--primary)}
+.coop-bonus-banner{margin-top:10px;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#FFD700,#FFA500);color:#4A2A00;font-weight:900;font-size:14px;text-align:center;box-shadow:inset 0 -3px 0 rgba(0,0,0,.1);animation:coopCelebrate .5s var(--spring)}
 .daily-mission::before{content:'';position:absolute;inset:-2px;background:conic-gradient(from 0deg,#6C5CE7,#FD79A8,#FDCB6E,#00CEC9,#6C5CE7);border-radius:var(--r-lg);z-index:-1;animation:missionSpin 8s linear infinite;opacity:.55}
 @keyframes missionSpin{to{transform:rotate(360deg)}}
 .daily-mission::after{content:'';position:absolute;inset:2px;background:linear-gradient(135deg,#fff6e0 0%,#ffe3f1 55%,#e7e4ff 100%);border-radius:calc(var(--r-lg) - 2px);z-index:-1}
@@ -7265,6 +7380,33 @@ function getPronouns(sidOrUd){
 // fluent readers (Isaiah, Rushan, Akshayan, Axel) start with it off so they
 // don't feel babied. The teacher can flip any student from the dashboard.
 const STUDENTS_TTS_DEFAULT_ON = new Set(['evan','akaran','nishan']);
+
+// ---- THEMES ----
+// A small palette picker kids can change from their dashboard. Each theme
+// just re-skins CSS custom properties via html[data-theme="…"] blocks at
+// the top of <style>. metaColor drives the phone browser chrome colour.
+const THEMES = {
+  cosmos: { label:'Cosmos',  emoji:'🌌', metaColor:'#6C5CE7' },
+  ocean:  { label:'Ocean',   emoji:'🌊', metaColor:'#0984E3' },
+  forest: { label:'Forest',  emoji:'🌲', metaColor:'#00B894' },
+  sunset: { label:'Sunset',  emoji:'🌅', metaColor:'#E17055' },
+  candy:  { label:'Candy',   emoji:'🍭', metaColor:'#E91E63' },
+};
+const DEFAULT_THEME = 'cosmos';
+function applyTheme(themeId){
+  const id = THEMES[themeId] ? themeId : DEFAULT_THEME;
+  if(id === DEFAULT_THEME){
+    // cosmos IS the root :root palette — clearing the attr keeps specificity
+    // simple and ensures nothing accidentally overrides the default.
+    delete document.documentElement.dataset.theme;
+  } else {
+    document.documentElement.dataset.theme = id;
+  }
+  try{
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if(meta) meta.content = THEMES[id].metaColor;
+  }catch(e){}
+}
 const defaultUser = () => ({
   totalStars:0, coins:0, streak:0, lastActiveDate:'',
   badges:{}, progress:{}, completedActivities:{}, perfectActivities:{},
@@ -7281,6 +7423,10 @@ const defaultUser = () => ({
   // readers" seed. Without this, flipping ttsEnabled off would get
   // overwritten back to true on every reload for Evan/Akaran/Nishan.
   ttsSeeded: false,
+  // Colour theme id from THEMES map. Swaps :root CSS custom properties
+  // via a data-theme attribute on <html>. 'cosmos' is the default purple
+  // palette; kids can switch to ocean / forest / sunset / candy.
+  theme: 'cosmos',
   // Parent progress-report fields.
   //   parentEmail        — teacher enters on dashboard. Empty = no report yet.
   //   joinedAt           — epoch ms of the moment this student first "created
@@ -7355,6 +7501,19 @@ const defaultAll = () => ({
   curriculum: { overrides: {}, updatedAt: 0 },
   // Maintenance mode — teacher toggles from dashboard, synced via cloud.
   maintenance: { active: false, message: DEFAULT_MAINTENANCE_MESSAGE, updatedAt: 0 },
+  // Weekly co-op goal — a shared family target the whole squad is pulling
+  // toward. Progress = sum of (currentTotalStars - weekStartSnapshot) across
+  // every active student. Rolls over automatically when ISO week changes;
+  // the rollover snapshots everyone's totalStars so the new week starts at
+  // 0 progress. achievedAt is set once when the bar hits 100% — from then
+  // on the card celebrates instead of encouraging. See weeklyGoalRollover().
+  weeklyGoal: {
+    weekId: '',           // ISO year-week id, e.g. '2026-W16'. Empty = unset, triggers first init
+    target: 0,            // star target for the week (auto-scaled to # of students)
+    snapshot: {},          // {sid: totalStarsAtStartOfWeek}
+    achievedAt: 0,        // epoch ms when the goal was first hit this week; 0 = not yet
+    bonusPaidSids: [],    // sids that have already been paid the +coins bonus for THIS week
+  },
   updatedAt:0
 });
 
@@ -7441,6 +7600,90 @@ function seedTtsDefaults(){
 }
 seedTtsDefaults();
 
+// ---- CO-OP WEEKLY GOAL ----
+// A shared family target: sum of stars earned by everyone this ISO week.
+// Rollover semantics: when the real-world ISO week advances past the
+// stored weekId, snapshot every student's current totalStars as the new
+// baseline and reset achievedAt/bonusPaidSids. Target auto-scales with the
+// number of students — more kids = bigger target.
+function isoWeekId(dateMs){
+  const dt = new Date(dateMs || Date.now());
+  dt.setUTCHours(0,0,0,0);
+  // Shift so Thursday of the current week is picked as the representative
+  // day — that's what ISO-8601 uses to decide which week-year a date is in.
+  dt.setUTCDate(dt.getUTCDate() + 4 - (dt.getUTCDay()||7));
+  const yearStart = new Date(Date.UTC(dt.getUTCFullYear(),0,1));
+  const weekNo = Math.ceil((((dt - yearStart) / 86400000) + 1) / 7);
+  return dt.getUTCFullYear() + '-W' + String(weekNo).padStart(2,'0');
+}
+// How many stars we expect the whole family to earn per week. Scales with
+// headcount so adding a new student doesn't tank everyone's chances.
+function defaultWeeklyGoalTarget(){
+  const n = Math.max(1, STUDENTS.length);
+  return 80 * n;  // 7 students → 560 stars/week, 3 → 240 — comfortably stretchy
+}
+function weeklyGoalRollover(){
+  try{
+    if(!allData.weeklyGoal) allData.weeklyGoal = { weekId:'', target:0, snapshot:{}, achievedAt:0, bonusPaidSids:[] };
+    const currentWeek = isoWeekId();
+    if(allData.weeklyGoal.weekId === currentWeek) return;  // still the same week — nothing to do
+    // New week: snapshot everyone's current totalStars as the baseline.
+    const snapshot = {};
+    STUDENTS.forEach(s=>{
+      const ud = allData.users[s.id];
+      snapshot[s.id] = ud ? Number(ud.totalStars||0) : 0;
+    });
+    allData.weeklyGoal = {
+      weekId: currentWeek,
+      target: defaultWeeklyGoalTarget(),
+      snapshot,
+      achievedAt: 0,
+      bonusPaidSids: [],
+    };
+    try{ saveState(); }catch(e){}
+  }catch(e){ console.warn('[KidQuest] weeklyGoalRollover failed:', e); }
+}
+// Return the live progress object: { current, target, pct, achieved }
+function weeklyGoalProgress(){
+  weeklyGoalRollover();  // ensure snapshot is fresh
+  const wg = allData.weeklyGoal;
+  let current = 0;
+  STUDENTS.forEach(s=>{
+    const ud = allData.users[s.id];
+    const now = ud ? Number(ud.totalStars||0) : 0;
+    const start = Number((wg.snapshot||{})[s.id]||0);
+    current += Math.max(0, now - start);  // going backward (stars deducted) shouldn't hurt the team
+  });
+  const target = Math.max(1, Number(wg.target||defaultWeeklyGoalTarget()));
+  const pct = Math.min(100, Math.round(current / target * 100));
+  const achieved = current >= target;
+  // Stamp achievedAt the first time we cross the line so the celebration
+  // state persists even if totalStars later oscillates (shouldn't, but be safe).
+  if(achieved && !wg.achievedAt){ wg.achievedAt = Date.now(); try{ saveState(); }catch(e){} }
+  return { current, target, pct, achieved, perKid: STUDENTS.map(s=>{
+    const ud = allData.users[s.id];
+    const now = ud ? Number(ud.totalStars||0) : 0;
+    const start = Number((wg.snapshot||{})[s.id]||0);
+    return { sid:s.id, name:s.name, color:s.color||'#6C5CE7', earned: Math.max(0, now - start) };
+  }).sort((a,b)=>b.earned-a.earned) };
+}
+// Award +5 coins to the currently-logged-in student ONCE per week when
+// the family hits the goal. We do it lazy — on next dashboard render — so
+// every kid individually hears the "ding" when they log in post-victory.
+function maybePayWeeklyGoalBonus(sid){
+  try{
+    if(!sid) return false;
+    const wg = allData.weeklyGoal; if(!wg || !wg.achievedAt) return false;
+    if((wg.bonusPaidSids||[]).includes(sid)) return false;
+    const ud = allData.users[sid]; if(!ud) return false;
+    ud.coins = Number(ud.coins||0) + 5;
+    wg.bonusPaidSids = (wg.bonusPaidSids||[]).concat([sid]);
+    saveState();
+    return true;
+  }catch(e){ console.warn('[KidQuest] weekly goal bonus failed:', e); return false; }
+}
+weeklyGoalRollover();
+
 let currentUser = null;
 try{
   const stored = localStorage.getItem(LOCAL_USER_KEY);
@@ -7506,6 +7749,10 @@ function saveState(){
 function loginAs(uid){
   currentUser=uid; isTeacher=false;
   state=allData.users[uid];
+  // Apply the kid's chosen theme immediately so the dashboard, hero, and
+  // nav adopt their palette before the first render. Falls back to cosmos
+  // for any user whose theme field is missing (legacy blob) or invalid.
+  try{ applyTheme(state && state.theme); }catch(e){}
   // Any successful login clears the per-device failed-attempt counter.
   // Cloud-synced ud.locked / ud.loginAttempts are no longer authoritative
   // (they're left at their defaults for backward compat with older blobs)
@@ -7551,6 +7798,9 @@ function logout(dest){
   currentUser=null; isTeacher=false; state=null;
   // Reset topbar bump-cache so the next login doesn't see a bogus delta.
   _prevTopbarUser = null; _prevTopbarStars = 0; _prevTopbarCoins = 0;
+  // Drop back to the default cosmos palette so the profile picker shows
+  // neutral colours rather than whoever just logged out's theme.
+  try{ applyTheme(DEFAULT_THEME); }catch(e){}
   try{localStorage.removeItem(LOCAL_USER_KEY)}catch(e){}
   go(dest || 'home');
 }
@@ -8668,6 +8918,158 @@ function renderReviewCard(userId){
   return wrap;
 }
 
+/* buildFamilyScoreboard({ compact, highlightSid })  →  HTMLElement
+   ----------------------------------------------------------------
+   Ranked list of every real student (skips DEMO_GRADES) keyed off
+   allData.users. Primary sort: totalStars desc. Tiebreak: perfects, then
+   streak, then name.
+
+   Modes:
+     compact = true  — top 3 always, plus the viewer's own row if they
+                       rank 4+. Used on the student dashboard so siblings
+                       see a fun podium without being flooded.
+     compact = false — every student. Used on the teacher dashboard.
+
+   The viewer's row (highlightSid) gets .me styling + a "YOU" chip so
+   kids can spot themselves on a shared family device. */
+function buildFamilyScoreboard(opts){
+  const compact     = opts && opts.compact;
+  const highlightSid = opts && opts.highlightSid;
+  const rows = STUDENTS.map(s=>{
+    const ud = allData.users[s.id] || {};
+    return {
+      sid: s.id,
+      name: s.name,
+      color: s.color || '#6C5CE7',
+      stars: Number(ud.totalStars||0),
+      coins: Number(ud.coins||0),
+      streak: Number(ud.streak||0),
+      perfects: Object.keys(ud.perfectActivities||{}).length,
+      activities: Object.keys(ud.completedActivities||{}).length,
+    };
+  }).sort((a,b)=>{
+    if(b.stars !== a.stars)       return b.stars - a.stars;
+    if(b.perfects !== a.perfects) return b.perfects - a.perfects;
+    if(b.streak !== a.streak)     return b.streak - a.streak;
+    return a.name.localeCompare(b.name);
+  });
+  // Pick which rows to show in compact mode
+  let shown = rows;
+  if(compact){
+    shown = rows.slice(0, 3);
+    const mineIdx = rows.findIndex(r=>r.sid === highlightSid);
+    if(mineIdx >= 3) shown = shown.concat([{__divider:true}, rows[mineIdx]]);
+  }
+  const card = h('div',{class:'scoreboard'});
+  card.appendChild(h('div',{class:'sb-head'},[
+    h('div',{class:'sb-title'},[
+      h('span',{},'🏆'),
+      h('span',{}, compact ? 'Family Scoreboard' : 'Family Scoreboard — full view'),
+    ]),
+    h('span',{class:'sb-sub'}, rows.length+' kids · ranked by stars'),
+  ]));
+  // Only dress up the top 3 with medals when there's real movement to
+  // show — otherwise a fresh install with everyone at 0 stars would crown
+  // whoever tiebreaks first, which looks silly. Require the leader to
+  // have at least 1 star before we hand out gold/silver/bronze.
+  const showMedals = rows.length > 0 && rows[0].stars > 0;
+  const list = h('div',{class:'sb-list'});
+  shown.forEach((r, idx)=>{
+    if(r.__divider){
+      list.appendChild(h('div',{style:'text-align:center;font-size:12px;color:var(--ink3);font-weight:700;letter-spacing:.1em;margin:6px 0'}, '· · ·'));
+      return;
+    }
+    const rank = rows.indexOf(r) + 1;
+    const medalClass = showMedals ? (rank===1?'gold':rank===2?'silver':rank===3?'bronze':'') : '';
+    const medalText  = showMedals ? (rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':('#'+rank)) : ('#'+rank);
+    const isMe = r.sid === highlightSid;
+    const row = h('div',{class:'sb-row'+(isMe?' me':'')},[
+      h('div',{class:'sb-rank '+medalClass}, medalText),
+      h('div',{class:'sb-avatar', style:'background:'+r.color}, r.name.charAt(0)),
+      h('div',{},[
+        h('div',{class:'sb-name'}, [
+          h('span',{}, r.name),
+          isMe ? h('span',{class:'sb-me-chip'}, 'YOU') : '',
+        ]),
+        h('div',{class:'sb-stats'},[
+          h('span',{}, '✅ '+r.activities+' done'),
+          h('span',{}, '✨ '+r.perfects+' perfect'),
+          r.streak>0 ? h('span',{}, '🔥 '+r.streak+'d streak') : '',
+        ]),
+      ]),
+      h('div',{class:'sb-stars'}, '⭐ '+r.stars),
+    ]);
+    list.appendChild(row);
+  });
+  card.appendChild(list);
+  return card;
+}
+
+/* buildCoopGoalCard({ viewerSid })  →  HTMLElement
+   ------------------------------------------------
+   The shared weekly star target. Shows the whole family's combined
+   progress, plus a little per-kid contribution chip row so everyone sees
+   how much they contributed. If the goal is hit, the card flips into
+   celebration mode AND — if the current viewer hasn't yet been paid their
+   +5-coin bonus for this week — awards it and shows a "+5 coins!" banner
+   exactly once per kid per week.
+
+   Why only bonus on dashboard render (not on the star-earning moment):
+   the goal can be hit by another kid's contribution while this viewer is
+   offline. Paying the bonus on next render means each kid sees their
+   personal "🎉 you helped us win!" moment when they show up. */
+function buildCoopGoalCard(opts){
+  const viewerSid = (opts && opts.viewerSid) || null;
+  const p = weeklyGoalProgress();
+  // Auto-pay viewer's bonus if we just crossed / they just logged in post-victory.
+  const justPaidBonus = viewerSid ? maybePayWeeklyGoalBonus(viewerSid) : false;
+  const card = h('div',{class:'coop-goal'+(p.achieved?' achieved':'')});
+  card.appendChild(h('div',{class:'coop-head'},[
+    h('div',{class:'coop-title'},[
+      h('span',{}, p.achieved ? '🎉' : '🌟'),
+      h('span',{}, p.achieved ? 'Family Goal — ACHIEVED!' : 'Family Goal This Week'),
+    ]),
+    h('span',{class:'coop-sub'}, allData.weeklyGoal.weekId || ''),
+  ]));
+  card.appendChild(h('div',{class:'coop-stats'},[
+    h('span',{},'Stars earned together'),
+    h('span',{class:'coop-count'}, p.current+' / '+p.target),
+  ]));
+  const wrap = h('div',{class:'coop-progress-wrap'});
+  wrap.appendChild(h('div',{class:'coop-progress', style:'width:'+p.pct+'%'}));
+  card.appendChild(wrap);
+  // Cheer message — different copy by how close we are
+  let cheer;
+  if(p.achieved){
+    cheer = '🏅 Amazing teamwork! Everyone earned +5 coins this week.';
+  } else if(p.pct >= 75){
+    cheer = 'Almost there — just '+(p.target - p.current)+' more stars to go!';
+  } else if(p.pct >= 40){
+    cheer = 'Keep going! You\'re over halfway as a family.';
+  } else if(p.pct >= 10){
+    cheer = 'Great start — every star counts toward the family goal.';
+  } else {
+    cheer = 'New week, fresh goal. Let\'s work together to hit '+p.target+'!';
+  }
+  card.appendChild(h('div',{class:'coop-cheer'}, cheer));
+  // Per-kid contribution chips — skip if zero so an inactive kid doesn't
+  // get called out.
+  const chips = h('div',{class:'coop-chips'});
+  p.perKid.forEach(k=>{
+    if(k.earned <= 0) return;
+    chips.appendChild(h('div',{class:'coop-chip'},[
+      h('span',{class:'coop-chip-dot', style:'background:'+k.color}),
+      h('span',{}, k.name),
+      h('span',{class:'coop-chip-earned'}, '+'+k.earned+' ⭐'),
+    ]));
+  });
+  if(chips.childNodes.length) card.appendChild(chips);
+  if(justPaidBonus){
+    card.appendChild(h('div',{class:'coop-bonus-banner'}, '🎁 You helped us win! +5 coins added to your wallet.'));
+  }
+  return card;
+}
+
 /* ==========================================================================
    TEXT-TO-SPEECH — browser-native Web Speech API with natural voice picking
    --------------------------------------------------------------------------
@@ -9414,6 +9816,7 @@ function go(screen,opts={}){
     else if(screen==='activity') renderActivity(root,opts.activityId,opts.subject);
     else if(screen==='badges') renderBadges(root);
     else if(screen==='avatars') renderAvatarPicker(root);
+    else if(screen==='themes') renderThemePicker(root);
     else if(screen==='mini-hub') renderMiniHub(root);
     else if(screen==='game-memory') renderMemoryMatch(root, opts);
     else if(screen==='game-math') renderQuickMath(root, opts);
@@ -10155,6 +10558,7 @@ function renderDashboard(root){
       h('span',{class:'grade-pill'},s.grade),
       h('br'),
       h('button',{class:'change-avatar-btn',onclick:()=>go('avatars')}, '🎨 Change avatar'),
+      h('button',{class:'change-theme-btn',onclick:()=>go('themes')}, '🌈 Change theme'),
       ttsToggle,
     ]),
   ]);
@@ -10235,6 +10639,22 @@ function renderDashboard(root){
     const dm = renderDailyMission(currentUser);
     if(dm) root.appendChild(dm);
   } catch(e){ console.warn('[KidQuest] renderDailyMission failed:', e); }
+  // Family scoreboard — compact podium. Slots beneath Daily Mission so
+  // kids see their current rank AFTER they've seen what to do today,
+  // not before (we don't want a 5th-place kid demotivated by ranking
+  // before they've even started the day's mission).
+  try {
+    const sb = buildFamilyScoreboard({ compact:true, highlightSid: currentUser });
+    if(sb) root.appendChild(sb);
+  } catch(e){ console.warn('[KidQuest] family scoreboard failed:', e); }
+  // Co-op weekly goal — sits below the scoreboard because it reframes the
+  // competition from "me vs. them" into "us together". Kids who scored low
+  // on the scoreboard can still feel like a key contributor to the family
+  // win here. Also awards the +5-coin bonus on render if the goal's hit.
+  try {
+    const coop = buildCoopGoalCard({ viewerSid: currentUser });
+    if(coop) root.appendChild(coop);
+  } catch(e){ console.warn('[KidQuest] coop goal failed:', e); }
   // Autoplay — one-tap "let it play for me" button. When active, each lesson
   // is auto-chained with a random brain-break game. Kids who want to "just go"
   // can hit this and trust the app to pick what's next.
@@ -12314,6 +12734,69 @@ function renderAvatarPicker(root){
   ]));
 }
 
+/* Theme picker screen — 5 palette tiles. Each swatch is painted with its
+   own palette so the kid sees what they're choosing BEFORE committing.
+   Tapping a tile saves state.theme, calls applyTheme() to flip <html
+   data-theme>, and re-renders so the active checkmark moves. The picker
+   itself lives inside the picked theme, so the kid gets immediate
+   confirmation that their whole UI just changed. */
+function renderThemePicker(root){
+  if(!currentUser||!state){go('home');return}
+  const s = getStudentInfo(currentUser);
+  const currentTheme = (state.theme && THEMES[state.theme]) ? state.theme : DEFAULT_THEME;
+  root.appendChild(h('div',{class:'week-head'},[
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},'🌈'),h('span',{},'Choose Your Theme')]),
+    h('button',{class:'back-btn',onclick:()=>go('dashboard')},'← Back'),
+  ]));
+  root.appendChild(h('div',{class:'avatar-preview'},[
+    h('div',{style:'font-size:52px'}, THEMES[currentTheme].emoji),
+    h('div',{class:'avatar-preview-info'},[
+      h('div',{class:'ap-name'}, 'Current: '+THEMES[currentTheme].label),
+      h('div',{class:'ap-hint'}, 'Tap any tile below to change the whole app\'s colours.'),
+    ]),
+  ]));
+  const grid = h('div',{class:'theme-grid stagger'});
+  // Render tiles in a deterministic order — default first, then the rest
+  // as they're declared in THEMES. Swatches use the theme's own gradient
+  // so the kid sees what Cosmos vs Ocean vs Forest actually look like.
+  const swatchFor = (id)=>{
+    const gradients = {
+      cosmos: 'linear-gradient(135deg,#6C5CE7 0%,#FD79A8 50%,#FDCB6E 100%)',
+      ocean:  'linear-gradient(135deg,#0984E3 0%,#74B9FF 50%,#00CEC9 100%)',
+      forest: 'linear-gradient(135deg,#00B894 0%,#55EFC4 50%,#FDCB6E 100%)',
+      sunset: 'linear-gradient(135deg,#E17055 0%,#FDCB6E 50%,#FD79A8 100%)',
+      candy:  'linear-gradient(135deg,#E91E63 0%,#FD79A8 50%,#FDCB6E 100%)',
+    };
+    return gradients[id] || gradients.cosmos;
+  };
+  Object.keys(THEMES).forEach(id=>{
+    const t = THEMES[id];
+    const active = id === currentTheme;
+    const btn = h('button',{
+      class:'theme-choice'+(active?' active':''),
+      onclick:()=>{
+        state.theme = id;
+        saveState();
+        applyTheme(id);
+        // Re-render in place so the active tick moves + the picker's
+        // own colours adopt the new theme (nice, tangible feedback).
+        root.innerHTML = '';
+        renderThemePicker(root);
+      },
+      title: active ? 'This is your current theme' : 'Tap to switch to '+t.label,
+    },[
+      h('div',{class:'tc-swatch', style:'background:'+swatchFor(id)}, t.emoji),
+      h('div',{class:'tc-label'}, t.label),
+      h('div',{class:'tc-sub'}, active ? '★ Active' : 'Tap to try'),
+    ]);
+    grid.appendChild(btn);
+  });
+  root.appendChild(grid);
+  root.appendChild(h('div',{style:'margin-top:24px;display:flex;justify-content:center'},[
+    h('button',{class:'btn btn-primary',onclick:()=>go('dashboard')}, 'Done →'),
+  ]));
+}
+
 /* ==========================================================================
    BRAIN BREAK — mini-games (Memory Match + Quick Math)
    --------------------------------------------------------------------------
@@ -13709,6 +14192,22 @@ function renderTeacher(root){
 
   // Section manifest — order matches the old linear layout so tutors who
   // had muscle memory for "scroll down to find X" still find X in roughly
+  // Family scoreboard — full view above the accordion so the tutor sees
+  // ranked progress the moment they open the dashboard, without having to
+  // expand a section. Uses the teacher "highlight nobody" viewer variant.
+  try {
+    const sb = buildFamilyScoreboard({ compact:false, highlightSid: null });
+    if(sb) dash.appendChild(sb);
+  } catch(e){ console.warn('[KidQuest] teacher scoreboard failed:', e); }
+  // Co-op weekly goal card on teacher dashboard — lets the tutor see at a
+  // glance how close the family is to this week's target and who's
+  // contributed. viewerSid:null means no bonus auto-pay from this render
+  // (bonus is student-dashboard-only).
+  try {
+    const coop = buildCoopGoalCard({ viewerSid: null });
+    if(coop) dash.appendChild(coop);
+  } catch(e){ console.warn('[KidQuest] teacher coop card failed:', e); }
+
   // the same place. Curriculum Editor sits second — it's the single most
   // important tutor-authoring tool.
   const sections = [
