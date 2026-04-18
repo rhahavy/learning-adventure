@@ -273,6 +273,15 @@ img{max-width:100%}
 .demo-banner-exit:hover{background:var(--ink);transform:translateY(-1px);box-shadow:0 6px 14px rgba(26,16,53,.25)}
 @media(max-width:520px){.demo-banner{flex-direction:column;align-items:stretch}.demo-banner-actions{align-self:flex-end}}
 
+/* "You're ahead" banner — rendered on the dashboard when the student's
+   joinedAt clock has passed MAX_AUTHORED_WEEK. Softer mint palette so it
+   feels like a congratulation, not a warning. */
+.caught-up-banner{display:flex;align-items:center;gap:14px;padding:14px 18px;margin:18px 0 6px;border-radius:16px;background:linear-gradient(135deg,rgba(0,184,148,.15),rgba(108,92,231,.08));border:1.5px solid rgba(0,184,148,.3);color:var(--ink)}
+.cub-emoji{font-size:28px;flex-shrink:0}
+.cub-text{display:flex;flex-direction:column;gap:3px;line-height:1.4}
+.cub-text strong{font-size:14px;font-weight:800}
+.cub-sub{font-size:12.5px;color:#555;font-weight:500}
+
 /* ---- PIN SCREEN ---- */
 .pin-screen{margin-top:28px;text-align:center}
 .pin-screen .who{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:20px}
@@ -6159,7 +6168,43 @@ try{
 }catch(e){}
 let isTeacher = false;
 let state = currentUser ? allData.users[currentUser] : null;
-let currentWeek = 1;
+
+/* ---- Weekly content clock (per-student) ----
+   `currentWeek` is NOT a global calendar week — it's the active student's
+   own week number, counted from their joinedAt. A kid who first logged in
+   today is on week 1 for 7 days, then rolls into week 2 the moment the
+   8th day starts. We cap at MAX_AUTHORED_WEEK so an active student can't
+   roll into an empty week that the tutor hasn't authored yet.
+
+   MAX_AUTHORED_WEEK is derived from the WEEKS object at boot, so adding
+   WEEKS[2] to the data block is the ONLY thing the tutor needs to do to
+   "release" week 2 — no manual version bump, no flag flip.
+
+   `currentWeek` gets recomputed on login (loginAs) and on every dashboard
+   render (so a refresh after midnight on day 7 advances correctly). It
+   stays at 1 for the teacher view and for logged-out pages.               */
+const MAX_AUTHORED_WEEK = Math.max(
+  1,
+  ...Object.keys(WEEKS||{})
+    .map(n => parseInt(n, 10))
+    .filter(n => !isNaN(n) && n > 0)
+);
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+function computeWeekForUser(ud){
+  const joinedAt = (ud && ud.joinedAt) || 0;
+  if(!joinedAt) return 1;
+  const raw = Math.floor((Date.now() - joinedAt) / WEEK_MS) + 1;
+  return Math.max(1, Math.min(raw, MAX_AUTHORED_WEEK));
+}
+/** Raw week number with NO cap — lets the dashboard show "you're ahead of
+ *  the authored content" banners without silently hiding the fact. */
+function rawWeekForUser(ud){
+  const joinedAt = (ud && ud.joinedAt) || 0;
+  if(!joinedAt) return 1;
+  return Math.max(1, Math.floor((Date.now() - joinedAt) / WEEK_MS) + 1);
+}
+
+let currentWeek = state ? computeWeekForUser(state) : 1;
 let currentScreen = null;
 let currentOpts = {};
 
@@ -6190,6 +6235,11 @@ function loginAs(uid){
   // least starts the weekly-report clock from here on forward instead of
   // leaving them stuck in "Never sent · no countdown" limbo.
   if(state && !state.joinedAt) state.joinedAt = Date.now();
+  // Now that joinedAt is guaranteed, compute the student's week clock.
+  // This picks up the kid wherever they are in their 7-day cycle — day 1
+  // is week 1, day 8 is week 2, etc., capped at MAX_AUTHORED_WEEK so an
+  // active student never rolls into an empty week.
+  currentWeek = computeWeekForUser(state);
   // Streak logic
   const today=new Date().toDateString();
   if(state.lastActiveDate){
@@ -8184,6 +8234,10 @@ function renderLegend(){
 /* ========== STUDENT DASHBOARD ========== */
 function renderDashboard(root){
   if(!currentUser||!state){go('home');return}
+  // Recompute the per-student week clock on every dashboard render so a
+  // page refresh after the 7-day boundary advances the student without
+  // needing a log-out/log-in. Cheap — just arithmetic on joinedAt.
+  currentWeek = computeWeekForUser(state);
   const s=getStudentInfo(currentUser);
   // Demo-mode banner — sits at the very top so the parent always knows
   // they're in a preview and sees an obvious exit. Clicking Exit drops
@@ -8264,6 +8318,24 @@ function renderDashboard(root){
       root.appendChild(h('div',{class:'autoplay-cta-wrap'}, cta));
     }
   } catch(e){ console.warn('[KidQuest] autoplay CTA failed:',e); }
+  // "You're ahead" banner — shown when the student's raw week clock has
+  // passed what we've authored. Their currentWeek caps at MAX_AUTHORED_WEEK
+  // so the subjects below still work (they replay the last authored week),
+  // but we want to tell them why — otherwise "Week 1 · Subjects" on day 30
+  // looks like a bug.
+  try {
+    const rawWk = rawWeekForUser(state);
+    if(rawWk > MAX_AUTHORED_WEEK){
+      root.appendChild(h('div',{class:'caught-up-banner'},[
+        h('span',{class:'cub-emoji'},'🎉'),
+        h('span',{class:'cub-text'},[
+          h('strong',{}, `You're ahead of the curriculum!`),
+          h('span',{class:'cub-sub'},
+            `You've been on KidQuest for ${rawWk} weeks. Fresh Week ${MAX_AUTHORED_WEEK+1} content is on the way — keep practicing favorites below in the meantime.`),
+        ]),
+      ]));
+    }
+  } catch(e){ console.warn('[KidQuest] caught-up banner failed:', e); }
   // Subjects
   root.appendChild(h('h2',{style:'margin-top:24px;font-size:20px;font-weight:800'},'Week '+currentWeek+' · Subjects'));
   const subjs=h('div',{class:'subjects stagger'});
