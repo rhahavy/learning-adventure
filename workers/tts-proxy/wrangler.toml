@@ -1,0 +1,31 @@
+# KidQuest TTS Proxy — Cloudflare Worker config
+# ------------------------------------------------------------------
+# Deploys worker.js to Cloudflare Workers. The ElevenLabs API key is
+# NOT stored here — it's a runtime secret. See README.md for the
+# `wrangler secret put ELEVENLABS_API_KEY` step.
+#
+# Free tier covers 100,000 requests/day, which is far more than this
+# site will ever send. If we ever outgrow that, bump to the $5/mo
+# Paid plan — no code changes needed.
+
+name = "kidquest-tts-proxy"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Non-secret configuration. Change these without redeploying secrets.
+[vars]
+# ElevenLabs voice + model to use when the frontend doesn't specify.
+# Swap DEFAULT_VOICE_ID to your cloned voice once it's ready on
+# ElevenLabs (Voice Library → click voice → "Voice ID").
+DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel — stock English voice
+DEFAULT_MODEL_ID = "eleven_flash_v2_5"     # cheapest + fastest model
+
+# Origin allow-list for CORS. Only these sites can call /tts.
+# Comma-separated, no spaces required. Update when you add a custom
+# domain (e.g. https://kidquest.rhahavy.com).
+ALLOWED_ORIGINS = "https://rhahavy.github.io,https://kidquest.rhahavy.com,http://localhost:8080,http://127.0.0.1:8080"
+
+# Observability — free, shows request counts + errors in the
+# Cloudflare dashboard. No log body persistence.
+[observability]
+enabled = true

@@ -1,0 +1,11 @@
+# Wrangler local state cache — per-machine artifacts, don't commit.
+.wrangler/
+
+# Env files with secrets — we use `wrangler secret put` instead, but
+# belt-and-suspenders in case someone creates one locally.
+.env
+.env.*
+!.env.example
+
+# Node bits if anyone ever npm installs here.
+node_modules/

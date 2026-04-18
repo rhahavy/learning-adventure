@@ -9664,7 +9664,169 @@ function _normalizeForTts(text){
     .replace(/\u2019/g,"'")                            // ’ → '
     .replace(/\u00A0/g,' ');                           // nbsp → space
 }
-/* speak(text, lang, opts?)
+/* ==========================================================================
+   ELEVENLABS VOICE LAYER (via Cloudflare Worker proxy)
+   --------------------------------------------------------------------------
+   The site's primary voice is ElevenLabs — warmer and more consistent than
+   the browser's built-in voices. We tunnel it through a tiny Cloudflare
+   Worker (see workers/tts-proxy/) so the ElevenLabs API key never reaches
+   the browser. Deploy instructions live in workers/tts-proxy/README.md.
+
+   Fallback path: on ANY failure (network error, HTTP 4xx/5xx, timeout,
+   credits exhausted), we drop through to the browser's built-in
+   speechSynthesis — the exact same code path the site used before
+   ElevenLabs was added. The kid still hears everything; only the voice
+   timbre changes. No user-visible error, no broken UI.
+
+   Design notes:
+   ▸ TTS_PROXY_URL is blank until the Worker is deployed + the URL
+     pasted in. When blank, speak() routes straight to the browser voice
+     (zero behavior change from pre-ElevenLabs — nothing to roll back if
+     the Worker goes sideways).
+   ▸ Session-level cooldown — once the proxy fails, we skip it for ~10
+     minutes so the UI stays snappy when credits are exhausted. Tapping
+     20 buttons in a row won't each eat a timeout.
+   ▸ In-memory cache — the same phrase played twice in one session
+     doesn't re-bill ElevenLabs. Bounded size so we don't leak blob URLs.
+   ▸ Slow mode bypasses the proxy entirely — the "🐢 Slow" button is for
+     syllable-pace phonics practice, which the browser handles natively
+     via utterance.rate. Slowing an ElevenLabs MP3 client-side sounds
+     muddy, so we always route slow mode to speechSynthesis.
+   ========================================================================== */
+
+// Paste your deployed Cloudflare Worker URL here (see
+// workers/tts-proxy/README.md). Leave blank to disable ElevenLabs and
+// use the browser's speech synthesis for everything — the site works
+// identically in that mode, just with the local system voice.
+const TTS_PROXY_URL = 'https://kidquest-tts-proxy.rhahavy-b.workers.dev';
+
+// Request timeout. Flash v2.5 typically returns in 300-900ms; 3s is a
+// generous ceiling that still feels responsive on failure. A hung
+// request can't freeze the UI.
+const TTS_PROXY_TIMEOUT_MS = 3000;
+
+// After a failure, skip the proxy entirely for this long. Prevents the
+// "credits ran out" scenario from making every button tap feel broken
+// — we fail fast to the browser voice instead.
+const TTS_PROXY_COOLDOWN_MS = 10 * 60 * 1000;
+
+// 0 = try the proxy now. Otherwise, the next epoch-ms we're allowed to
+// try again.
+let _ttsProxyCooldownUntil = 0;
+
+// Session-level cache of fetched audio blobs, keyed by
+// `${voice}|${lang}|${text}`. Replaying a phrase in the same voice
+// skips the network + skips the ElevenLabs bill.
+const _ttsBlobCache = new Map();
+const TTS_BLOB_CACHE_MAX = 10;
+
+// Tracks the currently-playing HTMLAudioElement so a new speak() call
+// can stop the old one (matches speechSynthesis.cancel() semantics).
+let _ttsCurrentAudio = null;
+
+function _ttsStopCurrent(){
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+  if(_ttsCurrentAudio){
+    try{ _ttsCurrentAudio.pause(); _ttsCurrentAudio.currentTime = 0; }catch(e){}
+    _ttsCurrentAudio = null;
+  }
+}
+
+/* _speakViaProxy(text, lang, opts) → Promise<boolean>
+   ----------------------------------------------------
+   Tries to play the given text through the ElevenLabs proxy. Resolves
+   true if audio started playing, false on any failure (in which case
+   the caller falls through to the browser voice). Never rejects.
+   Side effects: trips the cooldown on upstream/proxy failure, populates
+   the blob cache on success.
+*/
+async function _speakViaProxy(text, lang, opts){
+  if(!TTS_PROXY_URL) return false;
+  if(Date.now() < _ttsProxyCooldownUntil) return false;
+
+  const o = opts || {};
+  const cacheKey = `${lang||''}|${o.voiceId||''}|${text}`;
+  let blob = _ttsBlobCache.get(cacheKey);
+
+  if(!blob){
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), TTS_PROXY_TIMEOUT_MS);
+    try{
+      const res = await fetch(TTS_PROXY_URL.replace(/\/+$/,'') + '/tts', {
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body: JSON.stringify({
+          text: _normalizeForTts(text),
+          voiceId: o.voiceId,
+          lang: lang,
+        }),
+        signal: ctl.signal,
+      });
+      clearTimeout(t);
+      if(!res.ok){
+        // Trip the cooldown on any upstream failure — 401/429 (credits),
+        // 5xx (upstream issue), 403 (origin blocked). The frontend now
+        // has one job: don't bother the proxy for a while.
+        _ttsProxyCooldownUntil = Date.now() + TTS_PROXY_COOLDOWN_MS;
+        console.warn('[tts] proxy returned', res.status, '— falling back to browser TTS');
+        return false;
+      }
+      blob = await res.blob();
+    }catch(err){
+      clearTimeout(t);
+      _ttsProxyCooldownUntil = Date.now() + TTS_PROXY_COOLDOWN_MS;
+      console.warn('[tts] proxy unreachable — falling back to browser TTS:', err && err.message || err);
+      return false;
+    }
+
+    // Bounded cache — drop the oldest entry when we exceed the cap so
+    // we don't leak blob URLs or balloon memory over a long session.
+    if(_ttsBlobCache.size >= TTS_BLOB_CACHE_MAX){
+      const oldestKey = _ttsBlobCache.keys().next().value;
+      if(oldestKey !== undefined) _ttsBlobCache.delete(oldestKey);
+    }
+    _ttsBlobCache.set(cacheKey, blob);
+  }
+
+  // Stop any in-flight audio before starting the new one. Matches the
+  // speechSynthesis.cancel() behavior at the top of _speakViaBrowser.
+  _ttsStopCurrent();
+  let url = '';
+  try{
+    url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    _ttsCurrentAudio = audio;
+    const cleanup = ()=>{
+      if(_ttsCurrentAudio === audio) _ttsCurrentAudio = null;
+      try{ URL.revokeObjectURL(url); }catch(e){}
+    };
+    audio.addEventListener('ended', cleanup, {once:true});
+    audio.addEventListener('error', cleanup, {once:true});
+    try{
+      await audio.play();
+    }catch(playErr){
+      cleanup();
+      // NB: don't trip the proxy cooldown here — autoplay-policy
+      // rejections are a browser/user-gesture issue, not an ElevenLabs
+      // health issue. Next call tries the proxy normally.
+      console.warn('[tts] audio.play() rejected — falling back to browser TTS:', playErr && playErr.message || playErr);
+      return false;
+    }
+    return true;
+  }catch(e){
+    if(url){ try{ URL.revokeObjectURL(url); }catch(_){} }
+    console.warn('[tts] audio playback failed — falling back:', e);
+    return false;
+  }
+}
+
+/* _speakViaBrowser(text, lang, opts) — built-in speechSynthesis path
+   ------------------------------------------------------------------
+   The original speak() logic, preserved verbatim so the fallback is
+   the exact same behavior the site had before ElevenLabs was added.
+   Called directly by slow mode, and as the fallback from _speakViaProxy
+   on any failure.
+
    opts.slow  — true = syllable-pace (≈0.65x) for read-aloud support where the
                 kid needs to hear each sound distinctly (Evan's -OUGH practice,
                 Akaran's vowel sounds, dictation prompts).
@@ -9674,7 +9836,7 @@ function _normalizeForTts(text){
    than the US voice. Falls back through _getBestVoice() if CA isn't
    installed). Passing a specific lang (e.g. 'fr-FR' for French) still wins.
 */
-function speak(text, lang, opts){
+function _speakViaBrowser(text, lang, opts){
   if(!text || typeof window.speechSynthesis === 'undefined') return;
   const o = opts || {};
   try{
@@ -9707,6 +9869,41 @@ function speak(text, lang, opts){
     }
     window.speechSynthesis.speak(u);
   }catch(e){ console.warn('[speak] failed:', e); }
+}
+
+/* speak(text, lang, opts?) — public TTS entrypoint
+   ------------------------------------------------
+   Tries ElevenLabs first (via the Worker proxy), falls back to the
+   browser's speechSynthesis on any failure. Fire-and-forget from the
+   caller's perspective — the async proxy attempt is orchestrated
+   internally so the UI doesn't need to await anything.
+
+   See the ELEVENLABS VOICE LAYER comment above for the full rationale.
+*/
+function speak(text, lang, opts){
+  if(!text) return;
+  const o = opts || {};
+
+  // Slow mode stays on the browser voice — syllable-pace phonics is a
+  // speechSynthesis strength. Slowing MP3 client-side sounds muddy.
+  if(o.slow){ _speakViaBrowser(text, lang, o); return; }
+
+  // Stop any currently-playing audio immediately. This matches the old
+  // speak() behavior (which called speechSynthesis.cancel() up front)
+  // so button taps always feel responsive — the prior voice stops
+  // before the new one starts, even during the proxy fetch window.
+  _ttsStopCurrent();
+
+  // Try the proxy. On success it plays audio directly. On any failure
+  // it resolves false and we route to the browser voice. The proxy
+  // layer never throws — but belt-and-suspenders the .catch anyway so
+  // a bug here can't block the fallback path.
+  _speakViaProxy(text, lang, o).then(ok => {
+    if(!ok) _speakViaBrowser(text, lang, o);
+  }).catch(err => {
+    console.warn('[tts] proxy layer threw unexpectedly:', err);
+    _speakViaBrowser(text, lang, o);
+  });
 }
 // Prime the voice list (some browsers load voices asynchronously).
 if(typeof window.speechSynthesis !== 'undefined'){
