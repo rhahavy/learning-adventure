@@ -110,10 +110,15 @@ img{max-width:100%}
 
 /* ---- TOPBAR ---- */
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;background:rgba(255,255,255,.78);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1.5px solid rgba(255,255,255,.9);border-radius:var(--r-lg);box-shadow:var(--shadow);position:sticky;top:10px;z-index:40;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:22px;letter-spacing:-.01em;font-family:var(--font-display)}
+/* `.brand` is a <button> now (clicks → go('home')), so reset the default
+   button padding and keep the original flex-row layout. The hover tilt on
+   .logo was already there — now it actually signals a clickable target. */
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:22px;letter-spacing:-.01em;font-family:var(--font-display);padding:0;background:none;border:none;color:inherit;cursor:pointer}
 .brand .logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--primary),var(--pink) 60%,var(--sun));display:grid;place-items:center;color:#fff;box-shadow:0 8px 18px rgba(108,92,231,.4),inset 0 -3px 0 rgba(0,0,0,.12);border:2px solid #fff;transition:transform .3s var(--spring)}
 .brand .logo svg{filter:drop-shadow(0 1px 1px rgba(0,0,0,.18))}
 .brand:hover .logo{transform:rotate(-6deg) scale(1.08)}
+.brand:active .logo{transform:rotate(-6deg) scale(1.02)}
+.brand:focus-visible{outline:3px solid var(--primary);outline-offset:4px;border-radius:14px}
 .brand-text{background:linear-gradient(135deg,var(--primary),#4834d4);-webkit-background-clip:text;background-clip:text;color:transparent}
 .topbar nav{display:flex;gap:6px;flex-wrap:wrap}
 .nav-btn{padding:9px 16px;border-radius:999px;font-size:14px;font-weight:700;color:var(--ink2);transition:all .25s var(--spring)}
@@ -1745,7 +1750,14 @@ img{max-width:100%}
 <div class="bg-mesh"></div>
 <div class="app">
   <header class="topbar">
-    <div class="brand"><span class="logo" aria-label="KidQuest logo"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c2.5 2.5 4 5.5 4 9v6l-2 2h-4l-2-2v-6c0-3.5 1.5-6.5 4-9z"/><circle cx="12" cy="10" r="1.8"/><path d="M8 14l-3 4v2l3-1M16 14l3 4v2l-3-1"/></svg></span><span class="brand-text">KidQuest</span></div>
+    <!-- Brand is a button so clicking the rocket / "KidQuest" wordmark takes
+         you to the public welcome screen (hero + "Get Started →"), not the
+         current student's dashboard. The in-nav "🏠 Home" button still goes
+         to the dashboard for logged-in students; this is the logo-as-home
+         affordance, useful for parents/visitors viewing over a kid's
+         shoulder who want the landing page, and for kids who want to switch
+         back to the profile picker without hunting for "Switch." -->
+    <button class="brand" type="button" onclick="go('home')" aria-label="KidQuest — go to welcome page"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c2.5 2.5 4 5.5 4 9v6l-2 2h-4l-2-2v-6c0-3.5 1.5-6.5 4-9z"/><circle cx="12" cy="10" r="1.8"/><path d="M8 14l-3 4v2l3-1M16 14l3 4v2l-3-1"/></svg></span><span class="brand-text">KidQuest</span></button>
     <nav id="nav"></nav>
     <div class="pills" id="pills"></div>
   </header>
