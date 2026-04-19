@@ -9681,6 +9681,39 @@ const PREFERRED_VOICES = {
     'Microsoft Guy',       // Edge — cloud
   ],
 };
+
+/* NOVA_PREFERRED_VOICES — for the browser-TTS fallback when ElevenLabs is
+   unreachable (datacenter-IP block, out of credits, offline, etc.). The
+   goal is just to make Nova sound NOTICEABLY DIFFERENT from the narrator
+   so kids get the "Nova is her own character" cue even without the
+   cloned alien voice. We layer three distinction signals:
+     1. A distinct voice (this list — novelty / accented / distinctly
+        different timbre from the narrator's top picks above).
+     2. Higher pitch (1.45 vs narrator 1.0) — gives the "little alien" vibe.
+     3. Slightly faster rate (1.1 vs narrator 0.92) — eager kid energy.
+   If none of these voices are installed, _getNovaVoice() falls back to
+   any voice that isn't the narrator's first pick — so pitch+rate still
+   carry the distinction on minimal systems (Windows with only Zira). */
+const NOVA_PREFERRED_VOICES = {
+  en: [
+    'Shelley',      // macOS novelty — bright, noticeably different from Samantha
+    'Princess',     // macOS novelty — high-pitched, very "alien-y"
+    'Kathy',        // macOS compact — childlike, higher register
+    'Martha',       // macOS — distinct British-ish female
+    'Fiona',        // macOS — Scottish, very different from narrator
+    'Tessa',        // macOS — South African, distinct
+    'Veena',        // macOS — Indian English, distinct
+    'Moira',        // macOS — Irish (only if Samantha not used as narrator)
+    'Karen',        // macOS — Australian (same fallback caveat)
+    'Microsoft Zira',  // Windows — if Aria/Jenny was narrator, Zira differs
+    'Google UK English Female', // Chrome — if US was narrator, UK differs
+  ],
+  fr: [
+    'Audrey',       // macOS — less common, more distinct than Amélie
+    'Chantal',      // macOS novelty-ish
+    'Marie',        // some systems
+  ],
+};
 let _cachedVoices = null;
 function _getBestVoice(lang){
   if(!_cachedVoices || !_cachedVoices.length){
@@ -9710,6 +9743,46 @@ function _getBestVoice(lang){
 
   // 4. First voice in the requested language.
   return voices[0];
+}
+
+/* _getNovaVoice(lang) — pick a voice noticeably different from the narrator.
+   Used only in the browser-fallback path (ElevenLabs normally handles Nova
+   via her cloned voiceId). Priority:
+     1. Any NOVA_PREFERRED_VOICES entry installed on this system.
+     2. Any voice whose name DOESN'T match the narrator's first pick — so
+        even on a minimal system (Windows with only one voice) we at least
+        try to differ. Pitch + rate overrides in _speakViaBrowser carry the
+        rest of the distinction.
+   Returns null when no English voices exist at all (rare — browser will
+   fall back to its default). */
+function _getNovaVoice(lang){
+  if(!_cachedVoices || !_cachedVoices.length){
+    try{ _cachedVoices = window.speechSynthesis.getVoices(); }catch(e){ _cachedVoices = []; }
+  }
+  if(!_cachedVoices.length) return null;
+  const langPrefix = (lang||'').toLowerCase().split('-')[0];
+  const voices = _cachedVoices.filter(v => (v.lang||'').toLowerCase().startsWith(langPrefix));
+  if(!voices.length) return null;
+
+  // 1. Try Nova's preferred novelty / distinct voices.
+  const novaList = NOVA_PREFERRED_VOICES[langPrefix] || [];
+  for(const wantName of novaList){
+    const want = wantName.toLowerCase();
+    const match = voices.find(v => (v.name||'').toLowerCase().includes(want));
+    if(match) return match;
+  }
+
+  // 2. Pick anything that isn't the narrator's first match. Guarantees a
+  //    different voice on systems that have at least 2 installed.
+  const narrator = _getBestVoice(lang);
+  if(narrator){
+    const diff = voices.find(v => v !== narrator && v.name !== narrator.name);
+    if(diff) return diff;
+  }
+
+  // 3. Nothing different available — return null so _speakViaBrowser
+  //    uses the default voice (pitch+rate will still distinguish Nova).
+  return null;
 }
 // Normalize text for TTS engines that choke on ligatures / typography.
 //   œ → oe, æ → ae, curly apostrophe → straight, non-breaking space → space.
@@ -9915,9 +9988,16 @@ function _speakViaBrowser(text, lang, opts){
     // need a slightly slower pace than native-English read-alouds.
     // Slow mode = syllable pace, for when the kid taps "🐢 Slow" to hear
     // each sound distinctly.
-    u.rate = o.slow ? 0.65 : (isFrench ? 0.86 : 0.92);
-    u.pitch = (typeof o.pitch === 'number') ? o.pitch : 1.0;
-    const v = _getBestVoice(u.lang);
+    // Nova mode (browser-fallback only — when ElevenLabs can't serve her
+    // cloned alien voice) bumps pitch + rate so she sounds like a small
+    // excited alien instead of the narrator. opts.pitch/opts.rate still
+    // win if the caller set them explicitly.
+    const novaMode = !!o.novaMode && !o.slow;
+    const defaultRate = o.slow ? 0.65 : (isFrench ? 0.86 : 0.92);
+    const defaultPitch = 1.0;
+    u.rate = (typeof o.rate === 'number') ? o.rate : (novaMode ? 1.10 : defaultRate);
+    u.pitch = (typeof o.pitch === 'number') ? o.pitch : (novaMode ? 1.45 : defaultPitch);
+    const v = novaMode ? (_getNovaVoice(u.lang) || _getBestVoice(u.lang)) : _getBestVoice(u.lang);
     if(v){
       u.voice = v;
       // IMPORTANT: when setting .voice, also ensure .lang matches the voice's
@@ -9990,9 +10070,17 @@ function speakAsNova(text){
     const ud = currentUser && allData && allData.users && allData.users[currentUser];
     if(!ud || !ud.ttsEnabled) return;
   }catch(e){ return; }
-  // If NOVA_VOICE_ID is blank, fall through to the default narrator
-  // voice — still better than silence.
-  speak(text, 'en-CA', NOVA_VOICE_ID ? { voiceId: NOVA_VOICE_ID } : {});
+  // Pass both signals:
+  //   voiceId     — used by the ElevenLabs proxy to route to Nova's cloned voice.
+  //   novaMode    — used by the BROWSER-FALLBACK path (_speakViaBrowser) to
+  //                 pick a distinct voice + bump pitch/rate so Nova still
+  //                 sounds different from the narrator when the proxy is
+  //                 unavailable (free-tier datacenter block, no credits,
+  //                 offline, etc.). Kid always hears Nova as her own voice —
+  //                 just a less-polished impression of it without ElevenLabs.
+  const opts = { novaMode: true };
+  if(NOVA_VOICE_ID) opts.voiceId = NOVA_VOICE_ID;
+  speak(text, 'en-CA', opts);
 }
 
 // Prime the voice list (some browsers load voices asynchronously).
