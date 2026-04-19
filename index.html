@@ -609,6 +609,15 @@ img{max-width:100%}
 .stretch-banner .sb-text b{font-family:var(--font-display);font-size:15px;font-weight:800;color:#5a3900;display:block}
 @keyframes stretchPulse{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes starSpin{0%,100%{transform:rotate(-6deg) scale(1)}50%{transform:rotate(6deg) scale(1.08)}}
+/* Easy-bridge banner — adaptive-down counterpart to stretch-banner. Blue
+   not gold, steady not spinning. Signals SUPPORT, not challenge. Shown
+   on the ONE question we swapped for an easier one after a kid got 2+
+   wrong in a row. Kid-friendly phrasing ("Let's slow down") avoids any
+   "you're struggling" framing. */
+.easy-bridge-banner{display:flex;align-items:center;gap:12px;margin:14px 0 0;padding:12px 16px;border-radius:16px;background:linear-gradient(135deg,#e7f3ff,#cfe6ff);border:2px solid rgba(60,140,220,.35);box-shadow:0 4px 14px rgba(60,140,220,.18);animation:stretchPulse .6s var(--spring)}
+.easy-bridge-banner .eb-icon{font-size:24px;filter:drop-shadow(0 2px 4px rgba(60,140,220,.3))}
+.easy-bridge-banner .eb-text{font-size:14px;line-height:1.35;color:#0a3a6b;font-weight:600}
+.easy-bridge-banner .eb-text b{font-family:var(--font-display);font-size:15px;font-weight:800;color:#062a4f;display:block}
 /* Quiz progress bar — deliberately understated so the timer bar below
    reads as the primary pace signal. Kids should be thinking about
    "how much time do I have on this question" more than "how many
@@ -2977,6 +2986,36 @@ function beginnerFrenchDemo(sid){
       ['"Vendredi" means...',['Thursday','Friday','Saturday','Sunday'],1]]),
   ];
 }
+/* =========================================================================
+   ONTARIO CURRICULUM TAG HELPER
+   -------------------------------------------------------------------------
+   Each activity carries a `curriculum:{grade,strand,codes[],notes,link}`
+   object that renders the "📋 Ontario Curriculum" chip on the lesson card
+   (see renderLesson near line 13343). We write the tags as short calls to
+   `oc(...)` so the WEEKS data stays readable at 180+ activities.
+
+   Curriculum sources used for the tags below:
+     • Language (Reading, Writing, Oral, Spelling) — Ontario 2023 Language curriculum
+     • Mathematics — Ontario 2020 Math curriculum
+     • Science & Technology — Ontario 2022 Science curriculum
+     • Social Studies — Ontario 2018 Social Studies curriculum
+     • French as a Second Language (Core) — Ontario 2013 FSL curriculum
+
+   Strand codes follow the official Ontario identifier pattern:
+     Math strand B = Number, C = Algebra, D = Data, E = Spatial, F = Financial
+     Language strand A = Literacy Connections, B = Foundations, C = Comp, D = Composition
+     Science uses letter-coded strands per grade
+   Codes stored as an array so a single lesson can map to multiple
+   expectations (common for longer passages or multi-skill activities).
+
+   The `link` field is optional; when absent the chip shows a generic
+   "Browse Ontario expectations" link. We keep them absent by default to
+   avoid bit-rotting URLs — curriculum PDFs move around. */
+function oc(grade, strand, codes, notes){
+  const arr = Array.isArray(codes) ? codes : (codes ? [codes] : []);
+  return { grade, strand, codes: arr, notes: notes || '' };
+}
+
 const WEEKS = { 1: {
 
 /* ---- NISHAN (Senior Kindergarten) ---- */
@@ -12522,31 +12561,72 @@ function renderWeek(root,subId){
 }
 
 /* ========== TIMER SYSTEM ==========
-   Age-appropriate seconds per question. Bumped ~50% in April 2026 after
-   we watched students time-out on questions they knew the answer to —
-   the clock was pacing them, not assessing them. These numbers now reflect
-   "comfortable solving pace for this age" rather than "fast recall."
-   - Passage questions get 2× the base because kids have to re-read the
-     passage each time (measured during tutoring sessions: ~30-40s of read
-     time PLUS the actual thinking time).
-   - Write questions stay at a fixed 2min — long enough for a thoughtful
-     free-write, capped so the quiz doesn't stall indefinitely.
-   - Any activity can set `timer: null` to disable the timer entirely
-     (used for reflective writing and deep-reading activities where a
-     ticking clock undermines the task).
-   Lesson screens never show the timer. When time runs out, auto-advance. */
-const TIMER_SECS = { nishan:60, akaran:55, rushan:45, akshayan:40 };
-const WRITE_TIMER = 120; // 2 min for free-write
-const PASSAGE_TIMER_MULT = 2; // passages need re-reading time
+   Content-aware per-question timing. April 2026 rewrite — replaced the
+   flat per-student clock with one that scales to how much READING the
+   question actually demands. A long passage now gets 90s; a snap "5+3=?"
+   MCQ gets 20s. The old system gave both the same 45s, which was too
+   slow for arithmetic and far too fast for passage comprehension.
+
+   Formula:  timer = read_time × 2  +  buffer  (clamped to [floor, ceil])
+   - read_time = chars in q.passage + q.q + q.prompt + choices + items + pairs
+                 divided by the kid's reading rate (chars/sec, by grade).
+   - Doubled so the kid can RE-READ after picking an approach.
+   - Buffer covers the mechanical act of tapping / dragging / typing.
+   - Floor + ceiling prevent silly extremes in either direction.
+
+   Opt-out still works: `activity.timer = null` disables timing entirely
+   (use for reflective writing / deep-reading where a clock is pedagogically
+   wrong). Lessons never show the timer. Write questions use a fixed ceiling
+   so a quiz can't stall forever. */
+
+// Reading rate (chars per second) by student. Tuned to the middle of the
+// Ontario per-grade fluency range, then nudged DOWN for ADHD/ESL students
+// so the clock stops being a stressor. A char/sec rate is a proxy for
+// wpm × 5/60 — simpler to tune than wpm and closer to what actually drives
+// timing (visible text length).
+const READ_SPEED = {
+  nishan:   4,   // SK — still decoding CVC words
+  akaran:   5,   // G1
+  rushan:   7,   // G2
+  akshayan: 8,   // G3
+  axel:     8,   // G3 (clone of Akshayan)
+  isaiah:   8,   // G5 but ADHD — slower pace keeps him out of time-pressure
+  evan:     8,   // G7 ESL — extra processing for non-native English
+};
+// Minimum seconds by question type — a 10-char "2+3=?" should still get
+// enough time to read the question and tap an answer without panic.
+const TIMER_FLOOR = { mcq:20, compare:20, dictate:20, fill:25, match:45, order:45, passage:60, write:120 };
+// Maximum seconds by question type — a misconfigured long passage should
+// not grant 10 minutes. Caps also protect against zombie quiz sessions.
+const TIMER_CEIL  = { mcq:60, compare:45, dictate:45, fill:75, match:90, order:90, passage:180, write:180 };
 
 function secondsForQuestion(q){
-  // Returns null if the activity opts out of timing (`timer: null`).
-  // Lessons are handled separately and never hit this.
+  if(!q) return null;
   if(quiz && quiz.activity && quiz.activity.timer===null) return null;
-  if(q.type==='write') return WRITE_TIMER;
-  const base = TIMER_SECS[currentUser] || 45;
-  if(q.type==='passage') return Math.round(base * PASSAGE_TIMER_MULT);
-  return base;
+  const t = q.type || 'mcq';
+  if(t === 'lesson') return null;
+
+  const floor = TIMER_FLOOR[t] || 30;
+  const ceil  = TIMER_CEIL[t]  || 90;
+  const rate  = READ_SPEED[currentUser] || 6;
+
+  // Tally every chunk of readable content this question actually shows.
+  let chars = 0;
+  if(typeof q.passage === 'string') chars += q.passage.length;
+  if(typeof q.q === 'string')       chars += q.q.length;
+  if(typeof q.prompt === 'string')  chars += q.prompt.length;
+  if(Array.isArray(q.choices))      chars += q.choices.join('').length;
+  if(Array.isArray(q.items))        chars += q.items.join('').length;
+  if(Array.isArray(q.pairs))        chars += q.pairs.map(p => Array.isArray(p)?p.join(''):'').join('').length;
+
+  // Double the read time (first pass + re-read while answering), then add
+  // a type-specific buffer for the mechanical action. Match/order take
+  // longer because they involve dragging/tapping multiple tiles.
+  const readSecs = chars / rate;
+  const BUFFER = (t==='passage') ? 20 : (t==='match'||t==='order') ? 25 : 10;
+  const secs = Math.round(readSecs * 2 + BUFFER);
+
+  return Math.max(floor, Math.min(ceil, secs));
 }
 let timerInterval = null;
 let timerLeft = 0;
@@ -12633,6 +12713,18 @@ function renderQ(wrap){
       h('div',{class:'sb-text'},[
         h('b',{},'Stretch Mode'),
         h('span',{},'Harder questions — you aced this lesson, so we\u2019re leveling up. Your original score is safe!'),
+      ]),
+    ]));
+  }
+  // Adaptive-down banner — shown ONLY on the question that was swapped
+  // for an easier bridge. Soft, supportive tone — this is a kid who just
+  // missed two in a row, not a moment for cheer-puppet energy.
+  else if(quiz.easyBridgeIdx === quiz.idx){
+    wrap.appendChild(h('div',{class:'easy-bridge-banner'},[
+      h('span',{class:'eb-icon','aria-hidden':'true'},'💙'),
+      h('div',{class:'eb-text'},[
+        h('b',{},'Let\u2019s slow down'),
+        h('span',{},'Here\u2019s an easier one — same topic, simpler question. You\u2019ve got this!'),
       ]),
     ]));
   }
@@ -13433,6 +13525,16 @@ function logWrongAnswer(q, choseIdx, correctIdx, opts){
       state.wrongAnswers = state.wrongAnswers.slice(-WRONG_ANSWER_LOG_CAP);
     }
   } catch(e){ /* never let analytics break gameplay */ console.warn('[KidQuest] logWrongAnswer failed:', e); }
+  // Adaptive-down: bump the consecutive-wrong counter. If the kid is
+  // genuinely struggling (2+ in a row), swap the NEXT question for one
+  // from an easier pool. Covers timeouts too — timeUp() calls this with
+  // {timedOut:true} so a kid who runs out of time still gets the bridge.
+  try {
+    if(quiz){
+      quiz.wrongStreak = (quiz.wrongStreak || 0) + 1;
+      maybeInjectEasier();
+    }
+  } catch(e){ console.warn('[KidQuest] adaptive-down hook failed:', e); }
 }
 
 /* ---- MCQ ---- */
@@ -13668,8 +13770,80 @@ function gradeWriting(text,q){
 /* ---- Feedback & Navigation ---- */
 const PRAISE=['Awesome! 🌟','You got it!','Great thinking!','High five! ✋','Fantastic!','Well done!'];
 const ENCOUR=['Good try!','Try again next time!','Almost!','Nice effort!'];
-function setFB(ok){const fb=$('#fb');if(!fb)return;fb.className='feedback '+(ok?'ok':'no');fb.textContent=ok?PRAISE[Math.floor(Math.random()*PRAISE.length)]:ENCOUR[Math.floor(Math.random()*ENCOUR.length)]}
+function setFB(ok){
+  // Adaptive-down hook: a correct answer resets the wrong-streak so we
+  // only drop to the easier pool when the kid is genuinely stuck, not
+  // after one stumble on an unrelated question. Wrong-side tracking lives
+  // in logWrongAnswer so timeouts (which never call setFB) also count.
+  if(ok && quiz){ quiz.wrongStreak = 0; }
+  const fb=$('#fb');if(!fb)return;
+  fb.className='feedback '+(ok?'ok':'no');
+  fb.textContent=ok?PRAISE[Math.floor(Math.random()*PRAISE.length)]:ENCOUR[Math.floor(Math.random()*ENCOUR.length)];
+}
 function showNext(){const b=$('#nextBtn');if(!b)return;b.style.display='inline-flex';b.textContent=(quiz.idx+1<quiz.questions.length)?'Next →':'Finish 🎉'}
+
+/* ---- Adaptive-down: easier question on a wrong streak ----
+   When a kid misses WRONG_STREAK_TRIGGER questions in a row (or times
+   out), the NEXT question is swapped for one from an easier pool. A
+   "Let's slow down" banner tells the kid why the problem looks simpler.
+   Fires at most once per activity so a kid who's really stuck finishes
+   the lesson and retries from scratch next time rather than snowballing
+   into an all-easier session. Stretch Mode disables adaptive-down —
+   by definition the kid aced the base pool, so the easier bridge would
+   be patronizing. */
+const WRONG_STREAK_TRIGGER = 2;
+
+function getEasierQuestion(currentQ){
+  // Three fallback sources in priority order. Returns null if none match —
+  // in which case the quiz simply continues with the original question.
+  try {
+    const a = quiz && quiz.activity;
+    if(!a) return null;
+
+    // 1) Activity-level authored easy pool. Highest priority because the
+    //    author hand-picked simpler questions on the same concept.
+    if(Array.isArray(a.easyQuestions) && a.easyQuestions.length){
+      const pool = a.easyQuestions.filter(q => q && q !== currentQ);
+      if(pool.length) return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    // 2) Same student + subject, PREVIOUS level's main question pool.
+    //    Activity IDs look like `w1-akshayan-m3`. If we can parse a level
+    //    number > 1, pull from level N-1.
+    const idMatch = String(quiz.activityId || '').match(/^(.*-[a-z])(\d+)$/i);
+    if(idMatch){
+      const level = parseInt(idMatch[2], 10);
+      if(level > 1){
+        const prevId = idMatch[1] + (level - 1);
+        const acts = getWeekActivities(currentUser, quiz.subject);
+        const prev = acts.find(x => x.id === prevId);
+        if(prev && Array.isArray(prev.questions) && prev.questions.length){
+          // Prefer same-type questions so the UI doesn't suddenly switch
+          // from "pick one" to "drag 4 items into order."
+          const sameType = prev.questions.filter(q => q && q.type === (currentQ && currentQ.type || 'mcq'));
+          const pool = sameType.length ? sameType : prev.questions;
+          return pool[Math.floor(Math.random() * pool.length)];
+        }
+      }
+    }
+    return null;
+  } catch(e){ console.warn('[KidQuest] getEasierQuestion failed:', e); return null; }
+}
+
+function maybeInjectEasier(){
+  if(!quiz) return;
+  if(quiz.stretchMode) return;                  // don't bridge during stretch retry
+  if(quiz.easyBridgeUsed) return;               // one bridge per activity
+  if((quiz.wrongStreak || 0) < WRONG_STREAK_TRIGGER) return;
+  if(quiz.idx + 1 >= quiz.questions.length) return; // no next question to swap
+  const currentQ = quiz.questions[quiz.idx];
+  const easier = getEasierQuestion(currentQ);
+  if(!easier) return;
+  quiz.questions[quiz.idx + 1] = easier;
+  quiz.easyBridgeIdx = quiz.idx + 1;
+  quiz.easyBridgeUsed = true;
+  quiz.wrongStreak = 0; // reset — we've already responded to the struggle
+}
 function nextQ(){
   if(quiz.idx+1<quiz.questions.length){quiz.idx++;quiz.locked=false;renderQ($('.quiz'))}
   else finishActivity();
