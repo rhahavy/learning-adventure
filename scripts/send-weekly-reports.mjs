@@ -194,9 +194,9 @@ function computeStatsForUser(ud, sinceTs){
   return {
     subjects,
     totalCompleted, totalPerfect, totalAttempts,
-    totalStars: ud.totalStars || 0,
-    coins:      ud.coins      || 0,
-    streak:     ud.streak     || 0,
+    // totalStars retired Apr 2026 — coins are the one reward currency now.
+    coins:      ud.coins  || 0,
+    streak:     ud.streak || 0,
     wrongBySubj,
     wrongCount: recent.length,
   };
@@ -267,7 +267,7 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
   textLines.push(`Report date: ${today}`);
   textLines.push(`Period since: ${since}`);
   textLines.push('');
-  textLines.push(`Overall: ${stats.totalCompleted} activities completed · ${stats.totalPerfect} perfect · ${stats.totalStars} stars · ${stats.coins} coins · streak ${stats.streak}`);
+  textLines.push(`Overall: ${stats.totalCompleted} activities completed · ${stats.totalPerfect} perfect · ${stats.coins} coins · streak ${stats.streak}`);
   textLines.push('');
   if(rows.length){
     textLines.push('By subject:');
@@ -368,7 +368,7 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
       <div style="background:linear-gradient(135deg,#eef1ff,#f7e8ff);border-radius:12px;padding:14px 16px;margin-bottom:20px">
         <div style="font-size:12px;font-weight:700;color:#6c5ce7;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px">Overall since ${since}</div>
         <div style="font-size:15px;font-weight:700">
-          ${stats.totalCompleted} activities · ${stats.totalPerfect} perfect · ${stats.totalStars} ⭐ · ${stats.coins} 💰 · streak ${stats.streak} 🔥
+          ${stats.totalCompleted} activities · ${stats.totalPerfect} perfect · ${stats.coins} 💰 · streak ${stats.streak} 🔥
         </div>
       </div>
 
@@ -477,7 +477,7 @@ async function main(){
         spelling:{ id:'spelling',name:'Spelling', emoji:'🔤', completed:2, perfect:2, attempts:10, correct:10, scorable:2, activities:[] },
       },
       totalCompleted: 10, totalPerfect: 7, totalAttempts: 52,
-      totalStars: 42, coins: 120, streak: 5,
+      coins: 120, streak: 5,
       // Demo entries exercise the lessonTitle grouping path. Note each entry
       // still carries qText/choices/choseIdx/correctIdx — those are written
       // by logWrongAnswer in index.html but INTENTIONALLY not surfaced to

@@ -183,7 +183,6 @@ img{max-width:100%}
 .pills{display:flex;gap:8px;align-items:center}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;font-weight:700;font-size:14px;border:2px solid rgba(255,255,255,.8);transition:transform .2s var(--spring)}
 .pill:hover{transform:translateY(-1px) scale(1.03)}
-.pill-star{background:linear-gradient(135deg,#fff5cc,#ffe08a);color:#a06a00;box-shadow:0 4px 10px rgba(255,215,0,.25),inset 0 -2px 0 rgba(160,106,0,.15)}
 .pill-coin{background:linear-gradient(135deg,#fff4cf,#ffd966);color:#8b5a00;box-shadow:0 4px 10px rgba(255,215,0,.25),inset 0 -2px 0 rgba(139,90,0,.18)}
 
 /* ---- SCREEN TRANSITIONS ---- */
@@ -1121,6 +1120,15 @@ img{max-width:100%}
    Idempotent — once state.onboardingCompleted=true we don't retrigger. */
 .nova-tour-backdrop{position:fixed;inset:0;z-index:500;background:rgba(20,20,35,.55);
   display:grid;place-items:end center;padding:16px 16px 20px;animation:novaTourFadeIn .25s ease}
+/* While a tour is active, nudge the sticky topbar down so its gold highlight
+   ring (up to ~16px around the element) doesn't spill past the viewport edge
+   when the #nav step is on. Also lifts the topbar above the backdrop so kids
+   can read the nav labels Nova is pointing at instead of a dimmed blur. */
+body.nova-tour-active .topbar{top:28px;z-index:520}
+body.nova-tour-active .topbar.nova-tour-highlight{z-index:520}
+/* Give scrollIntoView(block:'center') a little top-padding so Nova's glow
+   ring on any top-of-page element (nav, hero) stays inside the viewport. */
+body.nova-tour-active{scroll-padding-top:40px}
 @keyframes novaTourFadeIn{from{opacity:0}to{opacity:1}}
 .nova-tour-card{background:#fff;color:#2a2055;border-radius:22px;padding:18px 22px 16px;
   max-width:min(520px,calc(100vw - 24px));width:100%;box-shadow:0 18px 48px rgba(44,22,122,.35);
@@ -1185,7 +1193,7 @@ img{max-width:100%}
 .rv-item .rv-go{font-size:14px;font-weight:800;color:#00805a;flex-shrink:0}
 
 /* ---- FAMILY SCOREBOARD ----
-   A ranked list of every student on the account. Primary sort is totalStars
+   A ranked list of every student on the account. Primary sort is coins
    desc; ties broken by perfected-activities count, then current streak.
    Rendered in two modes:
      - compact (student dashboard): top 3 + the viewer's own row if below
@@ -2314,7 +2322,6 @@ body.has-dev-banner{padding-top:26px}
 }
 .pill.pill-bump{animation:pillBump .6s var(--spring)}
 .pill.pill-bump.pill-coin{box-shadow:0 8px 20px rgba(255,180,0,.55),inset 0 -2px 0 rgba(139,90,0,.18)}
-.pill.pill-bump.pill-star{box-shadow:0 8px 20px rgba(255,213,79,.55),inset 0 -2px 0 rgba(160,106,0,.15)}
 
 /* --- Nav tab — smoother active indicator with press state --- */
 .nav-btn{transition:all .22s var(--spring)}
@@ -2407,7 +2414,6 @@ body.has-dev-banner{padding-top:26px}
     <h2 id="rwTitle"></h2>
     <p class="msg" id="rwMsg"></p>
     <div class="reward-stats">
-      <span><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-2px"><path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4L2.6 9.4l6.5-.9Z"/></svg> <b id="rwStars">0</b></span>
       <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9.5h4.5a2 2 0 0 1 0 4H9"/></svg> <b id="rwCoins">0</b></span>
       <span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg> <b id="rwScore">0/0</b></span>
     </div>
@@ -2740,9 +2746,12 @@ const VIDEOS = {
 };
 
 /* ========== BADGES ========== */
+// Badges — historical earned-state carries forward, but new badge triggers
+// are coin/activity-based only (stars retired Apr 2026). The two old
+// star-* ids are left in the list so kids who earned them still see them
+// on their profile; they're no longer awardable from this point forward.
 const BADGES = [
   { id:'first-steps',   name:'First Steps',    icon:'🚀', desc:'Complete 3 activities' },
-  { id:'ten-stars',     name:'Star Beginner',  icon:'⭐', desc:'Collect 10 stars' },
   { id:'perfect-score', name:'Bullseye',       icon:'🎯', desc:'Perfect score on an activity' },
   { id:'reading-pro',   name:'Reading Pro',    icon:'📖', desc:'Complete 5 Reading activities' },
   { id:'writing-pro',   name:'Word Wizard',    icon:'✏️', desc:'Complete 5 Writing activities' },
@@ -2751,10 +2760,13 @@ const BADGES = [
   { id:'french-pro',    name:'French Friend',  icon:'🇫🇷', desc:'Complete 5 French activities' },
   { id:'streak-3',      name:'On Fire',        icon:'🔥', desc:'3-day streak' },
   { id:'coin-50',       name:'Coin Collector', icon:'💰', desc:'Earn 50 coins' },
-  { id:'star-50',       name:'Star Collector', icon:'✨', desc:'Collect 50 stars' },
-  { id:'perfectionist', name:'Perfectionist',  icon:'💎', desc:'5 perfect scores' },
+  { id:'coin-200',      name:'Coin Hoarder',   icon:'💎', desc:'Earn 200 coins' },
+  { id:'perfectionist', name:'Perfectionist',  icon:'✨', desc:'5 perfect scores' },
   { id:'scholar',       name:'Scholar',        icon:'🎓', desc:'Complete 20 activities' },
   { id:'week-complete', name:'Week Champion',  icon:'🏆', desc:'Complete all Week 1 activities' },
+  // Legacy — retired triggers, kept so pre-April-2026 wins still display.
+  { id:'ten-stars',     name:'Star Beginner',  icon:'⭐', desc:'Collected 10 stars (retired)', legacy:true },
+  { id:'star-50',       name:'Star Collector', icon:'🌟', desc:'Collected 50 stars (retired)', legacy:true },
 ];
 
 /* ========== WEEK 1 CONTENT ==========
@@ -7551,7 +7563,10 @@ function applyTheme(themeId){
   }catch(e){}
 }
 const defaultUser = () => ({
-  totalStars:0, coins:0, streak:0, lastActiveDate:'',
+  // Apr 2026: totalStars retired. Old saves that still carry a totalStars
+  // field are ignored — nothing reads or writes it anymore. Coins are the
+  // single reward currency now.
+  coins:0, streak:0, lastActiveDate:'',
   badges:{}, progress:{}, completedActivities:{}, perfectActivities:{},
   wishlist: [],  // array of STORE_ITEMS ids the student has saved for later
   avatar: null,  // optional emoji string — overrides initial-letter tile when set
@@ -7616,6 +7631,11 @@ const defaultUser = () => ({
   // skips the tour (both count — we don't re-pester them). Teachers can
   // force a replay via the "🎓 Replay Tutorial" button on the dashboard.
   onboardingCompleted: false,
+  // Second Nova tour, inside a real activity. Teaches how to read the
+  // question, pick/type an answer, use read-aloud, and what the coins
+  // mean. Fires the first time the student sees a non-lesson question.
+  // Same skip-counts-as-done rule as onboardingCompleted.
+  activityTourSeen: false,
   // Brain-break mini-games — daily coin cap + personal bests.
   // Kept separate from academic progress so it can't replace real practice.
   miniGameStats: {
@@ -7659,15 +7679,17 @@ const defaultAll = () => ({
   // Maintenance mode — teacher toggles from dashboard, synced via cloud.
   maintenance: { active: false, message: DEFAULT_MAINTENANCE_MESSAGE, updatedAt: 0 },
   // Weekly co-op goal — a shared family target the whole squad is pulling
-  // toward. Progress = sum of (currentTotalStars - weekStartSnapshot) across
+  // toward. Progress = sum of (currentCoins - weekStartSnapshot) across
   // every active student. Rolls over automatically when ISO week changes;
-  // the rollover snapshots everyone's totalStars so the new week starts at
+  // the rollover snapshots everyone's coins so the new week starts at
   // 0 progress. achievedAt is set once when the bar hits 100% — from then
   // on the card celebrates instead of encouraging. See weeklyGoalRollover().
+  // (Apr 2026: switched tracking currency from stars → coins when the star
+  // side of the dual-currency system was retired.)
   weeklyGoal: {
     weekId: '',           // ISO year-week id, e.g. '2026-W16'. Empty = unset, triggers first init
-    target: 0,            // star target for the week (auto-scaled to # of students)
-    snapshot: {},          // {sid: totalStarsAtStartOfWeek}
+    target: 0,            // coin target for the week (auto-scaled to # of students)
+    snapshot: {},          // {sid: coinsAtStartOfWeek}
     achievedAt: 0,        // epoch ms when the goal was first hit this week; 0 = not yet
     bonusPaidSids: [],    // sids that have already been paid the +coins bonus for THIS week
   },
@@ -7772,7 +7794,7 @@ seedTtsDefaults();
 // ---- CO-OP WEEKLY GOAL ----
 // A shared family target: sum of stars earned by everyone this ISO week.
 // Rollover semantics: when the real-world ISO week advances past the
-// stored weekId, snapshot every student's current totalStars as the new
+// stored weekId, snapshot every student's current coins as the new
 // baseline and reset achievedAt/bonusPaidSids. Target auto-scales with the
 // number of students — more kids = bigger target.
 function isoWeekId(dateMs){
@@ -7785,22 +7807,25 @@ function isoWeekId(dateMs){
   const weekNo = Math.ceil((((dt - yearStart) / 86400000) + 1) / 7);
   return dt.getUTCFullYear() + '-W' + String(weekNo).padStart(2,'0');
 }
-// How many stars we expect the whole family to earn per week. Scales with
+// How many coins we expect the whole family to earn per week. Scales with
 // headcount so adding a new student doesn't tank everyone's chances.
+// A typical perfect 5-question level pays 10 coins; kids hit ~5 activities
+// per week, so ~50 coins/kid/week is baseline — we aim a little above
+// that to make the goal feel stretchy but reachable.
 function defaultWeeklyGoalTarget(){
   const n = Math.max(1, STUDENTS.length);
-  return 80 * n;  // 7 students → 560 stars/week, 3 → 240 — comfortably stretchy
+  return 60 * n;  // 7 students → 420 coins/week, 3 → 180 — comfortably stretchy
 }
 function weeklyGoalRollover(){
   try{
     if(!allData.weeklyGoal) allData.weeklyGoal = { weekId:'', target:0, snapshot:{}, achievedAt:0, bonusPaidSids:[] };
     const currentWeek = isoWeekId();
     if(allData.weeklyGoal.weekId === currentWeek) return;  // still the same week — nothing to do
-    // New week: snapshot everyone's current totalStars as the baseline.
+    // New week: snapshot everyone's current coins as the baseline.
     const snapshot = {};
     STUDENTS.forEach(s=>{
       const ud = allData.users[s.id];
-      snapshot[s.id] = ud ? Number(ud.totalStars||0) : 0;
+      snapshot[s.id] = ud ? Number(ud.coins||0) : 0;
     });
     allData.weeklyGoal = {
       weekId: currentWeek,
@@ -7819,19 +7844,19 @@ function weeklyGoalProgress(){
   let current = 0;
   STUDENTS.forEach(s=>{
     const ud = allData.users[s.id];
-    const now = ud ? Number(ud.totalStars||0) : 0;
+    const now = ud ? Number(ud.coins||0) : 0;
     const start = Number((wg.snapshot||{})[s.id]||0);
-    current += Math.max(0, now - start);  // going backward (stars deducted) shouldn't hurt the team
+    current += Math.max(0, now - start);  // going backward (coins spent) shouldn't hurt the team
   });
   const target = Math.max(1, Number(wg.target||defaultWeeklyGoalTarget()));
   const pct = Math.min(100, Math.round(current / target * 100));
   const achieved = current >= target;
   // Stamp achievedAt the first time we cross the line so the celebration
-  // state persists even if totalStars later oscillates (shouldn't, but be safe).
+  // state persists even if coins later oscillate (e.g., a purchase).
   if(achieved && !wg.achievedAt){ wg.achievedAt = Date.now(); try{ saveState(); }catch(e){} }
   return { current, target, pct, achieved, perKid: STUDENTS.map(s=>{
     const ud = allData.users[s.id];
-    const now = ud ? Number(ud.totalStars||0) : 0;
+    const now = ud ? Number(ud.coins||0) : 0;
     const start = Number((wg.snapshot||{})[s.id]||0);
     return { sid:s.id, name:s.name, color:s.color||'#6C5CE7', earned: Math.max(0, now - start) };
   }).sort((a,b)=>b.earned-a.earned) };
@@ -7992,7 +8017,7 @@ function logout(dest){
   // password for destructive actions until they re-authenticate.
   teacherAuthAt = 0;
   // Reset topbar bump-cache so the next login doesn't see a bogus delta.
-  _prevTopbarUser = null; _prevTopbarStars = 0; _prevTopbarCoins = 0;
+  _prevTopbarUser = null; _prevTopbarCoins = 0;
   // Drop back to the default cosmos palette so the profile picker shows
   // neutral colours rather than whoever just logged out's theme.
   try{ applyTheme(DEFAULT_THEME); }catch(e){}
@@ -8090,8 +8115,8 @@ async function syncToCloud(){
    callers invoke pushSnapshot(reason) which copies the CURRENT allData
    into a 5-slot rotating buffer in localStorage. The teacher dashboard's
    "↶ Restore from snapshot" panel surfaces them with human-readable
-   timestamps + a stats summary (total coins / total stars / # activity
-   completions) so it's obvious which snapshot holds the data you want.
+   timestamps + a stats summary (total coins / # activity completions) so
+   it's obvious which snapshot holds the data you want.
 
    Design notes:
      • Purely local — no cloud cost. The goal is surviving the 5 minutes
@@ -8112,17 +8137,16 @@ const SNAP_KEY = 'kidquest-snapshots-v1';
 const SNAP_MAX = 5;
 function snapshotSummary(data){
   // Tiny preview string for the picker UI — totals across all students.
-  let coins=0, stars=0, acts=0;
+  let coins=0, acts=0;
   try {
     const users = (data && data.users) || {};
     for(const sid in users){
       const u = users[sid] || {};
       coins += Number(u.coins||0);
-      stars += Number(u.totalStars||0);
       acts  += Object.keys(u.completedActivities||{}).length;
     }
   } catch(e){}
-  return { coins, stars, acts };
+  return { coins, acts };
 }
 function readSnapshots(){
   try {
@@ -8842,9 +8866,13 @@ const NOVA_SUBMSG_STREAK = [
   d => "Day "+d+" streak — proud of you!",
   d => "Streaks power my antenna. Yours is SO bright.",
 ];
-const NOVA_SUBMSG_STARS = [
-  s => "⭐ "+s+" stars earned on Earth. Wild.",
-  s => "You know what "+s+" stars sounds like? A galaxy.",
+// Coin-themed submessage pool (replaces the retired star pool Apr 2026).
+// Used when a kid has crossed the 50-coin mark — a small delight "huh,
+// I've earned a lot" moment on the Nova Says card.
+const NOVA_SUBMSG_COINS = [
+  c => "💰 "+c+" coins? You're the richest Earthling I know.",
+  c => c+" coins banked. Prize-bound.",
+  c => "That stash is looking serious: 💰 "+c+".",
 ];
 function pickNovaDashSubMessage(){
   try {
@@ -8852,14 +8880,14 @@ function pickNovaDashSubMessage(){
     if(!ud) return NOVA_SUBMSG_DEFAULT[0];
     const seed = dailySeed((currentUser||'')+'sub');
     const streak = Number(ud.streak||0);
-    const stars = Number(ud.totalStars||0);
+    const coins = Number(ud.coins||0);
     if(streak >= 3 && (seed % 4) === 0){
       const line = NOVA_SUBMSG_STREAK[seed % NOVA_SUBMSG_STREAK.length];
       return typeof line === 'function' ? line(streak) : line;
     }
-    if(stars >= 50 && (seed % 5) === 0){
-      const line = NOVA_SUBMSG_STARS[seed % NOVA_SUBMSG_STARS.length];
-      return typeof line === 'function' ? line(stars) : line;
+    if(coins >= 50 && (seed % 5) === 0){
+      const line = NOVA_SUBMSG_COINS[seed % NOVA_SUBMSG_COINS.length];
+      return typeof line === 'function' ? line(coins) : line;
     }
     return NOVA_SUBMSG_DEFAULT[seed % NOVA_SUBMSG_DEFAULT.length];
   } catch(e){ return NOVA_SUBMSG_DEFAULT[0]; }
@@ -8951,10 +8979,14 @@ function pickRewardPepTalk(tier, ctx){
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-/* Nova's per-subject flavor for the lesson intro card. */
+/* Nova's per-subject flavor for the lesson intro card.
+ * Apr 2026: pinned to 'cheerful' across every subject. Kids read the
+ * per-subject color variation ("Nova keeps changing colours") as a bug,
+ * not flavor — so we keep one stable face. Left as a map rather than a
+ * constant in case we want to reintroduce light theming later. */
 const NOVA_SUBJECT_TONE = {
-  reading:'cheerful', writing:'warm', math:'magic',
-  logic:'cheerful', french:'warm', science:'magic', social:'warm',
+  reading:'cheerful', writing:'cheerful', math:'cheerful',
+  logic:'cheerful', french:'cheerful', science:'cheerful', social:'cheerful',
 };
 const NOVA_LESSON_OPENERS = {
   reading: [
@@ -9329,8 +9361,9 @@ function renderReviewCard(userId){
 /* buildClassScoreboard({ compact, highlightSid })  →  HTMLElement
    ----------------------------------------------------------------
    Ranked list of every real student (skips DEMO_GRADES) keyed off
-   allData.users. Primary sort: totalStars desc. Tiebreak: perfects, then
-   streak, then name.
+   allData.users. Primary sort: coins desc. Tiebreak: perfects, then
+   streak, then name. (Sort key switched from totalStars Apr 2026 when the
+   star currency was retired — see activity-reward handler.)
 
    Modes:
      compact = true  — top 3 always, plus the viewer's own row if they
@@ -9349,14 +9382,16 @@ function buildClassScoreboard(opts){
       sid: s.id,
       name: s.name,
       color: s.color || '#6C5CE7',
-      stars: Number(ud.totalStars||0),
       coins: Number(ud.coins||0),
       streak: Number(ud.streak||0),
       perfects: Object.keys(ud.perfectActivities||{}).length,
       activities: Object.keys(ud.completedActivities||{}).length,
     };
   }).sort((a,b)=>{
-    if(b.stars !== a.stars)       return b.stars - a.stars;
+    // Apr 2026: leaderboard sort switched from stars → coins. Coins are the
+    // currency kids spend on real prizes, so they're what actually
+    // correlates with "how much have I earned this week".
+    if(b.coins !== a.coins)       return b.coins - a.coins;
     if(b.perfects !== a.perfects) return b.perfects - a.perfects;
     if(b.streak !== a.streak)     return b.streak - a.streak;
     return a.name.localeCompare(b.name);
@@ -9377,10 +9412,10 @@ function buildClassScoreboard(opts){
     h('span',{class:'sb-sub'}, rows.length+' kids · ranked by stars'),
   ]));
   // Only dress up the top 3 with medals when there's real movement to
-  // show — otherwise a fresh install with everyone at 0 stars would crown
+  // show — otherwise a fresh install with everyone at 0 coins would crown
   // whoever tiebreaks first, which looks silly. Require the leader to
-  // have at least 1 star before we hand out gold/silver/bronze.
-  const showMedals = rows.length > 0 && rows[0].stars > 0;
+  // have at least 1 coin before we hand out gold/silver/bronze.
+  const showMedals = rows.length > 0 && rows[0].coins > 0;
   const list = h('div',{class:'sb-list'});
   shown.forEach((r, idx)=>{
     if(r.__divider){
@@ -9405,7 +9440,7 @@ function buildClassScoreboard(opts){
           r.streak>0 ? h('span',{}, '🔥 '+r.streak+'d streak') : '',
         ]),
       ]),
-      h('div',{class:'sb-stars'}, '⭐ '+r.stars),
+      h('div',{class:'sb-stars'}, '💰 '+r.coins),
     ]);
     list.appendChild(row);
   });
@@ -9415,14 +9450,14 @@ function buildClassScoreboard(opts){
 
 /* buildCoopGoalCard({ viewerSid })  →  HTMLElement
    ------------------------------------------------
-   The shared weekly star target. Shows the whole family's combined
+   The shared weekly coin target. Shows the whole family's combined
    progress, plus a little per-kid contribution chip row so everyone sees
    how much they contributed. If the goal is hit, the card flips into
    celebration mode AND — if the current viewer hasn't yet been paid their
    +5-coin bonus for this week — awards it and shows a "+5 coins!" banner
    exactly once per kid per week.
 
-   Why only bonus on dashboard render (not on the star-earning moment):
+   Why only bonus on dashboard render (not on the coin-earning moment):
    the goal can be hit by another kid's contribution while this viewer is
    offline. Paying the bonus on next render means each kid sees their
    personal "🎉 you helped us win!" moment when they show up. */
@@ -9440,7 +9475,7 @@ function buildCoopGoalCard(opts){
     h('span',{class:'coop-sub'}, allData.weeklyGoal.weekId || ''),
   ]));
   card.appendChild(h('div',{class:'coop-stats'},[
-    h('span',{},'Stars earned together'),
+    h('span',{},'Coins earned together'),
     h('span',{class:'coop-count'}, p.current+' / '+p.target),
   ]));
   const wrap = h('div',{class:'coop-progress-wrap'});
@@ -10120,12 +10155,16 @@ if(typeof window.speechSynthesis !== 'undefined'){
      - Arrow keys advance/go back.
      - Focus lands on Next button each step.
    ========================================================================== */
+// Tone is intentionally fixed to 'cheerful' on every step — Nova's color
+// should feel like a consistent companion during navigation, not a
+// kaleidoscope that shifts every slide. (Earlier versions varied tones
+// per step; kids read that as "Nova keeps changing colours".)
 const NOVA_TOUR_STEPS = [
   { title: "Hi, I'm Nova! 👋",
     text: "I'm your guide. I'll show you around super quick — tap Next!",
     tone: 'cheerful' },
-  { title: 'Your rewards',
-    text: "⭐ Stars are for right answers. 🪙 Coins unlock real prizes in the Store!",
+  { title: 'Your coins',
+    text: "🪙 Earn coins by getting answers right — spend them on real prizes in the Store!",
     target: '.dash-stats',
     tone: 'cheerful' },
   { title: 'Your daily mission',
@@ -10139,30 +10178,30 @@ const NOVA_TOUR_STEPS = [
   { title: 'Nova Says',
     text: "I'll leave little thoughts for you here. Tap me for a fresh one anytime.",
     target: '.nova-says',
-    tone: 'warm' },
+    tone: 'cheerful' },
   { title: 'Change how you look',
     text: "Want a new avatar or color theme? Tap these any time you feel like a change.",
     target: '.change-avatar-btn',
-    tone: 'warm' },
+    tone: 'cheerful' },
   { title: 'Want me to read to you?',
     text: "Tap this pill to turn read-aloud ON. I'll read every question out loud.",
     target: '.tts-dash-toggle',
-    tone: 'warm' },
+    tone: 'cheerful' },
   { title: 'The KidQuest Store',
-    text: "Spend your coins on REAL rewards your parent set up! Keep earning the big ones.",
+    text: "Spend your coins on REAL rewards Ms. Rhahavy set up for you! Keep earning the big ones.",
     target: '.dash-store-btn.store',
     tone: 'cheerful' },
   { title: 'Tap me anytime!',
     text: "You'll see me on lots of screens. Tap me and I'll wiggle and say something fun.",
     target: '.dash-hero .mascot',
-    tone: 'magic' },
+    tone: 'cheerful' },
   { title: 'Switch kid or log out',
-    text: "Up top: 👤 Switch lets a sibling take over. 🚪 Log Out finishes your session.",
+    text: "Up top: 👤 Switch lets another kid sign in. 🚪 Log Out finishes your session.",
     target: '#nav',
     tone: 'cheerful' },
   { title: "You've got this! 💜",
-    text: "Ready to explore? Tap Let's go and have fun, friend!",
-    tone: 'victory' },
+    text: "Ready? Pick a subject to start your first lesson — I'll pop back in to show you how it works!",
+    tone: 'cheerful' },
 ];
 
 function runNovaTour(opts){
@@ -10170,7 +10209,16 @@ function runNovaTour(opts){
   // Idempotent: if a tour is already mounted, bail so we don't double-stack.
   if(document.querySelector('.nova-tour-backdrop')) return;
 
-  const steps = NOVA_TOUR_STEPS;
+  // opts.steps — explicit step array (used by activity tour + any future
+  // screen-specific tour). Defaults to the dashboard NOVA_TOUR_STEPS so
+  // existing call sites (initial dashboard visit, Replay Tutorial button)
+  // don't need to change.
+  // opts.onFinish — called when the tour finishes OR is skipped. Receives
+  // (completed: boolean). Use this to flip the screen-specific seen flag.
+  //   dashboard: sets state.onboardingCompleted = true
+  //   activity:  sets state.activityTourSeen    = true
+  const steps = (opts.steps && opts.steps.length) ? opts.steps : NOVA_TOUR_STEPS;
+  const onFinish = typeof opts.onFinish === 'function' ? opts.onFinish : null;
   let idx = 0;
   let currentHighlight = null;
 
@@ -10198,9 +10246,21 @@ function runNovaTour(opts){
     if(!el) return;
     el.classList.add('nova-tour-highlight');
     currentHighlight = el;
-    // Bring the highlighted element into view — the card pins to the bottom,
-    // so centering the target vertically keeps both visible on most screens.
-    try{ el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){}
+    // Bring the highlighted element into view. For elements near the top of
+    // the document (the sticky topbar / hero mascot), scroll all the way to
+    // the top — otherwise scrollIntoView({block:'center'}) pushes the page
+    // up so far that Nova's gold glow ring on a top-edge target gets clipped
+    // by the viewport. Anything further down uses the regular centered scroll
+    // so the bottom-pinned tour card and the target both stay visible.
+    try{
+      const rect = el.getBoundingClientRect();
+      const absoluteTop = rect.top + window.scrollY;
+      if(absoluteTop < 120){
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }catch(e){}
   }
 
   function renderStep(){
@@ -10276,14 +10336,19 @@ function runNovaTour(opts){
     clearHighlight();
     try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
     try{ backdrop.remove(); }catch(e){}
+    try{ document.body.classList.remove('nova-tour-active'); }catch(e){}
     document.removeEventListener('keydown', keyHandler);
-    // Flip the flag whether they finished or skipped — we don't re-pester.
+    // Hand off to the caller's onFinish (screen-specific flag flip). Fall
+    // back to the legacy dashboard-only behavior if no callback given so
+    // the Replay Tutorial button still works without being rewired.
     try {
-      if(currentUser && state){
+      if(onFinish){
+        onFinish(completed);
+      } else if(currentUser && state){
         state.onboardingCompleted = true;
         saveState();
       }
-    } catch(e){ console.warn('[KidQuest] Could not save onboarding flag:', e); }
+    } catch(e){ console.warn('[KidQuest] Tour onFinish failed:', e); }
   }
 
   function keyHandler(e){
@@ -10297,6 +10362,9 @@ function runNovaTour(opts){
 
   document.addEventListener('keydown', keyHandler);
   document.body.appendChild(backdrop);
+  // Body class gates scoped CSS (sticky topbar nudge, scroll-padding-top)
+  // that only apply while the tour is on screen. Removed in finish().
+  try{ document.body.classList.add('nova-tour-active'); }catch(e){}
   renderStep();
 }
 
@@ -10313,11 +10381,141 @@ function maybeStartNovaTour(){
     // Small delay so the dashboard finishes painting before Nova pops up.
     // Also gives the mascot greeting bubble a beat to breathe.
     setTimeout(() => {
-      try { runNovaTour(); }
+      try {
+        runNovaTour({
+          steps: NOVA_TOUR_STEPS,
+          onFinish: () => {
+            try { state.onboardingCompleted = true; saveState(); }
+            catch(e){ console.warn('[KidQuest] Could not save onboardingCompleted:', e); }
+          },
+        });
+      }
       catch(e){ console.warn('[KidQuest] runNovaTour failed:', e); }
     }, 600);
   } catch(e){
     console.warn('[KidQuest] maybeStartNovaTour failed:', e);
+  }
+}
+
+/* ACTIVITY TOUR — Nova's second walkthrough, fires the first time a kid
+   sees a real question (inside an activity). Teaches the mechanics that
+   the dashboard tour couldn't cover without the right DOM targets.
+
+   State flag: state.activityTourSeen (seeded false on defaultUser).
+   Trigger: maybeStartActivityTour() at the end of renderQ, guarded on
+     - the current question is NOT a lesson-intro card (has real answer
+       UI — .q-text exists, and .choices or .dictate-input exists)
+     - state.activityTourSeen is still false
+     - not a demo user, not the teacher view
+   Steps are built dynamically from getNovaActivityTourSteps() so we
+   only show the "Tap your answer" step when the current question has
+   tappable choices, and the "Hear it out loud" step only when the
+   student has read-aloud turned on. Graceful degradation for other
+   question types (dictate/write/match) — we show the generic steps. */
+function getNovaActivityTourSteps(){
+  // Best-effort introspection of the active quiz to tailor steps.
+  // Skipped gracefully if any of this is missing — generic steps still work.
+  const q = (typeof quiz === 'object' && quiz && quiz.questions && quiz.questions[quiz.idx]) || null;
+  const qType = (q && q.type) || 'mcq';
+  const ttsOn = !!(state && state.ttsEnabled);
+
+  // Tone is pinned to 'cheerful' on every step for Nova-color consistency —
+  // see the matching note on NOVA_TOUR_STEPS.
+  const steps = [
+    { title: "Your first lesson! 🎉",
+      text: "I'll show you what to do in here. It's easy — promise!",
+      tone: 'cheerful' },
+    { title: 'Read the question',
+      text: "This is what you're figuring out. Take your time — no rush!",
+      target: '.q-text',
+      tone: 'cheerful' },
+  ];
+
+  // Answer-input step — pick the right target based on question type so
+  // the glow lands on the actual tappable/typeable element.
+  if(qType === 'mcq' || qType === 'passage' || qType === 'fill' || qType === 'compare'){
+    steps.push({
+      title: 'Pick your answer',
+      text: "Tap the one you think is right. Wrong guess? No problem — just try again!",
+      target: '.choices',
+      tone: 'cheerful',
+    });
+  } else if(qType === 'dictate'){
+    steps.push({
+      title: 'Type your answer',
+      text: "Type what you hear here, then tap Check!",
+      target: '.dictate-input',
+      tone: 'cheerful',
+    });
+  } else if(qType === 'write'){
+    steps.push({
+      title: 'Write your answer',
+      text: "Share your thoughts here in your own words. There's no wrong answer!",
+      target: '.write-area, .write-input, textarea',
+      tone: 'cheerful',
+    });
+  }
+  // For match/order/other puzzle types we skip the answer-input step
+  // (highlighting the whole card would be noisy) — kids figure those out.
+
+  // Read-aloud step — only relevant when the kid has opted in. If TTS is off,
+  // the .tts-buttons element isn't in the DOM, so there's nothing to point at.
+  if(ttsOn){
+    steps.push({
+      title: 'Hear it out loud',
+      text: "Tap '🔊 Hear it' and I'll read the question. Use '🐢 Slow' to hear each sound!",
+      target: '.tts-buttons',
+      tone: 'cheerful',
+    });
+  }
+
+  steps.push({
+    title: 'Earn coins 🪙',
+    text: "Right answers earn 🪙 coins. Save them up to buy real rewards Ms. Rhahavy picked out for you!",
+    tone: 'cheerful',
+  });
+
+  steps.push({
+    title: "You've got this! 💜",
+    text: "Ready? Give it your best try — I'm cheering for you!",
+    tone: 'cheerful',
+  });
+
+  return steps;
+}
+
+// Hook at the end of renderQ. Fires once per student, the first time
+// they land on a real question (not a lesson-intro card).
+function maybeStartActivityTour(){
+  try {
+    if(!currentUser || !state) return;
+    if(state.activityTourSeen) return;
+    if(typeof isDemoUser === 'function' && isDemoUser(currentUser)) return;
+    if(isTeacher) return;
+    // Don't interrupt a dashboard tour that's still open — rare edge case
+    // (dashboard tour → kid skips fast → starts activity). Wait for them
+    // to clear the overlay; we'll fire on the next renderQ.
+    if(document.querySelector('.nova-tour-backdrop')) return;
+    // Only fire if the question has real answer UI in the DOM. Lesson-intro
+    // cards (q.type==='lesson') have .lesson-card but no .q-text — so the
+    // presence of .q-text is our signal that we're on an answerable question.
+    if(!document.querySelector('.q-text')) return;
+    // Small delay so the question finishes painting + any TTS buttons are
+    // mounted before we try to highlight them.
+    setTimeout(() => {
+      try {
+        runNovaTour({
+          steps: getNovaActivityTourSteps(),
+          onFinish: () => {
+            try { state.activityTourSeen = true; saveState(); }
+            catch(e){ console.warn('[KidQuest] Could not save activityTourSeen:', e); }
+          },
+        });
+      }
+      catch(e){ console.warn('[KidQuest] activity tour failed:', e); }
+    }, 650);
+  } catch(e){
+    console.warn('[KidQuest] maybeStartActivityTour failed:', e);
   }
 }
 
@@ -10919,10 +11117,11 @@ function updateOrderStatus(orderId, status, refund){
 }
 
 /* ========== TOPBAR ========== */
-// Cached prev values so we can detect when stars/coins increase and bump
-// the corresponding topbar pill. Per-user so a profile switch doesn't
-// accidentally fire a bump. Reset in logout() / loginAs().
-let _prevTopbarUser = null, _prevTopbarStars = 0, _prevTopbarCoins = 0;
+// Cached prev coin count so we can detect increases and bump the pill.
+// Per-user so a profile switch doesn't accidentally fire a bump.
+// Reset in logout() / loginAs(). (Stars pill removed Apr 2026 — we now
+// reward one currency only; see activity-complete handler.)
+let _prevTopbarUser = null, _prevTopbarCoins = 0;
 function updateTopbar(screen){
   const nav=$('#nav'); const pills=$('#pills');
   nav.innerHTML=''; pills.innerHTML='';
@@ -10941,17 +11140,11 @@ function updateTopbar(screen){
     // Bump only when the SAME user's value went UP since last update —
     // avoids false positives on first render / user switch.
     const sameUser   = _prevTopbarUser === currentUser;
-    const starsBump  = sameUser && state.totalStars > _prevTopbarStars;
-    const coinsBump  = sameUser && state.coins      > _prevTopbarCoins;
-    const starPill   = h('span',{class:'pill pill-star'+(starsBump?' pill-bump':'')},'⭐ '+state.totalStars);
+    const coinsBump  = sameUser && state.coins > _prevTopbarCoins;
     const coinPill   = h('span',{class:'pill pill-coin'+(coinsBump?' pill-bump':'')},'💰 '+state.coins);
-    // Remove the bump class once the animation ends so it can re-trigger next time.
-    starPill.addEventListener('animationend', ()=>starPill.classList.remove('pill-bump'));
     coinPill.addEventListener('animationend', ()=>coinPill.classList.remove('pill-bump'));
-    pills.appendChild(starPill);
     pills.appendChild(coinPill);
     _prevTopbarUser  = currentUser;
-    _prevTopbarStars = state.totalStars;
     _prevTopbarCoins = state.coins;
   }
 }
@@ -11038,7 +11231,7 @@ function renderHome(root){
   root.appendChild(hero);
   const feats=h('div',{class:'features stagger'},[
     h('div',{class:'feat'},[h('div',{class:'ico'},'🎯'),h('h3',{},'Personalized'),h('p',{},'Content matched to each student\'s grade and needs.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},'📊'),h('h3',{},'Track Progress'),h('p',{},'Stars, coins, streaks, and weekly completion tracking.')]),
+    h('div',{class:'feat'},[h('div',{class:'ico'},'📊'),h('h3',{},'Track Progress'),h('p',{},'Coins, streaks, and weekly completion tracking.')]),
     h('div',{class:'feat'},[h('div',{class:'ico'},'🏆'),h('h3',{},'Earn Rewards'),h('p',{},'Badges, coins, and celebrations for every achievement.')]),
     h('div',{class:'feat'},[h('div',{class:'ico'},'📅'),h('h3',{},'Weekly Adventures'),h('p',{},'Fresh content every week across 5 core subjects.')]),
   ]);
@@ -11059,7 +11252,7 @@ function renderProfiles(root){
       ]),
       h('h3',{},s.name),
       h('span',{class:'grade'},s.grade),
-      h('div',{class:'stats'},[h('span',{},'⭐ '+ud.totalStars),h('span',{},'💰 '+ud.coins)]),
+      h('div',{class:'stats'},[h('span',{},'💰 '+(ud.coins||0))]),
     ]));
   });
   root.appendChild(grid);
@@ -11728,8 +11921,8 @@ function renderParentView(root){
   const completedCount = Object.keys(ud.completedActivities||{}).length;
   const stats = h('div',{class:'pv-stats'},[
     h('div',{class:'pv-stat'},[
-      h('div',{class:'pvs-num'}, String(Number(ud.totalStars||0))),
-      h('div',{class:'pvs-lbl'},'⭐ Stars'),
+      h('div',{class:'pvs-num'}, String(Number(ud.coins||0))),
+      h('div',{class:'pvs-lbl'},'💰 Coins'),
     ]),
     h('div',{class:'pv-stat'},[
       h('div',{class:'pvs-num'}, String(Number(ud.streak||0))),
@@ -11916,7 +12109,6 @@ function renderDashboard(root){
   // Stats — perfect activities replaces Badges (badges feature de-emphasized)
   const perfectCount = Object.keys(state.perfectActivities||{}).length;
   const stats=h('div',{class:'dash-stats stagger'},[
-    h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'⭐'),h('span',{},String(state.totalStars))]),h('div',{class:'lbl'},'Stars')]),
     h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'💰'),h('span',{},String(state.coins))]),h('div',{class:'lbl'},'Coins')]),
     h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'🔥'),h('span',{},String(state.streak))]),h('div',{class:'lbl'},'Day Streak')]),
     h('div',{class:'d-stat'},[h('div',{class:'num'},[h('span',{class:'stat-emoji'},'💯'),h('span',{},String(perfectCount))]),h('div',{class:'lbl'},'Perfect')]),
@@ -12458,6 +12650,12 @@ function renderQ(wrap){
     h('button',{class:'btn btn-ghost',onclick:()=>go('week',{subject:quiz.subject})},'← Back'),
     h('button',{class:'btn btn-primary',id:'nextBtn',style:'display:none',onclick:nextQ},'Next →'),
   ]));
+  // First-time activity tour. Idempotent (flag-gated) + inert on lesson-
+  // intro cards (no .q-text present). Runs on every renderQ call but the
+  // flag ensures it only actually fires once per student, when they hit
+  // their first real question.
+  try { maybeStartActivityTour(); }
+  catch(e){ console.warn('[KidQuest] maybeStartActivityTour failed:', e); }
 }
 
 /* ---- Lesson ---- */
@@ -12875,7 +13073,7 @@ function renderLesson(card,q){
   // Nova cameo on every lesson intro — subject-aware opener.
   try {
     const subId = quiz && quiz.subject;
-    const tone = NOVA_SUBJECT_TONE[subId] || 'magic';
+    const tone = NOVA_SUBJECT_TONE[subId] || 'cheerful';
     const msg  = pickNovaLessonOpener(subId);
     card.appendChild(h('div',{class:'lesson-mascot'},[
       createMascot({ tone, size:104, message: msg }),
@@ -13426,22 +13624,22 @@ function finishActivity(){
   const pct = correct/scorable;
   const passed = pct >= PASS_THRESHOLD;
   // -------------------- STAR + COIN ANTI-FARM RULE --------------------
-  // Stars AND coins both pay out ONCE per level — on the first-ever pass.
+  // Coins pay out ONCE per level — on the first-ever pass.
   // Retries of an already-passed level award 0 of both, no matter the
   // score, so kids can't inflate the pill count by replaying aced levels.
   // Failed attempts also pay 0: effort still lives in the attempts counter
   // + the progress bar, but the stars/coins totals stay meaningful as a
   // measure of completed content, not clicks.
-  // Stretch Mode is the exception — it ALWAYS pays (full stars + coins)
-  // because the content is genuinely harder than what earned the original
-  // rewards, and we want to reward kids who opt into the stretch pool.
-  // (Stars previously paid on every attempt, including replays and fails,
-  // which inflated the counter; April 2026 unified them with coins.)
+  // Stretch Mode is the exception — it ALWAYS pays (full coins) because
+  // the content is genuinely harder than what earned the original rewards,
+  // and we want to reward kids who opt into the stretch pool.
+  // (Apr 2026: stars were retired as a second currency. We now reward one
+  // thing — coins — which is what actually buys prizes. Stars had become
+  // an abstract leaderboard number that didn't map to anything the kid
+  // could cash in, and the dual pill was visual clutter.)
   const prevProgForCoins = state.progress[a.id] || {};
   const wasAlreadyDone = prevProgForCoins.done === true;
   const shouldReward = isStretch || (passed && !wasAlreadyDone);
-  let starsCalc = 1; if(pct>=.5) starsCalc++; if(correct===scorable) starsCalc++;
-  const stars = shouldReward ? starsCalc : 0;
   const coins = shouldReward ? correct * 2 : 0;
   // ------------------------------------------------------------
   // STRETCH MODE vs NORMAL MODE
@@ -13487,7 +13685,6 @@ function finishActivity(){
       try { markDailyMissionProgress(a.id); } catch(e){ console.warn('[KidQuest] markDailyMissionProgress failed:', e); }
     }
   }
-  state.totalStars+=stars;
   state.coins+=coins;
   // Badges
   const td=Object.keys(state.completedActivities).length;
@@ -13495,7 +13692,6 @@ function finishActivity(){
   const sc={reading:0,writing:0,math:0,logic:0,french:0,science:0,social:0};
   Object.keys(state.completedActivities).forEach(id=>{const m=id.match(/w\d+-\w+-(r|w|m|l|f|s|c)\d/);if(m){const k={r:'reading',w:'writing',m:'math',l:'logic',f:'french',s:'science',c:'social'}[m[1]];if(k)sc[k]++}});
   if(td>=3)state.badges['first-steps']=true;
-  if(state.totalStars>=10)state.badges['ten-stars']=true;
   if(correct===scorable)state.badges['perfect-score']=true;
   if(sc.reading>=5)state.badges['reading-pro']=true;
   if(sc.writing>=5)state.badges['writing-pro']=true;
@@ -13504,7 +13700,7 @@ function finishActivity(){
   if(sc.french>=5)state.badges['french-pro']=true;
   if(state.streak>=3)state.badges['streak-3']=true;
   if(state.coins>=50)state.badges['coin-50']=true;
-  if(state.totalStars>=50)state.badges['star-50']=true;
+  if(state.coins>=200)state.badges['coin-200']=true;
   if(pd>=5)state.badges['perfectionist']=true;
   if(td>=20)state.badges['scholar']=true;
   if(td>=20){let all=true;SUBJECTS.forEach(sub=>{const acts=getWeekActivities(currentUser,sub.id);acts.forEach(a=>{if(!state.completedActivities[a.id])all=false})});if(all)state.badges['week-complete']=true}
@@ -13520,7 +13716,7 @@ function finishActivity(){
               : pct>=.7 ? 'Really well done!'
               : 'Nice effort!';
   $('#rwEmoji').textContent=emoji;$('#rwTitle').textContent=title;$('#rwMsg').textContent=msg;
-  $('#rwStars').textContent='+'+stars;$('#rwCoins').textContent='+'+coins;$('#rwScore').textContent=correct+'/'+scorable;
+  $('#rwCoins').textContent='+'+coins;$('#rwScore').textContent=correct+'/'+scorable;
   // Nova cameo — tone + pep line depend on the result tier. We also track
   // a session-local "perfects in a row" counter so back-to-back perfects
   // trigger a special pep-talk pool. Not persisted (resets on reload) —
@@ -15507,8 +15703,8 @@ function renderTeacher(root){
         h('h3',{},[h('span',{style:'font-size:22px;margin-right:6px'},tToken),h('span',{},s.name)]),
         h('div',{class:'t-grade'},s.grade),
         h('div',{class:'t-stats'},[
-          h('span',{},'⭐ '+ud.totalStars),h('span',{},'💰 '+ud.coins),
-          h('span',{},'🔥 '+ud.streak),h('span',{},'📊 '+pct+'%'),
+          h('span',{},'💰 '+(ud.coins||0)),
+          h('span',{},'🔥 '+(ud.streak||0)),h('span',{},'📊 '+pct+'%'),
         ]),
         h('div',{class:'t-stats t-stats-extra'},[
           h('span',{title:'Total attempts across every activity (sum of retries)'},'🎯 '+allAttempts+' attempts'),
@@ -15643,7 +15839,7 @@ function renderTeacher(root){
             h('div',{class:'t-snap-when'}, whenStr + envBadge + srcBadge),
             h('div',{class:'t-snap-reason'}, String(snap.reason||'manual save')),
             h('div',{class:'t-snap-stats'},
-              'Σ '+totals.coins+' coins · '+totals.stars+' stars · '+totals.acts+' completions'),
+              'Σ '+totals.coins+' coins · '+totals.acts+' completions'),
           ]),
           h('div',{class:'t-snap-actions'},[
             h('button',{class:'btn btn-sm btn-primary',onclick:()=>{
@@ -17595,7 +17791,7 @@ function buildProgressReport(sid){
   lines.push('');
   lines.push(`Here is ${name}'s weekly KidQuest progress report (${today}).`);
   lines.push('');
-  lines.push(`Overall: ${totalDone} of ${totalAvail} activities completed — ${totalPerfect} perfect scores. ⭐${ud.totalStars||0} stars / 💰${ud.coins||0} coins / 🔥${ud.streak||0}-day streak.`);
+  lines.push(`Overall: ${totalDone} of ${totalAvail} activities completed — ${totalPerfect} perfect scores. 💰${ud.coins||0} coins / 🔥${ud.streak||0}-day streak.`);
   // Effort + precision paragraph. Parents didn't want "27 attempts, 74%
   // accuracy" as a bare stat — they want the tutor's read on what those
   // numbers MEAN. interpretEffort() turns the raw numbers into a headline
