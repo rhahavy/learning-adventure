@@ -18,7 +18,20 @@ compatibility_date = "2025-01-01"
 # Swap DEFAULT_VOICE_ID to your cloned voice once it's ready on
 # ElevenLabs (Voice Library → click voice → "Voice ID").
 DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel — stock English voice
-DEFAULT_MODEL_ID = "eleven_flash_v2_5"     # cheapest + fastest model
+# Model options (as of Apr 2026):
+#   eleven_flash_v2_5      — ~1x cost. Lowest latency (<200ms). Great for
+#                            button presses & short word reads. Slight
+#                            robotic edge on long passages.
+#   eleven_turbo_v2_5      — ~1x cost. Slightly better fidelity than flash
+#                            with comparable latency. Good upgrade default.
+#   eleven_multilingual_v2 — ~2x cost. Best quality + most natural French
+#                            cadence. Use for long lesson intros if you
+#                            have headroom in your monthly quota.
+# Switching is a var change + wrangler deploy — no code edit needed.
+# Subscription quotas at time of writing: Free 10k ch/mo, Starter 30k,
+# Creator 100k. Watch the ElevenLabs dashboard before bumping to a 2x
+# model on Starter — 30k ÷ 2 = 15k effective chars/mo.
+DEFAULT_MODEL_ID = "eleven_flash_v2_5"     # default: speed + quota-friendly
 
 # Origin allow-list for CORS. Only these sites can call /tts.
 # Comma-separated, no spaces required. Update when you add a custom

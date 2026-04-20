@@ -123,9 +123,21 @@ async function handleTts(request, env, corsOrigin) {
   const voiceId = sanitizeId(body.voiceId) || env.DEFAULT_VOICE_ID || FALLBACK_VOICE_ID;
   const modelId = sanitizeId(body.modelId) || env.DEFAULT_MODEL_ID || FALLBACK_MODEL_ID;
 
+  // Output format notes:
+  //   mp3_44100_128 — default on ElevenLabs Free (128 kbps). OK but
+  //                    slightly muddy on short consonants; kids doing
+  //                    phonics reads sometimes mishear "th" vs "f".
+  //   mp3_44100_192 — 192 kbps, unlocked on the Starter tier and up.
+  //                    Costs the same in character credits — higher
+  //                    bitrate is a free audio-quality win once the
+  //                    account is Starter+. Audible improvement on
+  //                    cloned voices (Nova) and French cadence.
+  // We request 192 unconditionally. If the account ever drops back to
+  // Free, ElevenLabs returns a clear error and the client trips its
+  // cooldown → browser TTS fallback. Safe to keep asking for the best.
   const upstreamUrl =
     `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}` +
-    `?output_format=mp3_44100_128`;
+    `?output_format=mp3_44100_192`;
 
   // Stability/similarity defaults chosen for a calm, consistent
   // read-aloud voice. Adjusting these means re-uploading a custom

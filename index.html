@@ -10602,9 +10602,10 @@ function maybeStartNovaTour(){
   try {
     if(!currentUser || !state) return;
     if(state.onboardingCompleted) return;
-    // Demo users are transient (state isn't persisted) and the demo banner
-    // already explains the preview context — a tour on top would be noise.
-    if(typeof isDemoUser === 'function' && isDemoUser(currentUser)) return;
+    // Demo users DO get the tour. Every enterDemoAs() seeds a fresh
+    // defaultUser() (onboardingCompleted:false) and saveState skips
+    // persistence — so the tour naturally re-fires for every new demo
+    // visitor, which is the whole point of a demo: show off the UX.
     // Teachers don't need the kid tour.
     if(isTeacher) return;
     // Small delay so the dashboard finishes painting before Nova pops up.
@@ -10719,7 +10720,9 @@ function maybeStartActivityTour(){
   try {
     if(!currentUser || !state) return;
     if(state.activityTourSeen) return;
-    if(typeof isDemoUser === 'function' && isDemoUser(currentUser)) return;
+    // Demo users DO get the activity tour — same reasoning as the
+    // dashboard tour in maybeStartNovaTour(): demo state is ephemeral,
+    // so the tour re-fires for every fresh demo entry.
     if(isTeacher) return;
     // Don't interrupt a dashboard tour that's still open — rare edge case
     // (dashboard tour → kid skips fast → starts activity). Wait for them
