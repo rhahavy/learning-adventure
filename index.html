@@ -909,6 +909,16 @@ img{max-width:100%}
 .lesson-curriculum .lc-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:700;color:var(--primary);background:rgba(108,92,231,.1);padding:3px 8px;border-radius:8px;border:1px solid rgba(108,92,231,.2)}
 .lesson-curriculum .lc-link{display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;font-weight:700;color:var(--primary);text-decoration:none}
 .lesson-curriculum .lc-link:hover{text-decoration:underline}
+/* Open-by-default top-of-lesson chip: slightly more prominent so parents
+   demoing the app can see the curriculum alignment at first glance. */
+.lesson-curriculum[open] > summary{background:linear-gradient(180deg,rgba(162,155,254,.18),rgba(162,155,254,.08))}
+/* Compact always-visible curriculum pill in the quiz head — small
+   font, no <details> expansion, tooltip on hover shows the full notes.
+   Sits next to the "1 of 4" counter so the code is always in view. */
+.quiz-head-right{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.lc-compact{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:rgba(108,92,231,.1);border:1px solid rgba(108,92,231,.22);color:var(--primary);font-size:11px;font-weight:800;letter-spacing:.2px;cursor:help;white-space:nowrap}
+.lc-compact .lc-compact-icon{font-size:12px;line-height:1}
+.lc-compact .lc-compact-text{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px}
 /* Inline YouTube embed — kid-safe (privacy-enhanced domain, no related
    videos, no YouTube branding). Kids stay IN the app, don't get sent to
    YouTube's recommendation feed. Use videoIds[] on an activity to curate
@@ -10334,15 +10344,28 @@ const TTS_PROXY_URL = 'https://kidquest-tts-proxy.rhahavy-b.workers.dev';
 // Leave blank to have Nova use the default narrator voice.
 const NOVA_VOICE_ID = 'qtCMar7dQv8W7hDWqEdZ';
 
-// Request timeout. Flash v2.5 typically returns in 300-900ms; 3s is a
-// generous ceiling that still feels responsive on failure. A hung
-// request can't freeze the UI.
-const TTS_PROXY_TIMEOUT_MS = 3000;
+// Request timeout. Flash v2.5 typically returns in 300-900ms when the
+// Worker + ElevenLabs are warm — but a cold Worker start + ElevenLabs
+// cold-start + TLS handshake can take 4-6s on the FIRST call after
+// a quiet period. 8s is a generous ceiling that still feels responsive
+// on a genuine failure. A hung request can't freeze the UI — it just
+// falls back to the browser voice for that one phrase.
+const TTS_PROXY_TIMEOUT_MS = 8000;
 
-// After a failure, skip the proxy entirely for this long. Prevents the
-// "credits ran out" scenario from making every button tap feel broken
-// — we fail fast to the browser voice instead.
-const TTS_PROXY_COOLDOWN_MS = 10 * 60 * 1000;
+// Tiered cooldowns — we used to trip a flat 10-minute lockout on ANY
+// failure, which meant a single cold-start timeout on page load locked
+// the whole session to the browser voice. That was almost certainly
+// why the live site "doesn't sound like ElevenLabs". Now we distinguish:
+//   • TRANSIENT (abort/network/timeout): 15s — try again almost right
+//     away; a slow cold start shouldn't brick the session.
+//   • RATE_LIMIT (429/503): 90s — back off briefly.
+//   • UPSTREAM  (502/504): 60s.
+//   • AUTH/CONFIG (401/403/500 with missing key): 10min — genuinely
+//     won't recover without a deploy.
+const TTS_COOLDOWN_TRANSIENT_MS = 15 * 1000;
+const TTS_COOLDOWN_RATELIMIT_MS = 90 * 1000;
+const TTS_COOLDOWN_UPSTREAM_MS  = 60 * 1000;
+const TTS_COOLDOWN_AUTH_MS      = 10 * 60 * 1000;
 
 // 0 = try the proxy now. Otherwise, the next epoch-ms we're allowed to
 // try again.
@@ -10398,18 +10421,31 @@ async function _speakViaProxy(text, lang, opts){
       });
       clearTimeout(t);
       if(!res.ok){
-        // Trip the cooldown on any upstream failure — 401/429 (credits),
-        // 5xx (upstream issue), 403 (origin blocked). The frontend now
-        // has one job: don't bother the proxy for a while.
-        _ttsProxyCooldownUntil = Date.now() + TTS_PROXY_COOLDOWN_MS;
-        console.warn('[tts] proxy returned', res.status, '— falling back to browser TTS');
+        // Pick a cooldown based on the FAILURE KIND — don't carpet-bomb
+        // the session with a 10-minute lockout just because ElevenLabs
+        // had a blip. See cooldown constants at the top of this section.
+        let ms = TTS_COOLDOWN_UPSTREAM_MS;
+        if(res.status === 429 || res.status === 503) ms = TTS_COOLDOWN_RATELIMIT_MS;
+        else if(res.status === 401 || res.status === 403) ms = TTS_COOLDOWN_AUTH_MS;
+        else if(res.status === 500){
+          // 500 from our Worker is usually "missing_api_key" — persistent.
+          ms = TTS_COOLDOWN_AUTH_MS;
+        } else if(res.status >= 502 && res.status <= 504){
+          ms = TTS_COOLDOWN_UPSTREAM_MS;
+        }
+        _ttsProxyCooldownUntil = Date.now() + ms;
+        console.warn('[tts] proxy returned', res.status, '— falling back to browser TTS, cooldown', Math.round(ms/1000)+'s');
         return false;
       }
       blob = await res.blob();
     }catch(err){
       clearTimeout(t);
-      _ttsProxyCooldownUntil = Date.now() + TTS_PROXY_COOLDOWN_MS;
-      console.warn('[tts] proxy unreachable — falling back to browser TTS:', err && err.message || err);
+      // Abort (timeout) + TypeError (network) are TRANSIENT — cold
+      // starts, flaky Wi-Fi, brief DNS hiccups. Short cooldown so the
+      // NEXT speak() call (usually just a few seconds later) retries.
+      const isAbort = err && (err.name === 'AbortError' || /aborted/i.test(String(err.message||'')));
+      _ttsProxyCooldownUntil = Date.now() + (isAbort ? TTS_COOLDOWN_TRANSIENT_MS : TTS_COOLDOWN_TRANSIENT_MS);
+      console.warn('[tts] proxy', isAbort ? 'timed out' : 'unreachable', '— falling back to browser TTS, cooldown', Math.round(TTS_COOLDOWN_TRANSIENT_MS/1000)+'s:', err && err.message || err);
       return false;
     }
 
@@ -13539,9 +13575,19 @@ function renderQ(wrap){
   wrap.innerHTML='';
   const a=quiz.activity, q=quiz.questions[quiz.idx], total=quiz.questions.length;
   const sub=SUBJECTS.find(s=>s.id===quiz.subject);
+  // Compact curriculum badge — small pill next to the counter showing
+  // the Ontario grade + code (e.g. "📋 G4 · B2.4"). Visible on every
+  // question so the tutoring alignment stays visible through the whole
+  // activity, not only on the lesson intro card. Null when the activity
+  // isn't tagged — we just skip the chip.
+  let currCompact = null;
+  try{ currCompact = buildCurriculumChip(a, { compact: true }); }catch(e){ currCompact = null; }
   wrap.appendChild(h('div',{class:'quiz-head'},[
     h('div',{class:'qt'},[h('span',{style:'font-size:20px;margin-right:6px'},sub.emoji),h('span',{},a.title)]),
-    h('div',{class:'qc'},(quiz.idx+1)+' of '+total),
+    h('div',{class:'quiz-head-right'},[
+      currCompact,
+      h('div',{class:'qc'},(quiz.idx+1)+' of '+total),
+    ].filter(Boolean)),
   ]));
   // Stretch Mode banner — visible explanation of the tougher question pool.
   // Shown on every question of a stretch session so the kid always knows
@@ -14079,10 +14125,88 @@ function openLessonVideoSettings(activityId, builtinIds){
   }
 }
 
+/* buildCurriculumChip(activity, opts) → HTMLElement | null
+   --------------------------------------------------------
+   Builds the expandable Ontario curriculum chip from an activity's
+   `curriculum` tag (shape from oc(): {grade, strand, codes[], notes,
+   link?}). Returns null if the activity has no tag. Used by:
+     • renderLesson  — shown at the TOP of the lesson card, open by
+       default so parents demoing the product see the grade + code
+       without having to hunt.
+     • renderQ — shown as a compact always-visible header badge on
+       EVERY question so the curriculum alignment is visible the
+       whole time, not just during the lesson intro.
+   opts.openByDefault — whether to render the <details> expanded.
+   opts.compact — if true, render just the summary row (no body).
+*/
+function buildCurriculumChip(activity, opts){
+  const o = opts || {};
+  const cTag = activity && activity.curriculum;
+  if(!cTag) return null;
+  if(!(cTag.grade || cTag.strand || (Array.isArray(cTag.codes) && cTag.codes.length) || cTag.notes)) return null;
+  const chipLabel = h('span',{class:'lc-chip-label'}, '📋 Ontario Curriculum');
+  const chipParts = [];
+  if(cTag.grade) chipParts.push(String(cTag.grade).replace(/^Grade\s+/i,'G'));
+  if(Array.isArray(cTag.codes) && cTag.codes.length) chipParts.push(cTag.codes[0] + (cTag.codes.length>1?'+'+(cTag.codes.length-1):''));
+  const chipCode = chipParts.length ? h('span',{class:'lc-chip-code'}, chipParts.join(' · ')) : null;
+  if(o.compact){
+    // Compact in-quiz-head pill — no <details>, just a small badge
+    // showing grade + code so the curriculum tag is visible on every
+    // question. Clicking it scrolls the full chip on the lesson card
+    // into view (if it's still in the DOM from a prior lesson step).
+    return h('span',{class:'lc-compact', title:(cTag.strand || 'Ontario curriculum')+((cTag.notes?' — '+cTag.notes:''))}, [
+      h('span',{class:'lc-compact-icon','aria-hidden':'true'},'📋'),
+      h('span',{class:'lc-compact-text'}, chipParts.join(' · ') || 'Ontario'),
+    ]);
+  }
+  const body = h('div',{class:'lc-body'});
+  if(cTag.grade){
+    body.appendChild(h('div',{class:'lc-row'},[
+      h('span',{class:'lc-label'},'Grade:'),
+      h('span',{}, cTag.grade),
+    ]));
+  }
+  if(cTag.strand){
+    body.appendChild(h('div',{class:'lc-row'},[
+      h('span',{class:'lc-label'},'Strand:'),
+      h('span',{}, cTag.strand),
+    ]));
+  }
+  if(Array.isArray(cTag.codes) && cTag.codes.length){
+    const codesWrap = h('span',{class:'lc-codes'});
+    cTag.codes.forEach(c => codesWrap.appendChild(h('span',{class:'lc-code'}, c)));
+    body.appendChild(h('div',{class:'lc-row'},[
+      h('span',{class:'lc-label'},'Expectation:'),
+      codesWrap,
+    ]));
+  }
+  if(cTag.notes){
+    body.appendChild(h('div',{class:'lc-row',style:'margin-top:10px;line-height:1.5'}, cTag.notes));
+  }
+  if(cTag.link){
+    body.appendChild(h('a',{href: cTag.link, target:'_blank', rel:'noopener', class:'lc-link'}, ['🔗 ','Read the full Ontario expectation →']));
+  } else {
+    body.appendChild(h('a',{href:'https://www.dcp.edu.gov.on.ca/en/', target:'_blank', rel:'noopener', class:'lc-link'}, ['🔗 ','Browse Ontario expectations →']));
+  }
+  const attrs = {class:'lesson-curriculum'};
+  if(o.openByDefault) attrs.open = '';
+  return h('details', attrs, [
+    h('summary',{}, [chipLabel, chipCode].filter(Boolean)),
+    body,
+  ]);
+}
+
 function renderLesson(card,q){
   card.innerHTML='';card.classList.add('lesson-card');
   const L=q.lesson||{};
   card.appendChild(h('div',{class:'lesson-badge'},'🎓 QUICK LESSON'));
+  // Ontario curriculum chip FIRST — right under the "QUICK LESSON" badge,
+  // open by default. Parents demoing the app see the grade + expectation
+  // before they scroll. Kids can collapse it with one tap if they want.
+  try{
+    const chip = buildCurriculumChip(quiz && quiz.activity, { openByDefault: true });
+    if(chip){ chip.style.marginBottom = '10px'; card.appendChild(chip); }
+  }catch(e){ console.warn('[KidQuest] curriculum chip render failed:', e); }
   // Nova cameo on every lesson intro — subject-aware opener.
   try {
     const subId = quiz && quiz.subject;
@@ -14271,59 +14395,9 @@ function renderLesson(card,q){
     card.appendChild(panel);
   }
   if(L.hint) card.appendChild(h('div',{class:'lesson-hint'},['💡 ',L.hint]));
-  // Ontario curriculum chip — shows the provincial expectation this lesson
-  // addresses. Read from the activity (after override merge), not the
-  // lesson, since it's a property of the whole activity. Collapsed by
-  // default so it doesn't distract kids mid-lesson; parents + older kids
-  // who want to see "what school curriculum does this map to?" can tap
-  // to expand.
-  try {
-    const act = (quiz && quiz.activity) || null;
-    const cTag = act && act.curriculum;
-    if(cTag && (cTag.grade || cTag.strand || (Array.isArray(cTag.codes) && cTag.codes.length) || cTag.notes)){
-      const chipLabel = h('span',{class:'lc-chip-label'}, '📋 Ontario Curriculum');
-      const chipParts = [];
-      if(cTag.grade) chipParts.push(String(cTag.grade).replace(/^Grade\s+/i,'G'));
-      if(Array.isArray(cTag.codes) && cTag.codes.length) chipParts.push(cTag.codes[0] + (cTag.codes.length>1?'+'+(cTag.codes.length-1):''));
-      const chipCode = chipParts.length ? h('span',{class:'lc-chip-code'}, chipParts.join(' · ')) : null;
-      const body = h('div',{class:'lc-body'});
-      if(cTag.grade){
-        body.appendChild(h('div',{class:'lc-row'},[
-          h('span',{class:'lc-label'},'Grade:'),
-          h('span',{}, cTag.grade),
-        ]));
-      }
-      if(cTag.strand){
-        body.appendChild(h('div',{class:'lc-row'},[
-          h('span',{class:'lc-label'},'Strand:'),
-          h('span',{}, cTag.strand),
-        ]));
-      }
-      if(Array.isArray(cTag.codes) && cTag.codes.length){
-        const codesWrap = h('span',{class:'lc-codes'});
-        cTag.codes.forEach(c => codesWrap.appendChild(h('span',{class:'lc-code'}, c)));
-        body.appendChild(h('div',{class:'lc-row'},[
-          h('span',{class:'lc-label'},'Expectation:'),
-          codesWrap,
-        ]));
-      }
-      if(cTag.notes){
-        body.appendChild(h('div',{class:'lc-row',style:'margin-top:10px;line-height:1.5'}, cTag.notes));
-      }
-      if(cTag.link){
-        const a = h('a',{href: cTag.link, target:'_blank', rel:'noopener', class:'lc-link'}, ['🔗 ','Read the full Ontario expectation →']);
-        body.appendChild(a);
-      } else {
-        const a = h('a',{href:'https://www.dcp.edu.gov.on.ca/en/', target:'_blank', rel:'noopener', class:'lc-link'}, ['🔗 ','Browse Ontario expectations →']);
-        body.appendChild(a);
-      }
-      const chip = h('details',{class:'lesson-curriculum'},[
-        h('summary',{}, [chipLabel, chipCode].filter(Boolean)),
-        body,
-      ]);
-      card.appendChild(chip);
-    }
-  } catch(e){ console.warn('[KidQuest] curriculum chip render failed:', e); }
+  // (Curriculum chip is now rendered at the TOP of the lesson card — see
+  // the top of renderLesson — so parents demoing the product see it
+  // before scrolling.)
   quiz.locked=false;
   setTimeout(()=>{const b=$('#nextBtn');if(b){b.style.display='inline-flex';b.textContent="Let's practice! →"}},0);
 }
