@@ -2226,6 +2226,22 @@ body.has-dev-banner{padding-top:26px}
 .footer{margin-top:40px;text-align:center;padding:18px;font-size:13px;color:var(--ink3)}
 .footer .brand-footer{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;background:var(--card);font-weight:700;font-size:14px;color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line)}
 
+/* ---- NOVA MUTE BUTTON ----
+   Small top-right corner toggle that silences Nova's voice. Independent
+   from the per-student lesson read-aloud toggle. Device-level
+   preference stored in localStorage as 'kidquest-nova-muted' so a
+   shared tablet keeps the setting across profile switches.
+   Default state = Nova ON (icon 🔊, white bg, purple icon).
+   Muted state = Nova OFF (icon 🔇, dark bg, white icon).
+   Hidden on teacher and parent views (those flows don't play Nova). */
+.nova-mute{position:fixed;top:14px;right:14px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.92);color:var(--primary);display:grid;place-items:center;font-size:20px;box-shadow:var(--shadow),0 0 0 1.5px rgba(108,92,231,.18);border:0;cursor:pointer;z-index:60;transition:transform .2s var(--spring),background .2s,box-shadow .2s;backdrop-filter:saturate(1.4) blur(6px);-webkit-backdrop-filter:saturate(1.4) blur(6px);padding:0;line-height:1}
+.nova-mute:hover{transform:scale(1.08);box-shadow:var(--shadow-lg),0 0 0 1.5px rgba(108,92,231,.4)}
+.nova-mute:focus-visible{outline:2.5px solid var(--primary);outline-offset:2px}
+.nova-mute.muted{background:rgba(35,35,50,.88);color:#fff;box-shadow:var(--shadow),0 0 0 1.5px rgba(255,255,255,.2)}
+.nova-mute.muted:hover{box-shadow:var(--shadow-lg),0 0 0 1.5px rgba(255,255,255,.4)}
+.nova-mute.hidden{display:none}
+@media(max-width:640px){.nova-mute{top:10px;right:10px;width:40px;height:40px;font-size:18px}}
+
 /* ---- FLOATING HOME ---- */
 .fab{position:fixed;bottom:20px;right:20px;width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--sky));color:#fff;display:grid;place-items:center;font-size:24px;box-shadow:var(--shadow-lg),0 0 0 0 rgba(108,92,231,.4);border:3px solid #fff;z-index:50;transition:all .3s var(--spring);animation:fabPulse 3s ease-in-out infinite}
 .fab:hover{transform:scale(1.1) rotate(-8deg)}
@@ -2455,6 +2471,14 @@ body.has-dev-banner{padding-top:26px}
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
   <span id="chatFabBadge" class="chat-fab-badge" style="display:none" aria-live="polite">0</span>
 </button>
+<!-- Nova mute — top-right corner toggle that silences Nova's voice
+     independently of the per-student read-aloud toggle on the dashboard.
+     Nova speaks by default (novaMuted=false); tapping this flips the
+     device-level flag and cancels any in-flight Nova audio. Initial
+     icon is the ON state (🔊); updateNovaMuteButton() at boot rewrites
+     it to match the persisted localStorage value. Hidden on teacher
+     and parent views (see updateNovaMuteVisibility in go()). -->
+<button id="novaMute" class="nova-mute" title="Mute Nova's voice" aria-label="Mute Nova's voice" aria-pressed="false">🔊</button>
 <!-- Chat panel — slide-up card in the bottom-right corner. Hidden until
      the student taps the FAB. Shows thread with Rhahavy plus input row. -->
 <div id="chatPanel" class="chat-panel" aria-hidden="true" role="dialog" aria-label="Chat with teacher">
@@ -7748,6 +7772,21 @@ const APP_VERSION = 4;
 const STORAGE_KEY = 'kidquest-v4';
 const LOCAL_USER_KEY = 'kidquest-current-user';
 const VERSION_KEY = 'kidquest-version';
+/* NOVA_MUTE_KEY — DEVICE-level toggle for Nova's voice.
+   Nova is ON by default (kids meet her personality the first time they
+   land on the site). Tapping the corner mute button flips this to '1',
+   which silences every future speakAsNova() call AND cancels any
+   in-flight Nova audio. Stored per-device (localStorage) rather than
+   per-student, because Nova also speaks on screens before anyone is
+   logged in (home hero, profile picker tour steps), and because a
+   shared tablet where one kid muted Nova should stay muted when the
+   next kid logs in.
+   Independent from `state.ttsEnabled` — that flag only controls the
+   per-student lesson/question read-aloud buttons, NOT Nova. */
+const NOVA_MUTE_KEY = 'kidquest-nova-muted';
+let novaMuted = (function(){
+  try{ return localStorage.getItem(NOVA_MUTE_KEY) === '1'; }catch(e){ return false; }
+})();
 // Per-DEVICE PIN lockout state. We used to store `locked` + `loginAttempts`
 // on the cloud-synced user record, which had two bad side effects:
 //   1. A sibling mashing the wrong emoji on the shared iPad locked the kid
@@ -10514,16 +10553,55 @@ function speak(text, lang, opts){
    speechSynthesis doesn't honor voiceId, so the fallback just uses the
    system voice. Kid always hears audio, only the timbre differs.
 
-   Respects the per-student ttsEnabled gate (same rule as
-   buildTtsButtons) so teachers who disable TTS for a student don't
-   suddenly hear Nova speak anyway.
+   Nova is ON BY DEFAULT — intentionally decoupled from the per-student
+   `state.ttsEnabled` read-aloud toggle. That flag still governs the
+   lesson/question "🔊" buttons (different voice, different purpose),
+   but Nova's personality quips, tour narration, and speech bubbles
+   always play so new visitors hear her the first time they land.
+   The ONLY gate is the device-level `novaMuted` flag (toggled via the
+   corner mute button) — see NOVA_MUTE_KEY near the top of the file.
 */
+/* setNovaMuted(muted)
+   -------------------
+   Single writer for the device-level Nova mute flag. Flips the in-
+   memory `novaMuted` boolean, persists it to localStorage, and — when
+   going from ON→MUTED — also cancels any currently-playing Nova audio
+   (both ElevenLabs proxy and browser speechSynthesis) so the kid hears
+   silence the instant they tap. Finally re-syncs the corner button.
+*/
+function setNovaMuted(muted){
+  novaMuted = !!muted;
+  try{ localStorage.setItem(NOVA_MUTE_KEY, novaMuted ? '1' : '0'); }catch(e){}
+  if(novaMuted){
+    try{ _ttsStopCurrent(); }catch(e){}
+    try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+  }
+  try{ updateNovaMuteButton(); }catch(e){}
+}
+
+/* updateNovaMuteButton()
+   ----------------------
+   Re-renders the corner mute button (icon + title + aria state) to
+   match the current `novaMuted` flag. Safe to call repeatedly — just
+   sets text/class/attributes, no layout thrash. Called at boot, after
+   every go() navigation (via updateNovaMuteVisibility), and after
+   setNovaMuted() flips the flag.
+*/
+function updateNovaMuteButton(){
+  const btn = document.getElementById('novaMute');
+  if(!btn) return;
+  btn.classList.toggle('muted', novaMuted);
+  btn.textContent = novaMuted ? '🔇' : '🔊';
+  btn.title = novaMuted
+    ? 'Nova is muted — tap to turn her voice back on'
+    : 'Mute Nova\'s voice (the lesson read-aloud toggle is separate)';
+  btn.setAttribute('aria-pressed', novaMuted ? 'true' : 'false');
+  btn.setAttribute('aria-label', novaMuted ? 'Un-mute Nova\'s voice' : 'Mute Nova\'s voice');
+}
+
 function speakAsNova(text){
   if(!text) return;
-  try{
-    const ud = currentUser && allData && allData.users && allData.users[currentUser];
-    if(!ud || !ud.ttsEnabled) return;
-  }catch(e){ return; }
+  if(novaMuted) return;
   // Pass both signals:
   //   voiceId     — used by the ElevenLabs proxy to route to Nova's cloned voice.
   //   novaMode    — used by the BROWSER-FALLBACK path (_speakViaBrowser) to
@@ -10565,8 +10643,10 @@ if(typeof window.speechSynthesis !== 'undefined'){
        doesn't cover the page title. Card has Nova, title, text, dots, nav.
      - The current step's target element gets `.nova-tour-highlight` (pulsing
        gold ring). Missing target → step still renders, just no glow.
-     - TTS auto-speaks each step if the kid's ttsEnabled flag is on
-       (speakAsNova is already gated).
+     - TTS auto-speaks each step by default — only silenced when the user
+       taps the device-level Nova mute corner button (speakAsNova gates
+       on `novaMuted`). The per-student `state.ttsEnabled` flag no longer
+       affects Nova; it only governs lesson/question read-aloud buttons.
 
    Accessibility:
      - Backdrop has role="dialog" aria-modal="true".
@@ -11956,6 +12036,15 @@ function go(screen,opts={}){
   // Kids may need to ask for help mid-lesson, mid-activity, or from the
   // dashboard, so we don't hide it like the Home FAB.
   try { updateChatFab(); } catch(e){ console.warn('[KidQuest] updateChatFab failed:', e); }
+  // Nova mute button — visible on every kid-facing screen (home, profile
+  // picker, dashboard, weeks, activities, store…) since Nova can speak
+  // on any of them. Hidden for teacher + parent views (those flows are
+  // administrative/read-only and Nova doesn't narrate them).
+  const novaBtn = $('#novaMute');
+  if(novaBtn){
+    novaBtn.classList.toggle('hidden', isTeacher || screen==='parent');
+    try { updateNovaMuteButton(); } catch(e){}
+  }
 
   // Defensive routing: if current user but no state, force to home
   if(currentUser && !state && screen!=='home' && screen!=='profiles'){
@@ -12828,6 +12917,11 @@ function renderDashboard(root){
   // ttsEnabled flag on their user record. Kids who want audio on (ESL,
   // early readers) see the speaker pulse; everyone else gets a quiet
   // "tap to turn on" state. Teacher can override from the teacher dash.
+  // This toggle ONLY controls the narrator voice on lesson text and
+  // question read-aloud buttons — Nova's own voice is managed
+  // separately by the device-level mute in the top-right corner
+  // (NOVA_MUTE_KEY / novaMuted). That split is intentional: Nova
+  // always greets new visitors regardless of this setting.
   const ttsOn = !!state.ttsEnabled;
   const ttsToggle = h('button',{
     class:'tts-dash-toggle'+(ttsOn?' on':''),
@@ -16754,6 +16848,517 @@ function renderBadges(root){
 // impression when a teacher lands here fresh.
 let teacherTabOpen = { students: true };
 
+/* ==========================================================================
+   DATA EXPORT — teacher-tools-only. Dumps the whole allData object as a
+   set of CSVs + one JSON backup, everything downloadable from the teacher
+   dashboard. Designed so the tutor can plug the files into Google Sheets,
+   Airtable, or Looker Studio and build their own business dashboard.
+
+   Files produced (all point-in-time snapshots of allData):
+     students.csv              — one row per kid (engagement + progress summary)
+     subject_progress.csv      — one row per (student × subject)
+     activity_attempts.csv     — one row per (student × touched activity)
+     wrong_answers.csv         — one row per logged wrong answer (diagnostic)
+     curriculum_mastery.csv    — one row per Ontario expectation code (UNIQUE)
+     messages.csv              — one row per teacher↔student message
+     full_backup.json          — raw allData for re-import or custom pipelines
+
+   The curriculum_mastery sheet is the unique angle: it uses the Ontario
+   curriculum tags (curriculum: oc(grade, strand, codes, notes) on each
+   activity) to aggregate mastery across the WHOLE roster by expectation
+   code. Nobody else has that level of granularity — it's what lets the
+   tutor tell a parent "12/15 Grade 3 Number expectations mastered this
+   month" from a single pivot table.
+   ========================================================================== */
+
+function _csvCell(v){
+  // RFC-4180-ish: wrap strings containing ", newline, or comma in quotes,
+  // escape inner quotes by doubling. Coerce non-strings to strings first.
+  if(v === null || v === undefined) return '';
+  if(typeof v === 'boolean') return v ? 'true' : 'false';
+  if(typeof v === 'number')  return isFinite(v) ? String(v) : '';
+  const s = String(v);
+  if(/[",\r\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function _toCsv(cols, rows){
+  const header = cols.map(c => _csvCell(c.label || c.key)).join(',');
+  const body   = rows.map(r => cols.map(c => _csvCell(r[c.key])).join(',')).join('\n');
+  return header + '\n' + body + (body ? '\n' : '');
+}
+
+function _downloadTextFile(filename, mime, text){
+  try{
+    const blob = new Blob([text], { type: mime + ';charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); a.remove(); }catch(e){} }, 250);
+  }catch(e){
+    console.error('[KidQuest Export] download failed:', e);
+    alert('Download failed. Your browser may be blocking file downloads from this site.');
+  }
+}
+
+function _tsToISO(ts){
+  if(!ts) return '';
+  try{ return new Date(ts).toISOString(); }catch(e){ return ''; }
+}
+
+function _daysSince(ts){
+  if(!ts) return '';
+  return Math.floor((Date.now() - ts) / (1000*60*60*24));
+}
+
+/* Walk every real (student × activity) pair once. Skips demo profiles
+   (they share curriculum with a real student; exporting both would
+   double-count) and demoOnly preview activities (content kids haven't
+   unlocked yet, not representative of real performance). */
+function _walkAllActivities(){
+  const out = [];
+  const weekIds = Object.keys(WEEKS||{}).map(n=>parseInt(n,10)).filter(n=>!isNaN(n) && n>0).sort((a,b)=>a-b);
+  STUDENTS.filter(s=>!s.demo).forEach(s => {
+    weekIds.forEach(wk => {
+      const bag = (WEEKS[wk] && WEEKS[wk][s.id]) || {};
+      SUBJECTS.forEach(sub => {
+        const acts = bag[sub.id] || [];
+        acts.forEach(a => {
+          if(a.demoOnly) return;
+          out.push({ student:s, subject:sub, activity:a, week:wk });
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function _planTypeFor(sid){
+  try{
+    const plan = (allData.studentPlans||{})[sid];
+    return (plan && plan.type) ? plan.type : '';
+  }catch(e){ return ''; }
+}
+
+function _supportsFor(sid){
+  try{
+    const tags = (allData.studentSupports||{})[sid];
+    return Array.isArray(tags) ? tags.join(';') : '';
+  }catch(e){ return ''; }
+}
+
+/* 1. students.csv — executive summary, one row per kid. */
+function buildStudentsCsv(){
+  const cols = [
+    { key:'sid',                      label:'Student ID' },
+    { key:'name',                     label:'Name' },
+    { key:'grade',                    label:'Grade' },
+    { key:'planType',                 label:'Plan Type' },
+    { key:'supports',                 label:'Supports' },
+    { key:'parentEmail',              label:'Parent Email' },
+    { key:'joinedAtISO',              label:'Joined At (ISO)' },
+    { key:'daysSinceJoin',            label:'Days Since Join' },
+    { key:'weeksSinceJoin',           label:'Weeks Since Join' },
+    { key:'coins',                    label:'Coins' },
+    { key:'streak',                   label:'Streak (days)' },
+    { key:'lastActiveDate',           label:'Last Active Date' },
+    { key:'totalActivitiesCompleted', label:'Activities Completed' },
+    { key:'totalActivitiesPerfect',   label:'Activities Perfect' },
+    { key:'totalActivitiesAttempted', label:'Activities Touched' },
+    { key:'totalAttempts',            label:'Total Attempts (incl. retries)' },
+    { key:'overallAccuracyPct',       label:'Overall Question Accuracy %' },
+    { key:'subjectsTouched',          label:'Subjects Touched' },
+    { key:'subjectsMastered',         label:'Subjects Mastered (≥80% perfect)' },
+    { key:'wrongAnswersLogged',       label:'Wrong Answers Logged' },
+    { key:'lastReportSentISO',        label:'Last Parent Report (ISO)' },
+    { key:'daysSinceLastReport',      label:'Days Since Last Report' },
+    { key:'onboardingCompleted',      label:'Onboarding Completed' },
+    { key:'ttsEnabled',               label:'Read-Aloud Enabled' },
+  ];
+  const rows = STUDENTS.filter(s=>!s.demo).map(s => {
+    const ud = getStudentData(s.id);
+    let touched=0, mastered=0, completed=0, perfect=0, attempted=0, tAttempts=0, tCorrect=0, tScorable=0;
+    SUBJECTS.forEach(sub => {
+      const st = computeSubjectStats(s.id, sub.id);
+      if(st.touched > 0) touched++;
+      completed += st.done || 0;
+      perfect   += st.perfect || 0;
+      attempted += st.touched || 0;
+      tAttempts += st.totalAttempts || 0;
+      tCorrect  += st.totalCorrect  || 0;
+      tScorable += st.totalScorable || 0;
+      if(st.total && (st.perfect / st.total) >= 0.8) mastered++;
+    });
+    return {
+      sid: s.id, name: s.name, grade: s.grade,
+      planType: _planTypeFor(s.id),
+      supports: _supportsFor(s.id),
+      parentEmail: ud.parentEmail || '',
+      joinedAtISO: _tsToISO(ud.joinedAt),
+      daysSinceJoin: _daysSince(ud.joinedAt),
+      weeksSinceJoin: ud.joinedAt ? Math.floor(_daysSince(ud.joinedAt)/7) : '',
+      coins: ud.coins || 0,
+      streak: ud.streak || 0,
+      lastActiveDate: ud.lastActiveDate || '',
+      totalActivitiesCompleted: completed,
+      totalActivitiesPerfect: perfect,
+      totalActivitiesAttempted: attempted,
+      totalAttempts: tAttempts,
+      overallAccuracyPct: tScorable ? Math.round((tCorrect/tScorable)*1000)/10 : 0,
+      subjectsTouched: touched,
+      subjectsMastered: mastered,
+      wrongAnswersLogged: (ud.wrongAnswers||[]).length,
+      lastReportSentISO: _tsToISO(ud.lastReportSentAt),
+      daysSinceLastReport: _daysSince(ud.lastReportSentAt),
+      onboardingCompleted: !!ud.onboardingCompleted,
+      ttsEnabled: !!ud.ttsEnabled,
+    };
+  });
+  return _toCsv(cols, rows);
+}
+
+/* 2. subject_progress.csv — one row per (student × subject). */
+function buildSubjectProgressCsv(){
+  const cols = [
+    { key:'sid',               label:'Student ID' },
+    { key:'name',              label:'Name' },
+    { key:'grade',             label:'Grade' },
+    { key:'subject',           label:'Subject ID' },
+    { key:'subjectName',       label:'Subject Name' },
+    { key:'activitiesTotal',   label:'Activities Total' },
+    { key:'activitiesDone',    label:'Activities Completed' },
+    { key:'activitiesPerfect', label:'Activities Perfect' },
+    { key:'totalAttempts',     label:'Total Attempts' },
+    { key:'completionPct',     label:'Completion %' },
+    { key:'perfectRatePct',    label:'Perfect Rate %' },
+    { key:'questionAccuracyPct', label:'Question Accuracy %' },
+    { key:'level',             label:'Current Level' },
+  ];
+  const rows = [];
+  STUDENTS.filter(s=>!s.demo).forEach(s => {
+    SUBJECTS.forEach(sub => {
+      const st = computeSubjectStats(s.id, sub.id);
+      rows.push({
+        sid: s.id, name: s.name, grade: s.grade,
+        subject: sub.id, subjectName: sub.name,
+        activitiesTotal:   st.total   || 0,
+        activitiesDone:    st.done    || 0,
+        activitiesPerfect: st.perfect || 0,
+        totalAttempts:     st.totalAttempts || 0,
+        completionPct:       Math.round((st.completion       || 0)*1000)/10,
+        perfectRatePct:      Math.round((st.accuracy         || 0)*1000)/10,
+        questionAccuracyPct: Math.round((st.questionAccuracy || 0)*1000)/10,
+        level: st.lv || 1,
+      });
+    });
+  });
+  return _toCsv(cols, rows);
+}
+
+/* 3. activity_attempts.csv — one row per activity each kid has touched,
+   with Ontario curriculum codes attached. The granular fact table. */
+function buildActivityAttemptsCsv(){
+  const cols = [
+    { key:'sid',              label:'Student ID' },
+    { key:'name',             label:'Name' },
+    { key:'grade',            label:'Grade' },
+    { key:'subject',          label:'Subject' },
+    { key:'week',             label:'Week' },
+    { key:'activityId',       label:'Activity ID' },
+    { key:'activityTitle',    label:'Activity Title' },
+    { key:'curriculumGrade',  label:'Curriculum Grade' },
+    { key:'curriculumStrand', label:'Curriculum Strand' },
+    { key:'curriculumCodes',  label:'Curriculum Codes' },
+    { key:'curriculumNotes',  label:'Curriculum Notes' },
+    { key:'attempts',         label:'Attempts' },
+    { key:'bestScore',        label:'Best Score' },
+    { key:'scorable',         label:'Scorable Questions' },
+    { key:'accuracyPct',      label:'Best Accuracy %' },
+    { key:'completed',        label:'Completed' },
+    { key:'perfect',          label:'Perfect' },
+    { key:'firstTryPerfect',  label:'First-Try Perfect' },
+  ];
+  const rows = [];
+  _walkAllActivities().forEach(({student, subject, activity, week}) => {
+    const ud = getStudentData(student.id);
+    const prog = (ud.progress && ud.progress[activity.id]) || {};
+    const attempts = prog.attempts || 0;
+    if(attempts === 0) return;  // only include activities the student has touched
+    const scorable = (activity.questions||[]).filter(q => q.type !== 'lesson').length || 1;
+    const curr = activity.curriculum || {};
+    rows.push({
+      sid: student.id, name: student.name, grade: student.grade,
+      subject: subject.id, week,
+      activityId: activity.id, activityTitle: activity.title,
+      curriculumGrade:  curr.grade  || '',
+      curriculumStrand: curr.strand || '',
+      curriculumCodes:  Array.isArray(curr.codes) ? curr.codes.join(';') : '',
+      curriculumNotes:  curr.notes  || '',
+      attempts,
+      bestScore: prog.best || 0,
+      scorable,
+      accuracyPct: Math.round(((prog.best||0) / scorable) * 1000)/10,
+      completed: !!ud.completedActivities[activity.id],
+      perfect:   !!ud.perfectActivities[activity.id],
+      firstTryPerfect: !!prog.firstTryPerfect,
+    });
+  });
+  return _toCsv(cols, rows);
+}
+
+/* 4. wrong_answers.csv — diagnostic gold. Every wrong answer each kid
+   has logged (last 200 kept per student). Joined to the curriculum tag
+   of the activity, so you can pivot by expectation code to find the
+   single Ontario code that's giving the whole roster the most trouble. */
+function buildWrongAnswersCsv(){
+  const cols = [
+    { key:'sid',              label:'Student ID' },
+    { key:'name',             label:'Name' },
+    { key:'grade',            label:'Grade' },
+    { key:'atISO',            label:'When (ISO)' },
+    { key:'subject',          label:'Subject' },
+    { key:'activityId',       label:'Activity ID' },
+    { key:'qIdx',             label:'Question #' },
+    { key:'qType',            label:'Question Type' },
+    { key:'qText',            label:'Question' },
+    { key:'choices',          label:'Choices' },
+    { key:'studentChoice',    label:'Student Answered' },
+    { key:'correctAnswer',    label:'Correct Answer' },
+    { key:'curriculumGrade',  label:'Curriculum Grade' },
+    { key:'curriculumStrand', label:'Curriculum Strand' },
+    { key:'curriculumCodes',  label:'Curriculum Codes' },
+  ];
+  // aid → curriculum lookup so each wrong row carries the code.
+  const currByAid = {};
+  _walkAllActivities().forEach(({activity}) => {
+    if(activity.curriculum) currByAid[activity.id] = activity.curriculum;
+  });
+  const rows = [];
+  STUDENTS.filter(s=>!s.demo).forEach(s => {
+    const ud = getStudentData(s.id);
+    (ud.wrongAnswers||[]).forEach(w => {
+      const choices = Array.isArray(w.choices) ? w.choices : [];
+      const curr = currByAid[w.aid] || {};
+      const pickChoice = (idx) => (typeof idx === 'number' && choices[idx] !== undefined)
+        ? choices[idx]
+        : (idx != null ? String(idx) : '');
+      rows.push({
+        sid: s.id, name: s.name, grade: s.grade,
+        atISO: _tsToISO(w.at),
+        subject: w.subj || '',
+        activityId: w.aid || '',
+        qIdx: (typeof w.qIdx === 'number') ? w.qIdx : '',
+        qType: w.qType || '',
+        qText: w.qText || '',
+        choices: choices.join(' | '),
+        studentChoice:  pickChoice(w.choseIdx),
+        correctAnswer:  pickChoice(w.correctIdx),
+        curriculumGrade:  curr.grade || '',
+        curriculumStrand: curr.strand || '',
+        curriculumCodes:  Array.isArray(curr.codes) ? curr.codes.join(';') : '',
+      });
+    });
+  });
+  return _toCsv(cols, rows);
+}
+
+/* 5. curriculum_mastery.csv — THE unique sheet. One row per Ontario
+   expectation code, aggregated across the whole roster. Mastery rate =
+   (students who scored perfect on ≥1 activity with this code) /
+   (students who attempted any activity with this code). Drop it in a
+   dashboard and you get a per-parent answer to "what expectations did
+   my kid master this month" in one pivot. */
+function buildCurriculumMasteryCsv(){
+  const cols = [
+    { key:'code',                label:'Curriculum Code' },
+    { key:'grade',               label:'Grade' },
+    { key:'strand',              label:'Strand' },
+    { key:'activitiesTagged',    label:'Activities Tagged' },
+    { key:'studentsAttempted',   label:'Students Attempted' },
+    { key:'studentsPerfect',     label:'Students Perfect' },
+    { key:'totalAttempts',       label:'Total Attempts' },
+    { key:'totalPerfect',        label:'Total Perfects' },
+    { key:'totalCorrect',        label:'Total Correct Answers' },
+    { key:'totalScorable',       label:'Total Scorable Questions' },
+    { key:'accuracyPct',         label:'Aggregate Accuracy %' },
+    { key:'masteryRatePct',      label:'Student Mastery Rate %' },
+    { key:'sampleActivityTitle', label:'Sample Activity' },
+    { key:'notes',               label:'Expectation Notes' },
+  ];
+  // Key = grade|strand|code so a code like 'B2.4' that appears in multiple
+  // grades doesn't collide across them.
+  const agg = new Map();
+  _walkAllActivities().forEach(({activity, student}) => {
+    const curr = activity.curriculum;
+    if(!curr || !Array.isArray(curr.codes)) return;
+    const ud = getStudentData(student.id);
+    const prog = (ud.progress && ud.progress[activity.id]) || {};
+    const attempts = prog.attempts || 0;
+    const scorable = (activity.questions||[]).filter(q=>q.type!=='lesson').length || 1;
+    const best = prog.best || 0;
+    const touched = attempts > 0;
+    const perfect = !!ud.perfectActivities[activity.id];
+    curr.codes.forEach(code => {
+      const key = (curr.grade||'') + '|' + (curr.strand||'') + '|' + code;
+      let row = agg.get(key);
+      if(!row){
+        row = {
+          code, grade: curr.grade||'', strand: curr.strand||'',
+          activitiesTagged: 0,
+          studentsSet: new Set(), studentsPerfectSet: new Set(),
+          totalAttempts: 0, totalPerfect: 0, totalCorrect: 0, totalScorable: 0,
+          sampleActivityTitle: activity.title,
+          notes: curr.notes || '',
+        };
+        agg.set(key, row);
+      }
+      row.activitiesTagged++;
+      if(touched){
+        row.studentsSet.add(student.id);
+        row.totalAttempts += attempts;
+        row.totalCorrect  += best;
+        row.totalScorable += scorable;
+      }
+      if(perfect){
+        row.studentsPerfectSet.add(student.id);
+        row.totalPerfect++;
+      }
+    });
+  });
+  const rows = Array.from(agg.values()).map(r => ({
+    code: r.code, grade: r.grade, strand: r.strand,
+    activitiesTagged: r.activitiesTagged,
+    studentsAttempted: r.studentsSet.size,
+    studentsPerfect:   r.studentsPerfectSet.size,
+    totalAttempts: r.totalAttempts,
+    totalPerfect:  r.totalPerfect,
+    totalCorrect:  r.totalCorrect,
+    totalScorable: r.totalScorable,
+    accuracyPct:    r.totalScorable ? Math.round((r.totalCorrect/r.totalScorable)*1000)/10 : 0,
+    masteryRatePct: r.studentsSet.size ? Math.round((r.studentsPerfectSet.size/r.studentsSet.size)*1000)/10 : 0,
+    sampleActivityTitle: r.sampleActivityTitle,
+    notes: r.notes,
+  }));
+  rows.sort((a,b) => (a.grade+a.strand+a.code).localeCompare(b.grade+b.strand+b.code));
+  return _toCsv(cols, rows);
+}
+
+/* 6. messages.csv — one row per teacher↔student message. Audits
+   communication cadence and response times. */
+function buildMessagesCsv(){
+  const cols = [
+    { key:'sid',   label:'Student ID' },
+    { key:'name',  label:'Name' },
+    { key:'atISO', label:'When (ISO)' },
+    { key:'from',  label:'From' },
+    { key:'text',  label:'Text' },
+    { key:'read',  label:'Read' },
+  ];
+  const rows = [];
+  const msgs = (allData && allData.messages) || {};
+  STUDENTS.filter(s=>!s.demo).forEach(s => {
+    const thread = Array.isArray(msgs[s.id]) ? msgs[s.id] : [];
+    thread.forEach(m => {
+      rows.push({
+        sid: s.id, name: s.name,
+        atISO: _tsToISO(m.ts || m.at),
+        from: m.from || '',
+        text: m.text || '',
+        read: !!m.read,
+      });
+    });
+  });
+  return _toCsv(cols, rows);
+}
+
+function _exportStamp(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+function downloadAllExports(){
+  // Fire each download as its own <a>.click() inside the same user-gesture
+  // window. Modern browsers allow ~5-10 multi-downloads from one click after
+  // the user accepts a one-time "download multiple files?" prompt.
+  const stamp = _exportStamp();
+  const fire = (name, mime, text) => _downloadTextFile(
+    `kidquest_${name}_${stamp}.${mime==='application/json'?'json':'csv'}`,
+    mime, text
+  );
+  fire('students',           'text/csv',         buildStudentsCsv());
+  fire('subject_progress',   'text/csv',         buildSubjectProgressCsv());
+  fire('activity_attempts',  'text/csv',         buildActivityAttemptsCsv());
+  fire('wrong_answers',      'text/csv',         buildWrongAnswersCsv());
+  fire('curriculum_mastery', 'text/csv',         buildCurriculumMasteryCsv());
+  fire('messages',           'text/csv',         buildMessagesCsv());
+  fire('full_backup',        'application/json', JSON.stringify(allData, null, 2));
+}
+
+/* Teacher dashboard accordion panel. Renders a grid of download buttons
+   + short descriptions that explain the unique story each sheet tells. */
+function buildDataExportPanel(){
+  const wrap = h('div',{});
+  wrap.appendChild(h('p',{class:'t-msg-help',style:'margin-top:0'},
+    'Point-in-time CSV snapshots of every student. Open each file directly in Google Sheets, Airtable, or Excel — perfect for building a tutoring-business dashboard. The curriculum_mastery sheet is unique to KidQuest: it rolls Ontario expectation codes up across the whole roster.'));
+
+  const oneBtn = (label, fn, filename, mime) => h('button', {
+    class:'btn btn-ghost',
+    style:'padding:12px 14px;text-align:left;justify-content:flex-start;font-weight:700',
+    onclick: ()=>{
+      try{
+        _downloadTextFile(
+          `kidquest_${filename}_${_exportStamp()}.${mime==='application/json'?'json':'csv'}`,
+          mime, fn()
+        );
+      }catch(e){
+        console.error('[KidQuest Export] build failed for '+filename+':', e);
+        alert('Export failed: '+(e && e.message || e));
+      }
+    },
+  }, label);
+
+  const grid = h('div', {
+    style:'display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:14px'
+  }, [
+    oneBtn('👥 students.csv',          buildStudentsCsv,          'students',           'text/csv'),
+    oneBtn('📚 subject_progress.csv',  buildSubjectProgressCsv,   'subject_progress',   'text/csv'),
+    oneBtn('📝 activity_attempts.csv', buildActivityAttemptsCsv,  'activity_attempts',  'text/csv'),
+    oneBtn('❌ wrong_answers.csv',     buildWrongAnswersCsv,      'wrong_answers',      'text/csv'),
+    oneBtn('🎯 curriculum_mastery.csv',buildCurriculumMasteryCsv, 'curriculum_mastery', 'text/csv'),
+    oneBtn('💬 messages.csv',          buildMessagesCsv,          'messages',           'text/csv'),
+    oneBtn('💾 full_backup.json',      ()=>JSON.stringify(allData,null,2), 'full_backup','application/json'),
+  ]);
+  wrap.appendChild(grid);
+
+  wrap.appendChild(h('div',{class:'t-controls',style:'margin-top:0;margin-bottom:16px'},[
+    h('button',{class:'btn btn-primary',onclick:downloadAllExports},'⬇️ Download All 7 Files'),
+  ]));
+
+  // Sheet-by-sheet descriptions — tells the tutor what each file is
+  // good for so they don't have to open them to find out.
+  const descGrid = h('div',{style:'display:grid;gap:10px;font-size:13px;line-height:1.55;color:var(--ink2)'});
+  const descs = [
+    ['👥 students.csv',           'One row per kid. Coins, streak, days since join, overall question-accuracy %, subjects mastered, parent-report status. Perfect for the "class overview" card on your dashboard.'],
+    ['📚 subject_progress.csv',   'One row per (student × subject). Completion %, perfect-rate %, question-accuracy %, current level. Great for a "which subjects need more time" heatmap.'],
+    ['📝 activity_attempts.csv',  'One row per activity each kid has touched, with attempts, best score, and Ontario curriculum codes. The granular fact table — pivot this any way.'],
+    ['❌ wrong_answers.csv',       'One row per wrong answer. Full question text, chosen answer, correct answer, curriculum code. Finds your hardest questions and the shared misconceptions across the roster.'],
+    ['🎯 curriculum_mastery.csv', 'UNIQUE — one row per Ontario expectation code. Students attempted / students perfect / aggregate accuracy / mastery rate. Lets you report "12 of 15 Grade 3 Number expectations mastered" to a parent in one sentence.'],
+    ['💬 messages.csv',           'Every teacher↔student message with timestamp + read flag. Audits your response times and communication cadence.'],
+    ['💾 full_backup.json',       'Raw allData JSON (same as 📋 Export JSON under Backup & Data). Use for re-imports or a fully-custom pipeline.'],
+  ];
+  descs.forEach(([title, text]) => {
+    descGrid.appendChild(h('div',{},[
+      h('span',{style:'font-weight:700;color:var(--ink)'}, title + ' — '),
+      h('span',{}, text),
+    ]));
+  });
+  wrap.appendChild(descGrid);
+  return wrap;
+}
+
 function renderTeacher(root){
   const dash = h('div',{class:'t-dash'});
   dash.appendChild(h('h2',{},'📊 Teacher Dashboard'));
@@ -17611,6 +18216,7 @@ function renderTeacher(root){
     { id:'store',       icon:'🛍️', title:'Store Management',      badge: pendingOrdersTotal, badgeLabel:'pending orders',  build: renderTeacherStore },
     { id:'maintenance', icon:'🔧', title:'Maintenance',           build: renderMaintenanceControls },
     { id:'backup',      icon:'💾', title:'Backup & Data',         build: buildBackupControls },
+    { id:'data-export', icon:'📊', title:'Data Export (CSV)',     build: buildDataExportPanel },
     { id:'passwords',   icon:'🔑', title:'Passwords',             build: renderTeacherPasswords },
     { id:'coins',       icon:'💰', title:'Coin Adjuster',         build: renderCoinAdjuster },
     { id:'resets',      icon:'🔄', title:'Resets',                build: renderResetControls },
@@ -20069,6 +20675,15 @@ try {
 try {
   const fabEl = $('#fab');
   if(fabEl) fabEl.addEventListener('click',()=>go(currentUser?'dashboard':'home'));
+  // Nova mute — device-level toggle. Click flips novaMuted, saves to
+  // localStorage, cancels any in-flight Nova audio, and re-renders the
+  // button (icon + title + aria). Independent of the per-student
+  // state.ttsEnabled read-aloud toggle on the dashboard.
+  const novaBtnEl = $('#novaMute');
+  if(novaBtnEl){
+    novaBtnEl.addEventListener('click', ()=>{ setNovaMuted(!novaMuted); });
+    try { updateNovaMuteButton(); } catch(e){}
+  }
   const rwAgainEl = $('#rwAgain');
   if(rwAgainEl) rwAgainEl.addEventListener('click',()=>{
     closeReward();
