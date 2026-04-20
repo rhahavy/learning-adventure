@@ -1533,7 +1533,7 @@ body.nova-tour-active{scroll-padding-top:40px}
 .ai-status-master.on{background:rgba(22,160,133,.15);color:#0e6b5a}
 .ai-status-master.off{background:rgba(0,0,0,.06);color:var(--ink3)}
 
-/* ---- CURRICULUM EDITOR ----
+/* ---- COURSE EDITOR ----
    Full-screen teacher page for editing activity content. Reachable via a
    link from the teacher dashboard. Edits are stored as JSON patches in
    allData.curriculum.overrides and merged at read time — see
@@ -1575,7 +1575,7 @@ body.nova-tour-active{scroll-padding-top:40px}
 .curr-details[open] > summary{color:var(--primary);margin-bottom:8px}
 .curr-json{background:#1a1035;color:#f0e9ff;padding:14px;border-radius:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;max-height:400px;overflow:auto;white-space:pre;margin:0}
 
-/* Human-readable lesson preview inside the curriculum editor accordion.
+/* Human-readable lesson preview inside the course editor accordion.
    Replaces the raw JSON dump so tutors can scan what a lesson actually
    contains (intro, example, steps, questions with the correct answer
    highlighted) without reading code. */
@@ -1652,7 +1652,7 @@ body.has-dev-banner{padding-top:26px}
 .curr-modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 .curr-modal-actions .btn{padding:10px 18px}
 
-/* Form-based curriculum editor (replaces the raw JSON textarea as the
+/* Form-based course editor (replaces the raw JSON textarea as the
    default editing surface). The tutor should never see JSON unless they
    explicitly open the "Advanced (raw JSON)" escape hatch. */
 .cf-section{border:1px solid var(--line);border-radius:12px;background:#fafaff;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
@@ -1661,6 +1661,15 @@ body.has-dev-banner{padding-top:26px}
 .cf-field{display:flex;flex-direction:column;gap:5px}
 .cf-field-label{font-size:12px;font-weight:700;color:var(--ink2)}
 .cf-field-hint{font-size:11px;color:var(--ink3);font-style:italic;line-height:1.3}
+/* Label + inline-AI-button row. The ✨ Simpler button in the course editor
+   sits to the right of the field label so the input footprint itself stays
+   clean. Hidden when AI features are off. */
+.cf-field-label-row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.cf-ai-btn{background:linear-gradient(90deg,rgba(108,92,231,.12),rgba(87,94,232,.12));border:1px solid rgba(108,92,231,.35);color:#4f56d4;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;cursor:pointer;line-height:1.4;white-space:nowrap}
+.cf-ai-btn:hover:not(:disabled){background:linear-gradient(90deg,rgba(108,92,231,.2),rgba(87,94,232,.2))}
+.cf-ai-btn:disabled{opacity:.6;cursor:default}
+.cf-ai-note{font-size:11px;color:var(--ink3);line-height:1.3;margin-top:4px;font-style:italic}
+.cf-ai-note.err{color:#c92a2a;font-style:normal}
 .cf-input,.cf-textarea,.cf-select{padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;line-height:1.4;width:100%;box-sizing:border-box}
 .cf-input:focus,.cf-textarea:focus,.cf-select:focus{outline:2px solid var(--primary);outline-offset:-1px}
 .cf-textarea{resize:vertical;min-height:58px;font-family:inherit}
@@ -2966,7 +2975,7 @@ const IMG = {
    colors → animals → family → foods → body → clothes → weather → days.
    This avoids a G7 kid getting dropped into passé composé when they've
    never said "bonjour." Advanced French can be added later via the
-   Curriculum Editor per-student.
+   Course Editor per-student.
 
    IDs are per-student (w1-<sid>-f1..f10) so progress, stars, and completion
    still track separately. The content inside is identical across kids.
@@ -8098,7 +8107,7 @@ const defaultAll = () => ({
   // (~25s) on their own device and vice-versa.
   messages: Object.fromEntries(STUDENTS.map(s=>[s.id, []])),
   // Curriculum overrides — teacher edits to WEEKS[...] activities made
-  // from the Curriculum Editor. Keyed by activity.id (e.g.
+  // from the Course Editor. Keyed by activity.id (e.g.
   // 'w1-isaiah-m1'). Value is a PATCH: any field present replaces the
   // same field from the base activity in WEEKS. Missing fields fall
   // through to the base. A `_hidden: true` flag soft-deletes — the base
@@ -11493,7 +11502,7 @@ function getStudentSupports(sid){
   return seed;
 }
 function hasArticulationNeed(sid){ return getStudentSupports(sid).includes('articulation'); }
-/* Curriculum override merge — teacher edits from the Curriculum Editor live
+/* Curriculum override merge — teacher edits from the Course Editor live
    in allData.curriculum.overrides[activityId]. The override is a PATCH:
    any field present REPLACES the same field on the base activity; missing
    fields fall through. A `_hidden: true` flag soft-deletes the activity
@@ -11959,7 +11968,11 @@ async function callAI(endpoint, body, opts){
       return { error:true, status:r.status, ...j };
     }
     const data = await r.json();
-    return { ok:true, data };
+    // Worker returns { ok:true, data: <handler output>, cached?:bool }.
+    // Unwrap so callers can say `res.data.explanation` instead of
+    // `res.data.data.explanation` — and expose `cached` as a sibling so
+    // UIs that want to dim a "from cache" badge can.
+    return { ok:true, data: (data && data.data) || data, cached: !!(data && data.cached) };
   }catch(err){
     // Network / timeout / abort — trip the cooldown and fall back.
     _aiProxyCooldownUntil = Date.now() + AI_PROXY_COOLDOWN_MS;
@@ -12160,7 +12173,7 @@ function go(screen,opts={}){
     else if(screen==='store') renderStore(root);
     else if(screen==='orders') renderOrders(root);
     else if(screen==='teacher') renderTeacher(root);
-    else if(screen==='teacher-curriculum') renderTeacherCurriculum(root);
+    else if(screen==='teacher-course') renderTeacherCourse(root);
     else if(screen==='parent') renderParentView(root);
     else renderHome(root); // unknown screen → safe fallback
   }catch(err){
@@ -14842,6 +14855,85 @@ function attachAiWritingFeedback(area, text, q, rubric){
       box.remove();
     }
   })();
+}
+
+/* ---- Course Editor: AI-assisted "Simpler" rewrite ----
+   Wired to the ✨ Simpler button that sits next to editable lesson fields
+   (currently the Intro textarea). POSTs the current value to /simplify on
+   the Worker with the activity's Ontario Curriculum tag — the Worker's
+   CURRICULUM_ALIGNMENT_RULES keep the rewrite inside the grade/strand and
+   KID_SAFE_RULES + the output-level content scan block anything sketchy.
+   The tutor still has to click Save before kids see the change — this is
+   just a typing-assist, not an autonomous edit.
+
+   The button is a tiny state machine — "simpler" ↔ "undo" — driven by
+   dataset.mode on the button itself. A single click listener branches on
+   mode so adding/removing event listeners doesn't race.
+
+   Error UX (shown in a note div below the textarea, not an alert):
+   - daily cap         → "AI limit reached today."
+   - feature off/503   → "AI rewrite is off."
+   - curriculum_violation → "AI declined — this edit would step outside
+                             the Ontario tag on this activity."
+   - content_blocked   → "AI produced unsafe content; it was blocked."
+   - network/timeout   → "Couldn't reach AI; try again."
+   Original text is stashed on the button's dataset so ↶ Undo is a
+   one-click revert. */
+function wireSimplerButton(btn, textareaEl, getCurriculum, noteEl){
+  btn.dataset.mode = 'simpler';
+  btn.textContent = '✨ Simpler';
+  btn.addEventListener('click', async ()=>{
+    if(btn.disabled) return;
+    if(btn.dataset.mode === 'undo'){
+      // Revert to the stashed original.
+      textareaEl.value = btn.dataset.prev || textareaEl.value;
+      btn.dataset.mode = 'simpler';
+      btn.textContent = '✨ Simpler';
+      delete btn.dataset.prev;
+      if(noteEl){ noteEl.textContent = ''; noteEl.classList.remove('err'); }
+      return;
+    }
+    const original = (textareaEl.value || '').trim();
+    if(!original){
+      if(noteEl){ noteEl.textContent = 'Write something first, then click ✨ Simpler.'; noteEl.classList.add('err'); }
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '…thinking';
+    if(noteEl){ noteEl.textContent = ''; noteEl.classList.remove('err'); }
+    const curriculum = (typeof getCurriculum === 'function') ? getCurriculum() : (getCurriculum || null);
+    const res = await callAI('/simplify', {
+      text: original,
+      // Full Ontario tag → Worker's buildCurriculumBlock anchors the rewrite.
+      curriculum: curriculum || null,
+      // gradeContext is the Worker's legacy shorthand; redundant but safe.
+      gradeContext: (curriculum && curriculum.grade) || '',
+    }, { timeoutMs: 12000 });
+    btn.disabled = false;
+    if(res.ok && res.data && typeof res.data.simplified === 'string' && res.data.simplified.trim()){
+      btn.dataset.prev = original;
+      textareaEl.value = res.data.simplified.trim();
+      btn.dataset.mode = 'undo';
+      btn.textContent = '↶ Undo';
+      if(noteEl){
+        noteEl.classList.remove('err');
+        noteEl.textContent = res.cached
+          ? 'AI rewrite (cached). Review before saving.'
+          : 'AI rewrite. Review before saving.';
+      }
+      return;
+    }
+    // Failure — reset to simpler, show a tutor-readable error in the note.
+    let msg = 'Couldn\'t reach the AI rewrite service.';
+    if(res.capped) msg = 'AI daily limit reached on this account.';
+    else if(res.disabled) msg = 'AI rewrite is turned off. See /health + wrangler flags.';
+    else if(res.error === 'curriculum_violation') msg = 'AI declined — this edit would step outside the Ontario Curriculum tag on this activity.';
+    else if(res.error === 'content_blocked') msg = 'AI produced content that was blocked by the safety filter. Try a different phrasing or rewrite by hand.';
+    else if(res.reason === 'network') msg = 'Network error reaching AI. Try again.';
+    btn.textContent = '✨ Simpler';
+    btn.dataset.mode = 'simpler';
+    if(noteEl){ noteEl.textContent = msg; noteEl.classList.add('err'); }
+  });
 }
 
 function showNext(){const b=$('#nextBtn');if(!b)return;b.style.display='inline-flex';b.textContent=(quiz.idx+1<quiz.questions.length)?'Next →':'Finish 🎉'}
@@ -17733,18 +17825,18 @@ function renderTeacher(root){
     return wrap;
   };
 
-  // Curriculum editor launcher — lives in the accordion for consistency
+  // Course editor launcher — lives in the accordion for consistency
   // but clicking "Open Editor" navigates away to the full-screen editor
-  // (renderTeacherCurriculum). Kept as a section instead of a naked
+  // (renderTeacherCourse). Kept as a section instead of a naked
   // dashboard button so it sits alongside the other tutor tools without
   // introducing a second UI pattern.
-  const buildCurriculumLink = () => {
+  const buildCourseLink = () => {
     const overrideCount = Object.keys((allData && allData.curriculum && allData.curriculum.overrides) || {}).length;
     return h('div',{style:'display:flex;flex-direction:column;gap:12px'},[
       h('p',{style:'color:var(--ink2);font-size:14px;line-height:1.55;margin:0'},
         'Edit lessons, questions, answers, titles — any field on any activity. Changes sync to all devices. The base curriculum lives in the app code; edits here are overrides you can reset at any time.'),
       h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},[
-        h('button',{class:'btn btn-primary', onclick:()=>go('teacher-curriculum')}, '📚 Open Curriculum Editor →'),
+        h('button',{class:'btn btn-primary', onclick:()=>go('teacher-course')}, '📚 Open Course Editor →'),
         h('span',{style:'font-size:13px;color:'+(overrideCount>0?'#c2185b':'var(--ink3)')+';font-weight:700'},
           overrideCount > 0
             ? '● '+overrideCount+' active override'+(overrideCount===1?'':'s')
@@ -18325,12 +18417,12 @@ function renderTeacher(root){
     dash.appendChild(h('div',{class:'t-review-banner', role:'status'}, bannerKids));
   }
 
-  // the same place. Curriculum Editor sits second — it's the single most
+  // the same place. Course Editor sits second — it's the single most
   // important tutor-authoring tool.
   const sections = [
     { id:'students',    icon:'👥', title:'Students Overview',     build: buildOverviewGrid },
     { id:'plans',       icon:'📋', title:'Student Education Plans', build: buildStudentPlansPanel },
-    { id:'curriculum',  icon:'📚', title:'Curriculum Editor',     build: buildCurriculumLink },
+    { id:'curriculum',  icon:'📚', title:'Course Editor',         build: buildCourseLink },
     { id:'messages',    icon:'💬', title:'Messages',              badge: unreadTotal,       badgeLabel:'unread messages', build: renderTeacherMessages },
     { id:'reports',     icon:'📊', title:'Detailed Report Cards', build: buildReportCardsPanel },
     { id:'analytics',   icon:'📈', title:'Learning Analytics',    build: buildAnalyticsPanel },
@@ -18414,7 +18506,7 @@ function renderTeacher(root){
 }
 
 /* ==========================================================================
-   CURRICULUM EDITOR — full-screen teacher page
+   COURSE EDITOR — full-screen teacher page
    --------------------------------------------------------------------------
    Teachers edit lesson content without touching source code. Edits are
    stored as JSON patches in allData.curriculum.overrides keyed by
@@ -18440,7 +18532,7 @@ function renderTeacher(root){
 
    Selectors default to the most-recent week + first student + first
    subject, and remember the tutor's last choice across page visits via
-   curriculumEditorState.
+   courseEditorState.
 
    ▸ Editor-week vs data-week
    The tutor authors activities as ONE flat list of 10+ levels per
@@ -18452,10 +18544,10 @@ function renderTeacher(root){
      Levels 6–10 → Editor Week 2
      Levels 11–15 → Editor Week 3
    If a future WEEKS[2] data-bucket is authored, its batches continue
-   the editor-week numbering (Week 3, 4, …). `curriculumEditorState.week`
+   the editor-week numbering (Week 3, 4, …). `courseEditorState.week`
    now stores the editor-week number (1-based across data-buckets).
    ========================================================================== */
-let curriculumEditorState = { week: null, student: null, subject: null };
+let courseEditorState = { week: null, student: null, subject: null };
 
 /* Build the list of editor-weeks available for a given student+subject.
    Each entry:
@@ -18497,7 +18589,7 @@ function buildEditorWeeks(sid, subjId){
 }
 
 /* Render the merged activity as a human-readable preview for the
-   curriculum editor accordion. Used instead of dumping JSON — tutors
+   course editor accordion. Used instead of dumping JSON — tutors
    want to see WHAT the lesson is, not the shape of the object.
 
    Renders (when present): lesson title/visual/intro, example, steps,
@@ -18645,28 +18737,28 @@ function buildCurriculumPreview(merged){
   return wrap;
 }
 
-function renderTeacherCurriculum(root){
+function renderTeacherCourse(root){
   if(!isTeacher){ go('home'); return; }
 
-  if(curriculumEditorState.student === null) curriculumEditorState.student = STUDENTS[0].id;
-  if(curriculumEditorState.subject === null) curriculumEditorState.subject = SUBJECTS[0].id;
+  if(courseEditorState.student === null) courseEditorState.student = STUDENTS[0].id;
+  if(courseEditorState.subject === null) courseEditorState.subject = SUBJECTS[0].id;
 
   // Build editor-weeks for the currently selected student+subject. The
   // selector recomputes as the tutor flips subjects — a spelling subject
   // with only 5 levels will show just Week 1; math with 10 shows Weeks 1 & 2.
-  let editorWeeks = buildEditorWeeks(curriculumEditorState.student, curriculumEditorState.subject);
+  let editorWeeks = buildEditorWeeks(courseEditorState.student, courseEditorState.subject);
   if(!editorWeeks.length) editorWeeks = [{editorWeek:1, dataWeek:1, sliceStart:0, sliceEnd:0, activityCount:0, absLevelLow:1, absLevelHigh:BATCH_SIZE}];
   // Clamp the stored week to what exists for this combo, then default.
-  if(curriculumEditorState.week === null) curriculumEditorState.week = 1;
-  if(curriculumEditorState.week > editorWeeks.length) curriculumEditorState.week = editorWeeks.length;
-  if(curriculumEditorState.week < 1) curriculumEditorState.week = 1;
-  const selectedWeek = editorWeeks[curriculumEditorState.week - 1];
+  if(courseEditorState.week === null) courseEditorState.week = 1;
+  if(courseEditorState.week > editorWeeks.length) courseEditorState.week = editorWeeks.length;
+  if(courseEditorState.week < 1) courseEditorState.week = 1;
+  const selectedWeek = editorWeeks[courseEditorState.week - 1];
 
   const wrap = h('div',{class:'curr-editor'});
 
   wrap.appendChild(h('div',{class:'curr-head'},[
     h('button',{class:'back-btn', onclick:()=>go('teacher')}, '← Back to Dashboard'),
-    h('h2',{}, '📚 Curriculum Editor'),
+    h('h2',{}, '📚 Course Editor'),
   ]));
 
   wrap.appendChild(h('p',{class:'curr-intro'},
@@ -18691,18 +18783,18 @@ function renderTeacherCurriculum(root){
       value:String(ew.editorWeek),
       label:'Week '+ew.editorWeek+' · Levels '+ew.absLevelLow+'–'+ew.absLevelHigh,
     })),
-    String(curriculumEditorState.week),
-    v => { curriculumEditorState.week = parseInt(v,10); go('teacher-curriculum'); }
+    String(courseEditorState.week),
+    v => { courseEditorState.week = parseInt(v,10); go('teacher-course'); }
   ));
   ctrls.appendChild(mkSelect('Student',
     STUDENTS.map(s=>({value:s.id, label:s.name+' · '+s.grade})),
-    curriculumEditorState.student,
-    v => { curriculumEditorState.student = v; go('teacher-curriculum'); }
+    courseEditorState.student,
+    v => { courseEditorState.student = v; go('teacher-course'); }
   ));
   ctrls.appendChild(mkSelect('Subject',
     SUBJECTS.map(s=>({value:s.id, label:(s.emoji||'')+' '+s.name})),
-    curriculumEditorState.subject,
-    v => { curriculumEditorState.subject = v; go('teacher-curriculum'); }
+    courseEditorState.subject,
+    v => { courseEditorState.subject = v; go('teacher-course'); }
   ));
   wrap.appendChild(ctrls);
 
@@ -18712,12 +18804,12 @@ function renderTeacherCurriculum(root){
   // `currentWeek`. The tutor needs ALL activities (including hidden ones
   // so they can un-hide them) for the chosen slice.
   const wk = WEEKS[selectedWeek.dataWeek];
-  const fullBucket = (wk && wk[curriculumEditorState.student] && wk[curriculumEditorState.student][curriculumEditorState.subject]) || [];
+  const fullBucket = (wk && wk[courseEditorState.student] && wk[courseEditorState.student][courseEditorState.subject]) || [];
   const rawActs = fullBucket.slice(selectedWeek.sliceStart, selectedWeek.sliceEnd);
 
   if(rawActs.length === 0){
-    const stName = (STUDENTS.find(s=>s.id===curriculumEditorState.student) || {}).name || curriculumEditorState.student;
-    const subName = (SUBJECTS.find(s=>s.id===curriculumEditorState.subject) || {}).name || curriculumEditorState.subject;
+    const stName = (STUDENTS.find(s=>s.id===courseEditorState.student) || {}).name || courseEditorState.student;
+    const subName = (SUBJECTS.find(s=>s.id===courseEditorState.subject) || {}).name || courseEditorState.subject;
     wrap.appendChild(h('div',{class:'curr-empty'},
       'No activities defined for '+stName+' · '+subName+' · Levels '+selectedWeek.absLevelLow+'–'+selectedWeek.absLevelHigh+'. Add them in index.html to edit them here.'
     ));
@@ -18732,7 +18824,7 @@ function renderTeacherCurriculum(root){
 
       const row = h('div',{class:'curr-row'+(isModified?' is-modified':'')+(isHidden?' is-hidden':'')});
       const buttons = [
-        h('button',{class:'btn btn-sm btn-primary', onclick: ()=>openCurriculumEdit(base)}, isModified ? '✎ Edit' : '+ Override'),
+        h('button',{class:'btn btn-sm btn-primary', onclick: ()=>openCourseEdit(base)}, isModified ? '✎ Edit' : '+ Override'),
       ];
       if(isModified){
         buttons.push(h('button',{class:'btn btn-sm btn-ghost', onclick: ()=>resetCurriculumOverride(base.id)}, '↺ Reset'));
@@ -18788,7 +18880,7 @@ function renderTeacherCurriculum(root){
   root.appendChild(wrap);
 }
 
-/* Form-based curriculum editor. Replaces the older JSON-textarea flow so
+/* Form-based course editor. Replaces the older JSON-textarea flow so
    the tutor can edit titles, lessons, and questions without touching raw
    JSON. Save logic:
 
@@ -18804,7 +18896,7 @@ function renderTeacherCurriculum(root){
    Diff semantics are deep-equal for lesson + questions/stretchQuestions,
    shallow for the 2 top-level scalars (title, emoji). The _hidden toggle
    is always written explicitly when true (or absent when false). */
-function openCurriculumEdit(baseActivity){
+function openCourseEdit(baseActivity){
   if(!allData.curriculum) allData.curriculum = { overrides:{}, updatedAt:0 };
   if(!allData.curriculum.overrides) allData.curriculum.overrides = {};
 
@@ -18907,7 +18999,36 @@ function openCurriculumEdit(baseActivity){
   const lHint   = h('textarea',{class:'cf-textarea',               placeholder:'Nudge shown when a kid uses the Hint button.'}, mergedLesson.hint || '');
 
   lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Lesson title'), lTitle ]));
-  lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Intro'), lIntro ]));
+
+  // Intro field — if FEATURE_SIMPLIFY is lit on the Worker, attach a
+  // ✨ Simpler button next to the label. Clicking it rewrites the current
+  // text through the Worker (curriculum-anchored + kid-safety scanned).
+  // The tutor still has to click Save before the rewrite reaches students.
+  // When the flag is off, OR AI_PROXY_URL is unset, the button never renders
+  // — callAI() also short-circuits to `{disabled:true}`, so any stray call
+  // is a silent no-op. See aiSimplifyField() for the full UX.
+  const introLabelRow = h('div',{class:'cf-field-label-row'},[
+    h('label',{class:'cf-field-label'},'Intro'),
+  ]);
+  const introNote = h('div',{class:'cf-ai-note', style:'display:none'}, '');
+  if(aiFeatureOn('FEATURE_SIMPLIFY')){
+    introNote.style.display = '';
+    const simplifyBtn = h('button',{
+      type:'button',
+      class:'cf-ai-btn',
+      title:'Rewrite in simpler, curriculum-aligned language. Anthropic Claude, kid-safety filtered.',
+    }, '');
+    // Pass a curriculum *getter* so each click reads the CURRENT form state —
+    // if the tutor just retagged the activity, the AI uses the new grade/
+    // strand rather than the stale snapshot the modal opened with.
+    wireSimplerButton(simplifyBtn, lIntro, ()=>{
+      const liveCurric = getCurriculumValue && getCurriculumValue();
+      return liveCurric || merged.curriculum || baseActivity.curriculum || null;
+    }, introNote);
+    introLabelRow.appendChild(simplifyBtn);
+  }
+  lessonSection.appendChild(h('div',{class:'cf-field'},[ introLabelRow, lIntro, introNote ]));
+
   lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Worked example'), lExample ]));
   lessonSection.appendChild(h('div',{class:'cf-field'},[ h('label',{class:'cf-field-label'},'Hint'), lHint ]));
 
@@ -19441,7 +19562,7 @@ function openCurriculumEdit(baseActivity){
     saveState();
     try { syncToCloud(); } catch(e){ console.warn('[KidQuest] curriculum sync failed:', e); }
     close();
-    go('teacher-curriculum');
+    go('teacher-course');
   };
 
   // Initial render of the two question lists.
@@ -19496,7 +19617,7 @@ function resetCurriculumOverride(activityId){
   allData.curriculum.updatedAt = Date.now();
   saveState();
   try { syncToCloud(); } catch(e){ console.warn('[KidQuest] curriculum sync failed:', e); }
-  go('teacher-curriculum');
+  go('teacher-course');
 }
 
 /* Coin adjuster — per-student +/- coin control for the teacher dashboard.

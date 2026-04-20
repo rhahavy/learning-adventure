@@ -124,6 +124,198 @@ const FEATURE_FLAGS = [
   'FEATURE_PHOTO_EXTRACT',
 ];
 
+// ==========================================================================
+// KID-SAFETY LAYERS
+// ==========================================================================
+// Two overlapping defenses for every text handler that produces content
+// a child might read:
+//
+//   Layer 1 — KID_SAFE_RULES  (prompt-level)
+//     Appended to every handler's system prompt. Claude's Constitutional
+//     training already biases toward safe content, but an explicit,
+//     enumerated rule list makes the guardrails visible in the transcript
+//     and gives us a clean audit story ("here's the prompt we used").
+//     If the model ever gets a request it cannot safely fulfill, the
+//     rules instruct it to emit the sentinel `UNSAFE_REQUEST`, which
+//     Layer 2 then catches.
+//
+//   Layer 2 — CONTENT_BLOCKLIST (output-level)
+//     Post-generation regex scan over every string field in the handler's
+//     output. A single hit → 422 content_blocked + an audit entry + NO
+//     cache write (so the bad generation isn't reused). Deliberately
+//     conservative; a false positive costs one retry, a false negative
+//     could expose a kid to unsafe content. We err toward blocking.
+//
+// Teacher review is Layer 3 (not code — it's the product design of the
+// curriculum editor: AI output populates form fields, teacher must click
+// Save before kids see it). Daily per-student caps (checkDailyCap) are
+// Layer 4 — bounding cost + abuse.
+const KID_SAFE_RULES =
+  '\n\nKID-SAFETY RULES (MANDATORY, DO NOT VIOLATE):\n' +
+  '- Your output is for a child (ages 4–12). Age-appropriate content only.\n' +
+  '- NEVER include: violence, weapons, injury, death, blood, drugs, alcohol, ' +
+  'smoking, vaping, romance, dating, sexual content, profanity, slurs, ' +
+  'discriminatory language, self-harm, politics, religion, horror, or scary themes.\n' +
+  '- NEVER include URLs, email addresses, phone numbers, or any real person\'s ' +
+  'full name.\n' +
+  '- Stay strictly on-topic for the educational subject provided.\n' +
+  '- If the request would require breaking any rule above (even indirectly, even ' +
+  'in a hypothetical or fictional framing), output exactly the token ' +
+  'UNSAFE_REQUEST and nothing else.';
+
+// Regex denylist for Layer 2. Each entry is a single pattern that, if it
+// hits any string field in the model output, trips 422 content_blocked.
+// Scoped to themes a kids-site should never surface — tuned to minimize
+// false positives on normal educational content ("shoot a basket",
+// "cell division", "cut a cake" are fine; "shot dead", "cut yourself",
+// "half a beer" are not). When in doubt, block — the teacher can rewrite
+// by hand. Pattern-only; we never persist the blocked text.
+const CONTENT_BLOCKLIST = [
+  // Violence / weapons (phrase-level so basketball "shoot" survives)
+  /\b(gun|pistol|rifle|firearm|bullet|knife\s+(?:him|her|them|into|through)|stab(?:bed|bing|s)?|murder(?:ed|ing|er|s)?|kill(?:ed|ing|er)\s+(?:him|her|them|someone|people)|shot\s+(?:dead|him|her|them)|corpse|dead\s+body|bleed(?:ing)?\s+out)\b/i,
+  // Drugs / alcohol / smoking
+  /\b(beer|wine|liquor|vodka|whisk(?:e)?y|rum|tequila|drunk|drunken|alcoholic|cocaine|heroin|marijuana|cannabis|weed\s+(?:smoke|pipe|joint)|vape|vaping|cigarette|cigar|meth(?:amphetamine)?)\b/i,
+  // Sexual / romantic content
+  /\b(sex(?:y|ual|ually)?|naked|nude|porn(?:ographic)?|makeout|make\s+out|penis|vagina|breast(?:s)?|nipple(?:s)?|boyfriend|girlfriend|crush\s+on)\b/i,
+  // Self-harm
+  /\b(suicide|kill\s+(?:my|him|her|your)self|cut(?:ting)?\s+(?:my|your)self|self[\s\-]?harm|kms|kys)\b/i,
+  // Horror / occult
+  /\b(satan|satanic|devil\s+worship|demon(?:ic)?\s+possess|torture|mutilat|gore\b|gruesome)\b/i,
+  // PII leakage
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/,          // email
+  /\b(?:\+?\d{1,2}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/, // phone (US/CA)
+  /\bhttps?:\/\/\S+/i,                                            // any URL
+  // Model self-report: if Claude refused internally per KID_SAFE_RULES,
+  // the sentinel reaches Layer 2 and gets blocked. Without this, an
+  // UNSAFE_REQUEST string could reach a kid.
+  /\bUNSAFE_REQUEST\b/,
+];
+
+// Scan a string against the blocklist. Returns { pattern, match } on hit
+// or null on clean. Keep the returned match short — it's for logs only,
+// never shown to a user.
+function scanForBannedContent(text) {
+  if (!text || typeof text !== 'string') return null;
+  for (let i = 0; i < CONTENT_BLOCKLIST.length; i++) {
+    const m = text.match(CONTENT_BLOCKLIST[i]);
+    if (m) return { patternIdx: i, match: m[0].slice(0, 40) };
+  }
+  return null;
+}
+
+// Scan every string field (recursively, one level) in a handler's output
+// object. Returns the first hit or null. Used by runStandardHandler after
+// postProcess but before cache-write + audit.
+function scanOutputForBannedContent(out) {
+  if (!out || typeof out !== 'object') return null;
+  for (const k of Object.keys(out)) {
+    const v = out[k];
+    if (typeof v === 'string') {
+      const hit = scanForBannedContent(v);
+      if (hit) return { field: k, ...hit };
+    } else if (v && typeof v === 'object') {
+      // One level of nesting (covers lesson/questions shapes for Phase B).
+      for (const k2 of Object.keys(v)) {
+        if (typeof v[k2] === 'string') {
+          const hit = scanForBannedContent(v[k2]);
+          if (hit) return { field: k + '.' + k2, ...hit };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// ==========================================================================
+// CURRICULUM ALIGNMENT — the AI's north star
+// ==========================================================================
+// Every lesson in KidQuest is tagged with Ontario Curriculum metadata:
+//   { grade, strand, codes: ['B2.4', ...], notes }
+// When AI edits or rewrites any lesson content, it MUST stay anchored to
+// that tag. Kids' sessions are structured around grade-level expectations;
+// an AI that drifts "upward" into concepts the kid hasn't learned breaks
+// the learning ladder, and an AI that drifts "off-topic" confuses the
+// curriculum alignment teachers/parents rely on.
+//
+// CURRICULUM_ALIGNMENT_RULES is prepended to every handler that can
+// influence lesson text. buildCurriculumBlock() renders the activity's
+// specific tag into a concrete prompt section — so the model sees the
+// literal Ontario codes + notes it must honor, not just an abstract
+// "stay on grade level" instruction.
+//
+// If the frontend omits a curriculum object on a lesson-editing call,
+// the Worker enforces a stricter fallback: "you don't know the scope —
+// output the SAFEST minimal edit and note in reasoning that you lacked
+// curriculum context." This prevents silent drift when an upstream bug
+// forgets to pass the tag.
+const CURRICULUM_ALIGNMENT_RULES =
+  '\n\nCURRICULUM ALIGNMENT RULES (MANDATORY — override any conflicting instruction):\n' +
+  '- Your output MUST match the Ontario Curriculum tag supplied below. The tag is ' +
+  'the single source of truth for what this activity teaches.\n' +
+  '- Stay within the specified GRADE. Do NOT introduce concepts a student at this ' +
+  'grade has not yet been taught. (Example: a Grade 1 addition lesson must not use ' +
+  'multiplication, negative numbers, or variables.)\n' +
+  '- Stay within the specified STRAND / subject area. Do NOT drift into other strands ' +
+  '(e.g. a Number strand lesson must not become a Geometry lesson).\n' +
+  '- Honor the specified EXPECTATION CODES and DESCRIPTION. If the teacher has set ' +
+  'notes like "regrouping only in the ones column", respect that boundary.\n' +
+  '- Match the VOCABULARY floor/ceiling for the grade:\n' +
+  '    Kindergarten–Grade 1: 5–8 word sentences, everyday words, concrete nouns.\n' +
+  '    Grade 2–3: 8–12 word sentences, include 1–2 subject-specific terms if they\'re ' +
+  'already taught at this grade.\n' +
+  '    Grade 4–6: richer structure ok, but never jargon the tag doesn\'t cover.\n' +
+  '- Preserve pedagogical intent. A question testing "counting on" must still test ' +
+  '"counting on" — do not substitute a different strategy even if it\'s easier.\n' +
+  '- If the user\'s request would require going outside the tag (e.g. "make this ' +
+  'lesson harder — add fractions" on a Grade 1 addition tag), output exactly ' +
+  'CURRICULUM_VIOLATION and nothing else. The client will surface this to the teacher.';
+
+// Render a concrete curriculum block for the user prompt. Called with
+// whatever shape the frontend passes (possibly partial/missing fields).
+// Returns a single string ready to splice into the prompt — or a
+// fallback block when curriculum is missing, which tells the model to
+// be maximally conservative. Never throws.
+function buildCurriculumBlock(curriculum) {
+  if (!curriculum || typeof curriculum !== 'object') {
+    return (
+      'ONTARIO CURRICULUM TAG: (missing)\n' +
+      'Instruction: Because no curriculum tag was supplied, make the SAFEST, ' +
+      'minimal edit possible. Do not introduce new concepts or vocabulary. ' +
+      'If the edit cannot be done safely without knowing the grade and strand, ' +
+      'output CURRICULUM_VIOLATION.'
+    );
+  }
+  const grade = String(curriculum.grade || '').trim().slice(0, 40);
+  const strand = String(curriculum.strand || '').trim().slice(0, 80);
+  const codes = Array.isArray(curriculum.codes)
+    ? curriculum.codes.filter(c => typeof c === 'string').slice(0, 10).map(c => c.slice(0, 16))
+    : [];
+  const notes = String(curriculum.notes || '').trim().slice(0, 400);
+  let block = 'ONTARIO CURRICULUM TAG:\n';
+  block += '  Grade:  ' + (grade || '(unspecified)') + '\n';
+  block += '  Strand: ' + (strand || '(unspecified)') + '\n';
+  if (codes.length) block += '  Codes:  ' + codes.join(', ') + '\n';
+  if (notes)        block += '  Notes:  ' + notes + '\n';
+  block += 'All your output must honor this tag. See CURRICULUM ALIGNMENT RULES above.';
+  return block;
+}
+
+// Second-line defense: after the model responds, verify it didn't output
+// the CURRICULUM_VIOLATION sentinel. If it did, treat as a structured
+// refusal and return 422 — the teacher sees a friendly "AI declined to
+// make this edit because it would violate the curriculum tag" message.
+function scanOutputForCurriculumViolation(out) {
+  if (!out || typeof out !== 'object') return false;
+  const probe = (v) => typeof v === 'string' && /\bCURRICULUM_VIOLATION\b/.test(v);
+  for (const k of Object.keys(out)) {
+    if (probe(out[k])) return true;
+    if (out[k] && typeof out[k] === 'object') {
+      for (const k2 of Object.keys(out[k])) if (probe(out[k][k2])) return true;
+    }
+  }
+  return false;
+}
+
 // Routing table. Each entry binds a method+path to (feature flag,
 // handler function). The handler runs only after the master flag +
 // the feature flag are both on AND the input passes the length cap.
@@ -302,6 +494,11 @@ async function handlePlanParse(request, env, ctx, corsOrigin) {
       '- simpleLanguage: rewrite prompts in simpler words (when FEATURE_SIMPLIFY is on). Use for ESL notes.\n\n' +
       'extendedTime: 1.0 standard, 1.2 mild ESL, 1.3 typical IEP, 1.5 significant IEP, 2.0 severe.\n\n' +
       'Omit any toggle you are not confident the notes support. Do not invent concerns.'
+      // Kid-safety: these notes are written BY a tutor ABOUT a student, so the
+      // output still reaches a shared dashboard. Same banned-topic rules apply
+      // to the `reasoning` string we echo back. No CURRICULUM_ALIGNMENT_RULES
+      // here — this endpoint parses prose about a learner, not lesson content.
+      + KID_SAFE_RULES
     ),
     buildUserPrompt: ({ notes, planType, availableKeys }) => (
       'Plan type: ' + planType + '\n' +
@@ -362,10 +559,18 @@ async function handleExplain(request, env, ctx, corsOrigin) {
       choices: Array.isArray(body.choices) ? body.choices.slice(0, 6).map(c => String(c).slice(0, 120)) : null,
       correctAnswer: body.correctAnswer,
       gradeContext: String(body.gradeContext || '').slice(0, 40),
+      curriculum: (body.curriculum && typeof body.curriculum === 'object') ? body.curriculum : null,
     }),
     validate: ({ prompt }) => prompt ? null : { error: 'missing_prompt' },
-    cacheKey: ({ prompt, choices, correctAnswer, gradeContext }) =>
-      hashKey('explain', prompt, JSON.stringify(choices || []), String(correctAnswer), gradeContext),
+    cacheKey: ({ prompt, choices, correctAnswer, gradeContext, curriculum }) =>
+      hashKey(
+        'explain',
+        prompt,
+        JSON.stringify(choices || []),
+        String(correctAnswer),
+        gradeContext,
+        curriculum ? JSON.stringify({g:curriculum.grade, s:curriculum.strand, c:curriculum.codes}) : ''
+      ),
     cacheTtlSeconds: 30 * 24 * 3600,
     maxTokens: 200,
     buildSystemPrompt: () => (
@@ -376,9 +581,11 @@ async function handleExplain(request, env, ctx, corsOrigin) {
       '- Do NOT lecture. Do NOT say "you got it wrong." Just explain the concept briefly and point to the right choice.\n' +
       '- Never mention the student\'s name, the wrong choice specifically, or any identifying detail.\n' +
       '- Output plain text only — no JSON, no markdown.'
+      + KID_SAFE_RULES
+      + CURRICULUM_ALIGNMENT_RULES
     ),
-    buildUserPrompt: ({ questionType, prompt, choices, correctAnswer, gradeContext }) => {
-      let p = 'Student grade: ' + (gradeContext || 'unspecified') + '\n';
+    buildUserPrompt: ({ questionType, prompt, choices, correctAnswer, gradeContext, curriculum }) => {
+      let p = buildCurriculumBlock(curriculum || { grade: gradeContext }) + '\n\n';
       p += 'Question type: ' + questionType + '\n';
       p += 'Question: ' + prompt + '\n';
       if (choices && choices.length) {
@@ -415,6 +622,7 @@ async function handleFeedback(request, env, ctx, corsOrigin) {
       rubricLevel: Number(body.rubricLevel || 0),
       rubricNotes: String(body.rubricNotes || '').slice(0, 300),
       gradeContext: String(body.gradeContext || '').slice(0, 40),
+      curriculum: (body.curriculum && typeof body.curriculum === 'object') ? body.curriculum : null,
     }),
     validate: ({ text }) => text ? null : { error: 'missing_text' },
     cacheKey: null, // don't cache — see comment above
@@ -433,10 +641,14 @@ async function handleFeedback(request, env, ctx, corsOrigin) {
       '- Match the grade level: K-2 very simple words, 3-5 friendly, 6+ solid.\n' +
       '- Be specific — name something concrete the student did.\n' +
       '- Never scold. Never mention spelling errors unless they block meaning.\n' +
-      '- Never mention the student\'s name or any identifying detail.'
+      '- Never mention the student\'s name or any identifying detail.\n' +
+      '- Feedback must reinforce the Ontario Curriculum expectation below — suggestions ' +
+      'should pull the student toward the tagged skill, not a different one.'
+      + KID_SAFE_RULES
+      + CURRICULUM_ALIGNMENT_RULES
     ),
-    buildUserPrompt: ({ text, prompt, minWords, goodWords, rubricLevel, rubricNotes, gradeContext }) => (
-      'Student grade: ' + (gradeContext || 'unspecified') + '\n' +
+    buildUserPrompt: ({ text, prompt, minWords, goodWords, rubricLevel, rubricNotes, gradeContext, curriculum }) => (
+      buildCurriculumBlock(curriculum || { grade: gradeContext }) + '\n\n' +
       'Prompt they answered: ' + (prompt || '(none)') + '\n' +
       'Target length: ' + minWords + '–' + goodWords + ' words\n' +
       'Rubric level (1-4): ' + rubricLevel + '\n' +
@@ -462,8 +674,10 @@ async function handleFeedback(request, env, ctx, corsOrigin) {
 }
 
 // ---- /simplify ---------------------------------------------------------
-// Rewrite a question in simpler language. Cached aggressively — the
-// same prompt + grade always gives the same rewrite.
+// Rewrite a question, writing prompt, or lesson intro in simpler English.
+// Cached aggressively — the same (prompt, curriculum) always gives the
+// same rewrite. Curriculum alignment is mandatory: the simpler version
+// must still teach the same Ontario expectation at the same grade level.
 async function handleSimplify(request, env, ctx, corsOrigin) {
   return runStandardHandler({
     request, env, ctx, corsOrigin,
@@ -471,26 +685,40 @@ async function handleSimplify(request, env, ctx, corsOrigin) {
     readInputs: async (body) => ({
       prompt: String(body.prompt || '').trim().slice(0, 600),
       gradeContext: String(body.gradeContext || '').slice(0, 40),
+      // Full Ontario Curriculum tag for alignment enforcement. Accepted
+      // as an optional object; a missing curriculum triggers the
+      // conservative fallback in buildCurriculumBlock().
+      curriculum: (body.curriculum && typeof body.curriculum === 'object') ? body.curriculum : null,
     }),
     validate: ({ prompt }) => prompt ? null : { error: 'missing_prompt' },
-    cacheKey: ({ prompt, gradeContext }) => hashKey('simplify', prompt, gradeContext),
-    cacheTtlSeconds: 30 * 24 * 3600,
-    maxTokens: 180,
-    buildSystemPrompt: () => (
-      'You rewrite a single quiz question or writing prompt in simpler English for ' +
-      'an ESL or early-reader child. Rules:\n' +
-      '- Keep the meaning identical.\n' +
-      '- Use common, short words. Aim for grade-2 vocabulary when possible.\n' +
-      '- Keep it the same length or shorter.\n' +
-      '- Output the rewritten prompt as plain text only — no JSON, no quotes, no prefix.'
+    // Cache key includes curriculum so a "simplify to Grade 1" and a
+    // "simplify to Grade 4" of the same text don't collide.
+    cacheKey: ({ prompt, gradeContext, curriculum }) => hashKey(
+      'simplify',
+      prompt,
+      gradeContext,
+      curriculum ? JSON.stringify({g:curriculum.grade, s:curriculum.strand, c:curriculum.codes}) : ''
     ),
-    buildUserPrompt: ({ prompt, gradeContext }) => (
-      'Target grade: ' + (gradeContext || 'unspecified') + '\n\n' +
-      'Original prompt:\n' + prompt + '\n\n' +
+    cacheTtlSeconds: 30 * 24 * 3600,
+    maxTokens: 200,
+    buildSystemPrompt: () => (
+      'You rewrite a single lesson intro, quiz question, or writing prompt in simpler ' +
+      'English for an ESL or early-reader child. Rules:\n' +
+      '- Keep the meaning identical and the CONCEPT BEING TAUGHT identical.\n' +
+      '- Use common, short words. Lower the reading floor by one grade level while ' +
+      'staying within the curriculum\'s expected vocabulary ceiling.\n' +
+      '- Keep the length the same or shorter.\n' +
+      '- Output the rewritten text as plain text only — no JSON, no quotes, no prefix.'
+      + KID_SAFE_RULES
+      + CURRICULUM_ALIGNMENT_RULES
+    ),
+    buildUserPrompt: ({ prompt, gradeContext, curriculum }) => (
+      buildCurriculumBlock(curriculum || { grade: gradeContext }) + '\n\n' +
+      'Original text:\n' + prompt + '\n\n' +
       'Write the simpler version now.'
     ),
     postProcess: (text) => ({ simplified: (text || '').trim().slice(0, 600) }),
-    auditSummary: (inputs) => `simplify → "${(inputs.prompt||'').slice(0, 50)}"`,
+    auditSummary: (inputs) => `simplify → g=${(inputs.curriculum && inputs.curriculum.grade) || inputs.gradeContext || '?'} "${(inputs.prompt||'').slice(0, 40)}"`,
   });
 }
 
@@ -575,6 +803,36 @@ async function runStandardHandler({
     // Model returned unparseable output — treat as upstream failure
     // so the frontend falls back gracefully.
     return json({ error: 'parse_failed', detail: out.error }, 502, corsOrigin);
+  }
+  // ---- Kid-safety Layer 2: content blocklist scan ---------------------
+  // Runs on every string field in the output. A single hit → 422 + audit
+  // entry + NO cache write (so the bad generation isn't reused). The
+  // blocked text never reaches the frontend; we only return the category
+  // of violation + a short snippet for the teacher-facing error log.
+  const safetyHit = scanOutputForBannedContent(out);
+  if (safetyHit) {
+    console.warn('ai-proxy content_blocked', endpoint, safetyHit);
+    try {
+      if (ctx && typeof ctx.waitUntil === 'function' && env.KV) {
+        ctx.waitUntil(recordAudit(env, studentId, endpoint, 'BLOCKED: ' + safetyHit.field + ' ~ ' + safetyHit.match));
+      }
+    } catch(_){}
+    return json({ error: 'content_blocked', field: safetyHit.field }, 422, corsOrigin);
+  }
+  // ---- Curriculum alignment Layer 2: refusal sentinel -----------------
+  // If the model decided the requested edit would violate the curriculum
+  // tag, it outputs CURRICULUM_VIOLATION per the alignment rules. Surface
+  // this to the frontend as a distinct 422 so the teacher sees "AI
+  // declined because this would go outside the grade/strand" instead of
+  // a generic error.
+  if (scanOutputForCurriculumViolation(out)) {
+    console.warn('ai-proxy curriculum_violation', endpoint);
+    try {
+      if (ctx && typeof ctx.waitUntil === 'function' && env.KV) {
+        ctx.waitUntil(recordAudit(env, studentId, endpoint, 'CURRICULUM_VIOLATION refusal'));
+      }
+    } catch(_){}
+    return json({ error: 'curriculum_violation' }, 422, corsOrigin);
   }
   // Cache + audit. Waitable but we want the cache write to complete
   // so the next request benefits; audit can fire-and-forget.
