@@ -11772,6 +11772,110 @@ function swapLessonContentInPlace(rewritten){
   }
 }
 
+/* Teacher-facing diff modal for a single AI rewrite. Shows the base
+   text (what the WEEKS source has, with any tutor override on top)
+   side-by-side with the AI-rewritten version, field by field. Actions:
+   [Delete] wipes this record so the next lesson open regenerates; a
+   plain close dismisses without touching anything. No "approve" —
+   rewrites go live immediately; this is a review+retire surface, not a
+   gating surface. */
+function openAiRewriteReviewModal(sid, activityId){
+  const bucket = (allData && allData.curriculum && allData.curriculum.studentOverrides) || {};
+  const rec = bucket[sid] && bucket[sid][activityId];
+  if(!rec || !rec.lesson) return;
+  const info = (typeof getStudentInfo === 'function') ? getStudentInfo(sid) : null;
+  const name = (info && info.name) || sid;
+  const act = findActivityById(activityId);
+  const title = (act && act.title) || activityId;
+  const emoji = (act && act.emoji) || '📝';
+  const curr = (act && act.curriculum) || null;
+  // Base = apply tutor override on top of WEEKS, like the live render
+  // path would. We intentionally DO NOT apply the student AI override
+  // here — we want the pre-AI baseline for the diff.
+  const baseActivity = act ? applyCurriculumOverride(act) || act : null;
+  const baseLesson = (baseActivity && baseActivity.lesson) || {};
+
+  // Dismiss helper — shared by the backdrop click, close button, and
+  // delete action.
+  const close = ()=>{ try{ overlay.remove(); }catch(_){} };
+
+  const overlay = h('div',{
+    style:'position:fixed;inset:0;background:rgba(16,12,40,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto',
+    onclick:(e)=>{ if(e.target === overlay) close(); },
+  });
+  const modal = h('div',{style:'background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(26,16,53,.3);max-width:820px;width:100%;padding:24px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 80px);overflow-y:auto'});
+
+  // Header
+  modal.appendChild(h('div',{style:'display:flex;align-items:center;gap:12px;flex-wrap:wrap'},[
+    h('span',{style:'font-size:28px'}, emoji),
+    h('div',{style:'flex:1;min-width:0'},[
+      h('div',{style:'font-weight:800;font-size:18px'}, title),
+      h('div',{style:'color:var(--ink3);font-size:13px'},
+        name + (curr ? ' · '+(curr.grade||'')+' · '+((curr.codes||[]).join(', ')) : '')
+        + ' · generated '+(rec._generatedAt ? new Date(rec._generatedAt).toLocaleString() : 'unknown')),
+    ]),
+    h('button',{class:'btn btn-ghost', style:'font-size:13px;padding:6px 12px', onclick:close}, '✕ Close'),
+  ]));
+
+  // Intro explainer
+  modal.appendChild(h('p',{style:'color:var(--ink2);font-size:13px;line-height:1.5;margin:0;background:rgba(108,92,231,.06);border-left:3px solid rgba(108,92,231,.4);padding:10px 14px;border-radius:6px'},
+    'Left: the base lesson (plus any Course Editor overrides). Right: what this student sees after the AI rewrite. If the rewrite is off-target, delete it — the next lesson open will regenerate.'));
+
+  // Per-field diff
+  const fields = ['intro','example','hint'];
+  fields.forEach(f => {
+    const baseVal = (baseLesson[f] || '').trim();
+    const newVal = ((rec.lesson && rec.lesson[f]) || '').trim();
+    if(!baseVal && !newVal) return;
+    const section = h('div',{style:'display:flex;flex-direction:column;gap:6px'});
+    section.appendChild(h('div',{style:'font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--ink3)'}, f.toUpperCase()));
+    const row = h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:10px'});
+    row.appendChild(h('div',{style:'padding:12px;background:#fafbff;border:1px solid var(--border);border-radius:8px;font-size:13px;line-height:1.5;white-space:pre-wrap;min-height:40px'},
+      baseVal || h('span',{style:'color:var(--ink3);font-style:italic'}, '(empty)')));
+    row.appendChild(h('div',{style:'padding:12px;background:linear-gradient(180deg,rgba(108,92,231,.08),rgba(108,92,231,.02));border:1px solid rgba(108,92,231,.25);border-radius:8px;font-size:13px;line-height:1.5;white-space:pre-wrap;min-height:40px'},
+      newVal || h('span',{style:'color:var(--ink3);font-style:italic'}, '(not rewritten)')));
+    section.appendChild(row);
+    modal.appendChild(section);
+  });
+
+  // Column labels (subtle, above each column). Added AFTER the fields so
+  // we can place them at the top — prepending a header row.
+  const labels = h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:-8px'});
+  labels.appendChild(h('div',{style:'font-size:12px;color:var(--ink3);font-weight:700'}, '📚 BASE'));
+  labels.appendChild(h('div',{style:'font-size:12px;color:#4f56d4;font-weight:700'}, '✨ AI REWRITE'));
+  // Insert labels before the first field section (after the intro text).
+  // Find the first field section — the element right after the explainer.
+  const explainerIdx = 2; // header, explainer, then labels, then fields
+  // Safer: just insert before the 3rd child (the first field section).
+  if(modal.children.length >= 3){
+    modal.insertBefore(labels, modal.children[2]);
+  } else {
+    modal.appendChild(labels);
+  }
+
+  // Footer actions
+  modal.appendChild(h('div',{style:'display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px;margin-top:4px'},[
+    h('div',{style:'color:var(--ink3);font-size:12px;align-self:center'},
+      'Base hash: '+((rec._baseHash||'?').slice(0,8))+' · Source: '+((rec._source)||'ai')),
+    h('button',{class:'btn', style:'background:#fff;color:#c92a2a;border:1px solid #c92a2a;font-weight:700', onclick:()=>{
+      if(!confirm('Delete this rewrite for '+name+'? The next time they open "'+title+'", the AI will regenerate it if their plan still has simpleLanguage on.')) return;
+      delete allData.curriculum.studentOverrides[sid][activityId];
+      if(!Object.keys(allData.curriculum.studentOverrides[sid]).length){
+        delete allData.curriculum.studentOverrides[sid];
+      }
+      allData.curriculum.updatedAt = Date.now();
+      try{ saveState(); }catch(_){}
+      close();
+      // Re-render teacher view so the panel updates.
+      const scr = (typeof $ === 'function') ? $('#screen') : document.getElementById('screen');
+      if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+    }}, '🗑 Delete this rewrite'),
+  ]));
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
 function getWeekActivities(sid,subj){
   // Demo profiles reuse an existing student's curriculum via curriculumSid
   // so we don't duplicate the big WEEKS data structure. Real students hit
@@ -18136,6 +18240,118 @@ function renderTeacher(root){
     ]);
   };
 
+  // AI Rewrites Review — shows every per-student AI-generated lesson
+  // rewrite currently cached in allData.curriculum.studentOverrides.
+  // Tutors get visibility into what AI produced for each kid, can read
+  // the base vs rewrite side-by-side, and can delete individual records
+  // (next lesson open → /simplify re-runs if plan still says so). No
+  // approval gating — rewrites go live immediately; this panel exists so
+  // a tutor can spot-check quality and cost, not to block release.
+  const buildAiRewritesPanel = () => {
+    const wrap = h('div',{style:'display:flex;flex-direction:column;gap:14px'});
+    const bucket = (allData && allData.curriculum && allData.curriculum.studentOverrides) || {};
+    const studentSids = Object.keys(bucket).filter(sid => {
+      const perStudent = bucket[sid];
+      return perStudent && Object.keys(perStudent).length > 0;
+    });
+    const totalRewrites = studentSids.reduce((n, sid) => n + Object.keys(bucket[sid] || {}).length, 0);
+
+    // Header explainer + top-level counters. Kept tight; tutors who've
+    // never used this feature should understand the panel in 5 seconds.
+    wrap.appendChild(h('p',{style:'color:var(--ink2);font-size:14px;line-height:1.55;margin:0'},
+      'AI has auto-rewritten lessons in simpler words for students whose plan has '+
+      'simpleLanguage turned on (ESL/gifted-ESL defaults, or explicit overrides). ' +
+      'Review what kids actually see and delete anything off-target — the next lesson ' +
+      'open will regenerate it.'));
+
+    if(totalRewrites === 0){
+      wrap.appendChild(h('div',{style:'padding:18px;background:rgba(108,92,231,.06);border:1px dashed rgba(108,92,231,.3);border-radius:10px;color:var(--ink2);font-size:13px;line-height:1.5;text-align:center'},[
+        '✨ No AI rewrites stored yet. ',
+        'They\'ll appear here once students on simpleLanguage plans start opening lessons.',
+      ]));
+      return wrap;
+    }
+
+    // Totals chip row — at-a-glance "how much AI content has been generated"
+    wrap.appendChild(h('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center'},[
+      h('span',{style:'padding:5px 12px;background:linear-gradient(135deg,rgba(108,92,231,.14),rgba(87,94,232,.14));color:#4f56d4;border:1px solid rgba(108,92,231,.3);border-radius:999px;font-size:12px;font-weight:700'},
+        '🤖 '+totalRewrites+' rewrite'+(totalRewrites===1?'':'s')),
+      h('span',{style:'padding:5px 12px;background:rgba(33,150,83,.1);color:#2b8a3e;border:1px solid rgba(33,150,83,.3);border-radius:999px;font-size:12px;font-weight:700'},
+        '👥 '+studentSids.length+' student'+(studentSids.length===1?'':'s')),
+      h('button',{class:'btn btn-ghost', style:'font-size:12px;padding:6px 12px;margin-left:auto', onclick:()=>{
+        if(!confirm('Delete ALL '+totalRewrites+' AI rewrites across every student? They\'ll regenerate on the next lesson open for any student whose plan still says simpleLanguage.')) return;
+        if(allData.curriculum){ allData.curriculum.studentOverrides = {}; allData.curriculum.updatedAt = Date.now(); }
+        try{ saveState(); }catch(_){}
+        // Re-render the whole teacher dash so the panel updates + counters elsewhere refresh.
+        const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+      }}, '🗑 Clear all'),
+    ]));
+
+    // Per-student expandable cards. One row per student who has rewrites.
+    studentSids.forEach(sid => {
+      const info = getStudentInfo(sid);
+      const name = (info && info.name) || sid;
+      const initial = (info && info.initial) || (name.charAt(0).toUpperCase());
+      const planType = (typeof getStudentPlan === 'function') ? getStudentPlan(sid).type : 'none';
+      const planMeta = PLAN_META[planType] || null;
+      const activities = bucket[sid];
+      const aids = Object.keys(activities);
+      const card = h('div',{style:'border:1px solid var(--border);border-radius:10px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:10px'});
+
+      const header = h('div',{style:'display:flex;align-items:center;gap:12px;flex-wrap:wrap'},[
+        h('div',{style:'width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,'+((info&&info.colorLight)||'#e9ecef')+','+((info&&info.colorDark)||'#adb5bd')+');color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px'}, initial),
+        h('div',{style:'font-weight:800;font-size:15px'}, name),
+        planMeta ? h('span',{style:'padding:3px 9px;background:'+planMeta.bg+';border:1px solid '+planMeta.bd+';color:'+planMeta.accent+';border-radius:999px;font-size:11px;font-weight:700'}, planMeta.emoji+' '+planMeta.label) : null,
+        h('span',{style:'color:var(--ink3);font-size:12px'}, aids.length+' rewrite'+(aids.length===1?'':'s')),
+        h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px;margin-left:auto', onclick:()=>{
+          if(!confirm('Delete all '+aids.length+' AI rewrites for '+name+'? They\'ll regenerate on the next lesson open.')) return;
+          delete allData.curriculum.studentOverrides[sid];
+          allData.curriculum.updatedAt = Date.now();
+          try{ saveState(); }catch(_){}
+          const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+        }}, '🗑 Clear for '+name),
+      ]);
+      card.appendChild(header);
+
+      const list = h('div',{style:'display:flex;flex-direction:column;gap:6px'});
+      aids.forEach(aid => {
+        const rec = activities[aid];
+        const act = findActivityById(aid);
+        const title = (act && act.title) || aid;
+        const emoji = (act && act.emoji) || '📝';
+        const curr = (act && act.curriculum) || null;
+        const when = rec && rec._generatedAt ? new Date(rec._generatedAt).toLocaleDateString() : '—';
+        const fields = (rec && rec.lesson) ? Object.keys(rec.lesson) : [];
+        const row = h('div',{style:'display:flex;align-items:center;gap:10px;padding:10px;background:#fafbff;border:1px solid var(--border);border-radius:8px;flex-wrap:wrap'},[
+          h('span',{style:'font-size:18px'}, emoji),
+          h('div',{style:'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px'},[
+            h('div',{style:'font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}, title),
+            h('div',{style:'color:var(--ink3);font-size:11px'},
+              (curr ? (curr.grade||'')+' · '+((curr.codes||[]).join(', ')) : 'No curriculum tag')
+              + ' · ' + fields.join('+')
+              + ' · ' + when),
+          ]),
+          h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px', onclick:()=>openAiRewriteReviewModal(sid, aid)}, '🔍 Review'),
+          h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px;color:#c92a2a', onclick:()=>{
+            if(!confirm('Delete this rewrite? '+name+'\'s next open of "'+title+'" will regenerate it.')) return;
+            delete allData.curriculum.studentOverrides[sid][aid];
+            if(!Object.keys(allData.curriculum.studentOverrides[sid]).length){
+              delete allData.curriculum.studentOverrides[sid];
+            }
+            allData.curriculum.updatedAt = Date.now();
+            try{ saveState(); }catch(_){}
+            const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+          }}, '🗑'),
+        ]);
+        list.appendChild(row);
+      });
+      card.appendChild(list);
+      wrap.appendChild(card);
+    });
+
+    return wrap;
+  };
+
   // Quick-fill presets for the "Working at (grade level / track)" input.
   // Given a student's home grade ("Grade 3", "Senior Kindergarten"), returns
   // an ordered list of {label, value} chips tailored to that kid — so the
@@ -18714,6 +18930,7 @@ function renderTeacher(root){
     { id:'students',    icon:'👥', title:'Students Overview',     build: buildOverviewGrid },
     { id:'plans',       icon:'📋', title:'Student Education Plans', build: buildStudentPlansPanel },
     { id:'curriculum',  icon:'📚', title:'Course Editor',         build: buildCourseLink },
+    { id:'ai-rewrites', icon:'🤖', title:'AI Content Rewrites',   build: buildAiRewritesPanel },
     { id:'messages',    icon:'💬', title:'Messages',              badge: unreadTotal,       badgeLabel:'unread messages', build: renderTeacherMessages },
     { id:'reports',     icon:'📊', title:'Detailed Report Cards', build: buildReportCardsPanel },
     { id:'analytics',   icon:'📈', title:'Learning Analytics',    build: buildAnalyticsPanel },
