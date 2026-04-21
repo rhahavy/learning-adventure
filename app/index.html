@@ -20454,6 +20454,38 @@ function renderTeacherCourse(root){
   wrap.appendChild(h('p',{class:'curr-intro'},
     'Edit the lessons, questions, and answers shown to students. Each "Week" groups 5 levels — the same 5-level batches students unlock together. Edits are stored as overrides in the cloud blob and merged at read time. Use Reset to fall back to the base any time.'));
 
+  // AI-as-tool banner. We show this once at the top of the editor so tutors
+  // know up front: AI is an optional assistant, NOT a requirement. Every
+  // field is a plain textarea they can type into directly. The ✨ AI buttons
+  // only appear when AI_PROXY_URL + the feature flag are both on, and
+  // clicking one is always opt-in. Dismissable so it doesn't badger
+  // repeat visitors. State lives on allData.teacher.aiBannerDismissed.
+  if(!(allData.teacher && allData.teacher.aiBannerDismissed)){
+    const aiBanner = h('div',{
+      style:'margin:14px 0 18px;padding:14px 16px;background:linear-gradient(135deg,#f3f0ff,#eaf4ff);border:1px solid rgba(108,92,231,.25);border-radius:14px;display:flex;gap:14px;align-items:flex-start',
+    });
+    aiBanner.appendChild(h('div',{style:'font-size:24px;flex-shrink:0'},'✍️'));
+    const bannerBody = h('div',{style:'flex:1;font-size:13px;line-height:1.5;color:var(--ink2)'});
+    bannerBody.appendChild(h('div',{style:'font-weight:800;color:var(--ink);margin-bottom:2px'},'Write it your way'));
+    bannerBody.appendChild(h('span',{},
+      'Every field below is yours to edit directly — type, paste, or rewrite. The optional ✨ AI buttons are a helper, not a requirement. Your judgment as a teacher matters more than any suggestion Nova can generate.'));
+    aiBanner.appendChild(bannerBody);
+    const dismiss = h('button',{
+      type:'button',
+      'aria-label':'Dismiss notice',
+      style:'background:transparent;border:none;color:var(--ink3);font-size:18px;cursor:pointer;padding:4px 8px;line-height:1',
+      onclick: () => {
+        if(!allData.teacher) allData.teacher = {};
+        allData.teacher.aiBannerDismissed = true;
+        saveState();
+        try { syncToCloud(); } catch(e){}
+        aiBanner.remove();
+      },
+    }, '✕');
+    aiBanner.appendChild(dismiss);
+    wrap.appendChild(aiBanner);
+  }
+
   // Selector row
   const ctrls = h('div',{class:'curr-ctrls'});
   const mkSelect = (label, options, current, onChange) => {
