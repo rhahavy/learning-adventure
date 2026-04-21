@@ -1,0 +1,16 @@
+{
+  "name": "ai-proxy",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker that fronts AI providers (Anthropic, OpenAI, ElevenLabs) for every AI-powered feature on the KidQuest site. One worker, many endpoints, shared security + caps + audit.",
+  "main": "worker.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "wrangler": "^4.84.0"
+  }
+}

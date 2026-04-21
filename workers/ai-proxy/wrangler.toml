@@ -91,28 +91,29 @@ enabled = true
 # namespaced (`data:prod`, `data:dev`, `snapshots:prod`, etc.) so
 # collisions are impossible.
 #
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "<paste-from-wrangler-kv-namespace-create-output>"
 
-# ----- DATA BACKEND TOKEN (REQUIRED FOR /data + /snapshots) -----
-# Phase 0a single-tenant auth. Set via:
-#   wrangler secret put DATA_TOKEN
+# ----- ADMIN TOKEN (REQUIRED FOR /provision) --------------------
+# Phase 0b multi-tenant auth. The ADMIN_TOKEN gates the /provision
+# endpoint that mints new tenant codes — it is NEVER shipped to the
+# client. Only the operator (you) ever holds it.
+#
+# Set via:
+#   wrangler secret put ADMIN_TOKEN
 #   <paste a long random string when prompted>
 #
 # Generate one with:
 #   openssl rand -base64 48
 #
-# The same token must be pasted into index.html as DATA_BACKEND_TOKEN
-# so the client can send it in the Authorization: Bearer header. Yes,
-# that means the token is visible to anyone with view-source on the
-# site — that's the Phase 0a trust model (same blast radius as the
-# textdb.dev bucket name was, just shifted to "view-source attackers"
-# instead of "URL guessers"). Phase 0b replaces this with per-tenant
-# sessions and isolated KV keys.
+# Tenant codes (the per-family/per-classroom secret typed by the user)
+# are looked up against KV with no static client-side token at all —
+# nothing in view-source identifies any tenant. Each family/classroom
+# has its own code; revoking a code instantly cuts off that tenant.
 #
-# Rotate the token by:
-#   1. wrangler secret put DATA_TOKEN  (with the new value)
-#   2. Update DATA_BACKEND_TOKEN in index.html
-#   3. Deploy both
-# Old in-flight requests fail until the client picks up the new token.
+# Rotate the admin token by:
+#   1. wrangler secret put ADMIN_TOKEN
+#   2. Re-source the new token in any provisioning script you run
+# (No client-side change required — it never knew the admin token.)
+
+[[kv_namespaces]]
+binding = "KV"
+id = "7707dae3cedf4daaa255ffd1c9fac33f"

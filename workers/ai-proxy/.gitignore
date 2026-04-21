@@ -9,3 +9,7 @@
 
 # Node bits if anyone ever npm installs here.
 node_modules/
+
+# Local copy of the admin token (set by deploy.sh, read by
+# provision-tenant.sh). chmod 600. NEVER commit.
+.admin-token

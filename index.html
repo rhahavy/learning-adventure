@@ -2805,8 +2805,22 @@ function isDemoUser(sid){ return !!sid && DEMO_ID_SET.has(sid); }
 const EMOJI_KEYPAD = ['🐶','🐱','🦁','🦊','🌈','⭐','🎈','🚀','🍎','🎵','💎','🦋','🎧'];
 
 /* ========== TEACHER CREDENTIALS ==========
-   Change teacher password here. */
-const TEACHER_CREDS = { password: 'Chili2025' };
+   The teacher password gates teacher-mode features within a tenant —
+   so a kid who knows the family code can't accidentally edit the
+   curriculum. Each tenant chooses their own teacher password at
+   provisioning time; this is exposed via a getter so every existing
+   `TEACHER_CREDS.password` check resolves dynamically against the
+   active tenant's value.
+
+   Fallback: when no tenant is active (DATA_BACKEND_URL unset, i.e.
+   legacy textdb.dev path), the hardcoded literal kicks in so the
+   pre-multi-tenant flow keeps working. */
+const TEACHER_CREDS = {
+  get password(){
+    if(tenant_state && tenant_state.teacherPassword) return tenant_state.teacherPassword;
+    return 'Chili2025';
+  }
+};
 
 /* ========== SUBJECTS ==========
    Images are set per-LESSON using `heroImage: IMG.xxx`, not at the subject
@@ -7912,91 +7926,121 @@ const CLOUD_URL = 'https://textdb.dev/api/data/' + CLOUD_BUCKET;
 const CLOUD_SNAPSHOTS_BUCKET = IS_DEV_ENV ? CLOUD_SNAPSHOTS_BUCKET_DEV : CLOUD_SNAPSHOTS_BUCKET_PROD;
 const CLOUD_SNAPSHOTS_URL = 'https://textdb.dev/api/data/' + CLOUD_SNAPSHOTS_BUCKET;
 
-/* ========== PHASE 0a DATA BACKEND (Cloudflare Worker + KV) ==========
-   Replaces the textdb.dev shared public buckets with our own Worker
-   endpoints. When both constants below are non-empty, every cloud
-   read/write is routed through the Worker with a bearer token. When
-   either is blank, the site falls back to textdb.dev exactly as
-   before — zero behavior change until a human flips the switch.
+/* ========== PHASE 0b MULTI-TENANT BACKEND (Cloudflare Worker + KV) ==========
+   Each family/classroom is a "tenant" identified server-side by an
+   opaque tenantId, reached via a memorable code typed at the welcome
+   screen (e.g. "tiger-pizza-cloud-42"). The code IS the bearer token —
+   nothing in view-source identifies any tenant.
 
-   Deploy steps (one-time):
-     1. cd workers/ai-proxy
-     2. wrangler kv:namespace create AI_CACHE   (paste id into wrangler.toml)
-     3. openssl rand -base64 48                  (generate a token)
-     4. wrangler secret put DATA_TOKEN           (paste when prompted)
-     5. wrangler deploy                          (get the URL)
-     6. Paste URL + token into the two constants below
-     7. Reload the site, check console for "using WORKER backend"
-     8. Migrate existing textdb.dev data with the one-time helper:
-          open devtools console on the live site → __migrateCloudToWorker()
-     9. Verify by reloading + checking that kids see their progress
+   When DATA_BACKEND_URL is set:
+     • Page boot shows the tenant gate until a valid code is entered.
+     • The code is saved to localStorage so subsequent loads skip the gate.
+     • All /data and /snapshots calls send the code as Bearer.
 
-   Security note: the DATA_TOKEN is visible in view-source — that's the
-   intentional Phase 0a trust model. It's still strictly better than
-   the textdb.dev bucket name (which was equally visible AND anonymous
-   AND guessable). Phase 0b replaces this with real signup/login.
+   When DATA_BACKEND_URL is blank:
+     • Worker not deployed; site falls back to textdb.dev (legacy public
+       buckets). Used during initial development only — DON'T ship this
+       way once you have any real users.
 
-   Rollback: blank either constant, reload. The textdb.dev code path
-   kicks back in. Keep this fallback until you've verified the Worker
-   is stable for at least a week. */
-const DATA_BACKEND_URL   = '';  // e.g. 'https://kidquest-ai-proxy.rhahavy.workers.dev'
-const DATA_BACKEND_TOKEN = '';  // must match the DATA_TOKEN secret set on the Worker
+   Deploy: bash workers/ai-proxy/deploy.sh
+   Provision a tenant: bash workers/ai-proxy/provision-tenant.sh "Smith Family"
+*/
+const DATA_BACKEND_URL   = 'https://kidquest-ai-proxy.rhahavy-b.workers.dev';
+const DATA_BACKEND_TOKEN = '';  // Phase 0b: bearer is the per-tenant code, set at runtime  // Phase 0b: unused; bearer is the per-tenant code (set via tenant_state)
+
+const TENANT_STORAGE_KEY = 'kidquest-tenant';
+let tenant_state = null;  // {id, code, label, teacherPassword, createdAt} or null
+
+function loadTenantFromStorage(){
+  try {
+    const raw = localStorage.getItem(TENANT_STORAGE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(parsed && typeof parsed === 'object' && parsed.code && parsed.id) return parsed;
+  } catch(e){}
+  return null;
+}
+function saveTenantToStorage(t){
+  try { localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(t)); } catch(e){}
+}
+function clearTenantFromStorage(){
+  try { localStorage.removeItem(TENANT_STORAGE_KEY); } catch(e){}
+}
+// Initialize from storage at module load. The tenant gate IIFE later
+// checks this and shows the entry screen if it's still null.
+tenant_state = loadTenantFromStorage();
 
 function isWorkerBackendActive(){
-  return !!(DATA_BACKEND_URL && DATA_BACKEND_TOKEN);
+  return !!(DATA_BACKEND_URL && tenant_state && tenant_state.code);
 }
-// Build the full URL for a given resource ('data' | 'snapshots'). The
-// env query param lets the Worker namespace KV keys so the existing
-// dev/prod isolation survives the migration off textdb.dev.
+// URL for /data or /snapshots. No ?env= query — each tenant is its own
+// isolated KV slot; dev/prod separation now happens at the tenant level
+// (provision separate codes for prod and dev environments).
 function dataBackendUrl(kind){
-  const env = IS_DEV_ENV ? 'dev' : 'prod';
-  return DATA_BACKEND_URL.replace(/\/+$/, '') + '/' + kind + '?env=' + env;
+  return DATA_BACKEND_URL.replace(/\/+$/, '') + '/' + kind;
 }
-// Common headers for every Worker call. Content-Type stays text/plain
-// to match the existing contract (JSON as the body, no special parsing
-// server-side). Authorization is the Phase 0a bearer token.
 function dataBackendHeaders(){
   return {
     'Content-Type': 'text/plain',
-    'Authorization': 'Bearer ' + DATA_BACKEND_TOKEN,
+    'Authorization': 'Bearer ' + ((tenant_state && tenant_state.code) || ''),
   };
+}
+// Validate a code with the Worker's /auth endpoint. Returns
+// {ok:true, tenant} on hit, {ok:false, error} on miss / rate-limit /
+// network failure.
+async function authenticateTenantCode(code){
+  if(!DATA_BACKEND_URL) return { ok:false, error:'no_backend_url' };
+  const normalized = (code||'').toString().trim().toLowerCase();
+  if(!normalized) return { ok:false, error:'missing_code' };
+  let r;
+  try {
+    r = await fetch(DATA_BACKEND_URL.replace(/\/+$/,'') + '/auth', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ code: normalized }),
+    });
+  } catch(e){ return { ok:false, error:'network_error' }; }
+  if(r.status === 429) return { ok:false, error:'rate_limited' };
+  if(r.status === 401) return { ok:false, error:'invalid_code' };
+  if(!r.ok)            return { ok:false, error:'http_'+r.status };
+  try {
+    const data = await r.json();
+    if(data && data.ok && data.tenant) return { ok:true, tenant:data.tenant };
+  } catch(e){}
+  return { ok:false, error:'bad_response' };
 }
 
 // Surface the choice in the console so you can SEE which bucket this tab
 // talks to. Visible banner added later in the boot sequence for the teacher.
 try {
-  const backend = isWorkerBackendActive() ? 'WORKER' : 'textdb.dev (legacy)';
+  const backend = isWorkerBackendActive() ? 'WORKER (tenant: '+tenant_state.label+')'
+                : DATA_BACKEND_URL          ? 'WORKER (no tenant — gate will show)'
+                :                             'textdb.dev (legacy)';
   console.log('[KidQuest] cloud bucket:', IS_DEV_ENV ? 'DEV sandbox' : 'PRODUCTION', '('+CLOUD_BUCKET+')', '— backend:', backend);
 } catch(e){}
 
-/* ========== ONE-TIME MIGRATION: textdb.dev → Worker KV ==========
+/* ========== ONE-TIME MIGRATION: textdb.dev → Worker KV (current tenant) ==========
    Call this from the devtools console AFTER the Worker is deployed
-   AND DATA_BACKEND_URL/TOKEN are filled in. It:
-     1. Reads the current allData blob from textdb.dev (production OR
-        dev, whichever bucket this tab is on).
-     2. Reads the snapshot ring from textdb.dev.
-     3. POSTs both to the Worker's /data and /snapshots endpoints.
-     4. Re-reads from the Worker to confirm the round-trip succeeded.
-     5. Logs a summary you can screenshot for your records.
+   AND you've entered a tenant code on the welcome screen. It copies
+   the existing textdb.dev blob (whichever bucket this tab is on)
+   into the active tenant's KV slot.
 
-   Idempotent — safe to run multiple times. Each run overwrites the
-   Worker copy with the latest textdb.dev state. Run once on prod,
-   once on dev (open a localhost tab to migrate the dev bucket).
+   Idempotent — safe to re-run. Each run overwrites the Worker copy
+   with the latest textdb.dev state. Run once for prod (production
+   tab), once for dev (localhost tab) — each needs its own tenant
+   code if you want them isolated.
 
    Does NOT delete the textdb.dev copy. Leaves it intact as a rollback
-   point in case the Worker has issues. Once you've verified the
-   Worker for ~1 week, you can manually delete the textdb.dev blobs
-   by visiting the bucket URLs and POSTing an empty body, or just
-   leave them to expire. */
-async function __migrateCloudToWorker(){
+   point. Once you've verified the Worker for ~1 week, you can manually
+   delete the textdb.dev blobs or just leave them to expire. */
+async function __migrateCloudToTenant(){
   if(!isWorkerBackendActive()){
-    console.error('[migrate] Worker backend not configured. Set DATA_BACKEND_URL and DATA_BACKEND_TOKEN in index.html first.');
-    return { ok:false, reason:'backend_not_configured' };
+    console.error('[migrate] No active tenant. Enter a code on the welcome screen first.');
+    return { ok:false, reason:'no_tenant' };
   }
-  const env = IS_DEV_ENV ? 'dev' : 'prod';
-  console.log('[migrate] Starting migration from textdb.dev → Worker KV ('+env+')');
-  const out = { env, dataBytes:0, snapshotsBytes:0, dataVerifiedBytes:0, snapshotsVerifiedBytes:0, errors:[] };
-  // Step 1: read data from textdb.dev
+  const tag = '['+tenant_state.label+' / '+(IS_DEV_ENV?'dev':'prod')+']';
+  console.log('[migrate]', tag, 'Starting migration from textdb.dev → Worker KV');
+  const out = { tenant: tenant_state.label, env: IS_DEV_ENV?'dev':'prod', dataBytes:0, snapshotsBytes:0, dataVerifiedBytes:0, snapshotsVerifiedBytes:0, errors:[] };
   let dataBody = '';
   try {
     const r = await fetch(CLOUD_URL + '?_=' + Date.now(), { cache:'no-store' });
@@ -8005,7 +8049,6 @@ async function __migrateCloudToWorker(){
     out.dataBytes = dataBody.length;
     console.log('[migrate] Read', out.dataBytes, 'bytes of /data from textdb.dev');
   } catch(e){ out.errors.push('read_data: '+e.message); console.error('[migrate] data read failed:', e); }
-  // Step 2: read snapshots from textdb.dev
   let snapBody = '';
   try {
     const r = await fetch(CLOUD_SNAPSHOTS_URL + '?_=' + Date.now(), { cache:'no-store' });
@@ -8014,29 +8057,26 @@ async function __migrateCloudToWorker(){
     out.snapshotsBytes = snapBody.length;
     console.log('[migrate] Read', out.snapshotsBytes, 'bytes of /snapshots from textdb.dev');
   } catch(e){ out.errors.push('read_snapshots: '+e.message); console.error('[migrate] snapshots read failed:', e); }
-  // Step 3: POST data to Worker
   if(dataBody){
     try {
       const r = await fetch(dataBackendUrl('data'), { method:'POST', headers:dataBackendHeaders(), body:dataBody });
       if(!r.ok) throw new Error('Worker /data HTTP '+r.status+': '+(await r.text()).slice(0,200));
-      console.log('[migrate] POSTed /data to Worker');
+      console.log('[migrate] POSTed /data to Worker tenant slot');
     } catch(e){ out.errors.push('write_data: '+e.message); console.error('[migrate] data write failed:', e); }
   }
-  // Step 4: POST snapshots to Worker
   if(snapBody){
     try {
       const r = await fetch(dataBackendUrl('snapshots'), { method:'POST', headers:dataBackendHeaders(), body:snapBody });
       if(!r.ok) throw new Error('Worker /snapshots HTTP '+r.status+': '+(await r.text()).slice(0,200));
-      console.log('[migrate] POSTed /snapshots to Worker');
+      console.log('[migrate] POSTed /snapshots to Worker tenant slot');
     } catch(e){ out.errors.push('write_snapshots: '+e.message); console.error('[migrate] snapshots write failed:', e); }
   }
-  // Step 5: round-trip verification
   try {
-    const r = await fetch(dataBackendUrl('data')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } });
+    const r = await fetch(dataBackendUrl('data')+'?_='+Date.now(), { cache:'no-store', headers:dataBackendHeaders() });
     if(r.ok){ const t = await r.text(); out.dataVerifiedBytes = t.length; }
   } catch(e){ out.errors.push('verify_data: '+e.message); }
   try {
-    const r = await fetch(dataBackendUrl('snapshots')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } });
+    const r = await fetch(dataBackendUrl('snapshots')+'?_='+Date.now(), { cache:'no-store', headers:dataBackendHeaders() });
     if(r.ok){ const t = await r.text(); out.snapshotsVerifiedBytes = t.length; }
   } catch(e){ out.errors.push('verify_snapshots: '+e.message); }
   out.ok = out.errors.length === 0
@@ -8044,13 +8084,15 @@ async function __migrateCloudToWorker(){
     && (out.snapshotsBytes === 0 || out.snapshotsVerifiedBytes === out.snapshotsBytes);
   if(out.ok){
     console.log('%c[migrate] ✅ Migration successful', 'color:#0a0;font-weight:bold', out);
-    console.log('[migrate] Next: reload the page and verify kids see their progress. Then leave textdb.dev alone for ~1 week as a rollback point.');
+    console.log('[migrate] Next: reload the page and verify kids see their progress.');
   } else {
     console.warn('%c[migrate] ⚠️  Migration completed with issues — review carefully before reloading', 'color:#a60;font-weight:bold', out);
   }
   return out;
 }
-try { window.__migrateCloudToWorker = __migrateCloudToWorker; } catch(e){}
+try { window.__migrateCloudToTenant = __migrateCloudToTenant; } catch(e){}
+// Old name kept as alias so previously documented commands still work.
+try { window.__migrateCloudToWorker = __migrateCloudToTenant; } catch(e){}
 const POLL_MS = 25000;
 
 // Parent progress reports — always CC the business owner so Rhahavy sees
@@ -8822,11 +8864,11 @@ async function pullCloud(init){
   // the real data, to allData). The guard auto-lifts on exitImpersonation.
   if(impersonating) return;
   try{
-    // Phase 0a: prefer the Worker backend when configured. Both branches
-    // return the same body shape (the serialized allData blob) so the
-    // rest of the function doesn't care which one served the response.
+    // Phase 0b: prefer the Worker backend when a tenant is active.
+    // Both branches return the same body shape (the serialized allData
+    // blob) so the rest of the function doesn't care which served it.
     const r = isWorkerBackendActive()
-      ? await fetch(dataBackendUrl('data')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } })
+      ? await fetch(dataBackendUrl('data')+'?_='+Date.now(), { cache:'no-store', headers:dataBackendHeaders() })
       : await fetch(CLOUD_URL+'?_='+Date.now(),{cache:'no-store'});
     if(!r.ok)throw 0;
     const t=await r.text();if(!t)return;
@@ -9083,7 +9125,7 @@ function deleteSnapshot(index){
 async function fetchCloudSnapshots(){
   try {
     const r = isWorkerBackendActive()
-      ? await fetch(dataBackendUrl('snapshots')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } })
+      ? await fetch(dataBackendUrl('snapshots')+'?_='+Date.now(), { cache:'no-store', headers:dataBackendHeaders() })
       : await fetch(CLOUD_SNAPSHOTS_URL + '?_=' + Date.now(), { cache: 'no-store' });
     if(!r.ok) return [];
     const t = await r.text();
@@ -18632,6 +18674,29 @@ function renderTeacher(root){
   const dash = h('div',{class:'t-dash'});
   dash.appendChild(h('h2',{},'📊 Teacher Dashboard'));
 
+  // Tenant chip — shows which family/classroom is active and offers a
+  // "Switch" link that wipes the local code and reloads to the gate.
+  // Only rendered when a tenant is actually loaded (i.e. Phase 0b is
+  // live); on the legacy textdb.dev path tenant_state is null and the
+  // chip stays hidden.
+  if(tenant_state && tenant_state.label){
+    const chip = h('div',{
+      class:'t-tenant-chip',
+      style:'display:inline-flex;align-items:center;gap:10px;padding:6px 12px;margin:0 0 14px;background:#f1f3f5;border-radius:999px;font-size:13px;color:#495057;'
+    },[
+      h('span',{style:'font-weight:700;'}, '🏠 '+tenant_state.label),
+      h('button',{
+        type:'button',
+        class:'t-tenant-switch',
+        style:'background:none;border:none;color:#0984e3;font-weight:600;cursor:pointer;padding:0;font:inherit;text-decoration:underline;',
+        onclick: ()=>{
+          if(confirm('Switch to a different family/classroom? This signs out of "'+tenant_state.label+'" on this device.')) clearTenantAndReload();
+        }
+      }, 'Switch')
+    ]);
+    dash.appendChild(chip);
+  }
+
   // Total unread messages across all students — drives the red badge on
   // the Messages tab header so the tutor sees "someone's waiting for a
   // reply" at a glance without having to open the panel.
@@ -22254,6 +22319,110 @@ function renderTeacherStore(){
 
 /* ========== UTILS ========== */
 function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
+
+/* ========== TENANT GATE (Phase 0b) ==========
+   Full-screen overlay shown when DATA_BACKEND_URL is set but no
+   tenant code is loaded yet. The user types their family/classroom
+   code; on validation success, we save it to localStorage and
+   reload — clean boot from there with the tenant active.
+
+   Why reload (vs. continue-in-place):
+     • initCloud() / pullCloud() may already have fired (or been
+       queued by the boot sequence) before the user submits a code.
+       A reload guarantees they re-fire with the correct Bearer.
+     • localStorage from a previous tenant (rare but possible — same
+       device, different families) gets cleared as part of the swap,
+       so kids never see another family's data.
+     • Simplifies state — no half-loaded pre-tenant condition to
+       reason about elsewhere in the codebase. */
+function showTenantGate(){
+  if(document.getElementById('kq-tenant-gate')) return; // idempotent
+  const wrap = document.createElement('div');
+  wrap.id = 'kq-tenant-gate';
+  wrap.setAttribute('role','dialog');
+  wrap.setAttribute('aria-modal','true');
+  wrap.setAttribute('aria-labelledby','kq-tg-title');
+  wrap.style.cssText = 'position:fixed;inset:0;background:linear-gradient(135deg,#667eea,#764ba2);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:"DM Sans",system-ui,sans-serif;padding:20px;box-sizing:border-box;';
+  wrap.innerHTML = ''
+    + '<div style="background:#fff;border-radius:24px;padding:40px 32px;max-width:440px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.3);box-sizing:border-box;">'
+    +   '<div style="font-size:44px;margin-bottom:8px;">🌟</div>'
+    +   '<h1 id="kq-tg-title" style="margin:0 0 8px;font-size:26px;color:#2d3436;font-weight:800;">Welcome to KidQuest</h1>'
+    +   '<p style="margin:0 0 24px;color:#636e72;font-size:15px;line-height:1.5;">Enter your family or classroom code to begin.</p>'
+    +   '<input id="kq-tg-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="tiger-pizza-cloud-42" style="width:100%;padding:14px 16px;border:2px solid #dfe6e9;border-radius:12px;font-size:17px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;outline:none;box-sizing:border-box;letter-spacing:.02em;" />'
+    +   '<button id="kq-tg-submit" type="button" style="margin-top:14px;width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.02em;">Enter</button>'
+    +   '<div id="kq-tg-msg" style="margin-top:14px;font-size:13px;color:#d63031;min-height:1em;line-height:1.4;" aria-live="polite"></div>'
+    +   '<div style="margin-top:20px;padding-top:18px;border-top:1px solid #f1f3f5;font-size:12px;color:#b2bec3;line-height:1.5;">'
+    +     "Don't have a code? Ask the parent or teacher who set up your account."
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(wrap);
+  const input  = document.getElementById('kq-tg-input');
+  const submit = document.getElementById('kq-tg-submit');
+  const msg    = document.getElementById('kq-tg-msg');
+  const setMsg = (text, color)=>{ msg.textContent = text; msg.style.color = color || '#d63031'; };
+  const submitting = { busy:false };
+  async function trySubmit(){
+    if(submitting.busy) return;
+    const raw = (input.value||'').trim();
+    if(!raw){ setMsg('Please type your code.'); input.focus(); return; }
+    submitting.busy = true;
+    submit.disabled = true;
+    submit.textContent = 'Checking…';
+    setMsg('', '#636e72');
+    const result = await authenticateTenantCode(raw);
+    if(result.ok){
+      // Different tenant than was previously cached? Wipe the per-tenant
+      // localStorage cache so kids never see another family's data.
+      const prev = loadTenantFromStorage();
+      if(!prev || prev.id !== result.tenant.id){
+        try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+        try { localStorage.removeItem(LOCAL_USER_KEY); } catch(e){}
+      }
+      saveTenantToStorage(result.tenant);
+      setMsg('Welcome, '+(result.tenant.label||'friend')+'!', '#00b894');
+      setTimeout(()=>{ location.reload(); }, 400);
+      return;
+    }
+    submit.disabled = false;
+    submit.textContent = 'Enter';
+    if(result.error === 'rate_limited')      setMsg('Too many attempts. Please wait a bit and try again.');
+    else if(result.error === 'invalid_code') setMsg("That code didn't match. Double-check the spelling.");
+    else if(result.error === 'network_error')setMsg('Network error. Check your connection and retry.');
+    else                                     setMsg('Sign-in failed ('+(result.error||'unknown')+'). Retry?');
+    submitting.busy = false;
+    input.focus();
+    input.select();
+  }
+  submit.addEventListener('click', trySubmit);
+  input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') trySubmit(); });
+  // Defer focus to after this turn so iOS doesn't fight the auto-zoom.
+  setTimeout(()=>{ try { input.focus(); } catch(e){} }, 50);
+}
+
+// Clear the active tenant — kicks the user back to the gate. Used by
+// the "Switch family/classroom" button in the teacher dashboard. Wipes
+// the per-tenant localStorage cache so the next tenant starts fresh.
+function clearTenantAndReload(){
+  clearTenantFromStorage();
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  try { localStorage.removeItem(LOCAL_USER_KEY); } catch(e){}
+  location.reload();
+}
+try { window.clearTenantAndReload = clearTenantAndReload; } catch(e){}
+
+// Show the gate immediately if we need to. The rest of the boot still
+// runs underneath (cloud calls will 401 silently and fail gracefully)
+// so we don't risk a half-initialized state — the overlay covers it
+// all visually until the user submits a valid code and we reload.
+(function tenantGateBoot(){
+  if(!DATA_BACKEND_URL) return;       // legacy textdb.dev path — no gate
+  if(tenant_state && tenant_state.code) return; // already have a tenant
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', showTenantGate);
+  } else {
+    showTenantGate();
+  }
+})();
 
 /* ========== BOOT ==========
    Defensive initialization. Any failure → safe fallback to home screen.

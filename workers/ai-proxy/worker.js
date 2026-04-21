@@ -317,59 +317,96 @@ function scanOutputForCurriculumViolation(out) {
 }
 
 // ==========================================================================
-// DATA BACKEND — replaces the textdb.dev shared bucket
+// MULTI-TENANT DATA BACKEND  (Phase 0b)
 // ==========================================================================
-// These routes are registered separately from ROUTES because they:
-//   • Don't depend on AI_ENABLED or any FEATURE_* flag (data sync must
-//     work even when AI is fully off — they're orthogonal concerns).
-//   • Use bearer-token auth (env.DATA_TOKEN) instead of going through
-//     the per-student daily cap / cache pipeline.
-//   • Read/write to a KV namespace (the same AI_CACHE binding, with
-//     keys prefixed `data:` and `snapshots:` so collisions are
-//     impossible) instead of calling out to an AI provider.
+// Each family/classroom is a "tenant" identified by an opaque tenantId
+// and reached via a memorable "code" the parent/teacher types into the
+// site (e.g. "tiger-pizza-cloud-42"). The code IS the session bearer;
+// the client stores it in localStorage and sends it as
+// `Authorization: Bearer <code>` on every /data and /snapshots call.
 //
-// Phase 0a goal: get off textdb.dev. The single DATA_TOKEN is shared
-// across all callers — i.e. anyone with the token can read/write the
-// blob. That's the same trust model as the textdb.dev bucket name was,
-// just shifted from "anyone who guesses the URL" to "anyone with view
-// source on the site". Phase 0b will replace this with per-tenant
-// sessions and isolated KV keys.
+// KV layout:
+//   code:{code}            → tenantId               (lookup index)
+//   tenant:{tenantId}      → JSON metadata          {id, label, code, teacherPassword, createdAt}
+//   tenant:{tenantId}:data → blob (full app state)  (replaces `data:prod` from Phase 0a)
+//   tenant:{tenantId}:snapshots → blob              (replaces `snapshots:prod`)
+//   ratelimit:auth:{ip}    → JSON {n, resetAt}      (sliding cap on bad code attempts)
 //
-// Env namespacing: callers pass `?env=prod` or `?env=dev` so that the
-// dev/prod buckets that existed on textdb.dev keep working as separate
-// blobs in KV. Anything else falls back to prod (safer default — a
-// bug in env detection lands you on prod, not in a sandbox).
-const DATA_ROUTES = {
-  'GET /data':          { kind: 'data',      read: true  },
-  'POST /data':         { kind: 'data',      read: false },
-  'GET /snapshots':     { kind: 'snapshots', read: true  },
-  'POST /snapshots':    { kind: 'snapshots', read: false },
-};
+// Two auth roles:
+//   • Tenant code  — used by /auth, /tenant, /data, /snapshots. Looked
+//     up via KV. Anyone with a code reaches the tenant's data.
+//   • Admin token  — env.ADMIN_TOKEN secret. Used by /provision to mint
+//     new tenants. Replaces the old single DATA_TOKEN.
+//
+// Why the code is the bearer (no separate "session token"):
+//   • Simpler: nothing to expire or refresh on the client.
+//   • Codes are revocable (delete `code:{code}` and the tenant becomes
+//     unreachable immediately).
+//   • The trust model assumes anyone with the code is "inside" — that
+//     matches how a family password works in practice.
+//
+// Why per-tenant teacher password:
+//   • The code unlocks the tenant; the teacher password gates teacher-
+//     mode features within the tenant (so kids who know the family
+//     code can't accidentally edit the curriculum).
+//   • Each family chooses their own at provisioning time — no shared
+//     hardcoded `Chili2025` across everyone we sell to.
 
-// 24h is the floor — a kid blob shouldn't grow past a few MB even with
-// months of progress + chat history, but a hard ceiling is cheap
-// insurance against a bug that double-encodes or appends without
-// bound. Cloudflare KV's hard limit is 25 MB per value; 5 MB gives
-// us 5x headroom and matches localStorage's typical cap.
+// 128-word, kid-friendly diceware-style list. Short, common, easy to
+// spell aloud, no homophones I could think of. With 3 words + 2 digits,
+// codes have ~28 bits of entropy = ~268M combinations. Per-IP rate-
+// limit at 10 attempts/hour means ~28k years of brute-force per IP.
+// Safe against drive-by guessing; not safe against a leaked DB dump,
+// but the codes ARE the DB so that concern is moot.
+const TENANT_WORDS = (
+  'ant bear bee bird cat cow crab deer dog duck eagle fish fox frog goat ' +
+  'hawk horse koala lamb lion mouse owl panda pig rabbit robin seal sheep ' +
+  'snake swan tiger wolf apple bagel berry bread cake candy cheese cherry ' +
+  'cookie cream donut fruit grape honey lemon mango melon mint muffin pizza ' +
+  'plum sushi taco waffle beach brook cloud fern forest grass hill lake ' +
+  'leaf meadow moon mountain ocean pond rain river rock sand sky snow star ' +
+  'sun tree wind blue coral cyan gold green ivory jade lime navy peach pink ' +
+  'purple red ruby silver teal ball bell book brush comb drum gem hat key ' +
+  'kite lamp mug pen ring scarf vase castle garden harbor library market ' +
+  'palace park tower dance dive fly glide hop jump sing swim'
+).split(' ');
+
+// 5 MB ceiling per blob. Cloudflare KV's hard limit is 25 MB; 5 MB
+// gives us 5x headroom and matches localStorage's typical cap. Every
+// per-tenant blob is bounded by this — runaway client can't bloat KV.
 const DATA_MAX_BYTES = 5 * 1024 * 1024;
 
-// Resolve `env` query param to a KV key namespace. Accepts only the
-// two known values; anything else (missing, garbage) → 'prod'. This
-// mirrors the IS_DEV_ENV detection on the client; the client always
-// sends the env it thinks it's on, the Worker honors it.
-function resolveDataEnv(url) {
-  const v = (url.searchParams.get('env') || '').trim().toLowerCase();
-  return (v === 'dev') ? 'dev' : 'prod';
+// Auth rate limit: per IP, max N failed code attempts per hour. Beyond
+// that, return 429 for the rest of the window. Doesn't apply to /auth
+// successes (a real user shouldn't get throttled for typing slowly).
+const AUTH_RATE_LIMIT_MAX     = 10;
+const AUTH_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+
+// Generate a fresh tenant code. crypto.getRandomValues is unbiased
+// enough for 128-word selection (modulo bias is ~2^-25, undetectable).
+function generateTenantCode() {
+  const a = new Uint32Array(4);
+  crypto.getRandomValues(a);
+  const w1 = TENANT_WORDS[a[0] % TENANT_WORDS.length];
+  const w2 = TENANT_WORDS[a[1] % TENANT_WORDS.length];
+  const w3 = TENANT_WORDS[a[2] % TENANT_WORDS.length];
+  const dd = String(a[3] % 100).padStart(2, '0');
+  return `${w1}-${w2}-${w3}-${dd}`;
 }
 
-// Constant-time-ish bearer check. We compare lengths first to avoid an
-// early-return timing leak on totally-wrong-length tokens, then walk
-// the string. For a real auth system we'd use crypto.subtle.timingSafeEqual,
-// but for a single shared deploy token the practical attack surface is
-// "an attacker has access to the source map" — not "an attacker is
-// timing nanoseconds against our Worker". Good enough for Phase 0a.
-function checkDataAuth(request, env) {
-  const expected = env.DATA_TOKEN;
+// Opaque tenant id — 12 random bytes hex. 96 bits, no collision risk
+// at any plausible tenant count. Used as the KV key prefix so that
+// rotating a code doesn't move the data.
+function generateTenantId() {
+  const a = new Uint8Array(12);
+  crypto.getRandomValues(a);
+  return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Constant-time-ish admin token check. Same shape as the old data-token
+// check; ADMIN_TOKEN is what /provision (and only /provision) requires.
+function checkAdminAuth(request, env) {
+  const expected = env.ADMIN_TOKEN;
   if (!expected || typeof expected !== 'string') return false;
   const header = request.headers.get('authorization') || '';
   if (!header.startsWith('Bearer ')) return false;
@@ -380,20 +417,137 @@ function checkDataAuth(request, env) {
   return diff === 0;
 }
 
+// Extract the bearer code from the Authorization header. Returns null
+// if missing/malformed. Does NOT validate the code — caller looks it
+// up in KV.
+function extractBearer(request) {
+  const header = request.headers.get('authorization') || '';
+  if (!header.startsWith('Bearer ')) return null;
+  const got = header.slice(7).trim();
+  return got || null;
+}
+
+// Look up `code:{code}` → tenantId, then `tenant:{tenantId}` → metadata.
+// Returns the parsed tenant object, or null on miss / malformed entry.
+async function lookupTenantByCode(env, code) {
+  if (!code || !env.KV) return null;
+  const tenantId = await env.KV.get(`code:${code}`);
+  if (!tenantId) return null;
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+// Per-IP sliding-window failure counter. Read → decide → write. Not
+// transactional (KV doesn't support that), but the worst case is two
+// concurrent bad attempts get counted as one — acceptable.
+async function rateLimitAuthFailure(env, ip) {
+  if (!env.KV || !ip) return { ok: true, remaining: AUTH_RATE_LIMIT_MAX };
+  const key = `ratelimit:auth:${ip}`;
+  const now = Date.now();
+  let state = { n: 0, resetAt: now + AUTH_RATE_LIMIT_WINDOW_MS };
+  try {
+    const raw = await env.KV.get(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.resetAt > now) state = parsed;
+    }
+  } catch {}
+  state.n += 1;
+  // KV TTL ensures the key auto-deletes when the window passes — no
+  // accumulation of stale per-IP keys.
+  const ttl = Math.max(60, Math.ceil((state.resetAt - now) / 1000));
+  await env.KV.put(key, JSON.stringify(state), { expirationTtl: ttl });
+  return { ok: state.n <= AUTH_RATE_LIMIT_MAX, remaining: Math.max(0, AUTH_RATE_LIMIT_MAX - state.n), resetAt: state.resetAt };
+}
+
+async function rateLimitCheck(env, ip) {
+  if (!env.KV || !ip) return { ok: true };
+  try {
+    const raw = await env.KV.get(`ratelimit:auth:${ip}`);
+    if (!raw) return { ok: true };
+    const parsed = JSON.parse(raw);
+    if (parsed.resetAt < Date.now()) return { ok: true };
+    return { ok: parsed.n < AUTH_RATE_LIMIT_MAX, resetAt: parsed.resetAt };
+  } catch { return { ok: true }; }
+}
+
+// POST /provision — admin-only. Body: { label, teacherPassword? }.
+// Returns: { ok, tenant: {id, label, code, teacherPassword, createdAt} }.
+// No idempotency: re-calling with the same label creates a SECOND
+// tenant. CLI script handles "is this what you meant?" UX.
+async function handleProvisionRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const label = (body.label || '').toString().trim().slice(0, 80) || 'Untitled';
+  const teacherPassword = (body.teacherPassword || '').toString().slice(0, 64);
+  const id = generateTenantId();
+  // Try a few times in the unlikely event of a code collision.
+  let code = '';
+  for (let i = 0; i < 5; i++) {
+    const candidate = generateTenantCode();
+    const taken = await env.KV.get(`code:${candidate}`);
+    if (!taken) { code = candidate; break; }
+  }
+  if (!code) return json({ error: 'code_generation_failed' }, 500, corsOrigin);
+  const tenant = { id, label, code, teacherPassword, createdAt: new Date().toISOString() };
+  await env.KV.put(`tenant:${id}`, JSON.stringify(tenant));
+  await env.KV.put(`code:${code}`, id);
+  return json({ ok: true, tenant }, 200, corsOrigin);
+}
+
+// POST /auth — body: { code }. Returns full tenant metadata on hit, 401
+// on miss. Failed attempts increment the per-IP rate-limit counter so
+// brute-force attempts get throttled. Successful attempts do NOT
+// reset the counter (avoid letting an attacker burn their counter via
+// known-good codes).
+async function handleAuthRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const pre = await rateLimitCheck(env, ip);
+  if (!pre.ok) return json({ error: 'rate_limited', resetAt: pre.resetAt }, 429, corsOrigin);
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const code = (body.code || '').toString().trim().toLowerCase();
+  if (!code) return json({ error: 'missing_code' }, 400, corsOrigin);
+  const tenant = await lookupTenantByCode(env, code);
+  if (!tenant) {
+    const after = await rateLimitAuthFailure(env, ip);
+    return json({ error: 'invalid_code', remaining: after.remaining }, 401, corsOrigin);
+  }
+  return json({ ok: true, tenant }, 200, corsOrigin);
+}
+
+// GET /tenant — Bearer = code. Returns the tenant metadata. Used by
+// the client on boot to refresh teacherPassword/label without
+// requiring re-entry of the code.
+async function handleTenantInfoRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  const code = (extractBearer(request) || '').toLowerCase();
+  const tenant = await lookupTenantByCode(env, code);
+  if (!tenant) return json({ error: 'invalid_code' }, 401, corsOrigin);
+  return json({ ok: true, tenant }, 200, corsOrigin);
+}
+
+// /data and /snapshots routing table — same shape as before, but the
+// auth model is "Bearer = tenant code" and KV keys are namespaced by
+// tenantId, not by ?env=.
+const DATA_ROUTES = {
+  'GET /data':      { kind: 'data',      read: true  },
+  'POST /data':     { kind: 'data',      read: false },
+  'GET /snapshots': { kind: 'snapshots', read: true  },
+  'POST /snapshots':{ kind: 'snapshots', read: false },
+};
+
 async function handleDataRoute(request, env, corsOrigin, route) {
-  if (!env.KV) {
-    return json({ error: 'kv_not_bound', reason: 'Worker has no KV namespace bound. Run `wrangler kv:namespace create AI_CACHE` and uncomment the binding in wrangler.toml.' }, 500, corsOrigin);
-  }
-  if (!checkDataAuth(request, env)) {
-    return json({ error: 'unauthorized' }, 401, corsOrigin);
-  }
-  const url = new URL(request.url);
-  const ns = resolveDataEnv(url);
-  const key = `${route.kind}:${ns}`;
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  const code = (extractBearer(request) || '').toLowerCase();
+  const tenant = await lookupTenantByCode(env, code);
+  if (!tenant) return json({ error: 'invalid_code' }, 401, corsOrigin);
+  const key = `tenant:${tenant.id}:${route.kind}`;
   if (route.read) {
-    // GET — return the stored blob verbatim, or empty string if nothing
-    // has been written yet. Client code already handles empty → "no
-    // cloud data yet, fall back to localStorage" gracefully.
     const value = await env.KV.get(key);
     return new Response(value || '', {
       status: 200,
@@ -404,15 +558,12 @@ async function handleDataRoute(request, env, corsOrigin, route) {
       },
     });
   }
-  // POST — overwrite the blob. We trust the body to be the full
-  // serialized state (this matches textdb.dev's contract). Length cap
-  // enforced before the KV write so a runaway client can't bloat KV.
   const body = await request.text();
   if (body.length > DATA_MAX_BYTES) {
     return json({ error: 'payload_too_large', max_bytes: DATA_MAX_BYTES }, 413, corsOrigin);
   }
   await env.KV.put(key, body);
-  return json({ ok: true, bytes: body.length, key }, 200, corsOrigin);
+  return json({ ok: true, bytes: body.length, tenantId: tenant.id }, 200, corsOrigin);
 }
 
 // Routing table. Each entry binds a method+path to (feature flag,
@@ -466,20 +617,21 @@ export default {
       return json({ error: 'origin_not_allowed' }, 403, '');
     }
 
-    // Data backend routes — registered before the AI route table so
-    // they bypass the AI_ENABLED gate, the per-feature flag gate, and
-    // the AI input-length cap (data blobs are bigger and have their
-    // own DATA_MAX_BYTES ceiling). Auth is bearer-token instead of
-    // origin+student-id. See DATA_ROUTES doc-comment for the design.
-    const dataRouteKey = `${request.method} ${url.pathname}`;
-    const dataRoute = DATA_ROUTES[dataRouteKey];
-    if (dataRoute) {
-      try {
-        return await handleDataRoute(request, env, corsOrigin, dataRoute);
-      } catch (err) {
-        console.error('data-route error', err && err.stack || err);
-        return json({ error: 'internal_error' }, 500, corsOrigin);
-      }
+    // Tenant + data backend routes. Registered before the AI route
+    // table so they bypass the AI_ENABLED gate, the per-feature flag
+    // gate, and the AI input-length cap (data blobs are bigger and
+    // have their own DATA_MAX_BYTES ceiling). Auth model differs
+    // per route — see each handler.
+    try {
+      const routeKey = `${request.method} ${url.pathname}`;
+      if (routeKey === 'POST /provision') return await handleProvisionRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /auth')      return await handleAuthRoute(request, env, corsOrigin);
+      if (routeKey === 'GET /tenant')     return await handleTenantInfoRoute(request, env, corsOrigin);
+      const dataRoute = DATA_ROUTES[routeKey];
+      if (dataRoute) return await handleDataRoute(request, env, corsOrigin, dataRoute);
+    } catch (err) {
+      console.error('tenant-route error', err && err.stack || err);
+      return json({ error: 'internal_error' }, 500, corsOrigin);
     }
 
     // Route lookup. Unknown path → 404.
@@ -1299,11 +1451,12 @@ function buildHealthPayload(env) {
     has_openai_key: !!env.OPENAI_API_KEY,
     has_elevenlabs_key: !!env.ELEVENLABS_API_KEY,
     kv_bound: !!env.KV,
-    // Data backend (Phase 0a) — both must be true for /data + /snapshots
-    // to actually work. Surfaced here so the deploy checklist can curl
-    // /health and confirm everything is wired before flipping the
-    // client over to the new backend.
-    data_backend_ready: !!(env.KV && env.DATA_TOKEN),
+    // Tenant backend (Phase 0b) — KV must be bound for /auth, /data,
+    // /snapshots; ADMIN_TOKEN must be set for /provision. Surfaced
+    // here so the deploy checklist can curl /health and confirm
+    // everything is wired before provisioning the first tenant.
+    tenant_backend_ready: !!env.KV,
+    admin_provision_ready: !!(env.KV && env.ADMIN_TOKEN),
     features,
     caps: {
       max_input_chars: intEnv(env.MAX_INPUT_CHARS, DEFAULT_MAX_INPUT_CHARS),
