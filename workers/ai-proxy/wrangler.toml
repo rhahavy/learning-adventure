@@ -73,24 +73,46 @@ ANTHROPIC_MODEL = "claude-haiku-4-5"
 [observability]
 enabled = true
 
-# ----- KV BINDING (OPTIONAL BUT RECOMMENDED) --------------------
-# Used for: per-student daily cap counter, audit log (30-day TTL),
-# response cache (saves real money on repeated questions).
+# ----- KV BINDING (REQUIRED FOR DATA BACKEND, OPTIONAL FOR AI) --
+# Used for:
+#   • Phase 0a data backend: stores the student-data + snapshots
+#     blobs that used to live on textdb.dev. REQUIRED — without KV,
+#     /data and /snapshots return 500 "kv_not_bound".
+#   • AI cache + per-student daily counter + audit log. Optional;
+#     AI handlers fail-open without KV.
 #
 # Before first activation:
 #   cd workers/ai-proxy
 #   wrangler kv:namespace create AI_CACHE
 # Paste the returned id below, then uncomment the block.
 #
-# If KV is not bound:
-#   - /health reports kv_bound: false
-#   - daily cap is fail-open (no enforcement)
-#   - no audit log is written
-#   - no response cache (every call hits the paid API)
-# For Phase A flag-on usage this is fine — the first few weeks of
-# traffic are low enough that KV isn't strictly required. But bind
-# it before turning on SIDEKICK or anything with sustained volume.
+# Even though it's now required for /data, kept the binding name "KV"
+# (not "DATA_KV") because the AI handlers also use it — keys are
+# namespaced (`data:prod`, `data:dev`, `snapshots:prod`, etc.) so
+# collisions are impossible.
 #
 # [[kv_namespaces]]
 # binding = "KV"
 # id = "<paste-from-wrangler-kv-namespace-create-output>"
+
+# ----- DATA BACKEND TOKEN (REQUIRED FOR /data + /snapshots) -----
+# Phase 0a single-tenant auth. Set via:
+#   wrangler secret put DATA_TOKEN
+#   <paste a long random string when prompted>
+#
+# Generate one with:
+#   openssl rand -base64 48
+#
+# The same token must be pasted into index.html as DATA_BACKEND_TOKEN
+# so the client can send it in the Authorization: Bearer header. Yes,
+# that means the token is visible to anyone with view-source on the
+# site — that's the Phase 0a trust model (same blast radius as the
+# textdb.dev bucket name was, just shifted to "view-source attackers"
+# instead of "URL guessers"). Phase 0b replaces this with per-tenant
+# sessions and isolated KV keys.
+#
+# Rotate the token by:
+#   1. wrangler secret put DATA_TOKEN  (with the new value)
+#   2. Update DATA_BACKEND_TOKEN in index.html
+#   3. Deploy both
+# Old in-flight requests fail until the client picks up the new token.

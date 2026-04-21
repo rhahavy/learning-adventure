@@ -7911,9 +7911,146 @@ const CLOUD_BUCKET = IS_DEV_ENV ? CLOUD_BUCKET_DEV : CLOUD_BUCKET_PROD;
 const CLOUD_URL = 'https://textdb.dev/api/data/' + CLOUD_BUCKET;
 const CLOUD_SNAPSHOTS_BUCKET = IS_DEV_ENV ? CLOUD_SNAPSHOTS_BUCKET_DEV : CLOUD_SNAPSHOTS_BUCKET_PROD;
 const CLOUD_SNAPSHOTS_URL = 'https://textdb.dev/api/data/' + CLOUD_SNAPSHOTS_BUCKET;
+
+/* ========== PHASE 0a DATA BACKEND (Cloudflare Worker + KV) ==========
+   Replaces the textdb.dev shared public buckets with our own Worker
+   endpoints. When both constants below are non-empty, every cloud
+   read/write is routed through the Worker with a bearer token. When
+   either is blank, the site falls back to textdb.dev exactly as
+   before — zero behavior change until a human flips the switch.
+
+   Deploy steps (one-time):
+     1. cd workers/ai-proxy
+     2. wrangler kv:namespace create AI_CACHE   (paste id into wrangler.toml)
+     3. openssl rand -base64 48                  (generate a token)
+     4. wrangler secret put DATA_TOKEN           (paste when prompted)
+     5. wrangler deploy                          (get the URL)
+     6. Paste URL + token into the two constants below
+     7. Reload the site, check console for "using WORKER backend"
+     8. Migrate existing textdb.dev data with the one-time helper:
+          open devtools console on the live site → __migrateCloudToWorker()
+     9. Verify by reloading + checking that kids see their progress
+
+   Security note: the DATA_TOKEN is visible in view-source — that's the
+   intentional Phase 0a trust model. It's still strictly better than
+   the textdb.dev bucket name (which was equally visible AND anonymous
+   AND guessable). Phase 0b replaces this with real signup/login.
+
+   Rollback: blank either constant, reload. The textdb.dev code path
+   kicks back in. Keep this fallback until you've verified the Worker
+   is stable for at least a week. */
+const DATA_BACKEND_URL   = '';  // e.g. 'https://kidquest-ai-proxy.rhahavy.workers.dev'
+const DATA_BACKEND_TOKEN = '';  // must match the DATA_TOKEN secret set on the Worker
+
+function isWorkerBackendActive(){
+  return !!(DATA_BACKEND_URL && DATA_BACKEND_TOKEN);
+}
+// Build the full URL for a given resource ('data' | 'snapshots'). The
+// env query param lets the Worker namespace KV keys so the existing
+// dev/prod isolation survives the migration off textdb.dev.
+function dataBackendUrl(kind){
+  const env = IS_DEV_ENV ? 'dev' : 'prod';
+  return DATA_BACKEND_URL.replace(/\/+$/, '') + '/' + kind + '?env=' + env;
+}
+// Common headers for every Worker call. Content-Type stays text/plain
+// to match the existing contract (JSON as the body, no special parsing
+// server-side). Authorization is the Phase 0a bearer token.
+function dataBackendHeaders(){
+  return {
+    'Content-Type': 'text/plain',
+    'Authorization': 'Bearer ' + DATA_BACKEND_TOKEN,
+  };
+}
+
 // Surface the choice in the console so you can SEE which bucket this tab
 // talks to. Visible banner added later in the boot sequence for the teacher.
-try { console.log('[KidQuest] cloud bucket:', IS_DEV_ENV ? 'DEV sandbox' : 'PRODUCTION', '('+CLOUD_BUCKET+')'); } catch(e){}
+try {
+  const backend = isWorkerBackendActive() ? 'WORKER' : 'textdb.dev (legacy)';
+  console.log('[KidQuest] cloud bucket:', IS_DEV_ENV ? 'DEV sandbox' : 'PRODUCTION', '('+CLOUD_BUCKET+')', '— backend:', backend);
+} catch(e){}
+
+/* ========== ONE-TIME MIGRATION: textdb.dev → Worker KV ==========
+   Call this from the devtools console AFTER the Worker is deployed
+   AND DATA_BACKEND_URL/TOKEN are filled in. It:
+     1. Reads the current allData blob from textdb.dev (production OR
+        dev, whichever bucket this tab is on).
+     2. Reads the snapshot ring from textdb.dev.
+     3. POSTs both to the Worker's /data and /snapshots endpoints.
+     4. Re-reads from the Worker to confirm the round-trip succeeded.
+     5. Logs a summary you can screenshot for your records.
+
+   Idempotent — safe to run multiple times. Each run overwrites the
+   Worker copy with the latest textdb.dev state. Run once on prod,
+   once on dev (open a localhost tab to migrate the dev bucket).
+
+   Does NOT delete the textdb.dev copy. Leaves it intact as a rollback
+   point in case the Worker has issues. Once you've verified the
+   Worker for ~1 week, you can manually delete the textdb.dev blobs
+   by visiting the bucket URLs and POSTing an empty body, or just
+   leave them to expire. */
+async function __migrateCloudToWorker(){
+  if(!isWorkerBackendActive()){
+    console.error('[migrate] Worker backend not configured. Set DATA_BACKEND_URL and DATA_BACKEND_TOKEN in index.html first.');
+    return { ok:false, reason:'backend_not_configured' };
+  }
+  const env = IS_DEV_ENV ? 'dev' : 'prod';
+  console.log('[migrate] Starting migration from textdb.dev → Worker KV ('+env+')');
+  const out = { env, dataBytes:0, snapshotsBytes:0, dataVerifiedBytes:0, snapshotsVerifiedBytes:0, errors:[] };
+  // Step 1: read data from textdb.dev
+  let dataBody = '';
+  try {
+    const r = await fetch(CLOUD_URL + '?_=' + Date.now(), { cache:'no-store' });
+    if(!r.ok) throw new Error('textdb.dev /data HTTP '+r.status);
+    dataBody = await r.text();
+    out.dataBytes = dataBody.length;
+    console.log('[migrate] Read', out.dataBytes, 'bytes of /data from textdb.dev');
+  } catch(e){ out.errors.push('read_data: '+e.message); console.error('[migrate] data read failed:', e); }
+  // Step 2: read snapshots from textdb.dev
+  let snapBody = '';
+  try {
+    const r = await fetch(CLOUD_SNAPSHOTS_URL + '?_=' + Date.now(), { cache:'no-store' });
+    if(!r.ok) throw new Error('textdb.dev /snapshots HTTP '+r.status);
+    snapBody = await r.text();
+    out.snapshotsBytes = snapBody.length;
+    console.log('[migrate] Read', out.snapshotsBytes, 'bytes of /snapshots from textdb.dev');
+  } catch(e){ out.errors.push('read_snapshots: '+e.message); console.error('[migrate] snapshots read failed:', e); }
+  // Step 3: POST data to Worker
+  if(dataBody){
+    try {
+      const r = await fetch(dataBackendUrl('data'), { method:'POST', headers:dataBackendHeaders(), body:dataBody });
+      if(!r.ok) throw new Error('Worker /data HTTP '+r.status+': '+(await r.text()).slice(0,200));
+      console.log('[migrate] POSTed /data to Worker');
+    } catch(e){ out.errors.push('write_data: '+e.message); console.error('[migrate] data write failed:', e); }
+  }
+  // Step 4: POST snapshots to Worker
+  if(snapBody){
+    try {
+      const r = await fetch(dataBackendUrl('snapshots'), { method:'POST', headers:dataBackendHeaders(), body:snapBody });
+      if(!r.ok) throw new Error('Worker /snapshots HTTP '+r.status+': '+(await r.text()).slice(0,200));
+      console.log('[migrate] POSTed /snapshots to Worker');
+    } catch(e){ out.errors.push('write_snapshots: '+e.message); console.error('[migrate] snapshots write failed:', e); }
+  }
+  // Step 5: round-trip verification
+  try {
+    const r = await fetch(dataBackendUrl('data')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } });
+    if(r.ok){ const t = await r.text(); out.dataVerifiedBytes = t.length; }
+  } catch(e){ out.errors.push('verify_data: '+e.message); }
+  try {
+    const r = await fetch(dataBackendUrl('snapshots')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } });
+    if(r.ok){ const t = await r.text(); out.snapshotsVerifiedBytes = t.length; }
+  } catch(e){ out.errors.push('verify_snapshots: '+e.message); }
+  out.ok = out.errors.length === 0
+    && (out.dataBytes === 0 || out.dataVerifiedBytes === out.dataBytes)
+    && (out.snapshotsBytes === 0 || out.snapshotsVerifiedBytes === out.snapshotsBytes);
+  if(out.ok){
+    console.log('%c[migrate] ✅ Migration successful', 'color:#0a0;font-weight:bold', out);
+    console.log('[migrate] Next: reload the page and verify kids see their progress. Then leave textdb.dev alone for ~1 week as a rollback point.');
+  } else {
+    console.warn('%c[migrate] ⚠️  Migration completed with issues — review carefully before reloading', 'color:#a60;font-weight:bold', out);
+  }
+  return out;
+}
+try { window.__migrateCloudToWorker = __migrateCloudToWorker; } catch(e){}
 const POLL_MS = 25000;
 
 // Parent progress reports — always CC the business owner so Rhahavy sees
@@ -8168,7 +8305,17 @@ const defaultAll = () => ({
 });
 
 // Reset URL handler: ?reset=1 or ?reset=cloud
-(function(){try{const u=new URL(location.href),r=u.searchParams.get('reset');if(!r)return;localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(LOCAL_USER_KEY);if(r==='cloud'){fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(defaultAll())}).catch(()=>{})}u.searchParams.delete('reset');history.replaceState({},'',u.pathname)}catch(e){}})();
+(function(){try{const u=new URL(location.href),r=u.searchParams.get('reset');if(!r)return;localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(LOCAL_USER_KEY);if(r==='cloud'){
+  // Phase 0a: route the destructive `?reset=cloud` through the active
+  // backend so we don't accidentally wipe the legacy textdb.dev blob
+  // while the Worker is the one in use (or vice versa).
+  const body=JSON.stringify(defaultAll());
+  if(isWorkerBackendActive()){
+    fetch(dataBackendUrl('data'),{method:'POST',headers:dataBackendHeaders(),body}).catch(()=>{});
+  } else {
+    fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body}).catch(()=>{});
+  }
+}u.searchParams.delete('reset');history.replaceState({},'',u.pathname)}catch(e){}})();
 
 /* Safely load stored data. If version mismatch or corrupt, wipe and start fresh. */
 function nukeBadData(reason){
@@ -8675,7 +8822,13 @@ async function pullCloud(init){
   // the real data, to allData). The guard auto-lifts on exitImpersonation.
   if(impersonating) return;
   try{
-    const r=await fetch(CLOUD_URL+'?_='+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;
+    // Phase 0a: prefer the Worker backend when configured. Both branches
+    // return the same body shape (the serialized allData blob) so the
+    // rest of the function doesn't care which one served the response.
+    const r = isWorkerBackendActive()
+      ? await fetch(dataBackendUrl('data')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } })
+      : await fetch(CLOUD_URL+'?_='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw 0;
     const t=await r.text();if(!t)return;
     const d=JSON.parse(t);if(!d||!d.users)return;
     if((d.updatedAt||0)<=(allData.updatedAt||0))return;
@@ -8773,7 +8926,13 @@ async function pullCloud(init){
 }
 async function syncToCloud(){
   if(cloudBusy){pendingWrite=true;return}cloudBusy=true;
-  try{await fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(allData)})}catch(e){}
+  try{
+    if(isWorkerBackendActive()){
+      await fetch(dataBackendUrl('data'), { method:'POST', headers:dataBackendHeaders(), body:JSON.stringify(allData) });
+    } else {
+      await fetch(CLOUD_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(allData) });
+    }
+  }catch(e){}
   cloudBusy=false;if(pendingWrite){pendingWrite=false;syncToCloud()}
 }
 
@@ -8923,7 +9082,9 @@ function deleteSnapshot(index){
    ----------------------------------------------------------------------- */
 async function fetchCloudSnapshots(){
   try {
-    const r = await fetch(CLOUD_SNAPSHOTS_URL + '?_=' + Date.now(), { cache: 'no-store' });
+    const r = isWorkerBackendActive()
+      ? await fetch(dataBackendUrl('snapshots')+'&_='+Date.now(), { cache:'no-store', headers:{ 'Authorization':'Bearer '+DATA_BACKEND_TOKEN } })
+      : await fetch(CLOUD_SNAPSHOTS_URL + '?_=' + Date.now(), { cache: 'no-store' });
     if(!r.ok) return [];
     const t = await r.text();
     if(!t) return [];
@@ -8936,11 +9097,11 @@ async function fetchCloudSnapshots(){
 async function writeCloudSnapshots(list){
   try {
     const body = JSON.stringify({ snapshots: list.slice(0, SNAP_MAX), updatedAt: Date.now() });
-    await fetch(CLOUD_SNAPSHOTS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body,
-    });
+    if(isWorkerBackendActive()){
+      await fetch(dataBackendUrl('snapshots'), { method:'POST', headers:dataBackendHeaders(), body });
+    } else {
+      await fetch(CLOUD_SNAPSHOTS_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body });
+    }
     return true;
   } catch(e){ return false; }
 }

@@ -49,6 +49,24 @@ is disabled — the frontend should have a fallback path for every one.
 **Current state:** every endpoint is scaffolded but returns
 `503 feature_disabled → not_implemented` until its handler ships.
 
+### Data backend (Phase 0a — replaces textdb.dev)
+
+These routes don't go through the AI flag chain. They store the
+serialized student-data and snapshot blobs that previously lived on
+textdb.dev's public buckets, and require a bearer token.
+
+| Method | Path | What it does |
+|---|---|---|
+| `GET`  | `/data?env=prod\|dev` | Read the student-data blob for the env |
+| `POST` | `/data?env=prod\|dev` | Overwrite the student-data blob |
+| `GET`  | `/snapshots?env=prod\|dev` | Read the snapshot ring |
+| `POST` | `/snapshots?env=prod\|dev` | Overwrite the snapshot ring |
+
+All four require `Authorization: Bearer <DATA_TOKEN>`. KV must be
+bound (returns 500 `kv_not_bound` otherwise). 5 MB ceiling per blob.
+
+**Activation:** see "Phase 0a — Data backend" below.
+
 ## First-time deploy (zero-cost)
 
 This gets the Worker live without turning on any paid features.
@@ -79,6 +97,78 @@ Hit `/health` in a browser — you should see:
 ```
 
 That's the "deployed but dormant" state. No money moves.
+
+## Phase 0a — Data backend (gets you off textdb.dev)
+
+The single most urgent activation. Before this, the site syncs student
+data through `textdb.dev` — a third-party public paste service. Anyone
+who knows the bucket name can read or overwrite all your students'
+progress, names, ages, parent emails, etc. This phase moves data sync
+to your own Cloudflare Worker + KV.
+
+```bash
+cd workers/ai-proxy
+
+# 1. Create the KV namespace (or reuse the existing AI_CACHE one).
+wrangler kv:namespace create AI_CACHE
+# Paste the printed `id = "..."` into wrangler.toml under [[kv_namespaces]]
+# and uncomment the binding block.
+
+# 2. Generate a long random data token.
+openssl rand -base64 48
+# (Save it somewhere — you'll paste it twice.)
+
+# 3. Set it as a Worker secret.
+wrangler secret put DATA_TOKEN
+# Paste the token when prompted.
+
+# 4. Deploy.
+wrangler deploy
+```
+
+Verify with:
+
+```bash
+curl -s "https://kidquest-ai-proxy.<sub>.workers.dev/health" | jq
+# Look for: "kv_bound": true, "data_backend_ready": true
+```
+
+Then in `index.html`, fill in the two constants:
+
+```js
+const DATA_BACKEND_URL   = 'https://kidquest-ai-proxy.<sub>.workers.dev';
+const DATA_BACKEND_TOKEN = '<the same token you put as DATA_TOKEN>';
+```
+
+Reload the site. The console should print `— backend: WORKER`.
+
+**One-time data migration** — copy existing textdb.dev data into the
+new Worker KV:
+
+1. Open the live site (`https://rhahavy.github.io/kidquest/`) in a
+   browser with devtools open.
+2. In the console, run:
+   ```js
+   await __migrateCloudToWorker()
+   ```
+3. You should see `✅ Migration successful` and a summary of bytes
+   transferred. If you see ⚠️, read the `errors` array carefully —
+   do NOT reload the live site until those are resolved (kids would
+   land on default state).
+4. For the dev sandbox, repeat from a localhost tab.
+5. Reload the live site and verify kids see their progress unchanged.
+
+**Rollback:** blank either of the two `index.html` constants and
+reload. The textdb.dev code path kicks back in. Keep this rollback
+available for at least a week before manually wiping the textdb.dev
+buckets.
+
+**What's still single-tenant:** the `DATA_TOKEN` is one shared token
+for everyone. Anyone with view-source on the site can read/write the
+blob. This is strictly better than textdb.dev (which was equally
+visible AND publicly guessable AND anonymous), but it's not yet
+multi-tenant. Phase 0b replaces this with per-tutor accounts +
+isolated KV keys.
 
 ## Activation ladder
 

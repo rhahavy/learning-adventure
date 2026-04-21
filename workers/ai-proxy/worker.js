@@ -316,6 +316,105 @@ function scanOutputForCurriculumViolation(out) {
   return false;
 }
 
+// ==========================================================================
+// DATA BACKEND — replaces the textdb.dev shared bucket
+// ==========================================================================
+// These routes are registered separately from ROUTES because they:
+//   • Don't depend on AI_ENABLED or any FEATURE_* flag (data sync must
+//     work even when AI is fully off — they're orthogonal concerns).
+//   • Use bearer-token auth (env.DATA_TOKEN) instead of going through
+//     the per-student daily cap / cache pipeline.
+//   • Read/write to a KV namespace (the same AI_CACHE binding, with
+//     keys prefixed `data:` and `snapshots:` so collisions are
+//     impossible) instead of calling out to an AI provider.
+//
+// Phase 0a goal: get off textdb.dev. The single DATA_TOKEN is shared
+// across all callers — i.e. anyone with the token can read/write the
+// blob. That's the same trust model as the textdb.dev bucket name was,
+// just shifted from "anyone who guesses the URL" to "anyone with view
+// source on the site". Phase 0b will replace this with per-tenant
+// sessions and isolated KV keys.
+//
+// Env namespacing: callers pass `?env=prod` or `?env=dev` so that the
+// dev/prod buckets that existed on textdb.dev keep working as separate
+// blobs in KV. Anything else falls back to prod (safer default — a
+// bug in env detection lands you on prod, not in a sandbox).
+const DATA_ROUTES = {
+  'GET /data':          { kind: 'data',      read: true  },
+  'POST /data':         { kind: 'data',      read: false },
+  'GET /snapshots':     { kind: 'snapshots', read: true  },
+  'POST /snapshots':    { kind: 'snapshots', read: false },
+};
+
+// 24h is the floor — a kid blob shouldn't grow past a few MB even with
+// months of progress + chat history, but a hard ceiling is cheap
+// insurance against a bug that double-encodes or appends without
+// bound. Cloudflare KV's hard limit is 25 MB per value; 5 MB gives
+// us 5x headroom and matches localStorage's typical cap.
+const DATA_MAX_BYTES = 5 * 1024 * 1024;
+
+// Resolve `env` query param to a KV key namespace. Accepts only the
+// two known values; anything else (missing, garbage) → 'prod'. This
+// mirrors the IS_DEV_ENV detection on the client; the client always
+// sends the env it thinks it's on, the Worker honors it.
+function resolveDataEnv(url) {
+  const v = (url.searchParams.get('env') || '').trim().toLowerCase();
+  return (v === 'dev') ? 'dev' : 'prod';
+}
+
+// Constant-time-ish bearer check. We compare lengths first to avoid an
+// early-return timing leak on totally-wrong-length tokens, then walk
+// the string. For a real auth system we'd use crypto.subtle.timingSafeEqual,
+// but for a single shared deploy token the practical attack surface is
+// "an attacker has access to the source map" — not "an attacker is
+// timing nanoseconds against our Worker". Good enough for Phase 0a.
+function checkDataAuth(request, env) {
+  const expected = env.DATA_TOKEN;
+  if (!expected || typeof expected !== 'string') return false;
+  const header = request.headers.get('authorization') || '';
+  if (!header.startsWith('Bearer ')) return false;
+  const got = header.slice(7);
+  if (got.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < got.length; i++) diff |= got.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+
+async function handleDataRoute(request, env, corsOrigin, route) {
+  if (!env.KV) {
+    return json({ error: 'kv_not_bound', reason: 'Worker has no KV namespace bound. Run `wrangler kv:namespace create AI_CACHE` and uncomment the binding in wrangler.toml.' }, 500, corsOrigin);
+  }
+  if (!checkDataAuth(request, env)) {
+    return json({ error: 'unauthorized' }, 401, corsOrigin);
+  }
+  const url = new URL(request.url);
+  const ns = resolveDataEnv(url);
+  const key = `${route.kind}:${ns}`;
+  if (route.read) {
+    // GET — return the stored blob verbatim, or empty string if nothing
+    // has been written yet. Client code already handles empty → "no
+    // cloud data yet, fall back to localStorage" gracefully.
+    const value = await env.KV.get(key);
+    return new Response(value || '', {
+      status: 200,
+      headers: {
+        ...corsHeaders(corsOrigin),
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'no-store',
+      },
+    });
+  }
+  // POST — overwrite the blob. We trust the body to be the full
+  // serialized state (this matches textdb.dev's contract). Length cap
+  // enforced before the KV write so a runaway client can't bloat KV.
+  const body = await request.text();
+  if (body.length > DATA_MAX_BYTES) {
+    return json({ error: 'payload_too_large', max_bytes: DATA_MAX_BYTES }, 413, corsOrigin);
+  }
+  await env.KV.put(key, body);
+  return json({ ok: true, bytes: body.length, key }, 200, corsOrigin);
+}
+
 // Routing table. Each entry binds a method+path to (feature flag,
 // handler function). The handler runs only after the master flag +
 // the feature flag are both on AND the input passes the length cap.
@@ -365,6 +464,22 @@ export default {
     // site at our Worker and drain API credits.
     if (!corsOrigin) {
       return json({ error: 'origin_not_allowed' }, 403, '');
+    }
+
+    // Data backend routes — registered before the AI route table so
+    // they bypass the AI_ENABLED gate, the per-feature flag gate, and
+    // the AI input-length cap (data blobs are bigger and have their
+    // own DATA_MAX_BYTES ceiling). Auth is bearer-token instead of
+    // origin+student-id. See DATA_ROUTES doc-comment for the design.
+    const dataRouteKey = `${request.method} ${url.pathname}`;
+    const dataRoute = DATA_ROUTES[dataRouteKey];
+    if (dataRoute) {
+      try {
+        return await handleDataRoute(request, env, corsOrigin, dataRoute);
+      } catch (err) {
+        console.error('data-route error', err && err.stack || err);
+        return json({ error: 'internal_error' }, 500, corsOrigin);
+      }
     }
 
     // Route lookup. Unknown path → 404.
@@ -1184,6 +1299,11 @@ function buildHealthPayload(env) {
     has_openai_key: !!env.OPENAI_API_KEY,
     has_elevenlabs_key: !!env.ELEVENLABS_API_KEY,
     kv_bound: !!env.KV,
+    // Data backend (Phase 0a) — both must be true for /data + /snapshots
+    // to actually work. Surfaced here so the deploy checklist can curl
+    // /health and confirm everything is wired before flipping the
+    // client over to the new backend.
+    data_backend_ready: !!(env.KV && env.DATA_TOKEN),
     features,
     caps: {
       max_input_chars: intEnv(env.MAX_INPUT_CHARS, DEFAULT_MAX_INPUT_CHARS),
@@ -1202,7 +1322,10 @@ function getAllowedOrigins(env) {
 function corsHeaders(origin) {
   const h = {
     'access-control-allow-methods': 'POST, GET, OPTIONS',
-    'access-control-allow-headers': 'content-type, x-student-id',
+    // `authorization` is required by the data backend routes (Phase 0a
+    // bearer-token auth). Browsers omit it from cross-origin requests
+    // unless explicitly listed in the preflight's allow-headers.
+    'access-control-allow-headers': 'content-type, x-student-id, authorization',
     'access-control-max-age': '86400',
     'vary': 'Origin',
   };
