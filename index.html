@@ -7946,22 +7946,43 @@ const CLOUD_SNAPSHOTS_URL = 'https://textdb.dev/api/data/' + CLOUD_SNAPSHOTS_BUC
    Provision a tenant: bash workers/ai-proxy/provision-tenant.sh "Smith Family"
 */
 const DATA_BACKEND_URL   = 'https://kidquest-ai-proxy.rhahavy-b.workers.dev';
-const DATA_BACKEND_TOKEN = '';  // Phase 0b: bearer is the per-tenant code, set at runtime  // Phase 0b: unused; bearer is the per-tenant code (set via tenant_state)
+const DATA_BACKEND_TOKEN = '';  // Phase 0b: bearer is the per-tenant code, set at runtime  // Phase 0b: bearer is the per-tenant code, set at runtime  // Phase 0b: unused; bearer is the per-tenant code (set via tenant_state)
 
 const TENANT_STORAGE_KEY = 'kidquest-tenant';
 let tenant_state = null;  // {id, code, label, teacherPassword, createdAt} or null
+
+// Dev-only tenant session lifetime. Production has no expiration —
+// families stay signed in until they manually Switch. On localhost
+// (IS_DEV_ENV) the session expires after this many ms so stale test
+// tabs don't stay logged in across sessions.
+const TENANT_DEV_SESSION_MS = 10 * 60 * 1000;
 
 function loadTenantFromStorage(){
   try {
     const raw = localStorage.getItem(TENANT_STORAGE_KEY);
     if(!raw) return null;
     const parsed = JSON.parse(raw);
-    if(parsed && typeof parsed === 'object' && parsed.code && parsed.id) return parsed;
+    if(!parsed || typeof parsed !== 'object' || !parsed.code || !parsed.id) return null;
+    if(!parsed.savedAt){
+      // Backfill for pre-expiration installs: first visit after the
+      // change stamps the current time, so the 10-minute window starts
+      // now and the user isn't immediately kicked.
+      parsed.savedAt = Date.now();
+      try { localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(parsed)); } catch(e){}
+    }
+    if(IS_DEV_ENV && (Date.now() - parsed.savedAt) > TENANT_DEV_SESSION_MS){
+      try { localStorage.removeItem(TENANT_STORAGE_KEY); } catch(e){}
+      return null;
+    }
+    return parsed;
   } catch(e){}
   return null;
 }
 function saveTenantToStorage(t){
-  try { localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(t)); } catch(e){}
+  try {
+    const stamped = Object.assign({}, t, { savedAt: Date.now() });
+    localStorage.setItem(TENANT_STORAGE_KEY, JSON.stringify(stamped));
+  } catch(e){}
 }
 function clearTenantFromStorage(){
   try { localStorage.removeItem(TENANT_STORAGE_KEY); } catch(e){}
@@ -13128,6 +13149,20 @@ let _prevTopbarUser = null, _prevTopbarCoins = 0;
 function updateTopbar(screen){
   const nav=$('#nav'); const pills=$('#pills');
   nav.innerHTML=''; pills.innerHTML='';
+  if(tenant_state && tenant_state.label){
+    const tenantPill = h('span',{
+      class:'pill pill-tenant',
+      style:'display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:#f1f3f5;color:#495057;border-radius:999px;font-size:12px;font-weight:700;'
+    },[
+      h('span',{}, '🏠 '+tenant_state.label),
+      h('button',{
+        type:'button',
+        style:'background:none;border:none;color:#0984e3;font-weight:700;cursor:pointer;padding:0;font:inherit;text-decoration:underline;',
+        onclick: ()=>{ if(confirm('Switch classroom? This signs out of "'+tenant_state.label+'" on this device.')) clearTenantAndReload(); }
+      }, 'Switch')
+    ]);
+    pills.appendChild(tenantPill);
+  }
   if(isTeacher){
     nav.appendChild(h('button',{class:'nav-btn active',onclick:()=>go('teacher')},'📊 Dashboard'));
     nav.appendChild(h('button',{class:'nav-btn',onclick:logout},'🚪 Log Out'));
@@ -22366,7 +22401,7 @@ function showTenantGate(){
     +   '<div style="font-size:44px;margin-bottom:8px;">🌟</div>'
     +   '<h1 id="kq-tg-title" style="margin:0 0 8px;font-size:26px;color:#2d3436;font-weight:800;">Welcome to KidQuest</h1>'
     +   '<p style="margin:0 0 24px;color:#636e72;font-size:15px;line-height:1.5;">Enter your classroom PIN to begin.</p>'
-    +   '<input id="kq-tg-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="• • • •" style="width:220px;max-width:100%;padding:18px 16px;border:2.5px solid #dfe6e9;border-radius:16px;font-size:36px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;outline:none;box-sizing:border-box;letter-spacing:.35em;color:#2d3436;" aria-label="4-digit classroom PIN" />'
+    +   '<input id="kq-tg-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="••••" style="width:220px;max-width:100%;padding:18px 16px;border:2.5px solid #dfe6e9;border-radius:16px;font-size:36px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;outline:none;box-sizing:border-box;letter-spacing:.35em;color:#2d3436;" aria-label="4-digit classroom PIN" />'
     +   '<button id="kq-tg-submit" type="button" style="margin-top:18px;width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.02em;">Enter</button>'
     +   '<div id="kq-tg-msg" style="margin-top:14px;font-size:13px;color:#d63031;min-height:1em;line-height:1.4;" aria-live="polite"></div>'
     +   '<div style="margin-top:20px;padding-top:18px;border-top:1px solid #f1f3f5;font-size:12px;color:#b2bec3;line-height:1.5;">'
