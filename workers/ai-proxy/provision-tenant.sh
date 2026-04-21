@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # provision-tenant.sh
 # ------------------------------------------------------------------
-# Mints a new classroom/family code on the KidQuest multi-tenant
+# Mints a new classroom/family code on the Solvix multi-tenant
 # backend. Each classroom gets a short PIN (4 digits) that becomes
 # the bearer token the app uses against /data and /snapshots.
 #

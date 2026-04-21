@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # unprovision-tenant.sh
 # ------------------------------------------------------------------
-# Removes a classroom/family from the KidQuest backend. Wipes the
+# Removes a classroom/family from the Solvix backend. Wipes the
 # tenant record, its code alias, and any stored data + snapshots.
 # Admin-gated (reads .admin-token or KIDQUEST_ADMIN_TOKEN).
 #

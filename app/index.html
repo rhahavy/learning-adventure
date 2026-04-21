@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#6C5CE7">
-<title>KidQuest — Where Learning Becomes an Adventure</title>
+<title>Solvix — Where Learning Becomes an Adventure</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -1081,7 +1081,7 @@ img{max-width:100%}
 @media(max-width:540px){.t-review-banner{flex-direction:column;align-items:flex-start}}
 
 /* ==========================================================================
-   NOVA — the KidQuest alien mascot
+   NOVA — the Solvix alien mascot
    --------------------------------------------------------------------------
    Pure inline SVG. Renders anywhere via createMascot({size, message, tone}).
    Cheeks pulse, antenna bobs, arm waves — CSS-only, no JS animation loops.
@@ -2478,20 +2478,20 @@ body.has-dev-banner{padding-top:26px}
 <div class="bg-mesh"></div>
 <div class="app">
   <header class="topbar">
-    <!-- Brand is a button so clicking the rocket / "KidQuest" wordmark takes
+    <!-- Brand is a button so clicking the rocket / "Solvix" wordmark takes
          you to the public welcome screen (hero + "Get Started →"), not the
          current student's dashboard. The in-nav "🏠 Home" button still goes
          to the dashboard for logged-in students; this is the logo-as-home
          affordance, useful for parents/visitors viewing over a kid's
          shoulder who want the landing page, and for kids who want to switch
          back to the profile picker without hunting for "Switch." -->
-    <button class="brand" type="button" onclick="go('home')" aria-label="KidQuest — go to welcome page"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c2.5 2.5 4 5.5 4 9v6l-2 2h-4l-2-2v-6c0-3.5 1.5-6.5 4-9z"/><circle cx="12" cy="10" r="1.8"/><path d="M8 14l-3 4v2l3-1M16 14l3 4v2l-3-1"/></svg></span><span class="brand-text">KidQuest</span></button>
+    <button class="brand" type="button" onclick="go('home')" aria-label="Solvix — go to welcome page"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c2.5 2.5 4 5.5 4 9v6l-2 2h-4l-2-2v-6c0-3.5 1.5-6.5 4-9z"/><circle cx="12" cy="10" r="1.8"/><path d="M8 14l-3 4v2l3-1M16 14l3 4v2l-3-1"/></svg></span><span class="brand-text">Solvix</span></button>
     <nav id="nav"></nav>
     <div class="pills" id="pills"></div>
   </header>
   <main id="screen"></main>
   <footer class="footer">
-    <div class="brand-footer">KidQuest v1.0 · Built by Rhahavy</div>
+    <div class="brand-footer">Solvix v1.0 · Built by Rhahavy</div>
   </footer>
 </div>
 <button id="fab" class="fab hidden" title="Home" aria-label="Go home"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-7v6h-4A1.5 1.5 0 0 1 3 20Z"/></svg></button>
@@ -2617,7 +2617,7 @@ function icon(name,size){
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   📘 AUTHOR'S GUIDE — how to grow KidQuest over time
+   📘 AUTHOR'S GUIDE — how to grow Solvix over time
    ══════════════════════════════════════════════════════════════════════════
 
    ADD A NEW STUDENT
@@ -8037,7 +8037,7 @@ try {
   const backend = isWorkerBackendActive() ? 'WORKER (tenant: '+tenant_state.label+')'
                 : DATA_BACKEND_URL          ? 'WORKER (no tenant — gate will show)'
                 :                             'textdb.dev (legacy)';
-  console.log('[KidQuest] cloud bucket:', IS_DEV_ENV ? 'DEV sandbox' : 'PRODUCTION', '('+CLOUD_BUCKET+')', '— backend:', backend);
+  console.log('[Solvix] cloud bucket:', IS_DEV_ENV ? 'DEV sandbox' : 'PRODUCTION', '('+CLOUD_BUCKET+')', '— backend:', backend);
 } catch(e){}
 
 /* ========== ONE-TIME MIGRATION: textdb.dev → Worker KV (current tenant) ==========
@@ -8382,12 +8382,12 @@ const defaultAll = () => ({
 
 /* Safely load stored data. If version mismatch or corrupt, wipe and start fresh. */
 function nukeBadData(reason){
-  console.warn('[KidQuest] Resetting local state:', reason);
+  console.warn('[Solvix] Resetting local state:', reason);
   try{localStorage.removeItem(STORAGE_KEY);localStorage.removeItem(LOCAL_USER_KEY);}catch(e){}
   try{localStorage.setItem(VERSION_KEY,String(APP_VERSION));}catch(e){}
 }
 let allData = (function(){
-  // Version check — clear incompatible data from previous KidQuest versions
+  // Version check — clear incompatible data from previous Solvix versions
   try{
     const sv = parseInt(localStorage.getItem(VERSION_KEY)||'0',10);
     if(sv !== APP_VERSION){ nukeBadData('version mismatch ('+sv+' vs '+APP_VERSION+')'); return defaultAll(); }
@@ -8442,7 +8442,7 @@ let allData = (function(){
 // Overlay the device-local videoOverrides key onto allData. This runs BEFORE
 // any render path reads videoOverrides, so a missing/outdated cloud field
 // can never wipe the teacher's saved video links on this device.
-try { rehydrateVideoOverrides(); } catch(e){ console.warn('[KidQuest] rehydrateVideoOverrides failed:', e); }
+try { rehydrateVideoOverrides(); } catch(e){ console.warn('[Solvix] rehydrateVideoOverrides failed:', e); }
 
 // Seed the default-on TTS for ESL / early-reader students exactly once.
 // We gate this behind `ttsSeeded` so a student/teacher toggle OFF sticks —
@@ -8469,7 +8469,7 @@ function seedTtsDefaults(){
       if(shouldEnable) ud.ttsEnabled = true;
       ud.ttsSeeded = true;
     });
-  }catch(e){ console.warn('[KidQuest] seedTtsDefaults failed:', e); }
+  }catch(e){ console.warn('[Solvix] seedTtsDefaults failed:', e); }
 }
 seedTtsDefaults();
 
@@ -8517,7 +8517,7 @@ function weeklyGoalRollover(){
       bonusPaidSids: [],
     };
     try{ saveState(); }catch(e){}
-  }catch(e){ console.warn('[KidQuest] weeklyGoalRollover failed:', e); }
+  }catch(e){ console.warn('[Solvix] weeklyGoalRollover failed:', e); }
 }
 // Return the live progress object: { current, target, pct, achieved }
 function weeklyGoalProgress(){
@@ -8556,7 +8556,7 @@ function maybePayWeeklyGoalBonus(sid){
     wg.bonusPaidSids = (wg.bonusPaidSids||[]).concat([sid]);
     saveState();
     return true;
-  }catch(e){ console.warn('[KidQuest] weekly goal bonus failed:', e); return false; }
+  }catch(e){ console.warn('[Solvix] weekly goal bonus failed:', e); return false; }
 }
 weeklyGoalRollover();
 
@@ -8651,7 +8651,7 @@ function saveState(){
   try{
     localStorage.setItem(STORAGE_KEY,JSON.stringify(allData));
     localStorage.setItem(VERSION_KEY,String(APP_VERSION));
-  }catch(e){console.warn('[KidQuest] saveState failed:',e)}
+  }catch(e){console.warn('[Solvix] saveState failed:',e)}
   syncToCloud();
 }
 
@@ -8742,14 +8742,14 @@ function enterImpersonation(sid){
   if(impersonating){
     // Already previewing someone — exit cleanly first so we don't
     // stack stashes or clobber the current one.
-    try{ exitImpersonation(); }catch(e){ console.warn('[KidQuest] exit before re-enter failed:', e); }
+    try{ exitImpersonation(); }catch(e){ console.warn('[Solvix] exit before re-enter failed:', e); }
   }
   // Deep clone via JSON round-trip. Student state is pure JSON
   // (numbers, strings, arrays, plain objects) — no Dates, Maps, or
   // functions — so this is both safe and faster than a manual walk.
   let clone;
   try{ clone = JSON.parse(JSON.stringify(real)); }
-  catch(e){ console.error('[KidQuest] impersonation clone failed:', e); alert('Could not start preview — data is in an unexpected shape.'); return; }
+  catch(e){ console.error('[Solvix] impersonation clone failed:', e); alert('Could not start preview — data is in an unexpected shape.'); return; }
   _impersonationStash = { sid, realUserData: real };
   allData.users[sid] = clone;
   impersonating = true;
@@ -8832,7 +8832,7 @@ function renderImpersonationBanner(){
   const btn = document.createElement('button');
   btn.textContent = '← Exit to tutor dashboard';
   btn.style.cssText = 'background:#1a1a2e;color:#fff;border:none;border-radius:10px;padding:6px 14px;font-weight:700;cursor:pointer;font-size:13px';
-  btn.onclick = () => { try{ exitImpersonation(); }catch(e){ console.error('[KidQuest] exitImpersonation failed:', e); } };
+  btn.onclick = () => { try{ exitImpersonation(); }catch(e){ console.error('[Solvix] exitImpersonation failed:', e); } };
   bar.appendChild(icon); bar.appendChild(text); bar.appendChild(btn);
   document.body.appendChild(bar);
   // Push the app content down so the banner never covers the topbar.
@@ -8973,7 +8973,7 @@ async function pullCloud(init){
           go('home');
         }
       }catch(e){
-        console.warn('[KidQuest] un-gate after maintenance-off failed, reloading:', e);
+        console.warn('[Solvix] un-gate after maintenance-off failed, reloading:', e);
         try{ location.reload(); }catch(e2){}
       }
       return;
@@ -9075,7 +9075,7 @@ function pushSnapshot(reason){
     // this particular entry until it's manually re-saved online. ---
     try { pushCloudSnapshot(snap); } catch(e){}
     return snap;
-  } catch(e){ try{ console.warn('[KidQuest] pushSnapshot failed:', e); }catch(_){}; return null; }
+  } catch(e){ try{ console.warn('[Solvix] pushSnapshot failed:', e); }catch(_){}; return null; }
 }
 // Apply a snapshot object's stored `data` (a stringified allData) to the
 // live allData, taking a pre-restore snapshot first so the restore itself
@@ -10963,7 +10963,7 @@ function _speakViaBrowser(text, lang, opts){
       // systems the default voice will at least attempt French phonetics.
       if(!window.__kqFrVoiceWarned){
         window.__kqFrVoiceWarned = true;
-        console.warn('[KidQuest] No French voice found. Install one via your OS (macOS: Amélie/Thomas) for best pronunciation.');
+        console.warn('[Solvix] No French voice found. Install one via your OS (macOS: Amélie/Thomas) for best pronunciation.');
       }
     }
     window.speechSynthesis.speak(u);
@@ -11192,7 +11192,7 @@ const NOVA_TOUR_STEPS = [
     text: "Tap this pill to turn read-aloud ON. I'll read every question out loud.",
     target: '.tts-dash-toggle',
     tone: 'cheerful' },
-  { title: 'The KidQuest Store',
+  { title: 'The Solvix Store',
     text: "Spend your coins on REAL rewards Ms. Rhahavy set up for you! Keep earning the big ones.",
     target: '.dash-store-btn.store',
     tone: 'cheerful' },
@@ -11353,7 +11353,7 @@ function runNovaTour(opts){
         state.onboardingCompleted = true;
         saveState();
       }
-    } catch(e){ console.warn('[KidQuest] Tour onFinish failed:', e); }
+    } catch(e){ console.warn('[Solvix] Tour onFinish failed:', e); }
   }
 
   function keyHandler(e){
@@ -11392,14 +11392,14 @@ function maybeStartNovaTour(){
           steps: NOVA_TOUR_STEPS,
           onFinish: () => {
             try { state.onboardingCompleted = true; saveState(); }
-            catch(e){ console.warn('[KidQuest] Could not save onboardingCompleted:', e); }
+            catch(e){ console.warn('[Solvix] Could not save onboardingCompleted:', e); }
           },
         });
       }
-      catch(e){ console.warn('[KidQuest] runNovaTour failed:', e); }
+      catch(e){ console.warn('[Solvix] runNovaTour failed:', e); }
     }, 600);
   } catch(e){
-    console.warn('[KidQuest] maybeStartNovaTour failed:', e);
+    console.warn('[Solvix] maybeStartNovaTour failed:', e);
   }
 }
 
@@ -11516,14 +11516,14 @@ function maybeStartActivityTour(){
           steps: getNovaActivityTourSteps(),
           onFinish: () => {
             try { state.activityTourSeen = true; saveState(); }
-            catch(e){ console.warn('[KidQuest] Could not save activityTourSeen:', e); }
+            catch(e){ console.warn('[Solvix] Could not save activityTourSeen:', e); }
           },
         });
       }
-      catch(e){ console.warn('[KidQuest] activity tour failed:', e); }
+      catch(e){ console.warn('[Solvix] activity tour failed:', e); }
     }, 650);
   } catch(e){
-    console.warn('[KidQuest] maybeStartActivityTour failed:', e);
+    console.warn('[Solvix] maybeStartActivityTour failed:', e);
   }
 }
 
@@ -11872,7 +11872,7 @@ function planAdjustments(sid){
     const overrides = (plan.adjustments && typeof plan.adjustments === 'object') ? plan.adjustments : {};
     return Object.assign({}, defaults, overrides);
   } catch(e){
-    console.warn('[KidQuest] planAdjustments failed:', e);
+    console.warn('[Solvix] planAdjustments failed:', e);
     return PLAN_TYPE_DEFAULTS['none'];
   }
 }
@@ -12766,12 +12766,12 @@ Requested At: ${new Date(order.requestedAt).toLocaleString()}
 Item ID: ${order.itemId}
 Amazon Link: ${order.amazonLink || '(none on file)'}
 `;
-  const subject = `KidQuest Reward Request — ${order.studentName} ordered ${order.itemName}`;
+  const subject = `Solvix Reward Request — ${order.studentName} ordered ${order.itemName}`;
   const mailto = 'mailto:'+encodeURIComponent(EMAIL_CONFIG.teacherEmail)+
                  '?subject='+encodeURIComponent(subject)+
                  '&body='+encodeURIComponent(body);
-  console.log('[KidQuest Store] Order saved:', order);
-  console.log('[KidQuest Store] Manual send link (if email service not configured):', mailto);
+  console.log('[Solvix Store] Order saved:', order);
+  console.log('[Solvix Store] Manual send link (if email service not configured):', mailto);
 
   // EmailJS path: only fires when all 3 keys are present.
   if(cfg.publicKey && cfg.serviceId && cfg.templateId && window.emailjs){
@@ -12787,9 +12787,9 @@ Amazon Link: ${order.amazonLink || '(none on file)'}
     };
     try {
       window.emailjs.send(cfg.serviceId, cfg.templateId, params, cfg.publicKey)
-        .then(()=>{ console.log('[KidQuest Store] EmailJS sent ✓'); })
-        .catch((e)=>{ console.warn('[KidQuest Store] EmailJS failed:', e); });
-    } catch(e){ console.warn('[KidQuest Store] EmailJS threw:', e); }
+        .then(()=>{ console.log('[Solvix Store] EmailJS sent ✓'); })
+        .catch((e)=>{ console.warn('[Solvix Store] EmailJS failed:', e); });
+    } catch(e){ console.warn('[Solvix Store] EmailJS threw:', e); }
   }
 }
 /* ==========================================================================
@@ -13201,11 +13201,11 @@ function go(screen,opts={}){
   }
   currentScreen=screen; currentOpts=opts;
   const root=$('#screen');
-  if(!root){console.warn('[KidQuest] #screen not found'); return;}
+  if(!root){console.warn('[Solvix] #screen not found'); return;}
   root.innerHTML='';
   window.scrollTo({top:0,behavior:'smooth'});
 
-  // Keep the browser tab title "(N) KidQuest" prefix in sync with the
+  // Keep the browser tab title "(N) Solvix" prefix in sync with the
   // current session — shows the unreviewed-reports count only while the
   // teacher is logged in, clears on logout or when a student signs in.
   try { if(typeof syncDocumentTitleBadge === 'function') syncDocumentTitleBadge(); } catch(e){}
@@ -13213,13 +13213,13 @@ function go(screen,opts={}){
   // Always hide the reward overlay on navigation (belt-and-suspenders)
   const rew = $('#reward'); if(rew){rew.classList.remove('show'); rew.style.display='none'}
 
-  try{ updateTopbar(screen); }catch(e){ console.warn('[KidQuest] updateTopbar failed:',e); }
+  try{ updateTopbar(screen); }catch(e){ console.warn('[Solvix] updateTopbar failed:',e); }
 
   // Teacher "view as student" banner — always on top of the page so the
   // teacher cannot forget they're in preview mode. Rendered (or removed)
   // on every navigation so it follows them through Dashboard → Week →
   // Activity → Quiz → Report Card and back.
-  try { renderImpersonationBanner(); } catch(e){ console.warn('[KidQuest] impersonation banner failed:',e); }
+  try { renderImpersonationBanner(); } catch(e){ console.warn('[Solvix] impersonation banner failed:',e); }
 
   // FAB visibility
   const fab=$('#fab');
@@ -13227,7 +13227,7 @@ function go(screen,opts={}){
   // Chat FAB — visible whenever a real student is logged in, any screen.
   // Kids may need to ask for help mid-lesson, mid-activity, or from the
   // dashboard, so we don't hide it like the Home FAB.
-  try { updateChatFab(); } catch(e){ console.warn('[KidQuest] updateChatFab failed:', e); }
+  try { updateChatFab(); } catch(e){ console.warn('[Solvix] updateChatFab failed:', e); }
   // Nova mute button — visible on every kid-facing screen (home, profile
   // picker, dashboard, weeks, activities, store…) since Nova can speak
   // on any of them. Hidden for teacher + parent views (those flows are
@@ -13240,7 +13240,7 @@ function go(screen,opts={}){
 
   // Defensive routing: if current user but no state, force to home
   if(currentUser && !state && screen!=='home' && screen!=='profiles'){
-    console.warn('[KidQuest] state missing for currentUser; resetting to home');
+    console.warn('[Solvix] state missing for currentUser; resetting to home');
     currentUser=null; isTeacher=false;
     try{localStorage.removeItem(LOCAL_USER_KEY);}catch(e){}
     screen='home';
@@ -13272,22 +13272,22 @@ function go(screen,opts={}){
     else if(screen==='parent') renderParentView(root);
     else renderHome(root); // unknown screen → safe fallback
   }catch(err){
-    console.error('[KidQuest] Render error on screen "'+screen+'":',err);
+    console.error('[Solvix] Render error on screen "'+screen+'":',err);
     // Fall back to home on any render failure
     if(screen !== 'home'){
       root.innerHTML='';
-      try{ renderHome(root); }catch(e){ console.error('[KidQuest] Home render also failed:',e); }
+      try{ renderHome(root); }catch(e){ console.error('[Solvix] Home render also failed:',e); }
     }
   }
   // Autoplay chip — floating "Autoplay ON · Stop" badge. Shown on every
   // screen while autoplay is active so the student can always bail out.
-  try { renderAutoplayChip(root); } catch(e){ console.warn('[KidQuest] autoplay chip failed:',e); }
+  try { renderAutoplayChip(root); } catch(e){ console.warn('[Solvix] autoplay chip failed:',e); }
 }
 
 /* ========== HOME ========== */
 function renderHome(root){
   const hero=h('section',{class:'hero'},[
-    h('h1',{},'KidQuest'),
+    h('h1',{},'Solvix'),
     h('p',{class:'sub'},'Play, learn, and level up'),
     h('button',{class:'cta',onclick:()=>go('profiles')},['Get Started →']),
   ]);
@@ -13526,7 +13526,7 @@ function renderPinSetup(root, sid, s){
     // so re-triggering this screen after a profile reset preserves a real
     // prior join date if somehow one survived.
     if(!ud2.joinedAt) ud2.joinedAt = Date.now();
-    try{ saveState(); }catch(e){ console.warn('[KidQuest] password setup saveState failed:',e); }
+    try{ saveState(); }catch(e){ console.warn('[Solvix] password setup saveState failed:',e); }
     msg.textContent = 'Password saved! Logging in…';
     msg.className = 'ps-msg ok';
     setTimeout(()=>loginAs(sid), 700);
@@ -14058,7 +14058,7 @@ function renderParentView(root){
     grid.appendChild(card);
   });
   if(anySubject) sec.appendChild(grid);
-  else sec.appendChild(h('div',{class:'pv-empty'},'No subjects started yet — '+stu.name+' is brand new to KidQuest.'));
+  else sec.appendChild(h('div',{class:'pv-empty'},'No subjects started yet — '+stu.name+' is brand new to Solvix.'));
   wrap.appendChild(sec);
 
   // Footer — when was this kid last active (helps parent know if the
@@ -14158,7 +14158,7 @@ function renderDashboard(root){
       : h('button',{
           class:'replay-tour-btn',
           title:'Replay the welcome tour',
-          onclick:()=>{ try{ runNovaTour(); }catch(e){ console.warn('[KidQuest] replay tour failed:',e); } },
+          onclick:()=>{ try{ runNovaTour(); }catch(e){ console.warn('[Solvix] replay tour failed:',e); } },
         }, '🎓 Replay Tutorial'),
   );
   const hero=h('div',{class:'dash-hero c-'+currentUser},[
@@ -14175,7 +14175,7 @@ function renderDashboard(root){
       subMessage: pickNovaDashSubMessage(),
     });
     hero.appendChild(mascot);
-  } catch(e){ console.warn('[KidQuest] Nova mascot render failed:', e); }
+  } catch(e){ console.warn('[Solvix] Nova mascot render failed:', e); }
   root.appendChild(hero);
   // Stats — perfect activities replaces Badges (badges feature de-emphasized)
   const perfectCount = Object.keys(state.perfectActivities||{}).length;
@@ -14230,7 +14230,7 @@ function renderDashboard(root){
       if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); rotateThought(); }
     });
     root.appendChild(says);
-  } catch(e){ console.warn('[KidQuest] Nova Says card failed:', e); }
+  } catch(e){ console.warn('[Solvix] Nova Says card failed:', e); }
   // Review card — spaced-repetition nudge. Shows 1-2 activities the kid
   // recently missed, framed as "let's try these again." Lives just above
   // Daily Mission so it's the first thing the kid sees if they need to
@@ -14238,13 +14238,13 @@ function renderDashboard(root){
   try {
     const rv = renderReviewCard(currentUser);
     if(rv) root.appendChild(rv);
-  } catch(e){ console.warn('[KidQuest] renderReviewCard failed:', e); }
+  } catch(e){ console.warn('[Solvix] renderReviewCard failed:', e); }
   // Daily Mission — 2 hand-picked activities per day, stable per kid per day.
   // Renders right after stats so it gets eyeballs before the full subject grid.
   try {
     const dm = renderDailyMission(currentUser);
     if(dm) root.appendChild(dm);
-  } catch(e){ console.warn('[KidQuest] renderDailyMission failed:', e); }
+  } catch(e){ console.warn('[Solvix] renderDailyMission failed:', e); }
   // Family scoreboard — compact podium. Slots beneath Daily Mission so
   // kids see their current rank AFTER they've seen what to do today,
   // not before (we don't want a 5th-place kid demotivated by ranking
@@ -14252,7 +14252,7 @@ function renderDashboard(root){
   try {
     const sb = buildClassScoreboard({ compact:true, highlightSid: currentUser });
     if(sb) root.appendChild(sb);
-  } catch(e){ console.warn('[KidQuest] class scoreboard failed:', e); }
+  } catch(e){ console.warn('[Solvix] class scoreboard failed:', e); }
   // Co-op weekly goal — sits below the scoreboard because it reframes the
   // competition from "me vs. them" into "us together". Kids who scored low
   // on the scoreboard can still feel like a key contributor to the family
@@ -14260,7 +14260,7 @@ function renderDashboard(root){
   try {
     const coop = buildCoopGoalCard({ viewerSid: currentUser });
     if(coop) root.appendChild(coop);
-  } catch(e){ console.warn('[KidQuest] coop goal failed:', e); }
+  } catch(e){ console.warn('[Solvix] coop goal failed:', e); }
   // Autoplay — one-tap "let it play for me" button. When active, each lesson
   // is auto-chained with a random brain-break game. Kids who want to "just go"
   // can hit this and trust the app to pick what's next.
@@ -14276,7 +14276,7 @@ function renderDashboard(root){
       ]);
       root.appendChild(h('div',{class:'autoplay-cta-wrap'}, cta));
     }
-  } catch(e){ console.warn('[KidQuest] autoplay CTA failed:',e); }
+  } catch(e){ console.warn('[Solvix] autoplay CTA failed:',e); }
   // "You're ahead" banner — shown when the student's raw week clock has
   // passed what we've authored. Their currentWeek caps at MAX_AUTHORED_WEEK
   // so the subjects below still work (they replay the last authored week),
@@ -14290,11 +14290,11 @@ function renderDashboard(root){
         h('span',{class:'cub-text'},[
           h('strong',{}, `You're ahead of the curriculum!`),
           h('span',{class:'cub-sub'},
-            `You've been on KidQuest for ${rawWk} weeks. Fresh Week ${MAX_AUTHORED_WEEK+1} content is on the way — keep practicing favorites below in the meantime.`),
+            `You've been on Solvix for ${rawWk} weeks. Fresh Week ${MAX_AUTHORED_WEEK+1} content is on the way — keep practicing favorites below in the meantime.`),
         ]),
       ]));
     }
-  } catch(e){ console.warn('[KidQuest] caught-up banner failed:', e); }
+  } catch(e){ console.warn('[Solvix] caught-up banner failed:', e); }
   // Subjects
   root.appendChild(h('h2',{style:'margin-top:24px;font-size:20px;font-weight:800'},'Week '+currentWeek+' · Subjects'));
   const subjs=h('div',{class:'subjects stagger'});
@@ -14338,13 +14338,13 @@ function renderDashboard(root){
         h('span',{class:'bb-text'},[h('span',{},'Drop Sum'),h('span',{class:'bb-sub'}, dsSub)]),
       ]),
     ]));
-  } catch(e){ console.warn('[KidQuest] renderBrainBreak failed:', e); }
+  } catch(e){ console.warn('[Solvix] renderBrainBreak failed:', e); }
   // Store + Orders entry buttons — quick access from the dashboard
   const pending = (allData.orders||[]).filter(o=>o.studentId===currentUser).length;
   root.appendChild(h('div',{class:'dash-store-row'},[
     h('button',{class:'dash-store-btn store',onclick:()=>go('store')},[
       h('span',{class:'dsb-emoji'},'🛍️'),
-      h('span',{},'Open KidQuest Store'),
+      h('span',{},'Open Solvix Store'),
     ]),
     h('button',{class:'dash-store-btn orders',onclick:()=>go('orders')},[
       h('span',{class:'dsb-emoji'},'📦'),
@@ -14353,12 +14353,12 @@ function renderDashboard(root){
   ]));
   // Report Card — personalized progress summary
   try { root.appendChild(renderReportCard(currentUser, false)); }
-  catch(e){ console.warn('[KidQuest] renderReportCard failed:',e); }
+  catch(e){ console.warn('[Solvix] renderReportCard failed:',e); }
   // First-login guided tour. Idempotent — no-ops after the first completion.
   // Runs AFTER the report card so the tour steps can reference every part
   // of the dashboard (the "Nova says" card in particular is appended later).
   try { maybeStartNovaTour(); }
-  catch(e){ console.warn('[KidQuest] maybeStartNovaTour failed:',e); }
+  catch(e){ console.warn('[Solvix] maybeStartNovaTour failed:',e); }
 }
 
 /* ========== WEEK VIEW ========== */
@@ -14781,7 +14781,7 @@ function renderQ(wrap){
         const ttsLang = (subj==='french' || /-f\d/.test(actId)) ? 'fr-FR' : 'en-CA';
         const ttsBtns = buildTtsButtons(q.q, ttsLang);
         if(ttsBtns) card.appendChild(ttsBtns);
-      }catch(e){ console.warn('[KidQuest] question TTS failed:', e); }
+      }catch(e){ console.warn('[Solvix] question TTS failed:', e); }
     }
     // Big emoji visual above the question. Priority:
     //   1. q.visual (hand-curated)
@@ -14825,7 +14825,7 @@ function renderQ(wrap){
   // flag ensures it only actually fires once per student, when they hit
   // their first real question.
   try { maybeStartActivityTour(); }
-  catch(e){ console.warn('[KidQuest] maybeStartActivityTour failed:', e); }
+  catch(e){ console.warn('[Solvix] maybeStartActivityTour failed:', e); }
 }
 
 /* ---- Lesson ---- */
@@ -15130,11 +15130,11 @@ function openLessonVideoSettings(activityId, builtinIds){
     card.appendChild(msg);
 
     const refreshLesson = ()=>{
-      try { saveState(); } catch(e){ console.warn('[KidQuest] saveState failed:',e); }
+      try { saveState(); } catch(e){ console.warn('[Solvix] saveState failed:',e); }
       overlay.remove();
       // Re-render the current lesson so the change is visible immediately.
       try { if(currentScreen === 'activity') go('activity', currentOpts || {}); }
-      catch(e){ console.warn('[KidQuest] lesson re-render failed:',e); }
+      catch(e){ console.warn('[Solvix] lesson re-render failed:',e); }
     };
 
     const btns = h('div',{class:'lvs-btns'});
@@ -15317,7 +15317,7 @@ function renderLesson(card,q){
   try{
     const chip = buildCurriculumChip(quiz && quiz.activity, { openByDefault: true });
     if(chip){ chip.style.marginBottom = '10px'; card.appendChild(chip); }
-  }catch(e){ console.warn('[KidQuest] curriculum chip render failed:', e); }
+  }catch(e){ console.warn('[Solvix] curriculum chip render failed:', e); }
   // Nova cameo on every lesson intro — subject-aware opener.
   try {
     const subId = quiz && quiz.subject;
@@ -15326,7 +15326,7 @@ function renderLesson(card,q){
     card.appendChild(h('div',{class:'lesson-mascot'},[
       createMascot({ tone, size:104, message: msg }),
     ]));
-  } catch(e){ console.warn('[KidQuest] lesson Nova failed:', e); }
+  } catch(e){ console.warn('[Solvix] lesson Nova failed:', e); }
   // Hero image — ONLY shown when lesson.heroImage is explicitly set.
   // We don't auto-apply generic subject images: a generic "any math photo"
   // doesn't actually match the specific lesson content, which was confusing.
@@ -15420,7 +15420,7 @@ function renderLesson(card,q){
       const ttsLang = (subj==='french' || /-f\d/.test(actId)) ? 'fr-FR' : 'en-CA';
       const ttsBtns = buildTtsButtons(L.intro, ttsLang);
       if(ttsBtns) card.appendChild(ttsBtns);
-    }catch(e){ console.warn('[KidQuest] intro TTS failed:', e); }
+    }catch(e){ console.warn('[Solvix] intro TTS failed:', e); }
   }
   // If the lesson provides a stack spec OR array of specs, render those as
   // visual columns INSTEAD of (or in addition to) the text example.
@@ -15441,7 +15441,7 @@ function renderLesson(card,q){
       const ttsLang = (subj==='french' || /-f\d/.test(actId)) ? 'fr-FR' : 'en-CA';
       const ttsBtns = buildTtsButtons(L.example, ttsLang);
       if(ttsBtns) card.appendChild(ttsBtns);
-    }catch(e){ console.warn('[KidQuest] example TTS failed:', e); }
+    }catch(e){ console.warn('[Solvix] example TTS failed:', e); }
   }
   // Picture-card grid — for vocab/symbol lessons (French words, science terms,
   // Canadian symbols). Each card has an emoji, word, optional translation, and
@@ -15546,7 +15546,7 @@ function renderLesson(card,q){
       // kid would see in stretch mode.
       ensureStudentStretchQuestions(quiz.activity, currentUser);
     }
-  }catch(e){ console.warn('[KidQuest] student plan content hook failed:', e); }
+  }catch(e){ console.warn('[Solvix] student plan content hook failed:', e); }
   quiz.locked=false;
   setTimeout(()=>{const b=$('#nextBtn');if(b){b.style.display='inline-flex';b.textContent="Let's practice! →"}},0);
 }
@@ -15586,7 +15586,7 @@ function logWrongAnswer(q, choseIdx, correctIdx, opts){
     if(state.wrongAnswers.length > WRONG_ANSWER_LOG_CAP){
       state.wrongAnswers = state.wrongAnswers.slice(-WRONG_ANSWER_LOG_CAP);
     }
-  } catch(e){ /* never let analytics break gameplay */ console.warn('[KidQuest] logWrongAnswer failed:', e); }
+  } catch(e){ /* never let analytics break gameplay */ console.warn('[Solvix] logWrongAnswer failed:', e); }
   // Adaptive-down: bump the consecutive-wrong counter. If the kid is
   // genuinely struggling (2+ in a row), swap the NEXT question for one
   // from an easier pool. Covers timeouts too — timeUp() calls this with
@@ -15596,7 +15596,7 @@ function logWrongAnswer(q, choseIdx, correctIdx, opts){
       quiz.wrongStreak = (quiz.wrongStreak || 0) + 1;
       maybeInjectEasier();
     }
-  } catch(e){ console.warn('[KidQuest] adaptive-down hook failed:', e); }
+  } catch(e){ console.warn('[Solvix] adaptive-down hook failed:', e); }
 }
 
 /* ---- MCQ ---- */
@@ -16138,7 +16138,7 @@ function getEasierQuestion(currentQ){
       }
     }
     return null;
-  } catch(e){ console.warn('[KidQuest] getEasierQuestion failed:', e); return null; }
+  } catch(e){ console.warn('[Solvix] getEasierQuestion failed:', e); return null; }
 }
 
 function maybeInjectEasier(){
@@ -16249,7 +16249,7 @@ function finishActivity(){
     if(passed){
       state.completedActivities[a.id]=true;
       // If this activity is part of today's Nova Daily Mission, check it off.
-      try { markDailyMissionProgress(a.id); } catch(e){ console.warn('[KidQuest] markDailyMissionProgress failed:', e); }
+      try { markDailyMissionProgress(a.id); } catch(e){ console.warn('[Solvix] markDailyMissionProgress failed:', e); }
     }
   }
   state.coins+=coins;
@@ -16304,7 +16304,7 @@ function finishActivity(){
       });
       rwMascot.appendChild(createMascot({ tone, size:72, message:pep }));
     }
-  } catch(e){ console.warn('[KidQuest] reward Nova failed:', e); }
+  } catch(e){ console.warn('[Solvix] reward Nova failed:', e); }
   // At the end of every quiz — pass or fail — the PRIMARY button takes
   // the student back to this subject's list of levels. The SECONDARY
   // button offers a quick retry of the same activity. Pass label:
@@ -16337,7 +16337,7 @@ function finishActivity(){
           jumpBtn.dataset.jumpSubject = quiz.subject;
           jumpBtn.textContent = '⚡ Jump to Level '+(jumpIdx+1);
         }
-      } catch(e){ console.warn('[KidQuest] jump-ahead wiring failed:', e); }
+      } catch(e){ console.warn('[Solvix] jump-ahead wiring failed:', e); }
     }
   }
   $('#reward').classList.add('show');
@@ -16441,7 +16441,7 @@ function renderStore(root){
   const catalog = getCatalog();
 
   const head = h('div',{class:'store-head'},[
-    h('h2',{},[h('span',{},'🛍️'),h('span',{},'KidQuest Store')]),
+    h('h2',{},[h('span',{},'🛍️'),h('span',{},'Solvix Store')]),
     h('div',{class:'coin-pill'},[
       h('span',{class:'coin-emoji'},'💰'),
       h('span',{},String(state.coins||0)+' coins'),
@@ -17170,7 +17170,7 @@ function showMiniGameWin(opts){
   const autoplayActive = !!(state && state.autoplay && state.autoplay.active);
   if(autoplayActive){
     card.appendChild(h('div',{class:'mg-win-buttons'},[
-      h('button',{class:'btn btn-primary',onclick:()=>{overlay.remove(); try{ autoplayGoNextLesson(); }catch(e){ console.warn('[KidQuest] autoplay advance failed:',e); go('dashboard'); }}}, 'Next lesson ▶'),
+      h('button',{class:'btn btn-primary',onclick:()=>{overlay.remove(); try{ autoplayGoNextLesson(); }catch(e){ console.warn('[Solvix] autoplay advance failed:',e); go('dashboard'); }}}, 'Next lesson ▶'),
       h('button',{class:'btn',onclick:()=>{overlay.remove(); try{ autoplayStop(); }catch(e){ go('dashboard'); }}}, '⏹ Stop autoplay'),
     ]));
   } else {
@@ -18257,7 +18257,7 @@ function _downloadTextFile(filename, mime, text){
     a.click();
     setTimeout(()=>{ try{ URL.revokeObjectURL(url); a.remove(); }catch(e){} }, 250);
   }catch(e){
-    console.error('[KidQuest Export] download failed:', e);
+    console.error('[Solvix Export] download failed:', e);
     alert('Download failed. Your browser may be blocking file downloads from this site.');
   }
 }
@@ -18661,7 +18661,7 @@ function downloadAllExports(){
 function buildDataExportPanel(){
   const wrap = h('div',{});
   wrap.appendChild(h('p',{class:'t-msg-help',style:'margin-top:0'},
-    'Point-in-time CSV snapshots of every student. Open each file directly in Google Sheets, Airtable, or Excel — perfect for building a tutoring-business dashboard. The curriculum_mastery sheet is unique to KidQuest: it rolls Ontario expectation codes up across the whole roster.'));
+    'Point-in-time CSV snapshots of every student. Open each file directly in Google Sheets, Airtable, or Excel — perfect for building a tutoring-business dashboard. The curriculum_mastery sheet is unique to Solvix: it rolls Ontario expectation codes up across the whole roster.'));
 
   const oneBtn = (label, fn, filename, mime) => h('button', {
     class:'btn btn-ghost',
@@ -18673,7 +18673,7 @@ function buildDataExportPanel(){
           mime, fn()
         );
       }catch(e){
-        console.error('[KidQuest Export] build failed for '+filename+':', e);
+        console.error('[Solvix Export] build failed for '+filename+':', e);
         alert('Export failed: '+(e && e.message || e));
       }
     },
@@ -18841,7 +18841,7 @@ function renderTeacher(root){
         title:'Log in as '+s.name+' to preview their experience. Nothing you do here is saved.',
         onclick: () => {
           try{ enterImpersonation(s.id); }
-          catch(e){ console.error('[KidQuest] enterImpersonation failed:',e); alert('Preview failed to start — see console.'); }
+          catch(e){ console.error('[Solvix] enterImpersonation failed:',e); alert('Preview failed to start — see console.'); }
         }
       }, '👁️ View as '+s.name);
       viewAsRow.appendChild(viewAsBtn);
@@ -18892,7 +18892,7 @@ function renderTeacher(root){
     analyticsBlock.appendChild(subHead('📈', 'Learning Analytics',
       'Family-wide patterns — 30-day wrong-answer trend, accuracy heatmap, struggle concepts, and timeout diagnostic.'));
     try{ analyticsBlock.appendChild(buildAnalyticsPanel()); }
-    catch(e){ console.warn('[KidQuest] analytics panel failed:', e); }
+    catch(e){ console.warn('[Solvix] analytics panel failed:', e); }
     wrap.appendChild(analyticsBlock);
 
     // 3️⃣  Detailed Report Cards — per-student deep dive
@@ -18903,7 +18903,7 @@ function renderTeacher(root){
     // the sub-head already conveys that context, so emit just the cards.
     STUDENTS.forEach(s=>{
       try { reportsBlock.appendChild(renderReportCard(s.id, true)); }
-      catch(e){ console.warn('[KidQuest] teacher report card failed:',e); }
+      catch(e){ console.warn('[Solvix] teacher report card failed:',e); }
     });
     wrap.appendChild(reportsBlock);
 
@@ -18927,12 +18927,12 @@ function renderTeacher(root){
       }},'📋 Export JSON'),
       h('button',{class:'btn btn-ghost',onclick:()=>{
         // 📥 Import: paste a previously-exported JSON backup to restore state.
-        const raw = prompt('Paste a KidQuest JSON backup here to RESTORE.\n\n' +
+        const raw = prompt('Paste a Solvix JSON backup here to RESTORE.\n\n' +
           'Tip: export a backup first with "📋 Export JSON" before trying this.');
         if(!raw) return;
         try {
           const d = JSON.parse(raw);
-          if(!d || typeof d!=='object' || !d.users) throw new Error('Missing "users" object — not a valid KidQuest backup.');
+          if(!d || typeof d!=='object' || !d.users) throw new Error('Missing "users" object — not a valid Solvix backup.');
           if(!confirm('This will OVERWRITE all current student progress, orders, and catalog overrides with the backup. Continue?\n\nA pre-import auto-snapshot will be saved so you can roll back.')) return;
           // Safety net — the current (about-to-be-overwritten) state goes
           // into the local undo ring so "↶ Restore from snapshot" can get
@@ -19726,7 +19726,7 @@ function renderTeacher(root){
         }
         allData.updatedAt = Date.now();
         saveState();
-        try { syncToCloud(); } catch(e){ console.warn('[KidQuest] plan sync failed:', e); }
+        try { syncToCloud(); } catch(e){ console.warn('[Solvix] plan sync failed:', e); }
         msg.textContent = '✓ Saved';
         msg.style.color = '#2b8a3e';
         // Update the summary badge + support chips in place without a full re-render.
@@ -19822,7 +19822,7 @@ function renderTeacher(root){
   try {
     const sb = buildClassScoreboard({ compact:false, highlightSid: null });
     if(sb) dash.appendChild(sb);
-  } catch(e){ console.warn('[KidQuest] teacher scoreboard failed:', e); }
+  } catch(e){ console.warn('[Solvix] teacher scoreboard failed:', e); }
   // Co-op weekly goal card on teacher dashboard — lets the tutor see at a
   // glance how close the family is to this week's target and who's
   // contributed. viewerSid:null means no bonus auto-pay from this render
@@ -19830,7 +19830,7 @@ function renderTeacher(root){
   try {
     const coop = buildCoopGoalCard({ viewerSid: null });
     if(coop) dash.appendChild(coop);
-  } catch(e){ console.warn('[KidQuest] teacher coop card failed:', e); }
+  } catch(e){ console.warn('[Solvix] teacher coop card failed:', e); }
 
   // Red awaiting-review banner — sits above the accordion so it's the first
   // thing the teacher sees after the scoreboard/coop cards. Impossible to
@@ -19877,7 +19877,7 @@ function renderTeacher(root){
       if(('Notification' in window) && Notification.permission !== 'granted'){
         bannerKids.push(h('button',{
           type:'button',
-          title:'Turn on desktop notifications so KidQuest can alert you even when this tab is in the background.',
+          title:'Turn on desktop notifications so Solvix can alert you even when this tab is in the background.',
           onclick: () => {
             requestReviewNotificationPermission((granted) => {
               if(granted){
@@ -19957,7 +19957,7 @@ function renderTeacher(root){
       try {
         const content = sec.build();
         if(content) body.appendChild(content);
-      } catch(e){ console.warn('[KidQuest] teacher section '+sec.id+' failed:', e); }
+      } catch(e){ console.warn('[Solvix] teacher section '+sec.id+' failed:', e); }
     };
     if(isOpen) ensureBuilt();
     head.addEventListener('click', ensureBuilt);
@@ -21043,7 +21043,7 @@ function openCourseEdit(baseActivity){
     }
     allData.curriculum.updatedAt = Date.now();
     saveState();
-    try { syncToCloud(); } catch(e){ console.warn('[KidQuest] curriculum sync failed:', e); }
+    try { syncToCloud(); } catch(e){ console.warn('[Solvix] curriculum sync failed:', e); }
     close();
     go('teacher-course');
   };
@@ -21099,7 +21099,7 @@ function resetCurriculumOverride(activityId){
   delete allData.curriculum.overrides[activityId];
   allData.curriculum.updatedAt = Date.now();
   saveState();
-  try { syncToCloud(); } catch(e){ console.warn('[KidQuest] curriculum sync failed:', e); }
+  try { syncToCloud(); } catch(e){ console.warn('[Solvix] curriculum sync failed:', e); }
   go('teacher-course');
 }
 
@@ -21451,7 +21451,7 @@ function buildProgressReport(sid){
   const lines = [];
   lines.push('Hi!');
   lines.push('');
-  lines.push(`Here is ${name}'s weekly KidQuest progress report (${today}).`);
+  lines.push(`Here is ${name}'s weekly Solvix progress report (${today}).`);
   lines.push('');
   lines.push(`Overall: ${totalDone} of ${totalAvail} activities completed — ${totalPerfect} perfect scores. 💰${ud.coins||0} coins / 🔥${ud.streak||0}-day streak.`);
   // Effort + precision paragraph. Parents didn't want "27 attempts, 74%
@@ -21598,10 +21598,10 @@ function buildProgressReport(sid){
     lines.push(`  ${s.emoji} ${s.name}: ${s.done}/${s.total} done · ${s.perfect} perfect${effort}${tag}`);
   });
   lines.push('');
-  lines.push('— Rhahavy, KidQuest Tutoring');
+  lines.push('— Rhahavy, Solvix Tutoring');
   lines.push('(Reply to this email to reach me directly.)');
 
-  const subject = `${name}'s KidQuest progress — ${today}`;
+  const subject = `${name}'s Solvix progress — ${today}`;
   return { subject, body: lines.join('\n') };
 }
 
@@ -21722,7 +21722,7 @@ function reportStatusFor(ud){
      1. Red pill count on the "📧 Parent Reports" accordion tab header
         (inside the teacher dashboard; uses the existing .t-acc-badge CSS).
      2. Red banner at the top of the teacher dashboard (above accordion).
-     3. Browser tab title prefix "(N) KidQuest — …" so the count is
+     3. Browser tab title prefix "(N) Solvix — …" so the count is
         visible even when the dashboard tab isn't focused.
      4. Desktop/system notification via the built-in Notification API.
         One-time permission prompt (button in the banner), deduped so it
@@ -21744,13 +21744,13 @@ function countUnreviewedReports(){
     });
     return count;
   } catch(e){
-    console.warn('[KidQuest] countUnreviewedReports failed:', e);
+    console.warn('[Solvix] countUnreviewedReports failed:', e);
     return 0;
   }
 }
 
 // Browser tab title badge. Only shown when the teacher is logged in —
-// students should never see "(3) KidQuest" because the count is meta-info
+// students should never see "(3) Solvix" because the count is meta-info
 // for the tutor, not them. Base title is captured lazily on first call.
 let _reportBaseTitle = null;
 function syncDocumentTitleBadge(){
@@ -21791,13 +21791,13 @@ function maybeFireReviewNotification(count){
     const countIncreased = count > lastCount;
     const cooledDown     = (now - lastAt) > NOTIF_DEDUP_MS;
     if(!countIncreased && !cooledDown) return;
-    new Notification('KidQuest — parent reports awaiting review', {
+    new Notification('Solvix — parent reports awaiting review', {
       body: `${count} parent report${count===1?'':'s'} ready to review and send.`,
       tag:  'kidquest-review',
     });
     localStorage.setItem(NOTIF_DEDUP_AT_KEY, String(now));
     localStorage.setItem(NOTIF_DEDUP_COUNT_KEY, String(count));
-  } catch(e){ console.warn('[KidQuest] review Notification failed:', e); }
+  } catch(e){ console.warn('[Solvix] review Notification failed:', e); }
 }
 
 // One-shot permission prompt wired into the banner's "🔔 Enable alerts"
@@ -21816,7 +21816,7 @@ function requestReviewNotificationPermission(cb){
       cb && cb(false); return;
     }
     Notification.requestPermission().then(p => { cb && cb(p === 'granted'); });
-  } catch(e){ console.warn('[KidQuest] permission request failed:', e); cb && cb(false); }
+  } catch(e){ console.warn('[Solvix] permission request failed:', e); cb && cb(false); }
 }
 
 // Mark a student's current parent-report cycle as reviewed. Called from
@@ -21836,7 +21836,7 @@ function markReportReviewed(sid){
       if(scr){ scr.innerHTML = ''; renderTeacher(scr); }
     } catch(e){}
     try { syncDocumentTitleBadge(); } catch(e){}
-  } catch(e){ console.warn('[KidQuest] markReportReviewed failed:', e); }
+  } catch(e){ console.warn('[Solvix] markReportReviewed failed:', e); }
 }
 
 // Teacher-dashboard panel: one row per student with a parent-email input,
@@ -22399,7 +22399,7 @@ function showTenantGate(){
   wrap.innerHTML = ''
     + '<div style="background:#fff;border-radius:24px;padding:40px 32px;max-width:440px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.3);box-sizing:border-box;">'
     +   '<div style="font-size:44px;margin-bottom:8px;">🌟</div>'
-    +   '<h1 id="kq-tg-title" style="margin:0 0 8px;font-size:26px;color:#2d3436;font-weight:800;">Welcome to KidQuest</h1>'
+    +   '<h1 id="kq-tg-title" style="margin:0 0 8px;font-size:26px;color:#2d3436;font-weight:800;">Welcome to Solvix</h1>'
     +   '<p style="margin:0 0 24px;color:#636e72;font-size:15px;line-height:1.5;">Enter your classroom PIN to begin.</p>'
     +   '<input id="kq-tg-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="••••" style="width:220px;max-width:100%;padding:18px 16px 18px calc(16px + .35em);border:2.5px solid #dfe6e9;border-radius:16px;font-size:36px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;outline:none;box-sizing:border-box;letter-spacing:.35em;color:#2d3436;" aria-label="4-digit classroom PIN" />'
     +   '<button id="kq-tg-submit" type="button" style="margin-top:18px;width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.02em;">Enter</button>'
@@ -22488,7 +22488,7 @@ try { window.clearTenantAndReload = clearTenantAndReload; } catch(e){}
 /* ========== BOOT ==========
    Defensive initialization. Any failure → safe fallback to home screen.
    Never leaves the user stuck on a half-rendered state. */
-try { initCloud(); } catch(e) { console.warn('[KidQuest] initCloud failed:',e); }
+try { initCloud(); } catch(e) { console.warn('[Solvix] initCloud failed:',e); }
 
 // Dev-sandbox banner — if we're on localhost / file:// / ?env=dev, pin a
 // red-pink gradient bar at the top of every screen so it's impossible to
@@ -22509,11 +22509,11 @@ try {
   const ek = EMAIL_CONFIG.emailjs || {};
   if(ek.publicKey && window.emailjs && typeof window.emailjs.init === 'function'){
     window.emailjs.init({ publicKey: ek.publicKey });
-    console.log('[KidQuest Store] EmailJS initialized.');
+    console.log('[Solvix Store] EmailJS initialized.');
   } else {
-    console.log('[KidQuest Store] EmailJS keys not set — orders will be saved to cloud + logged to console.');
+    console.log('[Solvix Store] EmailJS keys not set — orders will be saved to cloud + logged to console.');
   }
-} catch(e){ console.warn('[KidQuest Store] EmailJS init failed:',e); }
+} catch(e){ console.warn('[Solvix Store] EmailJS init failed:',e); }
 
 try {
   const fabEl = $('#fab');
@@ -22541,7 +22541,7 @@ try {
     // autoplay is that the student doesn't have to navigate.
     if(state && state.autoplay && state.autoplay.active){
       try { autoplayGoNextBreak(); return; }
-      catch(e){ console.warn('[KidQuest] autoplay advance failed:',e); }
+      catch(e){ console.warn('[Solvix] autoplay advance failed:',e); }
     }
     // Default: route to the subject's levels list after a quiz — pass or
     // fail. The student sees their progress, picks what's next, or re-picks
@@ -22561,12 +22561,12 @@ try {
     else if(quiz && quiz.subject) go('week',{subject:quiz.subject});
     else go(currentUser?'dashboard':'home');
   });
-} catch(e) { console.warn('[KidQuest] Button wiring failed:',e); }
+} catch(e) { console.warn('[Solvix] Button wiring failed:',e); }
 
 // Initialize the always-available chat FAB + panel handlers. Separate try/
 // catch so a chat failure never blocks the core app from booting.
 try { initChatFab(); updateChatFab(); }
-catch(e) { console.warn('[KidQuest] chat init failed:', e); }
+catch(e) { console.warn('[Solvix] chat init failed:', e); }
 
 // Maintenance gate: if allData.maintenance.active is true AND the teacher
 // hasn't unlocked (via password), show the holding screen instead of the app.
@@ -22581,7 +22581,7 @@ function renderMaintenanceScreen(){
     + '<div class="maintenance-screen">'
     +   '<div class="maintenance-card">'
     +     '<div><span class="maintenance-rocket">🚀</span><span class="maintenance-gear">⚙️</span></div>'
-    +     '<h1 class="maintenance-title">KidQuest is getting an upgrade!</h1>'
+    +     '<h1 class="maintenance-title">Solvix is getting an upgrade!</h1>'
     +     '<p class="maintenance-msg">' + safeMsg + '</p>'
     +     '<div class="maintenance-dots"><span></span><span></span><span></span></div>'
     +     '<div class="maintenance-footer">Rhahavy is working on something new. 🛠️</div>'
@@ -22655,9 +22655,9 @@ if(!__maintenanceActive){
       go('home');
     }
   } catch(e) {
-    console.error('[KidQuest] Initial routing failed, forcing home:',e);
+    console.error('[Solvix] Initial routing failed, forcing home:',e);
     currentUser=null; state=null;
-    try{ go('home'); }catch(e2){ document.getElementById('screen').innerHTML='<div style="padding:40px;text-align:center"><h2>KidQuest</h2><p>Something went wrong. <button onclick="localStorage.clear();location.reload()" style="padding:12px 24px;background:#6C5CE7;color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer">Reset & Reload</button></p></div>'; }
+    try{ go('home'); }catch(e2){ document.getElementById('screen').innerHTML='<div style="padding:40px;text-align:center"><h2>Solvix</h2><p>Something went wrong. <button onclick="localStorage.clear();location.reload()" style="padding:12px 24px;background:#6C5CE7;color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer">Reset & Reload</button></p></div>'; }
   }
 }
 
@@ -22678,10 +22678,10 @@ if(!__maintenanceActive){
     }
     window.addEventListener('load', ()=>{
       navigator.serviceWorker.register('/sw.js').catch(err=>{
-        console.warn('[KidQuest] SW registration failed:', err);
+        console.warn('[Solvix] SW registration failed:', err);
       });
     });
-  }catch(e){ console.warn('[KidQuest] SW setup failed:', e); }
+  }catch(e){ console.warn('[Solvix] SW setup failed:', e); }
 })();
 
 /* Offline chip — a tiny fixed badge at top-right that shows when the
@@ -22714,7 +22714,7 @@ if(!__maintenanceActive){
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
     update();
-  }catch(e){ console.warn('[KidQuest] offline chip setup failed:', e); }
+  }catch(e){ console.warn('[Solvix] offline chip setup failed:', e); }
 })();
 </script>
 </body>

@@ -200,7 +200,7 @@ async function main(){
     console.log(JSON.stringify(rows, null, 2));
   } else {
     console.log('');
-    console.log('KidQuest — who\'s due for new content (MAX_AUTHORED_WEEK = '+maxAuthoredWeek+')');
+    console.log('Solvix — who\'s due for new content (MAX_AUTHORED_WEEK = '+maxAuthoredWeek+')');
     console.log('');
     renderTable(rows);
     console.log('');

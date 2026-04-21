@@ -227,7 +227,7 @@ function buildPrompt({ student, weekN, summary }){
     .map(s => `w${weekN}-${sid}-${s.prefix}1 … w${weekN}-${sid}-${s.prefix}5`)
     .join('\n  ');
 
-  return `You are helping the tutor (Rhahavy) author Week ${weekN} content for a KidQuest student.
+  return `You are helping the tutor (Rhahavy) author Week ${weekN} content for a Solvix student.
 
 STUDENT
   Name: ${name}

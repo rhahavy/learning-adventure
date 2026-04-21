@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * send-weekly-reports.mjs — KidQuest automated weekly parent reports
+ * send-weekly-reports.mjs — Solvix automated weekly parent reports
  * -----------------------------------------------------------------
  * Runs from .github/workflows/weekly-reports.yml on a Sunday cron.
  *
@@ -33,7 +33,7 @@
  *                      real 7-day history. Skips cloud write-back.
  *   TEST_FROM        — override From: specifically for test mode. If unset
  *                      and TEST_RECIPIENT is set, falls back to
- *                      "KidQuest Test <onboarding@resend.dev>" so the test
+ *                      "Solvix Test <onboarding@resend.dev>" so the test
  *                      works before you've verified your own domain.
  *
  * This script is self-contained: no npm install, no package.json, no
@@ -47,7 +47,7 @@ const DAY_MS               = 24 * 60 * 60 * 1000;
 // Defaults — can be overridden via env.
 const DEFAULT_BUCKET    = 'kidquest-dca83c70e20a70f247b6';
 const DEFAULT_CC_EMAIL  = 'rhahavy.b@gmail.com';
-const DEFAULT_FROM      = 'KidQuest Reports <reports@kidquest.fun>';
+const DEFAULT_FROM      = 'Solvix Reports <reports@kidquest.fun>';
 const DEFAULT_DASHBOARD = 'https://kidquest.fun';
 
 // Student roster — mirror of STUDENTS in index.html. Only id + name + grade
@@ -253,7 +253,7 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
   const today = formatDate(Date.now());
   const since = formatDate(periodStartTs);
 
-  const subject = `KidQuest weekly report — ${name} (${formatDate(Date.now())})`;
+  const subject = `Solvix weekly report — ${name} (${formatDate(Date.now())})`;
 
   // Ordered subject rows, skipping subjects with no activity touched.
   const rows = SUBJECT_ORDER
@@ -262,7 +262,7 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
 
   // ----- Plain text (fallback / deliverability) -----
   const textLines = [];
-  textLines.push(`KidQuest — Weekly Progress Report`);
+  textLines.push(`Solvix — Weekly Progress Report`);
   textLines.push(`Student: ${name} (${grade})`);
   textLines.push(`Report date: ${today}`);
   textLines.push(`Period since: ${since}`);
@@ -307,7 +307,7 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
   }
   textLines.push(`See the full dashboard at ${dashboardUrl}`);
   textLines.push('');
-  textLines.push('— KidQuest');
+  textLines.push('— Solvix');
   const text = textLines.join('\n');
 
   // ----- HTML -----
@@ -361,7 +361,7 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
 <html><body style="margin:0;padding:0;background:#f6f7fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1035">
   <div style="max-width:560px;margin:0 auto;padding:24px 16px">
     <div style="background:#fff;border-radius:16px;padding:24px 22px;box-shadow:0 4px 16px rgba(26,16,53,.08)">
-      <div style="font-size:12px;font-weight:700;color:#6c5ce7;letter-spacing:.08em;text-transform:uppercase">KidQuest · Weekly Report</div>
+      <div style="font-size:12px;font-weight:700;color:#6c5ce7;letter-spacing:.08em;text-transform:uppercase">Solvix · Weekly Report</div>
       <h1 style="margin:6px 0 2px;font-size:24px;font-weight:800">${escapeHtml(name)}</h1>
       <div style="font-size:13.5px;color:#666;margin-bottom:18px">${escapeHtml(grade)} · ${today}</div>
 
@@ -390,7 +390,7 @@ function buildReportEmail(student, stats, periodStartTs, dashboardUrl){
       </div>
 
       <p style="margin-top:22px;font-size:11.5px;color:#999;text-align:center;line-height:1.5">
-        You're receiving this because KidQuest is set to send weekly reports for ${escapeHtml(name)}.<br>
+        You're receiving this because Solvix is set to send weekly reports for ${escapeHtml(name)}.<br>
         This message was generated automatically. Reply to this email to reach the tutor directly.
       </p>
     </div>
@@ -447,7 +447,7 @@ async function main(){
   const minActs      = parseInt(process.env.MIN_ACTIVITIES || '0', 10);
   const testRecipient= (process.env.TEST_RECIPIENT || '').trim();
   const testFrom     = (process.env.TEST_FROM || '').trim()
-                      || 'KidQuest Test <onboarding@resend.dev>';
+                      || 'Solvix Test <onboarding@resend.dev>';
 
   // Dry-run is forced when we lack an API key (can't actually send). Explicit
   // DRY_RUN=true also forces it. Otherwise default is false (cron sends).
