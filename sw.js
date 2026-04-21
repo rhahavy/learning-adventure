@@ -16,16 +16,19 @@
    current version. skipWaiting + clients.claim means the new SW takes
    over on the very next page load after deploy. */
 
-const SW_VERSION = 'kidquest-v1';
+const SW_VERSION = 'kidquest-v2-homepage';
 const SHELL_CACHE = SW_VERSION + '-shell';
 const RUNTIME_CACHE = SW_VERSION + '-runtime';
 
 // Files we want the app to have BEFORE going offline. Keep this tiny —
-// it's what the SW pre-fetches on install. The full SPA is in index.html,
-// which covers 99% of what the kid needs.
+// it's what the SW pre-fetches on install. Covers both the marketing
+// homepage (/) and the app shell (/app/). Bumping SW_VERSION on each
+// deploy is how old caches get evicted on the next activate.
 const SHELL_URLS = [
   '/',
   '/index.html',
+  '/app/',
+  '/app/index.html',
 ];
 
 self.addEventListener('install', (event) => {
