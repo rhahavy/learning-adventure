@@ -13154,6 +13154,16 @@ function updateTopbar(screen){
 
 /* ========== ROUTING ========== */
 function go(screen,opts={}){
+  // Demo-tenant shortcut: when the active classroom is flagged isDemo,
+  // it has no real student profiles — its whole reason to exist is the
+  // preview demo grades. Short-circuit 'home' and 'profiles' to
+  // 'demo-grade' so prospective parents land on the picker directly
+  // instead of staring at an empty profile grid. Kids inside the demo
+  // tenant never see the real-student flow. 'teacher-login' still works
+  // so the demo tenant's teacher password can unlock the teacher view.
+  if(tenant_state && tenant_state.isDemo && !isTeacher){
+    if(screen === 'home' || screen === 'profiles') screen = 'demo-grade';
+  }
   currentScreen=screen; currentOpts=opts;
   const root=$('#screen');
   if(!root){console.warn('[KidQuest] #screen not found'); return;}
@@ -13274,18 +13284,9 @@ function renderProfiles(root){
     ]));
   });
   root.appendChild(grid);
-  // Prospect / parent entry point — "Try a Demo" sits below the real
-  // student tiles so kids don't accidentally tap it mid-lesson.
-  root.appendChild(h('div',{class:'demo-cta-wrap'},[
-    h('button',{class:'demo-cta',onclick:()=>go('demo-gate')},[
-      h('span',{class:'demo-cta-ico'},'👀'),
-      h('span',{class:'demo-cta-label'},[
-        h('span',{class:'demo-cta-title'},'Try a Demo'),
-        h('span',{class:'demo-cta-sub'},'Parents — preview the student experience'),
-      ]),
-      h('span',{class:'demo-cta-arrow'},'→'),
-    ])
-  ]));
+  // (The old "Try a Demo" CTA lived here. Removed when the Demo was
+  // promoted to its own tenant — parents now type the demo classroom's
+  // PIN on the welcome gate instead of a separate in-app unlock.)
   root.appendChild(h('div',{class:'teacher-link'},[h('a',{href:'#',onclick:e=>{e.preventDefault();go('teacher-login')}},'🔑 Teacher Login')]));
 }
 
@@ -13366,7 +13367,19 @@ function renderDemoGradePicker(root){
     grid.appendChild(tile);
   });
   root.appendChild(grid);
-  root.appendChild(h('button',{class:'demo-gate-back',onclick:()=>go('profiles')},'← Back to profiles'));
+  // Back action depends on context. When the whole tenant is a demo
+  // classroom (isDemo), there's no profile screen to return to — offer
+  // "Switch classroom" instead, which kicks the visitor back out to the
+  // PIN gate. When demo is reached from inside a normal classroom
+  // (legacy path, still reachable via the demo-gate screen), "Back to
+  // profiles" is the expected fallback.
+  if(tenant_state && tenant_state.isDemo){
+    root.appendChild(h('button',{class:'demo-gate-back',onclick:()=>{
+      if(confirm('Leave the demo and enter a different classroom PIN?')) clearTenantAndReload();
+    }},'← Switch classroom'));
+  } else {
+    root.appendChild(h('button',{class:'demo-gate-back',onclick:()=>go('profiles')},'← Back to profiles'));
+  }
 }
 
 // Spin up a fresh demo session: create a new in-memory user for the
@@ -22343,16 +22356,21 @@ function showTenantGate(){
   wrap.setAttribute('aria-modal','true');
   wrap.setAttribute('aria-labelledby','kq-tg-title');
   wrap.style.cssText = 'position:fixed;inset:0;background:linear-gradient(135deg,#667eea,#764ba2);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:"DM Sans",system-ui,sans-serif;padding:20px;box-sizing:border-box;';
+  // 4-digit PIN input. `inputmode=numeric` pops a number pad on mobile;
+  // `pattern=[0-9]*` gives iOS the numeric keyboard (the pattern is
+  // checked client-side only — the worker enforces 4 digits). We render
+  // a single wide input rather than four boxes so the kid can type or
+  // paste naturally.
   wrap.innerHTML = ''
     + '<div style="background:#fff;border-radius:24px;padding:40px 32px;max-width:440px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.3);box-sizing:border-box;">'
     +   '<div style="font-size:44px;margin-bottom:8px;">🌟</div>'
     +   '<h1 id="kq-tg-title" style="margin:0 0 8px;font-size:26px;color:#2d3436;font-weight:800;">Welcome to KidQuest</h1>'
-    +   '<p style="margin:0 0 24px;color:#636e72;font-size:15px;line-height:1.5;">Enter your family or classroom code to begin.</p>'
-    +   '<input id="kq-tg-input" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="tiger-pizza-cloud-42" style="width:100%;padding:14px 16px;border:2px solid #dfe6e9;border-radius:12px;font-size:17px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;outline:none;box-sizing:border-box;letter-spacing:.02em;" />'
-    +   '<button id="kq-tg-submit" type="button" style="margin-top:14px;width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.02em;">Enter</button>'
+    +   '<p style="margin:0 0 24px;color:#636e72;font-size:15px;line-height:1.5;">Enter your classroom PIN to begin.</p>'
+    +   '<input id="kq-tg-input" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="• • • •" style="width:220px;max-width:100%;padding:18px 16px;border:2.5px solid #dfe6e9;border-radius:16px;font-size:36px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;outline:none;box-sizing:border-box;letter-spacing:.35em;color:#2d3436;" aria-label="4-digit classroom PIN" />'
+    +   '<button id="kq-tg-submit" type="button" style="margin-top:18px;width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.02em;">Enter</button>'
     +   '<div id="kq-tg-msg" style="margin-top:14px;font-size:13px;color:#d63031;min-height:1em;line-height:1.4;" aria-live="polite"></div>'
     +   '<div style="margin-top:20px;padding-top:18px;border-top:1px solid #f1f3f5;font-size:12px;color:#b2bec3;line-height:1.5;">'
-    +     "Don't have a code? Ask the parent or teacher who set up your account."
+    +     "Don't have a PIN? Ask the parent or teacher who set up your classroom."
     +   '</div>'
     + '</div>';
   document.body.appendChild(wrap);
@@ -22361,10 +22379,18 @@ function showTenantGate(){
   const msg    = document.getElementById('kq-tg-msg');
   const setMsg = (text, color)=>{ msg.textContent = text; msg.style.color = color || '#d63031'; };
   const submitting = { busy:false };
+  // Filter any non-digit the user pastes or types. Stays 4 chars max.
+  input.addEventListener('input', ()=>{
+    const cleaned = (input.value || '').replace(/\D+/g,'').slice(0,4);
+    if(cleaned !== input.value) input.value = cleaned;
+    // Auto-submit the moment the PIN is complete — matches the in-app
+    // demo-PIN UX and spares kids from hunting for the Enter button.
+    if(cleaned.length === 4 && !submitting.busy) trySubmit();
+  });
   async function trySubmit(){
     if(submitting.busy) return;
     const raw = (input.value||'').trim();
-    if(!raw){ setMsg('Please type your code.'); input.focus(); return; }
+    if(!/^\d{4}$/.test(raw)){ setMsg('Type the 4-digit PIN.'); input.focus(); return; }
     submitting.busy = true;
     submit.disabled = true;
     submit.textContent = 'Checking…';
@@ -22386,7 +22412,7 @@ function showTenantGate(){
     submit.disabled = false;
     submit.textContent = 'Enter';
     if(result.error === 'rate_limited')      setMsg('Too many attempts. Please wait a bit and try again.');
-    else if(result.error === 'invalid_code') setMsg("That code didn't match. Double-check the spelling.");
+    else if(result.error === 'invalid_code') setMsg("That PIN didn't match any classroom. Try again.");
     else if(result.error === 'network_error')setMsg('Network error. Check your connection and retry.');
     else                                     setMsg('Sign-in failed ('+(result.error||'unknown')+'). Retry?');
     submitting.busy = false;

@@ -483,19 +483,68 @@ async function handleProvisionRoute(request, env, corsOrigin) {
   try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
   const label = (body.label || '').toString().trim().slice(0, 80) || 'Untitled';
   const teacherPassword = (body.teacherPassword || '').toString().slice(0, 64);
-  const id = generateTenantId();
-  // Try a few times in the unlikely event of a code collision.
+  const isDemo = body.isDemo === true;
+
+  // If the caller supplied a specific PIN (4 digits), use that as the code.
+  // This is the common path for classroom/family onboarding: the operator
+  // picks a memorable PIN and hands it out verbally (e.g. "2020"). Fall
+  // back to the random word-code generator when no PIN is supplied — useful
+  // for one-shot guest access or when the operator doesn't care about
+  // memorability.
+  const pinRaw = (body.pin == null ? '' : String(body.pin)).trim();
   let code = '';
-  for (let i = 0; i < 5; i++) {
-    const candidate = generateTenantCode();
-    const taken = await env.KV.get(`code:${candidate}`);
-    if (!taken) { code = candidate; break; }
+  if (pinRaw) {
+    if (!/^\d{4}$/.test(pinRaw)) {
+      return json({ error: 'invalid_pin', detail: 'PIN must be exactly 4 digits (0000-9999).' }, 400, corsOrigin);
+    }
+    const taken = await env.KV.get(`code:${pinRaw}`);
+    if (taken) return json({ error: 'pin_taken', detail: 'That PIN is already in use by another classroom.' }, 409, corsOrigin);
+    code = pinRaw;
+  } else {
+    // Try a few times in the unlikely event of a code collision.
+    for (let i = 0; i < 5; i++) {
+      const candidate = generateTenantCode();
+      const taken = await env.KV.get(`code:${candidate}`);
+      if (!taken) { code = candidate; break; }
+    }
+    if (!code) return json({ error: 'code_generation_failed' }, 500, corsOrigin);
   }
-  if (!code) return json({ error: 'code_generation_failed' }, 500, corsOrigin);
-  const tenant = { id, label, code, teacherPassword, createdAt: new Date().toISOString() };
+
+  const id = generateTenantId();
+  const tenant = { id, label, code, teacherPassword, isDemo, createdAt: new Date().toISOString() };
   await env.KV.put(`tenant:${id}`, JSON.stringify(tenant));
   await env.KV.put(`code:${code}`, id);
   return json({ ok: true, tenant }, 200, corsOrigin);
+}
+
+// POST /unprovision — admin only. Body: { code } or { tenantId }.
+// Wipes the tenant record, its code alias, and its data+snapshots blobs.
+// Intentionally exposed via POST (with body) rather than DELETE on a
+// REST path so we don't have to route on path segments and so curl
+// examples stay symmetric with /provision.
+async function handleUnprovisionRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const code = (body.code || '').toString().trim().toLowerCase();
+  let tenantId = (body.tenantId || '').toString().trim();
+  if (!tenantId && code) {
+    tenantId = (await env.KV.get(`code:${code}`)) || '';
+  }
+  if (!tenantId) return json({ error: 'not_found' }, 404, corsOrigin);
+
+  // Fetch the current record so we can clean up the code alias even
+  // if the caller only passed us a tenantId.
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  const existing = raw ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
+  const codeToWipe = (existing && existing.code) || code;
+
+  await env.KV.delete(`tenant:${tenantId}`);
+  await env.KV.delete(`tenant:${tenantId}:data`);
+  await env.KV.delete(`tenant:${tenantId}:snapshots`);
+  if (codeToWipe) await env.KV.delete(`code:${codeToWipe}`);
+  return json({ ok: true, removed: { id: tenantId, code: codeToWipe || null } }, 200, corsOrigin);
 }
 
 // POST /auth — body: { code }. Returns full tenant metadata on hit, 401
@@ -624,9 +673,10 @@ export default {
     // per route — see each handler.
     try {
       const routeKey = `${request.method} ${url.pathname}`;
-      if (routeKey === 'POST /provision') return await handleProvisionRoute(request, env, corsOrigin);
-      if (routeKey === 'POST /auth')      return await handleAuthRoute(request, env, corsOrigin);
-      if (routeKey === 'GET /tenant')     return await handleTenantInfoRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /provision')   return await handleProvisionRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /unprovision') return await handleUnprovisionRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /auth')        return await handleAuthRoute(request, env, corsOrigin);
+      if (routeKey === 'GET /tenant')       return await handleTenantInfoRoute(request, env, corsOrigin);
       const dataRoute = DATA_ROUTES[routeKey];
       if (dataRoute) return await handleDataRoute(request, env, corsOrigin, dataRoute);
     } catch (err) {

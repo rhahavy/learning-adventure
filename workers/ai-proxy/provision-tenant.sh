@@ -1,27 +1,40 @@
 #!/usr/bin/env bash
 # provision-tenant.sh
 # ------------------------------------------------------------------
-# Mints a new family/classroom code for someone you're onboarding.
+# Mints a new classroom/family code on the KidQuest multi-tenant
+# backend. Each classroom gets a short PIN (4 digits) that becomes
+# the bearer token the app uses against /data and /snapshots.
 #
 # Usage:
-#   bash workers/ai-proxy/provision-tenant.sh "Smith Family" [teacher-password]
+#   bash workers/ai-proxy/provision-tenant.sh "Classroom Label" [options]
 #
-# Args:
-#   $1  label  — short human label (e.g. "Smith Family", "Mrs. Lee G3").
-#                Stored on the tenant record; visible in the dashboard
-#                banner so users know which classroom they're in.
-#   $2  teacher-password (optional) — sets the per-tenant teacher
-#                password. If omitted, defaults to the label slugged +
-#                "-2025" (e.g. "smith-family-2025"). The user can change
-#                it later from the teacher dashboard if you build that
-#                UI; for now, send them what's printed.
+# Positional:
+#   $1  label          short human label (e.g. "Rhahavy's Mission Hub").
+#                      Visible in the teacher banner so users know
+#                      which classroom they're in.
+#
+# Options (any order, any combination):
+#   --pin 2020         pick a specific 4-digit PIN for this classroom.
+#                      If omitted, a random word-code is minted instead
+#                      (handy for one-shot guest access).
+#   --teacher-pw foo   per-tenant teacher password. Defaults to the
+#                      label slugged + "-2025" (e.g. "demo-2025").
+#   --demo             mark this classroom as a demo tenant. The app
+#                      skips the profile picker and lands visitors
+#                      straight on the demo-grade picker. Use this for
+#                      the public preview classroom.
+#
+# Examples:
+#   bash … provision-tenant.sh "Rhahavy's Mission Hub" --pin 2020
+#   bash … provision-tenant.sh "Demo"                  --pin 2228 --demo
+#   bash … provision-tenant.sh "Guest"                 # word-code, no PIN
 #
 # Reads:
 #   .admin-token  (chmod 600, written by deploy.sh)
-#   wrangler.toml (to find the worker name)
+#   ../../index.html (discovers DATA_BACKEND_URL if KIDQUEST_WORKER_URL
+#                     env var isn't set)
 #
-# Output: a 4-line block with the code + teacher password to give
-# the family. Safe to re-run — each run mints a NEW tenant.
+# Output: a block with the PIN + teacher password to give the family.
 
 set -euo pipefail
 
@@ -33,17 +46,37 @@ if [[ -x "$SCRIPT_DIR/node_modules/.bin/wrangler" ]]; then
 fi
 
 die() { printf '\033[1;31m✗\033[0m %s\n' "$1" >&2; exit 1; }
+usage() { die "Usage: $0 \"Classroom Label\" [--pin 1234] [--teacher-pw X] [--demo]"; }
 
-LABEL="${1:-}"
-TEACHER_PW="${2:-}"
-[[ -n "$LABEL" ]] || die "Usage: $0 \"Family or Classroom Label\" [teacher-password]"
+# ---- Arg parsing -------------------------------------------------
+LABEL=""
+PIN=""
+TEACHER_PW=""
+IS_DEMO="false"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --pin)         shift; PIN="${1:-}"; [[ -n "$PIN" ]] || die "--pin requires a value"; shift;;
+    --teacher-pw)  shift; TEACHER_PW="${1:-}"; [[ -n "$TEACHER_PW" ]] || die "--teacher-pw requires a value"; shift;;
+    --demo)        IS_DEMO="true"; shift;;
+    -h|--help)     usage;;
+    --*)           die "Unknown flag: $1";;
+    *)
+      if [[ -z "$LABEL" ]]; then LABEL="$1"; else die "Unexpected extra argument: $1"; fi
+      shift;;
+  esac
+done
+
+[[ -n "$LABEL" ]] || usage
+if [[ -n "$PIN" && ! "$PIN" =~ ^[0-9]{4}$ ]]; then
+  die "--pin must be exactly 4 digits (got: $PIN)"
+fi
 
 if [[ -z "$TEACHER_PW" ]]; then
   TEACHER_PW="$(echo "$LABEL" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed -E 's/-+/-/g; s/^-//; s/-$//')-2025"
 fi
 
-# Read the admin token. Allow override via env var so CI can supply it
-# without a file. Local file is the default.
+# ---- Admin token -------------------------------------------------
 if [[ -n "${KIDQUEST_ADMIN_TOKEN:-}" ]]; then
   ADMIN_TOKEN="$KIDQUEST_ADMIN_TOKEN"
 elif [[ -f "$ADMIN_TOKEN_FILE" ]]; then
@@ -52,14 +85,10 @@ else
   die "Admin token not found. Run deploy.sh first (writes $ADMIN_TOKEN_FILE), or set KIDQUEST_ADMIN_TOKEN env var."
 fi
 
-# Discover the Worker URL. Three sources, in priority order:
-#   1. KIDQUEST_WORKER_URL env var (explicit override).
-#   2. The DATA_BACKEND_URL constant in index.html — deploy.sh writes
-#      this on every deploy, so it's always current. This avoids us
-#      having to reverse-engineer the workers.dev account subdomain
-#      from `wrangler whoami` (which is brittle — emails with dots
-#      and accounts with multi-segment subdomains break naive regexes).
-#   3. `wrangler deployments status` parsing as a last resort.
+# ---- Worker URL discovery ---------------------------------------
+# Priority: env override → DATA_BACKEND_URL in index.html (written by
+# deploy.sh, always current) → error. Avoids the brittle subdomain
+# reverse-engineering from `wrangler whoami`.
 WORKER_URL="${KIDQUEST_WORKER_URL:-}"
 if [[ -z "$WORKER_URL" ]]; then
   INDEX_HTML="$SCRIPT_DIR/../../index.html"
@@ -68,46 +97,62 @@ if [[ -z "$WORKER_URL" ]]; then
       | head -1 | sed -E "s/.*'(https:[^']+)'.*/\1/")"
   fi
 fi
-if [[ -z "$WORKER_URL" ]]; then
-  die "Couldn't find Worker URL. Either run deploy.sh first, or set KIDQUEST_WORKER_URL env var (e.g. https://kidquest-ai-proxy.YOUR.workers.dev)."
-fi
+[[ -n "$WORKER_URL" ]] || die "Couldn't find Worker URL. Run deploy.sh first, or set KIDQUEST_WORKER_URL env var."
 
-# Use the prod origin since /provision enforces the CORS allow-list.
-# kidquest.rhahavy.com is in ALLOWED_ORIGINS in wrangler.toml.
-ORIGIN="https://kidquest.rhahavy.com"
-
-# Build the JSON body via python (handles escaping for any label/password)
-# and pipe it into curl via stdin (`-d @-`). Doing it through stdin avoids
-# the brittle nested-quoting of `-d "$(python -c ...)"` inside bash command
-# substitution, which broke on labels containing apostrophes.
+# ---- Request -----------------------------------------------------
+# Build JSON via python (handles escaping of labels with apostrophes etc.)
+# and pipe it into curl's stdin. Avoids brittle nested quoting.
 JSON_BODY="$(python3 -c '
 import json, sys
-print(json.dumps({"label": sys.argv[1], "teacherPassword": sys.argv[2]}))
-' "$LABEL" "$TEACHER_PW")"
+payload = {
+  "label": sys.argv[1],
+  "teacherPassword": sys.argv[2],
+  "isDemo": sys.argv[3] == "true",
+}
+pin = sys.argv[4]
+if pin:
+  payload["pin"] = pin
+print(json.dumps(payload))
+' "$LABEL" "$TEACHER_PW" "$IS_DEMO" "$PIN")"
 
-RESP="$(printf '%s' "$JSON_BODY" | curl -fsS -X POST "$WORKER_URL/provision" \
+ORIGIN="https://kidquest.rhahavy.com"
+
+RESP="$(printf '%s' "$JSON_BODY" | curl -sS -X POST "$WORKER_URL/provision" \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Origin: $ORIGIN" \
   --data-binary @- 2>&1)" || die "Provision request failed. Response: $RESP"
 
+# Worker returns non-2xx with an error body on validation failures
+# (invalid_pin, pin_taken). Surface those clearly rather than eating them.
+ERR="$(echo "$RESP" | python3 -c 'import json,sys
+try: d = json.load(sys.stdin)
+except: sys.exit(0)
+if "error" in d:
+  print(d["error"] + ": " + d.get("detail",""))
+' 2>/dev/null || true)"
+if [[ -n "$ERR" ]]; then die "Server rejected provision — $ERR"; fi
+
 CODE="$(echo "$RESP" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tenant"]["code"])' 2>/dev/null)" \
   || die "Bad response from /provision: $RESP"
+
+DEMO_LINE=""
+if [[ "$IS_DEMO" == "true" ]]; then DEMO_LINE="$(printf '\n  │  Demo tenant:       yes (skips profile picker)')"; fi
 
 cat <<EOF
 
   ┌─────────────────────────────────────────────────────────────┐
-  │  Tenant provisioned                                         │
+  │  Classroom provisioned                                      │
   ├─────────────────────────────────────────────────────────────┤
   │  Label:             $LABEL
-  │  Family code:       $CODE
-  │  Teacher password:  $TEACHER_PW
+  │  Classroom PIN:     $CODE
+  │  Teacher password:  $TEACHER_PW$DEMO_LINE
   ├─────────────────────────────────────────────────────────────┤
   │  Send this to the family/teacher:                           │
   │                                                             │
-  │    "Visit https://kidquest.rhahavy.com and enter            │
-  │     $CODE on the welcome screen.                            │
-  │     Use $TEACHER_PW for teacher mode."                      │
+  │    "Visit https://kidquest.rhahavy.com and type $CODE        "
+  │     on the welcome PIN gate.                                 "
+  │     Use $TEACHER_PW for teacher mode."
   └─────────────────────────────────────────────────────────────┘
 
 EOF
