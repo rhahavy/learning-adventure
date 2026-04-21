@@ -11572,6 +11572,14 @@ function applyStudentPlanOverride(activity, sid){
   if(!perStudent) return activity;
   const ov = perStudent[activity.id];
   if(!ov) return activity;
+  // Tutor-approval gate. All NEW AI rewrites ship as `_status:'pending'`
+  // and must be explicitly approved in the tutor's "AI Content Rewrites"
+  // panel before the kid sees them. Legacy records (generated before this
+  // gate existed) have no `_status` field — those are grandfathered as
+  // approved so current kids don't lose already-vetted content. If a
+  // tutor wants to re-review legacy output, they can delete + regenerate.
+  const status = ov._status;
+  if(status === 'pending' || status === 'rejected') return activity;
   // Staleness check — skip if base has changed since this rewrite.
   try{
     const liveHash = hashLessonBase(activity.lesson || {});
@@ -11694,47 +11702,27 @@ async function ensureStudentPlanContent(activity, sid){
       // kid keeps seeing the base for that field. No error banner.
     }
     if(!Object.keys(rewritten).length) return null;
+    // NEW: Store as PENDING. Tutor must approve in the "AI Content
+    // Rewrites" panel before this rewrite surfaces to the kid.
+    // applyStudentPlanOverride skips pending records, so the kid keeps
+    // seeing the base lesson until an adult has signed off. This is the
+    // core of the tutor-review gate: kids never see AI-generated text
+    // that hasn't been explicitly approved for them.
     const record = {
       lesson: rewritten,
       _source: 'ai-simplify',
       _baseHash: baseHash,
       _generatedAt: Date.now(),
+      _status: 'pending',
     };
     allData.curriculum.studentOverrides[sid][activity.id] = record;
     allData.curriculum.updatedAt = Date.now();
     try { saveState(); }catch(_){}
-    // Hot-swap the currently-visible lesson card, if the kid is still
-    // looking at it. querySelector falls through to null if the page has
-    // since navigated — harmless.
-    try { swapLessonContentInPlace(rewritten); }catch(_){}
-    // Update the live quiz object so subsequent re-renders + hint reads
-    // reflect the new text. CRITICAL: we must NOT mutate quiz.activity.lesson
-    // in place — on a fresh rewrite, quiz.activity is still the same object
-    // reference as WEEKS[week][sid][subj][n], so assigning to .lesson would
-    // overwrite the shared source. That pollution breaks the next cache-hit
-    // hash comparison ("why does it say [EASY] twice?" — because /simplify
-    // would re-fire on already-simplified text). Clone everything instead.
-    try {
-      if(typeof quiz !== 'undefined' && quiz && quiz.activity && quiz.activity.id === activity.id){
-        const preLesson = quiz.activity.lesson || {};
-        const freshLesson = Object.assign({}, preLesson, rewritten);
-        quiz.activity = Object.assign({}, quiz.activity, {
-          lesson: freshLesson,
-          // Preserve the ORIGINAL pre-overlay lesson so staleness checks +
-          // future /simplify calls anchor to the right baseline. If the
-          // activity already had a _baseLesson (cache-hit path), keep it;
-          // otherwise this is the first rewrite and preLesson IS the base.
-          _baseLesson: quiz.activity._baseLesson || preLesson,
-          _aiRewritten: true,
-        });
-        // quiz.questions[0] is the lesson card — keep its lesson ref in
-        // sync with the cloned activity so any re-render picks up the
-        // rewritten copy from the clone, not the shared source.
-        if(Array.isArray(quiz.questions) && quiz.questions[0] && quiz.questions[0].type === 'lesson'){
-          quiz.questions[0] = Object.assign({}, quiz.questions[0], { lesson: freshLesson });
-        }
-      }
-    }catch(_){}
+    // Intentionally NO DOM hot-swap and NO live quiz mutation here. The
+    // rewrite is sitting in the review queue, not live. Once the tutor
+    // hits Approve, renderLesson will pick it up on the next open and
+    // the badge will appear then (via the applyStudentPlanOverride path,
+    // which adds _aiRewritten:true only for approved records).
     return record;
   })();
 
@@ -11774,15 +11762,24 @@ function swapLessonContentInPlace(rewritten){
 
 /* Teacher-facing diff modal for a single AI rewrite. Shows the base
    text (what the WEEKS source has, with any tutor override on top)
-   side-by-side with the AI-rewritten version, field by field. Actions:
-   [Delete] wipes this record so the next lesson open regenerates; a
-   plain close dismisses without touching anything. No "approve" —
-   rewrites go live immediately; this is a review+retire surface, not a
-   gating surface. */
+   side-by-side with the AI-rewritten version, field by field. Actions
+   depend on status:
+     • PENDING — [✓ Approve] lets the kid see it on next lesson open;
+                 [✕ Reject] deletes without shipping. Kid sees base in
+                 both cases until Approve runs.
+     • APPROVED — [↩ Revoke] downgrades back to pending (hidden from kid);
+                  [🗑 Delete] removes the record entirely.
+   This is the gating surface: kids never see AI content until it clears
+   this modal. */
 function openAiRewriteReviewModal(sid, activityId){
   const bucket = (allData && allData.curriculum && allData.curriculum.studentOverrides) || {};
   const rec = bucket[sid] && bucket[sid][activityId];
   if(!rec || !rec.lesson) return;
+  // Normalize status. Legacy records (missing `_status`) are grandfathered
+  // as approved so current kids don't lose vetted content. Everything
+  // generated from this point forward is explicitly pending by default.
+  const status = rec._status || 'approved';
+  const isPending = status === 'pending';
   const info = (typeof getStudentInfo === 'function') ? getStudentInfo(sid) : null;
   const name = (info && info.name) || sid;
   const act = findActivityById(activityId);
@@ -11798,6 +11795,15 @@ function openAiRewriteReviewModal(sid, activityId){
   // Dismiss helper — shared by the backdrop click, close button, and
   // delete action.
   const close = ()=>{ try{ overlay.remove(); }catch(_){} };
+  // After any status mutation we close the modal AND re-render the
+  // teacher view so pending/approved counts + the section badge update.
+  const closeAndRefreshTeacher = ()=>{
+    close();
+    try{
+      const scr = (typeof $ === 'function') ? $('#screen') : document.getElementById('screen');
+      if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+    }catch(_){}
+  };
 
   const overlay = h('div',{
     style:'position:fixed;inset:0;background:rgba(16,12,40,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto',
@@ -11805,11 +11811,20 @@ function openAiRewriteReviewModal(sid, activityId){
   });
   const modal = h('div',{style:'background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(26,16,53,.3);max-width:820px;width:100%;padding:24px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 80px);overflow-y:auto'});
 
+  // Status pill — prominent at top so the tutor knows at a glance
+  // whether the kid can currently see this rewrite.
+  const statusChip = isPending
+    ? h('span',{style:'padding:4px 11px;background:#fff3cd;color:#8a6d00;border:1px solid #ffd85c;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.04em'}, '⏳ PENDING REVIEW')
+    : h('span',{style:'padding:4px 11px;background:#d3f9d8;color:#2b8a3e;border:1px solid #8ce99a;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.04em'}, '✅ APPROVED');
+
   // Header
   modal.appendChild(h('div',{style:'display:flex;align-items:center;gap:12px;flex-wrap:wrap'},[
     h('span',{style:'font-size:28px'}, emoji),
     h('div',{style:'flex:1;min-width:0'},[
-      h('div',{style:'font-weight:800;font-size:18px'}, title),
+      h('div',{style:'display:flex;align-items:center;gap:8px;flex-wrap:wrap'},[
+        h('div',{style:'font-weight:800;font-size:18px'}, title),
+        statusChip,
+      ]),
       h('div',{style:'color:var(--ink3);font-size:13px'},
         name + (curr ? ' · '+(curr.grade||'')+' · '+((curr.codes||[]).join(', ')) : '')
         + ' · generated '+(rec._generatedAt ? new Date(rec._generatedAt).toLocaleString() : 'unknown')),
@@ -11817,9 +11832,13 @@ function openAiRewriteReviewModal(sid, activityId){
     h('button',{class:'btn btn-ghost', style:'font-size:13px;padding:6px 12px', onclick:close}, '✕ Close'),
   ]));
 
-  // Intro explainer
+  // Intro explainer — different wording by status so the tutor
+  // understands what action is expected here.
+  const explainerText = isPending
+    ? 'Left: the base lesson the student sees right now. Right: the AI-generated rewrite, waiting for your approval. The student CANNOT see the right-hand version until you approve it. Read it, compare against the curriculum, and either ✓ Approve (ships to this student on their next lesson open) or ✕ Reject (deletes; next open will generate a fresh version).'
+    : 'Left: the base lesson (plus any Course Editor overrides). Right: what this student currently sees. If the rewrite is off-target, revoke approval to hide it again, or delete it entirely — the next lesson open will regenerate a fresh pending version.';
   modal.appendChild(h('p',{style:'color:var(--ink2);font-size:13px;line-height:1.5;margin:0;background:rgba(108,92,231,.06);border-left:3px solid rgba(108,92,231,.4);padding:10px 14px;border-radius:6px'},
-    'Left: the base lesson (plus any Course Editor overrides). Right: what this student sees after the AI rewrite. If the rewrite is off-target, delete it — the next lesson open will regenerate.'));
+    explainerText));
 
   // Per-field diff
   const fields = ['intro','example','hint'];
@@ -11839,10 +11858,14 @@ function openAiRewriteReviewModal(sid, activityId){
   });
 
   // Column labels (subtle, above each column). Added AFTER the fields so
-  // we can place them at the top — prepending a header row.
+  // we can place them at the top — prepending a header row. The right
+  // label changes by status so the tutor can see at a glance whether
+  // the right column is "what the kid sees now" (approved) or "what the
+  // kid COULD see if you approve" (pending).
   const labels = h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:-8px'});
-  labels.appendChild(h('div',{style:'font-size:12px;color:var(--ink3);font-weight:700'}, '📚 BASE'));
-  labels.appendChild(h('div',{style:'font-size:12px;color:#4f56d4;font-weight:700'}, '✨ AI REWRITE'));
+  labels.appendChild(h('div',{style:'font-size:12px;color:var(--ink3);font-weight:700'}, '📚 BASE (student sees this now)'));
+  labels.appendChild(h('div',{style:'font-size:12px;color:#4f56d4;font-weight:700'},
+    isPending ? '✨ AI REWRITE (pending — needs your ✓)' : '✨ AI REWRITE (live for this student)'));
   // Insert labels before the first field section (after the intro text).
   // Find the first field section — the element right after the explainer.
   const explainerIdx = 2; // header, explainer, then labels, then fields
@@ -11853,24 +11876,63 @@ function openAiRewriteReviewModal(sid, activityId){
     modal.appendChild(labels);
   }
 
-  // Footer actions
-  modal.appendChild(h('div',{style:'display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px;margin-top:4px'},[
-    h('div',{style:'color:var(--ink3);font-size:12px;align-self:center'},
-      'Base hash: '+((rec._baseHash||'?').slice(0,8))+' · Source: '+((rec._source)||'ai')),
-    h('button',{class:'btn', style:'background:#fff;color:#c92a2a;border:1px solid #c92a2a;font-weight:700', onclick:()=>{
-      if(!confirm('Delete this rewrite for '+name+'? The next time they open "'+title+'", the AI will regenerate it if their plan still has simpleLanguage on.')) return;
+  // Footer actions — different button row by status.
+  const footer = h('div',{style:'display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px;margin-top:4px'});
+  footer.appendChild(h('div',{style:'color:var(--ink3);font-size:12px;align-self:center'},
+    'Base hash: '+((rec._baseHash||'?').slice(0,8))+' · Source: '+((rec._source)||'ai')));
+
+  const actionRow = h('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
+
+  if(isPending){
+    // Reject = delete without ever surfacing. The tutor is saying
+    // "don't use this rewrite at all." Next open regenerates a fresh
+    // candidate (also pending).
+    actionRow.appendChild(h('button',{class:'btn', style:'background:#fff;color:#c92a2a;border:1px solid #c92a2a;font-weight:700', onclick:()=>{
+      if(!confirm('Reject this rewrite for '+name+'?\n\n'+name+' will continue seeing the base lesson. The next time they open "'+title+'", the AI will generate a fresh candidate for you to review.')) return;
       delete allData.curriculum.studentOverrides[sid][activityId];
       if(!Object.keys(allData.curriculum.studentOverrides[sid]).length){
         delete allData.curriculum.studentOverrides[sid];
       }
       allData.curriculum.updatedAt = Date.now();
       try{ saveState(); }catch(_){}
-      close();
-      // Re-render teacher view so the panel updates.
-      const scr = (typeof $ === 'function') ? $('#screen') : document.getElementById('screen');
-      if(scr){ scr.innerHTML=''; renderTeacher(scr); }
-    }}, '🗑 Delete this rewrite'),
-  ]));
+      closeAndRefreshTeacher();
+    }}, '✕ Reject'));
+    // Approve = flip status to 'approved'. Next time the kid opens this
+    // lesson, applyStudentPlanOverride will merge the rewrite in and
+    // the "✨ rewritten for you" badge will appear.
+    actionRow.appendChild(h('button',{class:'btn btn-primary', style:'background:#2b8a3e;border-color:#2b8a3e;font-weight:800', onclick:()=>{
+      if(!confirm('Approve this rewrite for '+name+'?\n\nThey\'ll see the simpler version the next time they open "'+title+'". You can revoke or delete it later from this panel.')) return;
+      rec._status = 'approved';
+      rec._approvedAt = Date.now();
+      allData.curriculum.updatedAt = Date.now();
+      try{ saveState(); }catch(_){}
+      closeAndRefreshTeacher();
+    }}, '✓ Approve & ship'));
+  } else {
+    // Revoke = put it back into pending. Kid stops seeing the rewrite
+    // immediately on their next lesson open. The record is preserved
+    // so the tutor can re-approve without re-generating.
+    actionRow.appendChild(h('button',{class:'btn btn-ghost', style:'font-weight:700', onclick:()=>{
+      if(!confirm('Revoke approval of this rewrite for '+name+'?\n\nThey\'ll stop seeing the simpler version on their next lesson open. The rewrite stays here as a pending review so you can re-approve or delete it later.')) return;
+      rec._status = 'pending';
+      delete rec._approvedAt;
+      allData.curriculum.updatedAt = Date.now();
+      try{ saveState(); }catch(_){}
+      closeAndRefreshTeacher();
+    }}, '↩ Revoke'));
+    actionRow.appendChild(h('button',{class:'btn', style:'background:#fff;color:#c92a2a;border:1px solid #c92a2a;font-weight:700', onclick:()=>{
+      if(!confirm('Delete this rewrite for '+name+'? The next time they open "'+title+'", the AI will regenerate it (as pending) if their plan still has simpleLanguage on.')) return;
+      delete allData.curriculum.studentOverrides[sid][activityId];
+      if(!Object.keys(allData.curriculum.studentOverrides[sid]).length){
+        delete allData.curriculum.studentOverrides[sid];
+      }
+      allData.curriculum.updatedAt = Date.now();
+      try{ saveState(); }catch(_){}
+      closeAndRefreshTeacher();
+    }}, '🗑 Delete'));
+  }
+  footer.appendChild(actionRow);
+  modal.appendChild(footer);
 
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
@@ -18242,114 +18304,187 @@ function renderTeacher(root){
 
   // AI Rewrites Review — shows every per-student AI-generated lesson
   // rewrite currently cached in allData.curriculum.studentOverrides.
-  // Tutors get visibility into what AI produced for each kid, can read
-  // the base vs rewrite side-by-side, and can delete individual records
-  // (next lesson open → /simplify re-runs if plan still says so). No
-  // approval gating — rewrites go live immediately; this panel exists so
-  // a tutor can spot-check quality and cost, not to block release.
+  // This panel is the TUTOR APPROVAL GATE: new rewrites ship as
+  // `_status:'pending'` and stay hidden from the kid until the tutor
+  // approves them here. Structure: one "⏳ Pending review" section at
+  // the top (the real worklist), a "✅ Approved" section below for
+  // visibility + revocation. Legacy rewrites (missing `_status`) are
+  // grandfathered as approved so current kids don't lose vetted content.
   const buildAiRewritesPanel = () => {
     const wrap = h('div',{style:'display:flex;flex-direction:column;gap:14px'});
     const bucket = (allData && allData.curriculum && allData.curriculum.studentOverrides) || {};
-    const studentSids = Object.keys(bucket).filter(sid => {
-      const perStudent = bucket[sid];
-      return perStudent && Object.keys(perStudent).length > 0;
-    });
-    const totalRewrites = studentSids.reduce((n, sid) => n + Object.keys(bucket[sid] || {}).length, 0);
 
-    // Header explainer + top-level counters. Kept tight; tutors who've
-    // never used this feature should understand the panel in 5 seconds.
+    // First pass — classify every record by status so we know counts
+    // before we start laying anything out.
+    const pendingList = [];   // [{sid, aid, rec}]
+    const approvedList = [];
+    Object.keys(bucket).forEach(sid => {
+      const perStudent = bucket[sid];
+      if(!perStudent) return;
+      Object.keys(perStudent).forEach(aid => {
+        const rec = perStudent[aid];
+        if(!rec || !rec.lesson) return;
+        const status = rec._status || 'approved'; // legacy = approved
+        if(status === 'pending') pendingList.push({sid, aid, rec});
+        else approvedList.push({sid, aid, rec});
+      });
+    });
+    const totalRewrites = pendingList.length + approvedList.length;
+    const studentsTouched = new Set();
+    pendingList.forEach(r => studentsTouched.add(r.sid));
+    approvedList.forEach(r => studentsTouched.add(r.sid));
+
+    // Header explainer — make it crystal clear that the kid does NOT
+    // see pending rewrites. This is the whole point of the panel.
     wrap.appendChild(h('p',{style:'color:var(--ink2);font-size:14px;line-height:1.55;margin:0'},
-      'AI has auto-rewritten lessons in simpler words for students whose plan has '+
-      'simpleLanguage turned on (ESL/gifted-ESL defaults, or explicit overrides). ' +
-      'Review what kids actually see and delete anything off-target — the next lesson ' +
-      'open will regenerate it.'));
+      'AI rewrites simpler-word lessons for students whose plan has '+
+      'simpleLanguage on (ESL/gifted-ESL defaults, or explicit overrides). ' +
+      'NEW rewrites land in the Pending list below — students CANNOT see them until you approve each one. Approved rewrites appear on the student\'s next lesson open.'));
 
     if(totalRewrites === 0){
       wrap.appendChild(h('div',{style:'padding:18px;background:rgba(108,92,231,.06);border:1px dashed rgba(108,92,231,.3);border-radius:10px;color:var(--ink2);font-size:13px;line-height:1.5;text-align:center'},[
-        '✨ No AI rewrites stored yet. ',
-        'They\'ll appear here once students on simpleLanguage plans start opening lessons.',
+        '✨ No AI rewrites yet. ',
+        'They\'ll appear here — as Pending — once a student on a simpleLanguage plan opens a lesson.',
       ]));
       return wrap;
     }
 
-    // Totals chip row — at-a-glance "how much AI content has been generated"
+    // Totals chip row — pending count first (it's the actionable one),
+    // then approved, then student count. "Clear all" sweeps both lists.
     wrap.appendChild(h('div',{style:'display:flex;gap:10px;flex-wrap:wrap;align-items:center'},[
-      h('span',{style:'padding:5px 12px;background:linear-gradient(135deg,rgba(108,92,231,.14),rgba(87,94,232,.14));color:#4f56d4;border:1px solid rgba(108,92,231,.3);border-radius:999px;font-size:12px;font-weight:700'},
-        '🤖 '+totalRewrites+' rewrite'+(totalRewrites===1?'':'s')),
+      h('span',{style:'padding:5px 12px;background:'+(pendingList.length ? '#fff3cd' : 'rgba(138,109,0,.08)')+';color:#8a6d00;border:1px solid #ffd85c;border-radius:999px;font-size:12px;font-weight:800'},
+        '⏳ '+pendingList.length+' pending'),
       h('span',{style:'padding:5px 12px;background:rgba(33,150,83,.1);color:#2b8a3e;border:1px solid rgba(33,150,83,.3);border-radius:999px;font-size:12px;font-weight:700'},
-        '👥 '+studentSids.length+' student'+(studentSids.length===1?'':'s')),
+        '✅ '+approvedList.length+' approved'),
+      h('span',{style:'padding:5px 12px;background:linear-gradient(135deg,rgba(108,92,231,.14),rgba(87,94,232,.14));color:#4f56d4;border:1px solid rgba(108,92,231,.3);border-radius:999px;font-size:12px;font-weight:700'},
+        '👥 '+studentsTouched.size+' student'+(studentsTouched.size===1?'':'s')),
       h('button',{class:'btn btn-ghost', style:'font-size:12px;padding:6px 12px;margin-left:auto', onclick:()=>{
-        if(!confirm('Delete ALL '+totalRewrites+' AI rewrites across every student? They\'ll regenerate on the next lesson open for any student whose plan still says simpleLanguage.')) return;
+        if(!confirm('Delete ALL '+totalRewrites+' AI rewrites (pending + approved) across every student? The next lesson open will generate fresh pending candidates for any student whose plan still says simpleLanguage — you\'ll need to review those too.')) return;
         if(allData.curriculum){ allData.curriculum.studentOverrides = {}; allData.curriculum.updatedAt = Date.now(); }
         try{ saveState(); }catch(_){}
-        // Re-render the whole teacher dash so the panel updates + counters elsewhere refresh.
         const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
       }}, '🗑 Clear all'),
     ]));
 
-    // Per-student expandable cards. One row per student who has rewrites.
-    studentSids.forEach(sid => {
+    // Helper: build a single row for a {sid,aid,rec} entry. The actions
+    // row varies by status — pending gets a big Approve button inline
+    // + a Reject, approved gets Review + Delete.
+    const buildRow = ({sid, aid, rec}) => {
       const info = getStudentInfo(sid);
       const name = (info && info.name) || sid;
       const initial = (info && info.initial) || (name.charAt(0).toUpperCase());
-      const planType = (typeof getStudentPlan === 'function') ? getStudentPlan(sid).type : 'none';
-      const planMeta = PLAN_META[planType] || null;
-      const activities = bucket[sid];
-      const aids = Object.keys(activities);
-      const card = h('div',{style:'border:1px solid var(--border);border-radius:10px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:10px'});
-
-      const header = h('div',{style:'display:flex;align-items:center;gap:12px;flex-wrap:wrap'},[
-        h('div',{style:'width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,'+((info&&info.colorLight)||'#e9ecef')+','+((info&&info.colorDark)||'#adb5bd')+');color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px'}, initial),
-        h('div',{style:'font-weight:800;font-size:15px'}, name),
-        planMeta ? h('span',{style:'padding:3px 9px;background:'+planMeta.bg+';border:1px solid '+planMeta.bd+';color:'+planMeta.accent+';border-radius:999px;font-size:11px;font-weight:700'}, planMeta.emoji+' '+planMeta.label) : null,
-        h('span',{style:'color:var(--ink3);font-size:12px'}, aids.length+' rewrite'+(aids.length===1?'':'s')),
-        h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px;margin-left:auto', onclick:()=>{
-          if(!confirm('Delete all '+aids.length+' AI rewrites for '+name+'? They\'ll regenerate on the next lesson open.')) return;
-          delete allData.curriculum.studentOverrides[sid];
+      const act = findActivityById(aid);
+      const title = (act && act.title) || aid;
+      const emoji = (act && act.emoji) || '📝';
+      const curr = (act && act.curriculum) || null;
+      const when = rec && rec._generatedAt ? new Date(rec._generatedAt).toLocaleDateString() : '—';
+      const fields = (rec && rec.lesson) ? Object.keys(rec.lesson) : [];
+      const isPending = (rec._status || 'approved') === 'pending';
+      const row = h('div',{style:'display:flex;align-items:center;gap:10px;padding:10px;background:'+(isPending?'#fffdf5':'#fafbff')+';border:1px solid '+(isPending?'#ffd85c':'var(--border)')+';border-radius:8px;flex-wrap:wrap'});
+      // Student avatar chip so the tutor can scan by name at a glance.
+      row.appendChild(h('div',{style:'width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,'+((info&&info.colorLight)||'#e9ecef')+','+((info&&info.colorDark)||'#adb5bd')+');color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0'}, initial));
+      row.appendChild(h('span',{style:'font-size:18px'}, emoji));
+      row.appendChild(h('div',{style:'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px'},[
+        h('div',{style:'font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}, name+' · '+title),
+        h('div',{style:'color:var(--ink3);font-size:11px'},
+          (curr ? (curr.grade||'')+' · '+((curr.codes||[]).join(', ')) : 'No curriculum tag')
+          + ' · ' + fields.join('+')
+          + ' · ' + when),
+      ]));
+      row.appendChild(h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px', onclick:()=>openAiRewriteReviewModal(sid, aid)}, '🔍 Review'));
+      if(isPending){
+        // Inline Approve — full review is still one click away via
+        // "Review", but a confident tutor can ship without opening
+        // the diff modal. Kept disabled until confirm so a stray
+        // click doesn't accidentally ship content.
+        row.appendChild(h('button',{class:'btn', style:'font-size:11px;padding:5px 10px;background:#2b8a3e;color:#fff;border:none;font-weight:800', onclick:()=>{
+          if(!confirm('Approve this rewrite for '+name+'?\n\nThey\'ll see the simpler version of "'+title+'" the next time they open it.\n\n(Tip: click 🔍 Review first to read it in a side-by-side diff.)')) return;
+          rec._status = 'approved';
+          rec._approvedAt = Date.now();
           allData.curriculum.updatedAt = Date.now();
           try{ saveState(); }catch(_){}
           const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
-        }}, '🗑 Clear for '+name),
-      ]);
-      card.appendChild(header);
+        }}, '✓ Approve'));
+        row.appendChild(h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px;color:#c92a2a', title:'Reject & delete', onclick:()=>{
+          if(!confirm('Reject this rewrite? '+name+' will keep seeing the base lesson for "'+title+'". The next open will generate a fresh candidate for you to review.')) return;
+          delete allData.curriculum.studentOverrides[sid][aid];
+          if(!Object.keys(allData.curriculum.studentOverrides[sid]).length){
+            delete allData.curriculum.studentOverrides[sid];
+          }
+          allData.curriculum.updatedAt = Date.now();
+          try{ saveState(); }catch(_){}
+          const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+        }}, '✕'));
+      } else {
+        // Approved row: the quick action is just Delete (regenerates
+        // as pending next time). Revoke-to-pending is available in
+        // the full review modal.
+        row.appendChild(h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px;color:#c92a2a', onclick:()=>{
+          if(!confirm('Delete this rewrite? '+name+'\'s next open of "'+title+'" will regenerate it (as pending — you\'ll review again).')) return;
+          delete allData.curriculum.studentOverrides[sid][aid];
+          if(!Object.keys(allData.curriculum.studentOverrides[sid]).length){
+            delete allData.curriculum.studentOverrides[sid];
+          }
+          allData.curriculum.updatedAt = Date.now();
+          try{ saveState(); }catch(_){}
+          const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+        }}, '🗑'));
+      }
+      return row;
+    };
 
-      const list = h('div',{style:'display:flex;flex-direction:column;gap:6px'});
-      aids.forEach(aid => {
-        const rec = activities[aid];
-        const act = findActivityById(aid);
-        const title = (act && act.title) || aid;
-        const emoji = (act && act.emoji) || '📝';
-        const curr = (act && act.curriculum) || null;
-        const when = rec && rec._generatedAt ? new Date(rec._generatedAt).toLocaleDateString() : '—';
-        const fields = (rec && rec.lesson) ? Object.keys(rec.lesson) : [];
-        const row = h('div',{style:'display:flex;align-items:center;gap:10px;padding:10px;background:#fafbff;border:1px solid var(--border);border-radius:8px;flex-wrap:wrap'},[
-          h('span',{style:'font-size:18px'}, emoji),
-          h('div',{style:'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px'},[
-            h('div',{style:'font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}, title),
-            h('div',{style:'color:var(--ink3);font-size:11px'},
-              (curr ? (curr.grade||'')+' · '+((curr.codes||[]).join(', ')) : 'No curriculum tag')
-              + ' · ' + fields.join('+')
-              + ' · ' + when),
-          ]),
-          h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px', onclick:()=>openAiRewriteReviewModal(sid, aid)}, '🔍 Review'),
-          h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px;color:#c92a2a', onclick:()=>{
-            if(!confirm('Delete this rewrite? '+name+'\'s next open of "'+title+'" will regenerate it.')) return;
-            delete allData.curriculum.studentOverrides[sid][aid];
-            if(!Object.keys(allData.curriculum.studentOverrides[sid]).length){
-              delete allData.curriculum.studentOverrides[sid];
-            }
-            allData.curriculum.updatedAt = Date.now();
-            try{ saveState(); }catch(_){}
-            const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
-          }}, '🗑'),
-        ]);
-        list.appendChild(row);
-      });
-      card.appendChild(list);
-      wrap.appendChild(card);
-    });
+    // --- PENDING section ------------------------------------------------
+    // Sorted oldest-first so the tutor works a FIFO queue. Bulk-approve
+    // all as a nuclear option for tutors who trust the Worker output and
+    // just want to clear the queue after spot-checking a few.
+    if(pendingList.length){
+      const pendSort = pendingList.slice().sort((a,b)=>(a.rec._generatedAt||0) - (b.rec._generatedAt||0));
+      const pendHead = h('div',{style:'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:4px'},[
+        h('div',{style:'font-weight:800;font-size:14px;color:#8a6d00'}, '⏳ Pending your review ('+pendingList.length+')'),
+        h('button',{class:'btn btn-ghost', style:'font-size:11px;padding:5px 10px;color:#2b8a3e;font-weight:700;margin-left:auto', onclick:()=>{
+          if(!confirm('Approve ALL '+pendingList.length+' pending rewrites without opening each one?\n\nThis is fine if you\'ve been spot-checking the output and trust the results. Otherwise, click 🔍 Review on each row first.')) return;
+          pendingList.forEach(({rec})=>{ rec._status = 'approved'; rec._approvedAt = Date.now(); });
+          allData.curriculum.updatedAt = Date.now();
+          try{ saveState(); }catch(_){}
+          const scr = $('#screen'); if(scr){ scr.innerHTML=''; renderTeacher(scr); }
+        }}, '✓✓ Approve all'),
+      ]);
+      wrap.appendChild(pendHead);
+      const pendBox = h('div',{style:'display:flex;flex-direction:column;gap:6px;padding:10px;background:#fffdf5;border:1px solid #ffd85c;border-radius:10px'});
+      pendSort.forEach(entry => pendBox.appendChild(buildRow(entry)));
+      wrap.appendChild(pendBox);
+    }
+
+    // --- APPROVED section -----------------------------------------------
+    // Less visually loud — these are already shipped, the tutor is here
+    // for audit / revoke / delete, not for daily triage.
+    if(approvedList.length){
+      const appSort = approvedList.slice().sort((a,b)=>(b.rec._approvedAt||b.rec._generatedAt||0) - (a.rec._approvedAt||a.rec._generatedAt||0));
+      wrap.appendChild(h('div',{style:'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:6px'},[
+        h('div',{style:'font-weight:800;font-size:14px;color:#2b8a3e'}, '✅ Approved & live ('+approvedList.length+')'),
+      ]));
+      const appBox = h('div',{style:'display:flex;flex-direction:column;gap:6px'});
+      appSort.forEach(entry => appBox.appendChild(buildRow(entry)));
+      wrap.appendChild(appBox);
+    }
 
     return wrap;
+  };
+
+  // Count pending rewrites across all students — used as the accordion
+  // badge so the tutor sees "3 waiting" without opening the section.
+  // Legacy records (no `_status`) count as approved.
+  const countPendingAiRewrites = () => {
+    const b = (allData && allData.curriculum && allData.curriculum.studentOverrides) || {};
+    let n = 0;
+    Object.keys(b).forEach(sid => {
+      const per = b[sid]; if(!per) return;
+      Object.keys(per).forEach(aid => {
+        const rec = per[aid];
+        if(rec && rec.lesson && rec._status === 'pending') n++;
+      });
+    });
+    return n;
   };
 
   // Quick-fill presets for the "Working at (grade level / track)" input.
@@ -18930,7 +19065,7 @@ function renderTeacher(root){
     { id:'students',    icon:'👥', title:'Students Overview',     build: buildOverviewGrid },
     { id:'plans',       icon:'📋', title:'Student Education Plans', build: buildStudentPlansPanel },
     { id:'curriculum',  icon:'📚', title:'Course Editor',         build: buildCourseLink },
-    { id:'ai-rewrites', icon:'🤖', title:'AI Content Rewrites',   build: buildAiRewritesPanel },
+    { id:'ai-rewrites', icon:'🤖', title:'AI Content Rewrites',   badge: countPendingAiRewrites(), badgeLabel:'AI rewrites awaiting review', build: buildAiRewritesPanel },
     { id:'messages',    icon:'💬', title:'Messages',              badge: unreadTotal,       badgeLabel:'unread messages', build: renderTeacherMessages },
     { id:'reports',     icon:'📊', title:'Detailed Report Cards', build: buildReportCardsPanel },
     { id:'analytics',   icon:'📈', title:'Learning Analytics',    build: buildAnalyticsPanel },
