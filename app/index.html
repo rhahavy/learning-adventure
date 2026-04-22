@@ -19347,7 +19347,7 @@ function renderTeacher(root){
           alert('Could not import: '+err.message);
         }
       }},'📥 Import JSON'),
-      h('button',{class:'btn btn-ghost',onclick:()=>{
+      h('button',{class:'btn btn-ghost',onclick:async ()=>{
         if(!confirm('Clear ALL reward order history?')) return;
         if(!(await confirmTeacherPassword('clear all reward orders'))) return;
         allData.orders=[]; saveState(); go('teacher');
@@ -19402,7 +19402,7 @@ function renderTeacher(root){
               'Σ '+totals.coins+' coins · '+totals.acts+' completions'),
           ]),
           h('div',{class:'t-snap-actions'},[
-            h('button',{class:'btn btn-sm btn-primary',onclick:()=>{
+            h('button',{class:'btn btn-sm btn-primary',onclick:async ()=>{
               const whereFrom = sources.includes('cloud') ? ' (cloud snapshot)' : ' (local snapshot)';
               if(!confirm('Restore this snapshot from '+whenStr+whereFrom+'?\n\nIt will OVERWRITE current progress for every student. A pre-restore auto-snapshot will be saved so you can undo this.')) return;
               if(!(await confirmTeacherPassword('restore a snapshot'))) return;
@@ -21703,7 +21703,7 @@ function renderCoinAdjuster(){
     row.appendChild(h('button',{
       class:'btn btn-ghost',
       style:'padding:8px 12px;font-size:13px',
-      onclick:()=>{
+      onclick:async ()=>{
         const delta = parseInt(deltaInput.value, 10);
         if(!Number.isFinite(delta) || delta === 0){
           alert('Enter a positive or negative number to add or subtract.');
@@ -21735,7 +21735,7 @@ function renderCoinAdjuster(){
     row.appendChild(h('button',{
       class:'btn btn-ghost',
       style:'padding:8px 12px;font-size:13px',
-      onclick:()=>{
+      onclick:async ()=>{
         const raw = (exactInput.value||'').trim();
         if(!raw){
           alert('Enter the exact coin balance you want to set for '+s.name+' in the "= exact" box.');
@@ -21817,7 +21817,7 @@ function renderTeacherPasswords(){
       hintCell,
       h('div',{class:'pw-status '+statusCls}, statusText),
       ttsBtn,
-      h('button',{class:'btn btn-ghost pw-reset',type:'button',onclick:()=>{
+      h('button',{class:'btn btn-ghost pw-reset',type:'button',onclick:async ()=>{
         if(!confirm('Reset '+s.name+'\'s password?\n\nThis clears their chosen emoji + hint. Next time they log in on ANY device, they\'ll pick a new one. The lock on this device is also cleared.')) return;
         if(!(await confirmTeacherPassword('reset '+s.name+'\'s password'))) return;
         const u = allData.users[s.id] || defaultUser();
@@ -22754,7 +22754,7 @@ function renderResetControls(){
   const subSel1 = h('select',{class:'t-reset-select'});
   subSel1.appendChild(h('option',{value:''},'— pick a subject —'));
   SUBJECTS.forEach(sub=>subSel1.appendChild(h('option',{value:sub.id},sub.emoji+' '+sub.name)));
-  const btn1 = h('button',{class:'btn btn-ghost t-reset-btn',onclick:()=>{
+  const btn1 = h('button',{class:'btn btn-ghost t-reset-btn',onclick:async ()=>{
     if(!stuSel1.value || !subSel1.value){ alert('Pick a student AND a subject first.'); return; }
     const stu = STUDENTS.find(s=>s.id===stuSel1.value);
     const sub = SUBJECTS.find(x=>x.id===subSel1.value);
@@ -22774,7 +22774,7 @@ function renderResetControls(){
   const stuSel2 = h('select',{class:'t-reset-select'});
   stuSel2.appendChild(h('option',{value:''},'— pick a student —'));
   STUDENTS.forEach(s=>stuSel2.appendChild(h('option',{value:s.id},s.name)));
-  const btn2 = h('button',{class:'btn btn-ghost t-reset-btn',onclick:()=>{
+  const btn2 = h('button',{class:'btn btn-ghost t-reset-btn',onclick:async ()=>{
     if(!stuSel2.value){ alert('Pick a student first.'); return; }
     const stu = STUDENTS.find(s=>s.id===stuSel2.value);
     if(!confirm('Reset '+stu.name+'\'s ENTIRE profile?\n\nThis wipes coins, stars, streak, badges, completions, perfect scores, wishlist, and avatar. Other students are untouched.')) return;
@@ -22790,7 +22790,7 @@ function renderResetControls(){
   const row3 = h('div',{class:'t-reset-row'});
   row3.appendChild(h('div',{class:'t-reset-row-title'},'Reset EVERYTHING (every student)'));
   row3.appendChild(h('div',{class:'t-reset-row-sub'},'Wipes every student\'s progress and clears all reward order history in one shot.'));
-  const btn3 = h('button',{class:'btn btn-danger t-reset-btn',onclick:()=>{
+  const btn3 = h('button',{class:'btn btn-danger t-reset-btn',onclick:async ()=>{
     if(!confirm('Reset EVERY student\'s progress + clear all reward orders?\n\nA one-click auto-snapshot will be saved, so "↶ Restore from snapshot" on the dashboard can undo this within the next 5 resets.')) return;
     if(!(await confirmTeacherPassword('reset every student\'s progress'))) return;
     // Safety net — pre-wipe snapshot goes into the local undo ring.
