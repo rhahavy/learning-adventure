@@ -265,23 +265,33 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 .mock *{box-sizing:border-box}
 
 /* ===== Mock 1: curriculum-anchored lesson =====
-   Card slides up with the question + number line. The marker slides
-   to ½ and a coin pops (correct). Then a cursor enters from the
-   bottom-right, clicks the curriculum tag (📋 G4 · B1.7 — same shape
-   as the real .lc-compact chip in /app/), and a popover slides down
-   showing the strand + Ontario expectation. Cursor exits, loop
-   restarts. 14s total — slow enough to register the click clearly. */
+   Recreates the real .quiz card chrome: emoji + activity title on the
+   left of .mc-head, then the .lc-compact curriculum chip + "1 of 4"
+   counter on the right. A .q-progress bar sits below the head. The
+   number-line marker slides to ½. A cursor enters from below, clicks
+   the curriculum chip, and a popover slides down — same labels
+   ("Strand:" / "Expectation:") and the same "Read the full Ontario
+   expectation" link the real <details> panel uses. 14s total. */
 .mock-curriculum{flex-direction:column;gap:0;justify-content:center}
-.mc-card{position:relative;background:#fff;color:#2D2356;border-radius:14px;padding:12px 16px 16px;width:88%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:mc-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:8px}
-.mc-tag{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;background:rgba(108,92,231,.10);border:1px solid rgba(108,92,231,.22);color:var(--primary);padding:4px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.2px;animation:mc-tag-pulse 14s ease-in-out infinite;position:relative;z-index:2}
-.mc-tag-icon{font-size:12px;line-height:1}
-.mc-tag-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;letter-spacing:.02em}
-.mc-popover{position:absolute;left:16px;top:42px;background:#2D2356;color:#fff;border-radius:9px;padding:8px 11px;box-shadow:0 8px 22px rgba(0,0,0,.30);font-size:10.5px;line-height:1.35;max-width:200px;opacity:0;transform:translateY(-6px) scale(.94);transform-origin:top left;pointer-events:none;animation:mc-popover-show 14s ease-out infinite;z-index:3}
-.mc-popover::before{content:'';position:absolute;left:20px;top:-4px;width:8px;height:8px;background:#2D2356;transform:rotate(45deg)}
-.mc-popover-strand{font-weight:800;color:#FFD85C;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
-.mc-popover-expect{font-weight:600}
-.mc-cursor{position:absolute;left:18px;top:48px;width:16px;height:20px;pointer-events:none;opacity:0;animation:mc-cursor-move 14s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
-.mc-question{font-size:13px;font-weight:700;line-height:1.3;opacity:0;animation:mc-fade-in 14s ease-out infinite}
+.mc-card{position:relative;background:#fff;color:#2D2356;border-radius:14px;padding:12px 14px 14px;width:90%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:mc-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px}
+.mc-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mc-qt{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;line-height:1.1;min-width:0}
+.mc-qt-emoji{font-size:16px;line-height:1}
+.mc-head-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.mc-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(108,92,231,.10);border:1px solid rgba(108,92,231,.22);color:var(--primary);padding:3px 7px;border-radius:999px;font-weight:800;letter-spacing:.2px;animation:mc-tag-pulse 14s ease-in-out infinite;position:relative;z-index:2}
+.mc-tag-icon{font-size:11px;line-height:1}
+.mc-tag-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.02em;font-weight:800}
+.mc-qc{background:rgba(0,0,0,.05);color:#5b5274;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700}
+.mc-progress{height:4px;background:rgba(0,0,0,.05);border-radius:99px;overflow:hidden}
+.mc-progress > i{display:block;height:100%;width:25%;background:linear-gradient(90deg,#7C6DF2,#5BE0C5);border-radius:99px}
+.mc-popover{position:absolute;right:14px;top:38px;background:#fff;color:#2D2356;border:1px solid rgba(108,92,231,.22);border-radius:10px;padding:9px 12px;box-shadow:0 12px 28px rgba(45,35,86,.22);font-size:10.5px;line-height:1.4;width:236px;opacity:0;transform:translateY(-6px) scale(.94);transform-origin:top right;pointer-events:none;animation:mc-popover-show 14s ease-out infinite;z-index:3}
+.mc-popover::before{content:'';position:absolute;right:46px;top:-5px;width:9px;height:9px;background:#fff;border-left:1px solid rgba(108,92,231,.22);border-top:1px solid rgba(108,92,231,.22);transform:rotate(45deg)}
+.mc-popover-row{margin-bottom:4px}
+.mc-popover-row:last-of-type{margin-bottom:6px}
+.mc-popover-label{font-weight:800;color:var(--primary);margin-right:4px}
+.mc-popover-link{font-size:9.5px;font-weight:700;color:var(--primary);padding-top:5px;border-top:1px solid rgba(108,92,231,.15)}
+.mc-cursor{position:absolute;right:24px;top:24px;width:16px;height:20px;pointer-events:none;opacity:0;animation:mc-cursor-move 14s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.mc-question{font-size:13px;font-weight:700;line-height:1.3;margin-top:2px;opacity:0;animation:mc-fade-in 14s ease-out infinite}
 .mc-line{position:relative;height:4px;background:#EAE6FF;border-radius:2px;margin-top:8px;margin-bottom:18px}
 .mc-line .tick{position:absolute;top:-3px;width:2px;height:10px;background:#B5ACE0;border-radius:1px}
 .mc-line .tick.t0{left:0}
@@ -292,7 +302,6 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 .mc-line .label.lhalf{left:50%;transform:translateX(-50%)}
 .mc-line .label.l1{right:-2px}
 .mc-line .marker{position:absolute;top:-7px;width:14px;height:14px;border-radius:50%;background:#FD79A8;border:3px solid #fff;box-shadow:0 2px 6px rgba(253,121,168,.5);left:0;animation:mc-marker-slide 14s ease-in-out infinite}
-.mc-coin{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;background:#FFE082;color:#7A5C00;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;opacity:0;animation:mc-coin-pop 14s ease-out infinite}
 @keyframes mc-card-in{
   0%,2%   {transform:translateY(20px);opacity:0}
   7%,100% {transform:translateY(0);opacity:1}
@@ -311,23 +320,19 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   0%,12%  {left:0%}
   26%,100%{left:50%}
 }
-@keyframes mc-coin-pop{
-  0%,28%  {opacity:0;transform:scale(.6)}
-  33%     {opacity:1;transform:scale(1.2)}
-  38%,100%{opacity:1;transform:scale(1)}
-}
-/* Cursor parks "on" the tag (left:18px, top:48px) and animates
-   transform to enter from below-right, press, hold, then exit. Times
-   sync with mc-popover-show (popover appears right after the click)
-   and mc-tag-pulse (pulse fires under the cursor at click moment). */
+/* Cursor enters from below-right, lands on the curriculum chip in the
+   top-right of the card, presses (scale .78), then exits. The chip
+   sits at roughly right:14px, top:15px from the card origin — we
+   translate from (120,90) into the chip's vicinity and back out.
+   Times sync with mc-popover-show + mc-tag-pulse. */
 @keyframes mc-cursor-move{
-  0%,38%   {opacity:0;transform:translate(120px,90px) scale(1)}
-  44%      {opacity:1;transform:translate(60px,46px)  scale(1)}
-  50%      {opacity:1;transform:translate(0,0)        scale(1)}
-  53%      {opacity:1;transform:translate(0,0)        scale(.78)}
-  56%,78%  {opacity:1;transform:translate(0,0)        scale(1)}
-  86%      {opacity:1;transform:translate(60px,60px)  scale(1)}
-  92%,100% {opacity:0;transform:translate(120px,90px) scale(1)}
+  0%,38%   {opacity:0;transform:translate(80px,80px) scale(1)}
+  44%      {opacity:1;transform:translate(40px,40px) scale(1)}
+  50%      {opacity:1;transform:translate(0,0)       scale(1)}
+  53%      {opacity:1;transform:translate(0,0)       scale(.78)}
+  56%,78%  {opacity:1;transform:translate(0,0)       scale(1)}
+  86%      {opacity:1;transform:translate(40px,50px) scale(1)}
+  92%,100% {opacity:0;transform:translate(80px,80px) scale(1)}
 }
 @keyframes mc-popover-show{
   0%,53%  {opacity:0;transform:translateY(-6px) scale(.94)}
@@ -336,24 +341,33 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 }
 
 /* ===== Mock 2: interactive lesson with quiz =====
-   Lesson card slides in. Options fade in staggered. The correct one
-   pops in Solvix's real correct-answer palette (#e6fff5 bg, #00b894
-   border, #00855a text — same as the real /app/ quiz UI). The coin
-   counter bumps; the progress bar fills 1/4 → 2/4 (single bar, not
-   dots — matches the real .q-progress component). 14s total. */
-.mock-lessons{align-items:flex-start;justify-content:center;padding-top:16px}
-.ml-card{background:#fff;color:#2D2356;border-radius:14px;padding:11px 14px 12px;width:90%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:ml-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px}
-.ml-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:700;color:#7B6FA8}
-.ml-coin{display:inline-flex;align-items:center;gap:3px;background:#FFE082;color:#7A5C00;padding:2px 8px;border-radius:999px;animation:ml-coin-bump 14s ease-in-out infinite}
-.ml-question{font-size:14px;font-weight:800;line-height:1.25}
-.ml-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px}
-.ml-opt{background:#F4F1FF;border:2px solid transparent;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:700;text-align:center;color:#2D2356;opacity:0}
+   Mirrors the real /app/ .quiz chrome: head row with emoji + activity
+   title (.qt) on the left, .lc-compact curriculum chip + "X of N"
+   counter (.qc) on the right. Single .q-progress bar at the top. The
+   .q-card holds the question + .choices grid. NO coins in the head —
+   coins only appear on the end-of-quiz screen in the real app. The
+   correct option locks in with the real palette (#e6fff5 bg, #00b894
+   border, #00855a text, pop animation). 14s total. */
+.mock-lessons{align-items:flex-start;justify-content:center;padding-top:12px}
+.ml-card{background:#fff;color:#2D2356;border-radius:14px;padding:11px 14px 12px;width:92%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:ml-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px}
+.ml-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ml-qt{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;line-height:1.1;min-width:0}
+.ml-qt-emoji{font-size:16px;line-height:1}
+.ml-head-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ml-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(108,92,231,.10);border:1px solid rgba(108,92,231,.22);color:var(--primary);padding:3px 7px;border-radius:999px;font-weight:800}
+.ml-tag-icon{font-size:11px;line-height:1}
+.ml-tag-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9.5px;letter-spacing:.02em;font-weight:800}
+.ml-qc{background:rgba(0,0,0,.05);color:#5b5274;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700}
+.ml-progress{height:4px;background:rgba(0,0,0,.05);border-radius:99px;overflow:hidden}
+.ml-progress > i{display:block;height:100%;width:25%;background:linear-gradient(90deg,#7C6DF2,#5BE0C5);border-radius:99px;animation:ml-progress-fill 14s ease-out infinite}
+.ml-qcard{background:linear-gradient(180deg,#faf9ff,#fff);border:1px solid rgba(45,35,86,.08);border-radius:10px;padding:12px 12px 10px;text-align:center;display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.ml-question{font-size:14px;font-weight:700;line-height:1.25}
+.ml-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ml-opt{background:#fff;border:2px solid #EAE6FF;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;text-align:center;color:#2D2356;opacity:0}
 .ml-opt:nth-child(1){animation:ml-opt-in 14s ease-out 0s    infinite}
 .ml-opt:nth-child(2){animation:ml-opt-in 14s ease-out .15s  infinite}
 .ml-opt:nth-child(4){animation:ml-opt-in 14s ease-out .45s  infinite}
 .ml-opt-correct{animation:ml-opt-correct-full 14s ease-out infinite}
-.ml-progress{height:6px;background:#EAE6FF;border-radius:3px;margin-top:5px;overflow:hidden;position:relative}
-.ml-progress::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#7C6DF2,#FD79A8);border-radius:3px;transform-origin:left;transform:scaleX(.25);animation:ml-progress-fill 14s ease-out infinite}
 @keyframes ml-card-in{
   0%,2%   {transform:translateY(18px);opacity:0}
   7%,100% {transform:translateY(0);opacity:1}
@@ -362,47 +376,81 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   0%,12%  {opacity:0;transform:translateY(4px)}
   20%,100%{opacity:1;transform:translateY(0)}
 }
-/* Combined entry + answer-correct keyframes for the right option, so
-   only one animation (not stacked) controls its full lifecycle. Final
-   palette matches Solvix's real correct-answer styling. */
+/* Combined entry + answer-correct keyframes for the right option. The
+   final state matches the real /app/ .choice.correct rule:
+   border #00b894 / bg #e6fff5 / color #00855a. */
 @keyframes ml-opt-correct-full{
-  0%,15%  {opacity:0;transform:translateY(4px);background:#F4F1FF;border-color:transparent;color:#2D2356}
-  22%,40% {opacity:1;transform:translateY(0);background:#F4F1FF;border-color:transparent;color:#2D2356}
-  46%     {opacity:1;transform:scale(1.06);background:#FFFBE6;border-color:#FFD85C;color:#2D2356}
-  54%,100%{opacity:1;transform:scale(1);background:#e6fff5;border-color:#00b894;color:#00855a}
-}
-@keyframes ml-coin-bump{
-  0%,52%  {transform:scale(1)}
-  60%     {transform:scale(1.25)}
-  68%,100%{transform:scale(1)}
+  0%,15%  {opacity:0;transform:translateY(4px);background:#fff;border-color:#EAE6FF;color:#2D2356}
+  22%,40% {opacity:1;transform:translateY(0);  background:#fff;border-color:#EAE6FF;color:#2D2356}
+  46%     {opacity:1;transform:scale(1.06);    background:#fff;border-color:#7C6DF2;color:#2D2356}
+  54%,100%{opacity:1;transform:scale(1);       background:#e6fff5;border-color:#00b894;color:#00855a}
 }
 @keyframes ml-progress-fill{
-  0%,52%  {transform:scaleX(.25)}
-  68%,100%{transform:scaleX(.50)}
+  0%,52%  {width:25%}
+  68%,100%{width:50%}
 }
 
 /* ===== Mock 3: learning quests + brain-break games =====
-   Two cards stacked in the same spot, crossfading every 16s. Quest
-   card has a reading-progress bar that creeps. Break card is "🧠
-   Memory Match" — one of the real brain-break games. Six face-down
-   tiles, two flip up showing matching ⭐s, then flash green for the
-   match. 16s total — long enough to read both states. */
+   Two stacked cards crossfading every 16s. Quest card matches the real
+   .level-card chrome: round number badge (.mg-num), title (.mg-quest-
+   title), status text (.mg-quest-status — "Ready to start!" / "Completed
+   ✓"), subject emoji on the right. NO progress bar on the card itself
+   — that lives inside the activity in the real app.
+   Memory Match below is a 4×3 grid (12 cards = 6 pairs) — Easy mode in
+   the real app. Stats row above the board (Moves / Time / Pairs).
+   Cards have the real "?" gradient front + emoji back, flipping with
+   a rotateY transform; matched cards get the green-gradient back. */
 .mock-games{padding:0}
-.mock-games .mg-card{position:absolute;inset:14px;border-radius:14px;padding:14px 16px;color:#2D2356;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;flex-direction:column;justify-content:center;gap:10px}
-.mock-games .mg-card-quest{animation:mg-quest 16s ease-in-out infinite}
-.mock-games .mg-card-break{background:linear-gradient(135deg,#74B9FF 0%,#A29BFE 100%);color:#fff;animation:mg-break 16s ease-in-out infinite;align-items:center;justify-content:center;text-align:center;overflow:hidden;gap:8px}
-.mg-eyebrow{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--primary)}
-.mg-title{font-size:15px;font-weight:800;line-height:1.25}
-.mg-bar{height:6px;background:#EAE6FF;border-radius:3px;overflow:hidden}
-.mg-fill{display:block;height:100%;background:linear-gradient(90deg,#FD79A8,#7C6DF2);border-radius:3px;transform-origin:left;transform:scaleX(0);animation:mg-fill 16s ease-in-out infinite}
-.mg-meta{display:flex;justify-content:space-between;font-size:11px;color:#7B6FA8;font-weight:700}
-.mg-break-title{font-size:16px;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,.25);position:relative;z-index:1}
-.mg-break-sub{font-size:11px;font-weight:700;opacity:.95;position:relative;z-index:1}
-.mg-tiles{display:grid;grid-template-columns:repeat(3,28px);grid-template-rows:repeat(2,28px);gap:5px;position:relative;z-index:1}
-.mg-tile{background:rgba(255,255,255,.22);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;position:relative;overflow:hidden}
-.mg-tile-face{opacity:0}
-.mg-tile-1,.mg-tile-5{animation:mg-tile-flip 16s ease-in-out infinite}
-.mg-tile-1 .mg-tile-face,.mg-tile-5 .mg-tile-face{animation:mg-tile-face-show 16s ease-in-out infinite}
+.mock-games .mg-card{position:absolute;border-radius:14px;color:#2D2356;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35);box-sizing:border-box}
+.mock-games .mg-card-quest{inset:14px 14px auto;padding:14px 16px;animation:mg-quest 16s ease-in-out infinite}
+.mock-games .mg-card-break{inset:14px;padding:10px 12px 12px;background:linear-gradient(180deg,#faf9ff,#fff);border:1px solid rgba(45,35,86,.08);animation:mg-break 16s ease-in-out infinite;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+/* Quest card — real .level-card lookalike. Border-left accent matches
+   the real "current" state (4px solid var(--primary)). */
+.mg-quest-row{display:flex;align-items:center;gap:12px;border-left:4px solid var(--primary);padding-left:10px;background:linear-gradient(90deg,rgba(108,92,231,.04),transparent);border-radius:6px;padding-top:6px;padding-bottom:6px}
+.mg-num{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff;background:var(--primary);flex-shrink:0;animation:mg-num-pulse 2s ease-in-out infinite}
+.mg-quest-info{flex:1;min-width:0}
+.mg-quest-title{font-size:14px;font-weight:700;line-height:1.2}
+.mg-quest-status{font-size:11px;color:#7B6FA8;font-weight:600;margin-top:2px}
+.mg-quest-emoji{font-size:24px;flex-shrink:0}
+@keyframes mg-num-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(108,92,231,.5)}
+  50%    {box-shadow:0 0 0 6px rgba(108,92,231,0)}
+}
+/* Break card — Memory Match. */
+.mg-break-head{display:flex;align-items:center;justify-content:flex-start}
+.mg-break-title{font-size:14px;font-weight:800;display:inline-flex;align-items:center;gap:6px;margin:0}
+.mg-break-title span:first-child{font-size:18px;line-height:1}
+.mg-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mg-stat{background:rgba(108,92,231,.08);border-radius:8px;padding:4px 6px;text-align:center}
+.mg-stat-label{font-size:9px;font-weight:700;color:#7B6FA8;text-transform:uppercase;letter-spacing:.04em}
+.mg-stat-val{font-size:12px;font-weight:800;color:#2D2356;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.mg-stat-moves,.mg-stat-time,.mg-stat-pairs{animation:mg-stat-tick 16s ease-in-out infinite}
+.mg-tiles{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:4px;flex:1;min-height:0}
+.mg-tile{position:relative;border-radius:6px;overflow:hidden;perspective:600px;aspect-ratio:1/1}
+.mg-tile-front,.mg-tile-back{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:6px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .5s cubic-bezier(.34,1.56,.64,1)}
+.mg-tile-front{background:linear-gradient(135deg,#e84393,#7C6DF2);color:#fff;font-size:13px;font-weight:800}
+.mg-tile-back{background:#fff;color:#2D2356;font-size:14px;transform:rotateY(180deg)}
+/* Two tiles flip up showing matching 🍎. After ~3s of "checking" the
+   match resolves and the back turns green. */
+.mg-tile-flip-a .mg-tile-front,
+.mg-tile-flip-b .mg-tile-front{animation:mg-tile-front-flip 16s ease-in-out infinite}
+.mg-tile-flip-a .mg-tile-back,
+.mg-tile-flip-b .mg-tile-back{animation:mg-tile-back-flip 16s ease-in-out infinite}
+@keyframes mg-tile-front-flip{
+  0%,55%   {transform:rotateY(0)}
+  62%,100% {transform:rotateY(180deg)}
+}
+@keyframes mg-tile-back-flip{
+  0%,55%   {transform:rotateY(180deg);background:#fff}
+  62%,72%  {transform:rotateY(0);background:#fff}
+  78%,100% {transform:rotateY(0);background:linear-gradient(135deg,#b8f2c6,#55efc4)}
+}
+@keyframes mg-stat-tick{
+  /* Stats row tweaks once the match resolves: 0 moves → 1 move,
+     0/6 pairs → 1/6 pairs. Time kept static at 0:08 for legibility. */
+  0%,72%   {opacity:.85}
+  78%,100% {opacity:1}
+}
 @keyframes mg-quest{
   0%,42% {opacity:1}
   50%,55%{opacity:0}
@@ -415,56 +463,43 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   63%,92%{opacity:0}
   98%,100%{opacity:1}
 }
-@keyframes mg-fill{
-  0%   {transform:scaleX(0)}
-  42%  {transform:scaleX(.55)}
-  63%  {transform:scaleX(.55)}
-  92%  {transform:scaleX(.95)}
-  100% {transform:scaleX(.95)}
-}
-@keyframes mg-tile-flip{
-  0%,52%   {background:rgba(255,255,255,.22)}
-  58%,68%  {background:rgba(255,255,255,.95)}
-  74%,84%  {background:#5BC07A}
-  90%,100% {background:rgba(255,255,255,.22)}
-}
-@keyframes mg-tile-face-show{
-  0%,54%   {opacity:0;transform:scale(.7);color:#2D2356}
-  60%,72%  {opacity:1;transform:scale(1);color:#2D2356}
-  76%,86%  {opacity:1;transform:scale(1);color:#fff}
-  92%,100% {opacity:0;transform:scale(.7);color:#2D2356}
-}
 
 /* ===== Mock 4: autoplay queue (JS-driven) =====
-   The CTA button pulses. The queue advances every ~2.5s — current
-   item is highlighted with a sliding progress bar, prior items get
-   a green check, then the cycle restarts. JS lives in
-   autoplayMockTick IIFE. Game names ("Memory Match", "Drop Sum")
-   match the actual brain-break games shipped in /app/. */
-.mock-autoplay{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:7px;padding:12px 14px}
-.ma-start{display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#FD79A8,#7C6DF2);color:#fff;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:800;box-shadow:0 4px 14px rgba(124,109,242,.45);animation:ma-start-pulse 2s ease-in-out infinite;flex-shrink:0}
+   The CTA button matches the real /app/ .autoplay-cta chrome: pink→
+   purple gradient, ▶️ icon, "Autoplay" headline + the same subtext
+   ("Lessons + brain breaks on auto"). Real game names — Memory Match,
+   Drop Sum, Multiplication Facts — are the actual brain-break games
+   and lesson activities shipped today. The queue advances every ~2.5s
+   (autoplayMockTick IIFE): current item highlights with a sliding
+   progress bar; prior items get a green check. Loops forever. */
+.mock-autoplay{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;padding:12px 14px}
+.ma-start{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#ff9ff3,#6c5ce7);color:#fff;border-radius:14px;padding:8px 14px;box-shadow:0 6px 16px rgba(108,92,231,.45);animation:ma-start-pulse 2s ease-in-out infinite;flex-shrink:0;align-self:center}
+.ma-start-ico{font-size:20px;line-height:1}
+.ma-start-txt{display:flex;flex-direction:column;text-align:left;line-height:1.15}
+.ma-start-title{font-size:13px;font-weight:800}
+.ma-start-sub{font-size:9.5px;font-weight:600;opacity:.92;margin-top:1px}
 .ma-queue{display:flex;flex-direction:column;gap:4px;flex:1;justify-content:center}
 .ma-item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10);border-radius:8px;padding:5px 9px;font-size:11px;font-weight:700;color:rgba(255,255,255,.78);transition:background .25s ease,border-color .25s ease,color .25s ease,opacity .25s ease;position:relative;overflow:hidden}
 .ma-item .ma-icon{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.18);display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;line-height:1}
 .ma-item .ma-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ma-item .ma-bar{position:absolute;left:0;bottom:0;height:2px;background:linear-gradient(90deg,#FD79A8,#FFD85C);width:0}
-.ma-item.active{background:rgba(124,109,242,.30);border-color:rgba(255,255,255,.40);color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.10)}
-.ma-item.active .ma-icon{background:#FD79A8;color:#fff}
+.ma-item .ma-bar{position:absolute;left:0;bottom:0;height:2px;background:linear-gradient(90deg,#ff9ff3,#6c5ce7);width:0}
+.ma-item.active{background:rgba(108,92,231,.30);border-color:rgba(255,255,255,.40);color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.10)}
+.ma-item.active .ma-icon{background:#ff9ff3;color:#fff}
 .ma-item.done{opacity:.55}
 .ma-item.done .ma-text{text-decoration:line-through;text-decoration-color:rgba(255,255,255,.4)}
-.ma-item.done .ma-icon{background:#5BC07A;color:#fff}
+.ma-item.done .ma-icon{background:#00b894;color:#fff}
 .ma-item.done .ma-icon-glyph{display:none}
 .ma-item.done .ma-icon::after{content:'✓';font-size:11px;font-weight:800}
 @keyframes ma-start-pulse{
-  0%,100%{box-shadow:0 4px 14px rgba(124,109,242,.45),0 0 0 0 rgba(253,121,168,.55)}
-  50%    {box-shadow:0 4px 14px rgba(124,109,242,.45),0 0 0 10px rgba(253,121,168,0)}
+  0%,100%{box-shadow:0 6px 16px rgba(108,92,231,.45),0 0 0 0 rgba(255,159,243,.55)}
+  50%    {box-shadow:0 6px 16px rgba(108,92,231,.45),0 0 0 10px rgba(255,159,243,0)}
 }
 
 /* Respect prefers-reduced-motion: hold mocks at a sensible end-state
    instead of looping animations for users who've opted out. */
 @media (prefers-reduced-motion: reduce){
   .mock *,.mock{animation:none !important;transition:none !important}
-  .mc-card,.ml-card,.mc-question,.mc-coin{opacity:1;transform:none}
+  .mc-card,.ml-card,.mc-question{opacity:1;transform:none}
   .mc-popover{opacity:1;transform:none}
   .mc-cursor{opacity:0}
   .ml-opt{opacity:1;transform:none}
@@ -473,9 +508,10 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   .mc-line .marker{left:50%}
   .mock-games .mg-card-quest{opacity:1}
   .mock-games .mg-card-break{opacity:0}
-  .mg-fill{transform:scaleX(.6)}
-  .mg-tile-1,.mg-tile-5{background:rgba(255,255,255,.95)}
-  .mg-tile-1 .mg-tile-face,.mg-tile-5 .mg-tile-face{opacity:1;color:#2D2356}
+  /* Memory-match tiles: hold a flipped pair (a) face-up so the
+     example reads as "matched" without animating. */
+  .mg-tile-flip-a .mg-tile-front{transform:rotateY(180deg)}
+  .mg-tile-flip-a .mg-tile-back{transform:rotateY(0deg)}
 }
 
 /* "Try it" section — two side-by-side dashboards on a tinted band.
@@ -615,12 +651,24 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
     </div>
     <div class="video-grid">
 
-      <!-- 1. Curriculum-anchored lessons -->
+      <!-- 1. Curriculum-anchored lessons
+           Recreates the real lesson-card chrome from /app/: a quiz-head row
+           with [emoji + activity title] on the left and the .lc-compact
+           curriculum chip + "1 of 4" counter on the right. Cursor enters,
+           clicks the chip, and a popover slides down showing the same
+           Strand / Expectation labels the real <details> panel uses. -->
       <div class="video-card">
         <div class="video-frame">
           <div class="mock mock-curriculum" aria-hidden="true">
             <div class="mc-card">
-              <span class="mc-tag"><span class="mc-tag-icon">📋</span><span class="mc-tag-code">G4 · B1.7</span></span>
+              <div class="mc-head">
+                <div class="mc-qt"><span class="mc-qt-emoji">🍕</span><span>Fractions Intro</span></div>
+                <div class="mc-head-right">
+                  <span class="mc-tag"><span class="mc-tag-icon">📋</span><span class="mc-tag-code">G4·B1.7</span></span>
+                  <span class="mc-qc">1 of 4</span>
+                </div>
+              </div>
+              <div class="mc-progress"><i></i></div>
               <div class="mc-question">Where is ½ on the number line?</div>
               <div class="mc-line">
                 <span class="tick t0"></span>
@@ -631,12 +679,14 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
                 <span class="label lhalf">½</span>
                 <span class="label l1">1</span>
               </div>
-              <span class="mc-coin">💰 +5 coins</span>
-              <!-- Popover that appears below the curriculum tag once the
-                   cursor "clicks" it. Times match mc-cursor-move. -->
+              <!-- Popover mirrors the real <details> panel that opens off the
+                   curriculum chip in the lesson intro card. Same labels
+                   ("Strand:" / "Expectation:") and the same "Read the full
+                   Ontario expectation" link styling. -->
               <div class="mc-popover">
-                <div class="mc-popover-strand">B · Number</div>
-                <div class="mc-popover-expect">Represent &amp; compare fractions on a number line</div>
+                <div class="mc-popover-row"><span class="mc-popover-label">Strand:</span> B · Number</div>
+                <div class="mc-popover-row"><span class="mc-popover-label">Expectation:</span> Represent &amp; compare fractions on a number line</div>
+                <div class="mc-popover-link">🔗 Read the full Ontario expectation →</div>
               </div>
               <!-- Inline SVG cursor (no extra HTTP request, no font-icon
                    dependency). Animated via mc-cursor-move keyframes. -->
@@ -654,25 +704,34 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         </div>
       </div>
 
-      <!-- 2. Lessons & quizzes -->
+      <!-- 2. Lessons & quizzes
+           Mirrors the real .quiz card: emoji + title on the left, compact
+           curriculum chip + "2 of 4" counter on the right (NO coins —
+           those only appear at the end-of-quiz screen in the real app).
+           Single .q-progress bar at the top, then the .q-card with the
+           question + .choices grid. Correct option uses the real palette
+           (#e6fff5 bg / #00b894 border / #00855a text). -->
       <div class="video-card">
         <div class="video-frame">
           <div class="mock mock-lessons" aria-hidden="true">
             <div class="ml-card">
               <div class="ml-head">
-                <span>Question 2 of 4</span>
-                <span class="ml-coin">💰 24</span>
+                <div class="ml-qt"><span class="ml-qt-emoji">✖️</span><span>Multiplication Facts</span></div>
+                <div class="ml-head-right">
+                  <span class="ml-tag"><span class="ml-tag-icon">📋</span><span class="ml-tag-code">G3·B2.4</span></span>
+                  <span class="ml-qc">2 of 4</span>
+                </div>
               </div>
-              <div class="ml-question">What is 3 × 4?</div>
-              <div class="ml-opts">
-                <div class="ml-opt">8</div>
-                <div class="ml-opt">10</div>
-                <div class="ml-opt ml-opt-correct">12</div>
-                <div class="ml-opt">14</div>
+              <div class="ml-progress"><i></i></div>
+              <div class="ml-qcard">
+                <div class="ml-question">What is 3 × 4?</div>
+                <div class="ml-opts">
+                  <div class="ml-opt">8</div>
+                  <div class="ml-opt">10</div>
+                  <div class="ml-opt ml-opt-correct">12</div>
+                  <div class="ml-opt">14</div>
+                </div>
               </div>
-              <!-- Single progress bar matches the real .q-progress in /app/
-                   (fills 1/4 → 2/4 as the current answer locks in). -->
-              <div class="ml-progress"></div>
             </div>
           </div>
         </div>
@@ -683,30 +742,52 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         </div>
       </div>
 
-      <!-- 3. Learning quests + brain-break games -->
+      <!-- 3. Learning quests + brain-break games
+           Quest card matches the real .level-card chrome: round number
+           badge, title, status text ("Ready to start!" / "Completed ✓"),
+           and a subject emoji on the right. NO progress bar on the card
+           itself — that lives inside the activity in the real app.
+           Memory Match below mirrors the real game: 4×3 grid (6 pairs),
+           "?" face-down → emoji face-up → green when matched, with the
+           real Moves / Time / Pairs stats row. -->
       <div class="video-card">
         <div class="video-frame">
           <div class="mock mock-games" aria-hidden="true">
             <div class="mg-card mg-card-quest">
-              <span class="mg-eyebrow">Quest · Reading · Ch. 4</span>
-              <div class="mg-title">A Lighthouse for Theo</div>
-              <div class="mg-bar"><span class="mg-fill"></span></div>
-              <div class="mg-meta"><span>Page 3 of 5</span><span>💰 +12</span></div>
+              <div class="mg-quest-row">
+                <span class="mg-num">2</span>
+                <div class="mg-quest-info">
+                  <div class="mg-quest-title">Fractions Intro</div>
+                  <div class="mg-quest-status">Ready to start!</div>
+                </div>
+                <span class="mg-quest-emoji">🍕</span>
+              </div>
             </div>
             <div class="mg-card mg-card-break">
-              <div class="mg-break-title">🧠 Memory Match</div>
-              <!-- 3×2 grid. Tiles 1 & 5 flip up showing matching ⭐,
-                   then flash green — mirrors the real Memory Match
-                   game loop. Other tiles stay face-down. -->
-              <div class="mg-tiles">
-                <span class="mg-tile mg-tile-1"><span class="mg-tile-face">⭐</span></span>
-                <span class="mg-tile mg-tile-2"></span>
-                <span class="mg-tile mg-tile-3"></span>
-                <span class="mg-tile mg-tile-4"></span>
-                <span class="mg-tile mg-tile-5"><span class="mg-tile-face">⭐</span></span>
-                <span class="mg-tile mg-tile-6"></span>
+              <div class="mg-break-head">
+                <h3 class="mg-break-title"><span>🃏</span><span>Memory Match</span></h3>
               </div>
-              <div class="mg-break-sub">Brain break · 60 sec</div>
+              <div class="mg-stats">
+                <div class="mg-stat"><div class="mg-stat-label">Moves</div><div class="mg-stat-val mg-stat-moves">0</div></div>
+                <div class="mg-stat"><div class="mg-stat-label">Time</div><div class="mg-stat-val mg-stat-time">0:08</div></div>
+                <div class="mg-stat"><div class="mg-stat-label">Pairs</div><div class="mg-stat-val mg-stat-pairs">0 / 6</div></div>
+              </div>
+              <!-- 4×3 grid (12 cards = 6 pairs) — real Easy mode. Tiles 2
+                   and 7 flip up showing matching 🍎, then turn green. -->
+              <div class="mg-tiles">
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile mg-tile-flip-a"><span class="mg-tile-front">?</span><span class="mg-tile-back">🍎</span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile mg-tile-flip-b"><span class="mg-tile-front">?</span><span class="mg-tile-back">🍎</span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+                <span class="mg-tile"><span class="mg-tile-front">?</span><span class="mg-tile-back"></span></span>
+              </div>
             </div>
           </div>
         </div>
@@ -717,24 +798,37 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         </div>
       </div>
 
-      <!-- 4. Autoplay -->
+      <!-- 4. Autoplay
+           Button matches the real .autoplay-cta chrome from /app/: pink→
+           purple gradient, ▶️ icon, "Autoplay" headline + the real
+           subtext. The queue below the button is a marketing visualization
+           of what autoplay schedules — in the live app a fixed chip at the
+           top tracks step-by-step, but the queue makes the concept visible.
+           Game names (Drop Sum, Memory Match, Quick Math) are the real
+           brain-break games shipped today. -->
       <div class="video-card">
         <div class="video-frame">
           <div class="mock mock-autoplay" aria-hidden="true">
-            <div class="ma-start">▶ Start today's adventure</div>
+            <div class="ma-start">
+              <span class="ma-start-ico">▶️</span>
+              <div class="ma-start-txt">
+                <span class="ma-start-title">Autoplay</span>
+                <span class="ma-start-sub">Lessons + brain breaks on auto</span>
+              </div>
+            </div>
             <div class="ma-queue">
               <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">📖</span></span><span class="ma-text">Reading · Chapter 4</span><span class="ma-bar"></span></div>
-              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">⚡</span></span><span class="ma-text">Brain break · Drop Sum</span><span class="ma-bar"></span></div>
-              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">➗</span></span><span class="ma-text">Math · Fractions</span><span class="ma-bar"></span></div>
               <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">🧠</span></span><span class="ma-text">Brain break · Memory Match</span><span class="ma-bar"></span></div>
-              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">🏆</span></span><span class="ma-text">Today's quiz</span><span class="ma-bar"></span></div>
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">✖️</span></span><span class="ma-text">Math · Multiplication Facts</span><span class="ma-bar"></span></div>
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">⚡</span></span><span class="ma-text">Brain break · Drop Sum</span><span class="ma-bar"></span></div>
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">📝</span></span><span class="ma-text">Writing · Daily Prompt</span><span class="ma-bar"></span></div>
             </div>
           </div>
         </div>
         <div class="video-meta">
           <span class="video-tag">Autoplay</span>
           <h3>Autoplay strings the day's quests together</h3>
-          <p>One tap on "Start today's adventure" and Solvix queues up the day's lessons, brain breaks, and quizzes back-to-back. Younger kids never have to navigate menus — they just learn.</p>
+          <p>One tap on Autoplay and Solvix queues up the day's lessons and brain breaks back-to-back. Younger kids never have to navigate menus — they just keep learning.</p>
         </div>
       </div>
 
