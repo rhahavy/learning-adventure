@@ -68,6 +68,36 @@ MAX_INPUT_CHARS = "4000"
 # worker.js. The worker falls back to "claude-haiku-4-5" if unset.
 ANTHROPIC_MODEL = "claude-haiku-4-5"
 
+# ----- EMAIL (RESEND) -------------------------------------------
+# Powers three things:
+#   1. Customer welcome email — sent from the Stripe webhook the
+#      moment a checkout completes. Contains the tenant code, so this
+#      is now the CANONICAL way users receive their login credential.
+#      The thank-you page no longer echoes the code (security: Stripe
+#      session ids leak via Referer / browser history / screenshots).
+#   2. Operator signup notification — sent to OWNER_EMAIL on every
+#      new tenant so you know about each signup in real time.
+#   3. Resend-code recovery — POST /stripe/resend-code re-sends the
+#      welcome email to the same address Stripe has on file (never
+#      to a user-supplied destination — that would let a session-id
+#      holder hijack the credential).
+#
+# Setup:
+#   1. resend.com → create account → verify your sending domain (SPF
+#      + DKIM records they provide). Without verification, sends 403.
+#   2. Create an API key, then:
+#        wrangler secret put RESEND_API_KEY
+#        <paste re_xxx when prompted>
+#   3. Set EMAIL_FROM and OWNER_EMAIL below to your verified addresses.
+#
+# All three vars are OPTIONAL at the wrangler level — if any is unset
+# the email path silently no-ops and provisioning still succeeds.
+# The thank-you page surfaces a clear error in that case.
+EMAIL_FROM      = "KidQuest <hello@kidquest.fun>"
+EMAIL_REPLY_TO  = "hello@kidquest.fun"
+OWNER_EMAIL     = "rhahavy.b@gmail.com"
+APP_URL         = "https://kidquest.fun/app/"
+
 # ----- OBSERVABILITY --------------------------------------------
 # Free Cloudflare dashboard metrics. No log body persistence.
 [observability]

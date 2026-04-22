@@ -4,15 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- Thank-you / post-checkout page. Stripe redirects here with
-     ?session_id=cs_xxx after a successful Checkout session. We hit
-     the Worker at /stripe/session/:id to resolve that into the PIN
-     that was just provisioned for this customer, then display it
-     so the user can start using the app immediately without waiting
-     for an email. -->
+     ?session_id=cs_xxx after a successful Checkout session.
+
+     Important: we INTENTIONALLY do not display the tenant login code
+     on this page. Stripe session ids leak (Referer headers to any
+     embedded analytics, browser history, screenshots, shared URLs),
+     and the tenant code IS a credential. Instead the worker emails
+     the code at the moment the webhook fires, and this page just
+     confirms the email went out. If the user lost it, the "Resend"
+     button calls /stripe/resend-code which re-sends to the SAME
+     address Stripe has on file — never to a user-supplied one.
+
+     We DO call /stripe/session/:id to get the masked email + plan
+     label so we can render a personal confirmation. That endpoint
+     returns no credentials. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
+<!-- Stop Referer leaks to anything embedded on this page (fonts CDN,
+     etc.). Belt-and-suspenders since we no longer return credentials,
+     but cheap insurance. -->
+<meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#6C5CE7">
 <meta name="robots" content="noindex,nofollow">
-<title>Welcome to Solvix — your classroom is ready</title>
+<title>Welcome to KidQuest — check your email</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -43,13 +56,11 @@ button{font-family:inherit;cursor:pointer}
 .brand-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--primary2));display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:var(--shadow)}
 .card{background:var(--card);border-radius:32px;padding:40px;box-shadow:var(--shadow-lg);border:1px solid var(--line)}
 h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-weight:800;margin-bottom:10px}
-.lede{font-size:17px;line-height:1.5;color:var(--ink2);margin-bottom:30px}
-.pin-card{background:linear-gradient(135deg,var(--primary) 0%,var(--primary2) 100%);color:#fff;padding:30px;border-radius:22px;text-align:center;margin-bottom:26px;box-shadow:0 12px 28px rgba(108,92,231,.3)}
-.pin-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;opacity:.85;margin-bottom:10px}
-.pin-value{font-size:52px;font-weight:800;letter-spacing:.08em;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:14px}
-.pin-hint{font-size:14px;opacity:.9}
-.copy-btn{background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.35);padding:9px 18px;border-radius:999px;font-weight:700;font-size:13px;margin-top:12px}
-.copy-btn:hover{background:rgba(255,255,255,.3)}
+.lede{font-size:17px;line-height:1.5;color:var(--ink2);margin-bottom:24px}
+.email-card{background:linear-gradient(135deg,var(--primary) 0%,var(--primary2) 100%);color:#fff;padding:30px;border-radius:22px;text-align:center;margin-bottom:26px;box-shadow:0 12px 28px rgba(108,92,231,.3)}
+.email-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;opacity:.85;margin-bottom:10px}
+.email-value{font-size:28px;font-weight:800;letter-spacing:.02em;font-variant-numeric:tabular-nums;line-height:1.2;margin-bottom:8px;word-break:break-all}
+.email-hint{font-size:14px;opacity:.9;margin-top:6px}
 .next-steps{background:#f7f5ff;padding:22px 24px;border-radius:18px;margin-bottom:24px;border:1px solid var(--line)}
 .next-steps h2{font-size:17px;font-weight:800;margin-bottom:10px}
 .next-steps ol{padding-left:22px;color:var(--ink2);font-size:15px;line-height:1.7}
@@ -60,58 +71,66 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
 .btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px);text-decoration:none;color:#fff}
 .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
 .btn-ghost:hover{background:#fff;text-decoration:none}
-.small{font-size:13px;color:var(--ink3);margin-top:22px}
+.btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+.small{font-size:13px;color:var(--ink3);margin-top:22px;line-height:1.5}
 .spinner{display:inline-block;width:18px;height:18px;border:2.5px solid rgba(108,92,231,.2);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .state-loading,.state-error,.state-retrying{text-align:center;padding:16px 0}
 .state-error .emoji{font-size:44px;margin-bottom:10px}
 .hidden{display:none}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:600;box-shadow:var(--shadow-lg);opacity:0;transition:opacity .2s ease;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="brand">
     <div class="brand-mark">🌟</div>
-    <div>Solvix</div>
+    <div>KidQuest</div>
   </div>
 
   <div class="card">
-    <!-- Loading state — showing while we call /stripe/session/:id. -->
+    <!-- Loading state — shown while we resolve the session for the
+         masked email. -->
     <div id="state-loading" class="state-loading">
       <h1>🎉 Payment received!</h1>
-      <p class="lede">Finishing up your account… this usually takes a few seconds.</p>
+      <p class="lede">Sending your login code… this usually takes a few seconds.</p>
       <div style="margin:24px 0"><span class="spinner"></span> Setting up your classroom…</div>
     </div>
 
-    <!-- Ready state — filled in once we've resolved the PIN. -->
+    <!-- Ready state — payment confirmed, email dispatched. We show
+         the masked email so the user can confirm which inbox to check. -->
     <div id="state-ready" class="hidden">
-      <h1>🎉 Welcome to Solvix!</h1>
-      <p class="lede" id="welcome-lede">Your classroom is ready. Here's the PIN you'll use to sign in:</p>
+      <h1>🎉 Welcome to KidQuest!</h1>
+      <p class="lede" id="welcome-lede">Your classroom is ready and your login code is on its way.</p>
 
-      <div class="pin-card">
-        <div class="pin-label">Your Classroom PIN</div>
-        <div class="pin-value" id="pin-value">----</div>
-        <div class="pin-hint">Save this — you'll need it to sign in on every device</div>
-        <button class="copy-btn" id="copy-btn" type="button">📋 Copy PIN</button>
+      <div class="email-card">
+        <div class="email-label">Check Your Email</div>
+        <div class="email-value" id="email-value">—</div>
+        <div class="email-hint">Your login code was sent here just now.</div>
       </div>
 
       <div class="next-steps">
         <h2>What's next:</h2>
         <ol>
-          <li>Click <strong>Open Solvix</strong> below.</li>
-          <li>Enter your PIN on the sign-in screen.</li>
-          <li>Your 7-day free trial starts now — no charge until day 8. Cancel anytime from the Teacher Dashboard → Subscription &amp; Billing.</li>
+          <li>Open the email titled <strong>"Your KidQuest login code"</strong>.</li>
+          <li>Click <strong>Open KidQuest</strong> in the email (or below) and enter your code.</li>
+          <li>Your 7-day free trial starts now — no charge until day 8. Cancel anytime from Teacher Dashboard → Subscription &amp; Billing.</li>
         </ol>
       </div>
 
       <div class="cta-row">
-        <a href="/app/" class="btn btn-primary">Open Solvix →</a>
-        <a href="mailto:hello@kidquest.fun" class="btn btn-ghost">Email me the PIN</a>
+        <a href="/app/" class="btn btn-primary">Open KidQuest →</a>
+        <button class="btn btn-ghost" id="resend-btn" type="button">📧 Resend email</button>
       </div>
-      <p class="small">We also emailed the PIN + a receipt to the address Stripe has on file. Lost it? Email <a href="mailto:hello@kidquest.fun">hello@kidquest.fun</a> and we'll resend.</p>
+      <p class="small">
+        Don't see it? Check your spam folder, then click <strong>Resend email</strong>.
+        Still nothing? Email <a href="mailto:hello@kidquest.fun">hello@kidquest.fun</a> from the same address you used to pay and we'll sort it out within the hour.
+      </p>
     </div>
 
-    <!-- Error state — something broke resolving the session. -->
+    <!-- Error state — webhook hasn't reached us yet OR session lookup
+         failed. We retry with backoff before showing this. -->
     <div id="state-error" class="state-error hidden">
       <div class="emoji">🤔</div>
       <h1>Hmm, your account isn't ready yet</h1>
@@ -120,29 +139,32 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
         <button class="btn btn-primary" id="retry-btn" type="button">🔄 Try again</button>
         <a href="mailto:hello@kidquest.fun" class="btn btn-ghost">Contact support</a>
       </div>
-      <p class="small">If this keeps happening, email <a href="mailto:hello@kidquest.fun">hello@kidquest.fun</a> with your receipt — we'll hand-provision your classroom within the hour.</p>
+      <p class="small">If this keeps happening, email <a href="mailto:hello@kidquest.fun">hello@kidquest.fun</a> from the address you used to pay — we'll hand-provision your classroom within the hour.</p>
     </div>
   </div>
 </div>
 
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script>
 (function(){
-  // Worker endpoint that resolves a Stripe Checkout session id to the
-  // newly provisioned tenant PIN. Same backend as /stripe/checkout.
+  // Worker endpoint that confirms the payment + reports the masked
+  // recipient email. Same backend as /stripe/checkout. Notice we no
+  // longer expect this to return the tenant code — that's email-only.
   var BACKEND = 'https://kidquest-ai-proxy.rhahavy-b.workers.dev';
 
-  // Pull ?session_id=cs_xxx off the URL. If Stripe redirected us here,
-  // this is present. If someone lands on /thank-you/ directly, show the
-  // error state immediately instead of spinning forever.
+  // Pull ?session_id=cs_xxx off the URL.
   var params = new URLSearchParams(location.search);
   var sessionId = params.get('session_id');
 
   var $loading = document.getElementById('state-loading');
   var $ready   = document.getElementById('state-ready');
   var $error   = document.getElementById('state-error');
-  var $pin     = document.getElementById('pin-value');
+  var $email   = document.getElementById('email-value');
   var $welcome = document.getElementById('welcome-lede');
   var $detail  = document.getElementById('error-detail');
+  var $resend  = document.getElementById('resend-btn');
+  var $toast   = document.getElementById('toast');
 
   function showState(which){
     $loading.classList.toggle('hidden', which !== 'loading');
@@ -155,6 +177,14 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
     showState('error');
   }
 
+  var toastTimer = null;
+  function toast(msg){
+    $toast.textContent = msg;
+    $toast.classList.add('show');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ $toast.classList.remove('show'); }, 2400);
+  }
+
   // Poll the session lookup. The webhook usually fires within a second
   // or two, but can be delayed. We retry a few times with short backoff
   // before surrendering to the error state.
@@ -164,7 +194,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
 
   async function resolveSession(){
     if(!sessionId){
-      showError('No Stripe session id on this link. If you just paid, check your email — we sent the PIN there too.');
+      showError('No Stripe session id on this link. If you just paid, check your email — we sent the code there.');
       return;
     }
     attempts++;
@@ -188,29 +218,57 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
     }
     var data;
     try { data = await res.json(); } catch(e){ data = null; }
-    if(!data || !data.ok || !data.code){
-      showError('Your payment went through but we couldn\'t read the PIN. Email hello@kidquest.fun and we\'ll send it right over.');
+    if(!data || !data.ok){
+      showError('Your payment went through but we couldn\'t confirm your account is ready. Email hello@kidquest.fun and we\'ll send your code right over.');
       return;
     }
-    // Success — reveal the PIN.
-    $pin.textContent = String(data.code).toUpperCase();
+    // Success — show the masked recipient and personalise the welcome.
+    if(data.emailMasked){
+      $email.textContent = data.emailMasked;
+    } else if(data.hasEmail === false) {
+      $email.textContent = 'your inbox';
+    } else {
+      $email.textContent = '—';
+    }
     if(data.label){
-      $welcome.textContent = 'Your ' + (data.planType === 'family' ? 'family account' : 'classroom') + ' "' + data.label + '" is ready. Here\'s the PIN you\'ll use to sign in:';
+      $welcome.textContent = 'Your ' + (data.planType === 'family' ? 'family account' : 'classroom') + ' "' + data.label + '" is ready and your login code was just sent.';
     }
     showState('ready');
   }
 
-  // Copy-to-clipboard button. Falls back to a select-all prompt on browsers
-  // without the async Clipboard API.
-  document.getElementById('copy-btn').addEventListener('click', async function(){
-    var code = $pin.textContent || '';
+  // Resend button — POSTs the session id back to /stripe/resend-code.
+  // Server sends to whatever address Stripe has on file (NOT a
+  // user-supplied address — that would let a session-id holder
+  // hijack the credential).
+  $resend.addEventListener('click', async function(){
+    if($resend.disabled) return;
+    $resend.disabled = true;
+    var originalText = $resend.textContent;
+    $resend.textContent = 'Sending…';
     try {
-      await navigator.clipboard.writeText(code);
-      this.textContent = '✓ Copied!';
-      var btn = this;
-      setTimeout(function(){ btn.textContent = '📋 Copy PIN'; }, 1600);
+      var r = await fetch(BACKEND.replace(/\/+$/,'') + '/stripe/resend-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sessionId }),
+      });
+      var data = null;
+      try { data = await r.json(); } catch(e){}
+      if(r.ok && data && data.ok){
+        toast('✓ Sent! Check ' + (data.emailMasked || 'your inbox') + '.');
+      } else if(r.status === 429){
+        toast('Slow down — try again in a few minutes.');
+      } else {
+        toast('Couldn\'t resend. Email hello@kidquest.fun and we\'ll help.');
+      }
     } catch(e){
-      prompt('Copy your PIN:', code);
+      toast('Network hiccup. Try again or email support.');
+    } finally {
+      // 30-second cooldown on the button to discourage spam-clicking
+      // (server has its own rate limiter, but no need to make calls).
+      setTimeout(function(){
+        $resend.disabled = false;
+        $resend.textContent = originalText;
+      }, 30000);
     }
   });
 

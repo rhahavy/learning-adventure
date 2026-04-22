@@ -394,6 +394,11 @@ const RL = {
   ADMIN_IP:   { max: 30, window: 60 * 60 * 1000 },
   TAUTH_IP:   { max: 20, window: 60 * 60 * 1000 },
   TAUTH_CODE: { max: 10, window: 60 * 60 * 1000 },
+  // /demo/request is public — anyone on the marketing page can hit it.
+  // 5/hr/IP keeps a single bored visitor (or low-effort scraper) from
+  // emailing themselves a hundred PINs in a minute. Bump if legit
+  // demand outpaces this cap; it's a comfort number, not load-bearing.
+  DEMO_REQ_IP:{ max: 5,  window: 60 * 60 * 1000 },
 };
 // Kept as an alias so existing callers that reference this constant
 // (if any linger) don't break. Prefer RL.AUTH_IP.
@@ -405,6 +410,53 @@ const AUTH_RATE_LIMIT_WINDOW_MS = RL.AUTH_IP.window;
 // enough that a teacher clicking "login" doesn't notice.
 const PBKDF2_ITERATIONS = 100000;
 
+// Reserved tenant codes that ALWAYS work — they're hardcoded in source,
+// self-heal into KV on first auth after a wipe, and are blocked from
+// /unprovision. Used for the "demo PIN we hand out in talks / put on
+// flyers / promise on the website" — the kind of code where it would
+// be embarrassing if it stopped working because someone accidentally
+// ran a cleanup script.
+//
+// Tenant id is deterministic (`reserved-{code}`) so that even after a
+// full KV wipe + self-heal, the data namespace is the same — kids who
+// used PIN 2228 a month ago still see their progress when they come
+// back. Different reserved PINs get different deterministic ids, so
+// they don't share data with each other.
+//
+// Settings used on self-heal:
+//   isDemo: true            — flagged as demo in admin UI / CSS
+//   planType: 'classroom'   — full feature set, since these are "show
+//                             everything KidQuest can do" demos
+//   teacherPasswordHash:null — no teacher gate; the PIN is the only secret
+//   storeEnabled: true      — rewards shop visible
+//
+// To add another reserved PIN: add an entry below + redeploy. To change
+// settings: bump the entry, then once-off `wrangler kv key delete
+// tenant:reserved-{code}` (the next /auth re-creates from the template).
+const RESERVED_TENANTS = {
+  '2228': {
+    id: 'reserved-2228',
+    label: 'KidQuest Demo (PIN 2228)',
+    code: '2228',
+    teacherPasswordHash: null,
+    isDemo: true,
+    planType: 'classroom',
+    storeEnabled: true,
+    createdAt: '2026-04-22T00:00:00.000Z',
+    reserved: true,
+  },
+};
+function isReservedCode(code) {
+  if (!code) return false;
+  return Object.prototype.hasOwnProperty.call(RESERVED_TENANTS, String(code).toLowerCase());
+}
+function getReservedTenant(code) {
+  if (!isReservedCode(code)) return null;
+  // Return a fresh shallow copy so callers can mutate (e.g. add
+  // updatedAt) without poisoning the constant.
+  return Object.assign({}, RESERVED_TENANTS[String(code).toLowerCase()]);
+}
+
 // Generate a fresh tenant code. crypto.getRandomValues is unbiased
 // enough for 128-word selection (modulo bias is ~2^-25, undetectable).
 function generateTenantCode() {
@@ -415,6 +467,19 @@ function generateTenantCode() {
   const w3 = TENANT_WORDS[a[2] % TENANT_WORDS.length];
   const dd = String(a[3] % 100).padStart(2, '0');
   return `${w1}-${w2}-${w3}-${dd}`;
+}
+
+// Generate a fresh DEMO code. Distinct shape from regular tenant codes
+// ("demo-" prefix + 2 words + 4 digits) so an operator can spot one at
+// a glance in logs and the admin dashboard. ~24 bits of entropy on top
+// of the prefix — plenty for short-lived (24h) demo aliases.
+function generateDemoCode() {
+  const a = new Uint32Array(3);
+  crypto.getRandomValues(a);
+  const w1 = TENANT_WORDS[a[0] % TENANT_WORDS.length];
+  const w2 = TENANT_WORDS[a[1] % TENANT_WORDS.length];
+  const dd = String(a[2] % 10000).padStart(4, '0');
+  return `demo-${w1}-${w2}-${dd}`;
 }
 
 // Opaque tenant id — 12 random bytes hex. 96 bits, no collision risk
@@ -452,13 +517,30 @@ function extractBearer(request) {
 
 // Look up `code:{code}` → tenantId, then `tenant:{tenantId}` → metadata.
 // Returns the parsed tenant object, or null on miss / malformed entry.
+//
+// Reserved codes (see RESERVED_TENANTS) self-heal: if the KV record is
+// missing — fresh deploy, accidental wipe, expired demo code — we
+// re-create it from the source template before returning. Result: the
+// PIN literally cannot stop working short of editing the worker source.
 async function lookupTenantByCode(env, code) {
   if (!code || !env.KV) return null;
   const tenantId = await env.KV.get(`code:${code}`);
-  if (!tenantId) return null;
-  const raw = await env.KV.get(`tenant:${tenantId}`);
-  if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  if (tenantId) {
+    const raw = await env.KV.get(`tenant:${tenantId}`);
+    if (raw) {
+      try { return JSON.parse(raw); } catch { /* fall through to reserved-heal */ }
+    }
+  }
+  // KV miss (or malformed record) on a reserved code → self-heal.
+  if (isReservedCode(code)) {
+    const reserved = getReservedTenant(code);
+    // Write WITHOUT expirationTtl — reserved tenants live forever.
+    // If a previous /unprovision deleted the KV record, this resurrects it.
+    await env.KV.put(`code:${code}`, reserved.id);
+    await env.KV.put(`tenant:${reserved.id}`, JSON.stringify(reserved));
+    return reserved;
+  }
+  return null;
 }
 
 // Generic KV-backed sliding-window counter. Pass the bucket key
@@ -548,10 +630,329 @@ async function pbkdf2Bits(password, salt, iterations) {
 function bytesToHex(bytes) {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
+// SHA-256 helper for idempotency keys, dedupe markers, etc. Returns
+// the hex digest as a string. Not for password hashing — use
+// hashPassword (PBKDF2) for anything user-supplied.
+async function sha256Hex(input) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(input)));
+  return bytesToHex(new Uint8Array(buf));
+}
+
+// Mask an email for display: "alice@gmail.com" → "a***@gmail.com",
+// "ab@gmail.com" → "a***@gmail.com", "a@gmail.com" → "***@gmail.com".
+// Used on the thank-you page so we can confirm WHICH inbox got the
+// code without echoing the full address back to anyone holding the
+// session id. Pure function; safe to call client-side too.
+function maskEmail(email) {
+  const s = String(email || '').trim();
+  if (!s.includes('@')) return '';
+  const [local, domain] = s.split('@');
+  if (!local || !domain) return '';
+  const visible = local.length >= 2 ? local.slice(0, 1) : '';
+  return `${visible}***@${domain}`;
+}
+
+// HTML-escape for use inside <td> / <p>. Just the four chars; we
+// don't allow any user input into attribute positions so quote
+// escaping isn't needed but we include it for safety.
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Send the tenant-activation email via Resend. Resend was chosen
+// over Mailgun/SendGrid because:
+//   • Pure HTTPS API — no SMTP gymnastics from Workers
+//   • Generous free tier (3k/mo) covers small SaaS comfortably
+//   • Single secret to manage (RESEND_API_KEY)
+//   • SPF/DKIM auto-configured per verified domain
+//
+// Required:
+//   env.RESEND_API_KEY  (secret)  — re_xxx from resend.com dashboard
+//   env.EMAIL_FROM      (var)     — "KidQuest <hello@kidquest.fun>"
+//                                   The sender domain MUST be verified
+//                                   in Resend; otherwise sends fail
+//                                   immediately with 403.
+// Optional:
+//   env.EMAIL_REPLY_TO  (var)     — e.g. "support@kidquest.fun"
+//   env.APP_URL         (var)     — link target in the email body.
+//                                   Falls back to the bare path "/app/"
+//                                   so it works even if unset.
+//
+// Returns { ok: bool, status, error? }. Caller should LOG but NOT
+// THROW on failure — provisioning has already succeeded by the time
+// we get here, and the user can still recover via /stripe/resend-code.
+async function sendTenantCodeEmail(env, toEmail, code, label, planType) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+    return { ok: false, status: 0, error: 'email_not_configured' };
+  }
+  if (!toEmail || !String(toEmail).includes('@')) {
+    return { ok: false, status: 0, error: 'no_recipient' };
+  }
+  const appUrl = env.APP_URL || '/app/';
+  const planNoun = planType === 'family' ? 'family account' : 'classroom';
+  const labelClean = escapeHtml(label || (planType === 'family' ? 'your family' : 'your classroom'));
+  const codeUpper = String(code).toUpperCase();
+
+  const subject = `Your KidQuest login code: ${codeUpper}`;
+  // Plain-text fallback for clients that prefer it (Apple Mail, etc.)
+  const text = [
+    `Welcome to KidQuest!`,
+    ``,
+    `Your ${planNoun} "${label || 'is ready'}" is set up.`,
+    ``,
+    `Your login code: ${codeUpper}`,
+    ``,
+    `Open the app: ${appUrl}`,
+    ``,
+    `On the sign-in screen, enter the code above. Save this email — you'll`,
+    `need the code to sign in on every device.`,
+    ``,
+    `Your 7-day free trial starts now. No charge until day 8. Cancel anytime`,
+    `from the Teacher Dashboard → Subscription & Billing.`,
+    ``,
+    `Need help? Reply to this email.`,
+  ].join('\n');
+
+  // Inline-styled HTML. No external CSS — many email clients strip it.
+  const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#F0EEFF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1A1035;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0EEFF;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:24px;padding:36px;box-shadow:0 12px 32px rgba(108,92,231,0.15);">
+        <tr><td>
+          <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1A1035;">🎉 Welcome to KidQuest!</h1>
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#5B5580;">Your ${escapeHtml(planNoun)} <strong>${labelClean}</strong> is ready to go.</p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#6C5CE7,#A29BFE);border-radius:18px;padding:24px;text-align:center;margin:0 0 24px;">
+            <tr><td align="center">
+              <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:#fff;opacity:0.85;text-transform:uppercase;margin-bottom:8px;">Your Login Code</div>
+              <div style="font-size:38px;font-weight:800;letter-spacing:0.08em;color:#fff;font-family:'SF Mono',Menlo,monospace;">${escapeHtml(codeUpper)}</div>
+            </td></tr>
+          </table>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr><td align="center">
+              <a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#6C5CE7;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;">Open KidQuest →</a>
+            </td></tr>
+          </table>
+
+          <div style="background:#F7F5FF;padding:18px 22px;border-radius:14px;margin:0 0 20px;">
+            <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1A1035;">What's next:</p>
+            <ol style="margin:0;padding-left:20px;color:#5B5580;font-size:14px;line-height:1.7;">
+              <li>Click <strong>Open KidQuest</strong> above.</li>
+              <li>Enter your code on the sign-in screen.</li>
+              <li>Your 7-day free trial starts now — no charge until day 8.</li>
+            </ol>
+          </div>
+
+          <p style="margin:0;font-size:13px;color:#9B95B0;line-height:1.5;">
+            Save this email — you'll need the code to sign in on every device.
+            Cancel anytime from Teacher Dashboard → Subscription &amp; Billing.
+            Need help? Just reply.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const payload = {
+    from: env.EMAIL_FROM,
+    to: [toEmail],
+    subject,
+    html,
+    text,
+  };
+  if (env.EMAIL_REPLY_TO) payload.reply_to = env.EMAIL_REPLY_TO;
+
+  let r;
+  try {
+    r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.RESEND_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    return { ok: false, status: 0, error: 'fetch_failed:' + (e && e.message || e) };
+  }
+  if (!r.ok) {
+    let detail = '';
+    try { detail = (await r.text()).slice(0, 200); } catch {}
+    return { ok: false, status: r.status, error: detail || ('http_' + r.status) };
+  }
+  return { ok: true, status: r.status };
+}
 function hexToBytes(hex) {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i*2, i*2+2), 16);
   return out;
+}
+
+// Email a 24h demo PIN to a visitor who requested it from the marketing
+// page. Same Resend plumbing as sendTenantCodeEmail — different copy
+// because (a) it's a demo, not a paid signup, and (b) the code expires
+// in 24h, which the email needs to make blindingly obvious so people
+// don't bookmark a dead PIN. Best-effort like the other email senders:
+// returns { ok, status, error? } and never throws.
+async function sendDemoCodeEmail(env, toEmail, code, requesterName) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+    return { ok: false, status: 0, error: 'email_not_configured' };
+  }
+  if (!toEmail || !String(toEmail).includes('@')) {
+    return { ok: false, status: 0, error: 'no_recipient' };
+  }
+  const appUrl = env.APP_URL || '/app/';
+  const codeUpper = String(code).toUpperCase();
+  const greeting = requesterName ? `Hi ${escapeHtml(requesterName.toString().slice(0, 60))},` : 'Hi there,';
+
+  const subject = `Your KidQuest demo code: ${codeUpper}`;
+  const text = [
+    `Thanks for trying KidQuest!`,
+    ``,
+    `Your demo code: ${codeUpper}`,
+    ``,
+    `Open the app: ${appUrl}`,
+    ``,
+    `On the sign-in screen, enter the code above.`,
+    ``,
+    `IMPORTANT: This demo code is valid for 24 hours, then it expires`,
+    `and the demo data is wiped. If you'd like to keep your kid's`,
+    `progress, sign up for a 7-day free trial at https://kidquest.fun/#pricing`,
+    `before the demo ends.`,
+    ``,
+    `Questions? Reply to this email.`,
+  ].join('\n');
+
+  const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#F0EEFF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1A1035;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0EEFF;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:24px;padding:36px;box-shadow:0 12px 32px rgba(108,92,231,0.15);">
+        <tr><td>
+          <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1A1035;">🎮 Your KidQuest demo is ready</h1>
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#5B5580;">${greeting} here's your one-time demo PIN — kick the tires for 24 hours, no card required.</p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#6C5CE7,#A29BFE);border-radius:18px;padding:24px;text-align:center;margin:0 0 24px;">
+            <tr><td align="center">
+              <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:#fff;opacity:0.85;text-transform:uppercase;margin-bottom:8px;">Your Demo Code</div>
+              <div style="font-size:34px;font-weight:800;letter-spacing:0.06em;color:#fff;font-family:'SF Mono',Menlo,monospace;">${escapeHtml(codeUpper)}</div>
+              <div style="font-size:12px;color:#fff;opacity:0.85;margin-top:10px;">Expires in 24 hours</div>
+            </td></tr>
+          </table>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr><td align="center">
+              <a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#6C5CE7;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;">Try KidQuest →</a>
+            </td></tr>
+          </table>
+
+          <div style="background:#FFF8E1;padding:16px 20px;border-radius:14px;margin:0 0 20px;border-left:4px solid #FDCB6E;">
+            <p style="margin:0;font-size:13px;color:#7C5E10;line-height:1.5;">
+              <strong>Heads up:</strong> demo data wipes after 24h. If your kid loves it, sign up for a free 7-day trial at <a href="https://kidquest.fun/#pricing" style="color:#6C5CE7;font-weight:700;">kidquest.fun</a> before the demo ends so progress carries over.
+            </p>
+          </div>
+
+          <p style="margin:0;font-size:13px;color:#9B95B0;line-height:1.5;">Questions? Just reply.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const payload = { from: env.EMAIL_FROM, to: [toEmail], subject, html, text };
+  if (env.EMAIL_REPLY_TO) payload.reply_to = env.EMAIL_REPLY_TO;
+
+  let r;
+  try {
+    r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.RESEND_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    return { ok: false, status: 0, error: 'fetch_failed:' + (e && e.message || e) };
+  }
+  if (!r.ok) {
+    let detail = '';
+    try { detail = (await r.text()).slice(0, 200); } catch {}
+    return { ok: false, status: r.status, error: detail || ('http_' + r.status) };
+  }
+  return { ok: true, status: r.status };
+}
+
+// Notify the operator that someone requested a demo PIN. Mirrors the
+// shape of sendOwnerSignupNotification — best-effort, never throws.
+// The PIN is included verbatim so the operator can also hand it off
+// manually if the visitor's email bounces.
+async function sendOwnerDemoNotification(env, demo) {
+  if (!env.OWNER_EMAIL) return { ok: false, error: 'owner_email_unset' };
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, error: 'email_not_configured' };
+
+  const subject = `[KidQuest] Demo requested: ${demo.requestedBy || '(no email)'}`;
+  const codeUpper = String(demo.code).toUpperCase();
+  const text = [
+    `Someone just requested a 24h demo PIN.`,
+    ``,
+    `Code:        ${codeUpper}`,
+    `Expires:     ${demo.expiresAt}`,
+    `Email:       ${demo.requestedBy || '(none)'}`,
+    `Name:        ${demo.requestedByName || '(none)'}`,
+    `Message:     ${demo.message || '(none)'}`,
+    `Source:      ${demo.source || 'marketing-form'}`,
+    `Tenant ID:   ${demo.tenantId}`,
+    ``,
+    `View active demo PINs: ${(env.APP_URL || '').replace(/\/app\/?$/, '') || ''}/admin/`,
+  ].join('\n');
+
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;background:#fafafa;padding:24px;color:#1a1035;">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;border:1px solid #eee;">
+      <tr><td>
+        <h2 style="margin:0 0 8px;font-size:20px;">🎮 Demo PIN requested</h2>
+        <p style="margin:0 0 16px;color:#666;font-size:14px;">${escapeHtml(demo.requestedByName || '(no name)')} &lt;${escapeHtml(demo.requestedBy || 'no email')}&gt;</p>
+        <table role="presentation" width="100%" cellpadding="6" cellspacing="0" style="font-size:14px;font-family:'SF Mono',Menlo,monospace;background:#f7f5ff;border-radius:8px;">
+          <tr><td style="color:#666;width:120px;">Code</td><td><strong>${escapeHtml(codeUpper)}</strong></td></tr>
+          <tr><td style="color:#666;">Expires</td><td>${escapeHtml(demo.expiresAt)}</td></tr>
+          <tr><td style="color:#666;">Email</td><td>${escapeHtml(demo.requestedBy || '(none)')}</td></tr>
+          <tr><td style="color:#666;">Name</td><td>${escapeHtml(demo.requestedByName || '(none)')}</td></tr>
+          <tr><td style="color:#666;">Source</td><td>${escapeHtml(demo.source || 'marketing-form')}</td></tr>
+          <tr><td style="color:#666;">Tenant ID</td><td>${escapeHtml(demo.tenantId)}</td></tr>
+        </table>
+        ${demo.message ? `<p style="margin:16px 0 0;color:#5B5580;font-size:14px;line-height:1.5;"><strong>Message:</strong><br>${escapeHtml(demo.message)}</p>` : ''}
+      </td></tr>
+    </table>
+  </body></html>`;
+
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.RESEND_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: env.EMAIL_FROM, to: [env.OWNER_EMAIL], subject, text, html }),
+    });
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.text()).slice(0, 200); } catch {}
+      console.warn('owner demo notification failed:', r.status, detail);
+      return { ok: false, status: r.status, error: detail };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.warn('owner demo notification threw:', String(e && e.message || e));
+    return { ok: false, error: String(e && e.message || e) };
+  }
 }
 
 // Whitelists the tenant fields that are safe to return to an
@@ -623,6 +1024,11 @@ async function handleProvisionRoute(request, env, corsOrigin) {
     if (!/^\d{4}$/.test(pinRaw)) {
       return json({ error: 'invalid_pin', detail: 'PIN must be exactly 4 digits (0000-9999).' }, 400, corsOrigin);
     }
+    // Reserved codes are owned by the worker source — admin can't
+    // overwrite them via /provision. Same protection as /unprovision.
+    if (isReservedCode(pinRaw)) {
+      return json({ error: 'reserved_code', detail: 'PIN ' + pinRaw + ' is reserved (hardcoded in worker source) and cannot be re-provisioned.' }, 409, corsOrigin);
+    }
     const taken = await env.KV.get(`code:${pinRaw}`);
     if (taken) return json({ error: 'pin_taken', detail: 'That PIN is already in use by another classroom.' }, 409, corsOrigin);
     code = pinRaw;
@@ -657,12 +1063,27 @@ async function handleProvisionRoute(request, env, corsOrigin) {
   return json({ ok: true, tenant: sanitizeTenantForClient(tenant) }, 200, corsOrigin);
 }
 
-// POST /unprovision — admin only. Body: { code }.
+// POST /unprovision — admin only. Body: { code, immediate? }.
 // Wipes the tenant record, its code alias, and its data+snapshots blobs.
 // Intentionally takes `code` (not `tenantId`) to reduce the blast radius
 // of an admin-token leak — an attacker who learns a tenantId via some
 // other channel can't unprovision it without also knowing the code.
 // Rate-limited per-IP for the same reason /provision is.
+//
+// Stripe handling: if the tenant record carries a stripeSubscriptionId,
+// we MUST cancel it before wiping KV — once the tenant record is gone
+// we lose the only pointer to the live subscription and the customer
+// keeps getting charged for service they no longer have. Default mode
+// is cancel-at-period-end (POST /v1/subscriptions/:id with
+// cancel_at_period_end=true) — the customer keeps service through what
+// they already paid for, then it lapses cleanly. Pass { immediate: true }
+// for a hard DELETE /v1/subscriptions/:id (fraud / chargeback /
+// hard-stop). If Stripe says the subscription is already gone (404), we
+// treat that as success and continue with KV wipe. Other Stripe errors
+// are reported in the response so the operator can decide whether to
+// retry — KV wipe still proceeds because leaving a half-deleted tenant
+// is worse than leaving a Stripe sub for the operator to clean up by
+// hand from the Stripe dashboard.
 async function handleUnprovisionRoute(request, env, corsOrigin) {
   if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
   if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
@@ -675,15 +1096,590 @@ async function handleUnprovisionRoute(request, env, corsOrigin) {
   try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
   const code = (body.code || '').toString().trim().toLowerCase();
   if (!code) return json({ error: 'missing_code' }, 400, corsOrigin);
+  // Reserved codes (e.g. PIN 2228) cannot be unprovisioned — they're
+  // hardcoded as always-on demo codes. If the operator really needs to
+  // reset one, deleting the KV records by hand triggers a self-heal on
+  // next /auth (see lookupTenantByCode).
+  if (isReservedCode(code)) {
+    return json({ error: 'reserved_code', detail: 'PIN ' + code + ' is reserved (hardcoded in worker source) and cannot be unprovisioned.' }, 403, corsOrigin);
+  }
+  const immediate = body.immediate === true;
   const tenantId = (await env.KV.get(`code:${code}`)) || '';
   if (!tenantId) return json({ error: 'not_found' }, 404, corsOrigin);
 
+  // Look up the tenant record FIRST, BEFORE deletion, so we still have
+  // the Stripe subscription id when we make the cancel call.
+  let tenant = null;
+  try {
+    const raw = await env.KV.get(`tenant:${tenantId}`);
+    if (raw) tenant = JSON.parse(raw);
+  } catch {}
+
+  const subId = tenant && tenant.stripeSubscriptionId ? String(tenant.stripeSubscriptionId) : '';
+  const stripeResult = {
+    attempted: false,
+    canceled: false,
+    mode: null,            // 'period_end' | 'immediate' | null
+    subscriptionId: null,
+    status: null,          // Stripe subscription.status after the call
+    error: null,
+  };
+
+  if (subId) {
+    stripeResult.attempted = true;
+    stripeResult.subscriptionId = subId;
+    stripeResult.mode = immediate ? 'immediate' : 'period_end';
+    try {
+      const r = immediate
+        ? await stripeApi(env, 'DELETE', `/subscriptions/${encodeURIComponent(subId)}`, null)
+        : await stripeApi(env, 'POST',   `/subscriptions/${encodeURIComponent(subId)}`, { cancel_at_period_end: true });
+      if (r && r.ok) {
+        stripeResult.canceled = true;
+        stripeResult.status = (r.data && r.data.status) || null;
+      } else if (r && r.status === 404) {
+        // Already canceled or never existed — benign; continue with wipe.
+        stripeResult.canceled = true;
+        stripeResult.status = 'already_gone';
+      } else {
+        const errMsg  = (r && r.data && r.data.error && r.data.error.message) || 'unknown_stripe_error';
+        const errCode = (r && r.data && r.data.error && r.data.error.code) || null;
+        stripeResult.error = `${r ? r.status : '?'}: ${errMsg}${errCode ? ' (' + errCode + ')' : ''}`;
+      }
+    } catch (e) {
+      stripeResult.error = (e && e.message) || 'stripe_call_threw';
+    }
+  }
+
+  // THEN delete KV keys. We deliberately wipe even if the Stripe call
+  // failed — see the route comment above for the reasoning.
   await env.KV.delete(`tenant:${tenantId}`);
   await env.KV.delete(`tenant:${tenantId}:data`);
   await env.KV.delete(`tenant:${tenantId}:snapshots`);
   await env.KV.delete(`code:${code}`);
-  return json({ ok: true, removed: { id: tenantId, code } }, 200, corsOrigin);
+  return json({ ok: true, removed: { id: tenantId, code }, stripe: stripeResult }, 200, corsOrigin);
 }
+
+// POST /admin/reset-teacher-password — admin only. Body: { code, password }.
+// One-shot recovery for the case where a teacher locks themselves out (or
+// the legacy plaintext-→-hash migration set a hash that doesn't match the
+// password they remember). Resets the stored hash to a fresh hash of the
+// supplied plaintext AND clears any rate-limit lockout for that code so
+// the teacher can log in immediately. Per-IP rate-limited like the other
+// admin routes — admin-token leak still has a ceiling on blast radius.
+async function handleAdminResetTeacherPasswordRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rlKey = `ratelimit:adminreset:ip:${ip}`;
+  const rl = await rateLimitHit(env, rlKey, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const code = (body.code || '').toString().trim().toLowerCase();
+  const password = (body.password || '').toString().slice(0, 64);
+  if (!code) return json({ error: 'missing_code' }, 400, corsOrigin);
+  if (!password) return json({ error: 'missing_password' }, 400, corsOrigin);
+
+  const tenantId = (await env.KV.get(`code:${code}`)) || '';
+  if (!tenantId) return json({ error: 'not_found' }, 404, corsOrigin);
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return json({ error: 'tenant_record_missing' }, 404, corsOrigin);
+  let tenant; try { tenant = JSON.parse(raw); } catch { return json({ error: 'tenant_malformed' }, 500, corsOrigin); }
+
+  // Fresh hash with current PBKDF2 iteration count + new salt. Drop any
+  // lingering legacy plaintext field at the same time so future reads go
+  // through the hash path only.
+  tenant.teacherPasswordHash = await hashPassword(password);
+  if (tenant.teacherPassword) delete tenant.teacherPassword;
+  await env.KV.put(`tenant:${tenantId}`, JSON.stringify(tenant));
+
+  // Clear /teacher-auth lockout buckets (per-code AND per-IP for the calling
+  // IP — usually the operator's IP, fine to clear). The per-IP bucket for
+  // the teacher's own client IP would naturally clear as the window passes;
+  // we don't have it here. The per-code clear is the important one — that's
+  // what locks out further attempts globally.
+  await env.KV.delete(`ratelimit:tauth:code:${code}`);
+  if (ip) await env.KV.delete(`ratelimit:tauth:ip:${ip}`);
+
+  return json({ ok: true, tenantId, code, cleared: ['teacher-auth-rate-limit-code', ip ? 'teacher-auth-rate-limit-admin-ip' : null].filter(Boolean) }, 200, corsOrigin);
+}
+
+// =====================================================================
+// ADMIN DASHBOARD ROUTES
+// =====================================================================
+// All admin routes share three guarantees:
+//   1. ADMIN_TOKEN bearer required (constant-time compared)
+//   2. Per-IP rate limit (RL.ADMIN_IP) — caps blast radius if token leaks
+//   3. Read-only by default; mutating routes use POST with explicit `code`
+//
+// The HTML for /admin/ lives in /admin/index.html on the marketing site,
+// served from the same origin as the marketing page. It calls these
+// endpoints with the operator-typed admin token in localStorage. The
+// token NEVER appears in markup, query strings, or logs.
+
+// GET /admin/tenants — list every tenant with summary fields.
+// Returns: { ok, tenants: [{id, code, label, planType, suspended,
+//   stripeCustomerId, stripeSubscriptionStatus, customerEmail,
+//   createdAt, isDemo}], cursor? }
+//
+// Pagination via Cloudflare KV's list({prefix, cursor, limit}) primitive.
+// Default limit 100 (KV's max per call is 1000, but 100 keeps each
+// request fast and the JSON manageable).
+async function handleAdminListTenantsRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-list:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const url = new URL(request.url);
+  const cursor = url.searchParams.get('cursor') || undefined;
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '100', 10) || 100, 500);
+
+  // KV list returns keys; we then GET each tenant record. List is
+  // O(keys) but at typical scale (hundreds-low-thousands of tenants)
+  // this is fine. If you ever cross ~10k tenants, denormalise into
+  // a paginated index key — not needed today.
+  const result = await env.KV.list({ prefix: 'tenant:', cursor, limit });
+  const tenants = [];
+  for (const k of result.keys) {
+    // Skip sub-keys like tenant:<id>:data, tenant:<id>:snapshots
+    if (k.name.split(':').length !== 2) continue;
+    const raw = await env.KV.get(k.name);
+    if (!raw) continue;
+    let t; try { t = JSON.parse(raw); } catch { continue; }
+    tenants.push({
+      id: t.id,
+      code: t.code,
+      label: t.label,
+      planType: t.planType,
+      suspended: !!t.suspended,
+      isDemo: !!t.isDemo,
+      stripeCustomerId: t.stripeCustomerId || null,
+      stripeSubscriptionId: t.stripeSubscriptionId || null,
+      stripeSubscriptionStatus: t.stripeSubscriptionStatus || null,
+      customerEmail: t.customerEmail || null,
+      hasTeacherPassword: !!(t.teacherPasswordHash || t.teacherPassword),
+      hasLegacyPlaintextPassword: !!t.teacherPassword && !t.teacherPasswordHash,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    });
+  }
+  // Sort newest first (createdAt is ISO-8601 so string compare works).
+  tenants.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  return json({
+    ok: true,
+    tenants,
+    cursor: result.list_complete ? null : result.cursor,
+    listComplete: !!result.list_complete,
+    total: tenants.length,
+  }, 200, corsOrigin);
+}
+
+// GET /admin/tenant/:id — full record for one tenant. Mostly the same
+// fields as the list endpoint, but includes things we hide from the
+// list view to keep the JSON small (and one-shot lookups can afford
+// an extra round-trip).
+async function handleAdminGetTenantRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-get:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const url = new URL(request.url);
+  const tenantId = url.pathname.split('/').pop() || '';
+  if (!tenantId) return json({ error: 'missing_id' }, 400, corsOrigin);
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return json({ error: 'not_found' }, 404, corsOrigin);
+  let t; try { t = JSON.parse(raw); } catch { return json({ error: 'malformed' }, 500, corsOrigin); }
+
+  // Look up the data + snapshots blob sizes so the operator can see
+  // who's storing what without ever reading the contents.
+  let dataBytes = 0, snapshotsBytes = 0;
+  try { const d = await env.KV.get(`tenant:${tenantId}:data`); dataBytes = d ? d.length : 0; } catch {}
+  try { const s = await env.KV.get(`tenant:${tenantId}:snapshots`); snapshotsBytes = s ? s.length : 0; } catch {}
+
+  return json({
+    ok: true,
+    tenant: {
+      ...t,
+      // Never echo the password hash back, even to the admin UI —
+      // the UI doesn't need it and exposing it makes a future
+      // hash-mining vector trivially easier.
+      teacherPasswordHash: t.teacherPasswordHash ? '(set)' : null,
+      teacherPassword: t.teacherPassword ? '(LEGACY PLAINTEXT — needs migration)' : null,
+    },
+    storage: {
+      dataBytes,
+      snapshotsBytes,
+      totalBytes: dataBytes + snapshotsBytes,
+    },
+  }, 200, corsOrigin);
+}
+
+// POST /admin/tenant/:id/suspend  body: {} — manually suspend (e.g.
+// fraud, policy violation). Independent of Stripe webhook flow.
+// POST /admin/tenant/:id/unsuspend body: {} — clear the manual flag.
+//
+// Note: if the Stripe subscription is also in past_due/canceled, an
+// unsuspend here will get re-suspended on the next webhook. That's
+// the right behavior — Stripe is the source of truth for billing.
+async function handleAdminTenantSuspendRoute(request, env, corsOrigin, mode) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-suspend:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const url = new URL(request.url);
+  // /admin/tenant/<id>/suspend → split = ['', 'admin', 'tenant', '<id>', 'suspend']
+  const parts = url.pathname.split('/');
+  const tenantId = parts[3] || '';
+  if (!tenantId) return json({ error: 'missing_id' }, 400, corsOrigin);
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return json({ error: 'not_found' }, 404, corsOrigin);
+  let t; try { t = JSON.parse(raw); } catch { return json({ error: 'malformed' }, 500, corsOrigin); }
+
+  t.suspended = (mode === 'suspend');
+  t.adminSuspendedAt = (mode === 'suspend') ? new Date().toISOString() : null;
+  t.updatedAt = Date.now();
+  await env.KV.put(`tenant:${tenantId}`, JSON.stringify(t));
+  return json({ ok: true, tenantId, suspended: t.suspended }, 200, corsOrigin);
+}
+
+// POST /admin/tenant/:id/resend-code — re-sends the welcome email
+// to the customer's address on file. Useful when a customer says
+// they never got the email and contacts you directly. Same email
+// safety guarantee as /stripe/resend-code: destination is NEVER
+// user-supplied.
+async function handleAdminResendCodeRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return json({ error: 'email_not_configured' }, 503, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-resend:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const url = new URL(request.url);
+  const parts = url.pathname.split('/');
+  const tenantId = parts[3] || '';
+  if (!tenantId) return json({ error: 'missing_id' }, 400, corsOrigin);
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return json({ error: 'not_found' }, 404, corsOrigin);
+  let t; try { t = JSON.parse(raw); } catch { return json({ error: 'malformed' }, 500, corsOrigin); }
+
+  // Allow operator to override the destination via body.email (rare,
+  // e.g. customer typed the wrong address at checkout). Default is
+  // the email already on the tenant record.
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const overrideEmail = (body && body.email) ? String(body.email).trim() : '';
+  const toEmail = overrideEmail || t.customerEmail || '';
+  if (!toEmail || !toEmail.includes('@')) return json({ error: 'no_email_on_file' }, 400, corsOrigin);
+
+  // If operator overrode the email, also persist it so future resends
+  // and the customer-facing /stripe/resend-code use the corrected one.
+  if (overrideEmail && overrideEmail !== t.customerEmail) {
+    t.customerEmail = overrideEmail;
+    t.updatedAt = Date.now();
+    await env.KV.put(`tenant:${tenantId}`, JSON.stringify(t));
+  }
+
+  const r = await sendTenantCodeEmail(env, toEmail, t.code, t.label, t.planType);
+  if (!r.ok) return json({ error: 'send_failed', detail: r.error }, 502, corsOrigin);
+  return json({ ok: true, sentTo: maskEmail(toEmail) }, 200, corsOrigin);
+}
+
+// GET /admin/stats — aggregate counters for the dashboard top strip.
+// Cheap O(N) scan; cache for 60s in KV so the dashboard refreshing
+// doesn't hammer the list endpoint.
+async function handleAdminStatsRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-stats:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const cached = await env.KV.get('admin:stats:cache');
+  if (cached) {
+    try { return json(JSON.parse(cached), 200, corsOrigin); } catch {}
+  }
+
+  let total = 0, family = 0, classroom = 0, suspended = 0, demo = 0,
+      withStripe = 0, legacyPwd = 0, last7d = 0;
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  let cursor;
+  do {
+    const page = await env.KV.list({ prefix: 'tenant:', cursor, limit: 1000 });
+    for (const k of page.keys) {
+      if (k.name.split(':').length !== 2) continue;
+      const raw = await env.KV.get(k.name);
+      if (!raw) continue;
+      let t; try { t = JSON.parse(raw); } catch { continue; }
+      total++;
+      if (t.planType === 'family') family++; else classroom++;
+      if (t.suspended) suspended++;
+      if (t.isDemo) demo++;
+      if (t.stripeCustomerId) withStripe++;
+      if (t.teacherPassword && !t.teacherPasswordHash) legacyPwd++;
+      // createdAt is ISO-8601; new Date() parses it. Skip if missing.
+      if (t.createdAt) {
+        const ts = Date.parse(t.createdAt);
+        if (!isNaN(ts) && ts >= cutoff) last7d++;
+      }
+    }
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor);
+
+  const stats = { ok: true, total, family, classroom, suspended, demo, withStripe, legacyPwd, last7d, generatedAt: new Date().toISOString() };
+  // Cache for 60s — admin refreshes don't need to be real-time.
+  await env.KV.put('admin:stats:cache', JSON.stringify(stats), { expirationTtl: 60 });
+  return json(stats, 200, corsOrigin);
+}
+
+// =====================================================================
+// DEMO PIN ROUTES
+// =====================================================================
+// /demo/request          (public)  — visitor asks for a 24h demo PIN
+// /admin/demo-pins       (admin)   — list active demo PINs
+// /admin/demo-pins/generate (admin) — operator manually creates one
+//
+// Storage shape (everything below has expirationTtl set on the KV
+// keys, so demo records auto-vanish after 24h with no cron needed):
+//   tenant:{id}            — full tenant record (planType:'demo',
+//                            isDemo:true, expiresAt:ISO)
+//   code:{code}            — code → tenantId alias (the app's auth
+//                            flow reads this via lookupTenantByCode)
+//   demo-pin:{code}        — lightweight admin index, holds the
+//                            requester's email/name + expiresAt so
+//                            /admin/demo-pins can list without
+//                            scanning every tenant key
+//
+// Why a separate demo-pin: index? Listing tenant:* and filtering
+// in-process works but is O(tenants) and reads a lot of unrelated
+// data. demo-pin:* gives the admin page a tight prefix scan — only
+// active demo records, only the fields the dashboard needs.
+
+// Shared helper for both /demo/request and /admin/demo-pins/generate.
+// Generates a fresh demo code (retrying on the rare collision),
+// writes the three KV records with 24h TTL, and returns the records
+// the callers need. Does NOT email — the caller decides whether the
+// requester gets the code by email (public route) or only the
+// operator sees it (admin manual generate).
+async function createDemoPin(env, { requestedBy, requestedByName, message, source, label, ttlSeconds }) {
+  const ttl = Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? ttlSeconds : 60 * 60 * 24;
+  const now = Date.now();
+  const expiresAtMs = now + ttl * 1000;
+  const expiresAt = new Date(expiresAtMs).toISOString();
+  const requestedAt = new Date(now).toISOString();
+
+  // Try a few times in the unlikely event of a code collision. KV
+  // get-then-put isn't atomic, but at this volume + entropy a race is
+  // effectively impossible — the next caller will pick a different code
+  // and overwrite is harmless because we're about to write the alias.
+  let code = '';
+  for (let i = 0; i < 5; i++) {
+    const candidate = generateDemoCode();
+    const taken = await env.KV.get(`code:${candidate}`);
+    if (!taken) { code = candidate; break; }
+  }
+  if (!code) return { ok: false, error: 'code_generation_failed' };
+
+  const id = generateTenantId();
+  const labelClean = (label || (requestedByName ? `${requestedByName}'s demo` : 'Demo session')).toString().slice(0, 80);
+
+  const tenant = {
+    id,
+    label: labelClean,
+    code,
+    teacherPasswordHash: null,
+    isDemo: true,
+    planType: 'demo',
+    storeEnabled: true,
+    expiresAt,
+    createdAt: requestedAt,
+    // Track requester on the tenant too so an operator looking at the
+    // tenant record (not the demo-pin index) can still see who asked.
+    demoRequestedBy: requestedBy || null,
+    demoRequestedByName: requestedByName || null,
+    demoSource: source || 'marketing-form',
+  };
+
+  // The lightweight index that /admin/demo-pins lists.
+  const demoIndex = {
+    code,
+    tenantId: id,
+    label: labelClean,
+    requestedBy: requestedBy || null,
+    requestedByName: requestedByName || null,
+    message: (message || '').toString().slice(0, 500) || null,
+    source: source || 'marketing-form',
+    requestedAt,
+    expiresAt,
+  };
+
+  await env.KV.put(`tenant:${id}`, JSON.stringify(tenant), { expirationTtl: ttl });
+  await env.KV.put(`code:${code}`, id,                     { expirationTtl: ttl });
+  await env.KV.put(`demo-pin:${code}`, JSON.stringify(demoIndex), { expirationTtl: ttl });
+
+  return { ok: true, tenant, demoIndex };
+}
+
+// POST /demo/request — public. Body: { email, name?, message? }.
+// Generates a 24h demo PIN, emails it to the requester, and notifies
+// the operator. Rate-limited per-IP. The PIN is NEVER returned in the
+// response — the requester only learns it from the email — so a
+// spammer can't farm PINs via this endpoint to seed an attack.
+async function handleDemoRequestRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+    // Email is the ONLY delivery channel for demo PINs by design. If
+    // it's not configured, we fail loudly rather than silently storing
+    // a PIN nobody can retrieve.
+    return json({ error: 'email_not_configured' }, 503, corsOrigin);
+  }
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:demo-req:ip:${ip}`, RL.DEMO_REQ_IP.max, RL.DEMO_REQ_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const email = (body.email || '').toString().trim().slice(0, 200);
+  const name  = (body.name  || '').toString().trim().slice(0, 80);
+  const messageRaw = (body.message || '').toString().trim().slice(0, 500);
+  // Honeypot field — marketing form ships a hidden input named
+  // "website". Real users leave it blank; bots fill every field.
+  const honeypot = (body.website || '').toString().trim();
+  if (honeypot) {
+    // Pretend it worked. Don't tell the bot it tripped the trap.
+    return json({ ok: true, sentTo: maskEmail(email || 'someone@example.com') }, 200, corsOrigin);
+  }
+
+  // Loose email validation — Resend will reject malformed addresses,
+  // but catching obvious garbage here saves a round-trip.
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return json({ error: 'invalid_email' }, 400, corsOrigin);
+  }
+
+  const created = await createDemoPin(env, {
+    requestedBy: email,
+    requestedByName: name || null,
+    message: messageRaw || null,
+    source: 'marketing-form',
+    label: name ? `${name}'s demo` : 'Marketing demo',
+    ttlSeconds: 60 * 60 * 24,
+  });
+  if (!created.ok) return json({ error: created.error || 'create_failed' }, 500, corsOrigin);
+
+  // Fire-and-forget the two emails. We return success even if either
+  // fails — the operator notification is purely informational, and
+  // the requester can ask again if their email bounced. We do log
+  // failures for the operator to investigate.
+  const [requesterEmail, ownerEmail] = await Promise.all([
+    sendDemoCodeEmail(env, email, created.tenant.code, name),
+    sendOwnerDemoNotification(env, created.demoIndex),
+  ]);
+  if (!requesterEmail.ok) console.warn('demo email to requester failed:', requesterEmail.error);
+  if (!ownerEmail.ok)     console.warn('demo email to owner failed:',     ownerEmail.error);
+
+  return json({
+    ok: true,
+    sentTo: maskEmail(email),
+    expiresAt: created.demoIndex.expiresAt,
+  }, 200, corsOrigin);
+}
+
+// GET /admin/demo-pins — admin only. Returns active (non-expired)
+// demo PINs from the demo-pin: KV prefix. Cloudflare KV evicts
+// expired keys lazily, so we still belt-and-suspenders filter by
+// expiresAt > now in case a stale record is briefly visible.
+async function handleAdminListDemoPinsRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-demo-list:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const now = Date.now();
+  const pins = [];
+  let cursor;
+  do {
+    const page = await env.KV.list({ prefix: 'demo-pin:', cursor, limit: 1000 });
+    for (const k of page.keys) {
+      const raw = await env.KV.get(k.name);
+      if (!raw) continue;
+      let r; try { r = JSON.parse(raw); } catch { continue; }
+      const expMs = Date.parse(r.expiresAt || '');
+      if (!Number.isFinite(expMs) || expMs <= now) continue;
+      pins.push({
+        code: r.code,
+        tenantId: r.tenantId,
+        label: r.label || null,
+        requestedBy: r.requestedBy || null,
+        requestedByName: r.requestedByName || null,
+        message: r.message || null,
+        source: r.source || 'marketing-form',
+        requestedAt: r.requestedAt,
+        expiresAt: r.expiresAt,
+        secondsLeft: Math.max(0, Math.floor((expMs - now) / 1000)),
+      });
+    }
+    cursor = page.list_complete ? null : page.cursor;
+  } while (cursor);
+
+  // Newest-first so the operator sees the most recent request at the top.
+  pins.sort((a, b) => (Date.parse(b.requestedAt || '') || 0) - (Date.parse(a.requestedAt || '') || 0));
+  return json({ ok: true, pins, generatedAt: new Date().toISOString() }, 200, corsOrigin);
+}
+
+// POST /admin/demo-pins/generate — admin only. Body: { label?, note? }.
+// Operator manually mints a demo PIN (e.g. for handing out at a school
+// event). No email is sent because there's no requester address — the
+// PIN is returned in the response so the operator can copy-paste it.
+async function handleAdminGenerateDemoPinRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-demo-gen:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  let body = {};
+  try { body = await request.json(); } catch { /* empty body OK */ }
+  const label = (body.label || '').toString().trim().slice(0, 80) || 'Manual demo';
+  const note  = (body.note  || '').toString().trim().slice(0, 500) || null;
+
+  const created = await createDemoPin(env, {
+    requestedBy: null,
+    requestedByName: null,
+    message: note,
+    source: 'admin-manual',
+    label,
+    ttlSeconds: 60 * 60 * 24,
+  });
+  if (!created.ok) return json({ error: created.error || 'create_failed' }, 500, corsOrigin);
+
+  // Manual generation IS the path that returns the PIN — by design,
+  // because the operator needs to read it off the screen.
+  return json({
+    ok: true,
+    pin: {
+      code: created.tenant.code,
+      tenantId: created.tenant.id,
+      label: created.tenant.label,
+      expiresAt: created.demoIndex.expiresAt,
+    },
+  }, 200, corsOrigin);
+}
+
+// =====================================================================
+// END DEMO PIN ROUTES
+// =====================================================================
+
+// =====================================================================
+// END ADMIN DASHBOARD ROUTES
+// =====================================================================
 
 // POST /auth — body: { code }. Returns sanitized tenant metadata on
 // hit, 401 on miss. Failed attempts increment BOTH a per-IP counter
@@ -886,7 +1882,14 @@ const STRIPE_PLAN_TO_PRICE_ENV = {
 // so we can't just pass JSON — we flatten the body with bracket
 // notation (key[sub]=value). Returns { ok, status, data } where
 // data is the parsed JSON response or null on non-JSON error.
-async function stripeApi(env, method, path, body) {
+//
+// `opts.idempotencyKey` (optional) sets Stripe's Idempotency-Key
+// header. Stripe replays the exact original response for 24h on the
+// same key, so a double-clicked checkout button creates ONE session
+// instead of two. Use a stable hash of the meaningful request inputs
+// (plan + actor + minute bucket) — NOT a random UUID, or you defeat
+// the purpose. Only meaningful on POSTs that create resources.
+async function stripeApi(env, method, path, body, opts) {
   if (!env.STRIPE_SECRET_KEY) {
     return { ok: false, status: 500, data: { error: { message: 'stripe_secret_key_missing' } } };
   }
@@ -898,6 +1901,9 @@ async function stripeApi(env, method, path, body) {
       'Stripe-Version': '2024-06-20',
     },
   };
+  if (opts && opts.idempotencyKey) {
+    init.headers['Idempotency-Key'] = opts.idempotencyKey;
+  }
   if (body) {
     init.headers['Content-Type'] = 'application/x-www-form-urlencoded';
     init.body = stripeEncodeBody(body);
@@ -993,7 +1999,17 @@ async function handleStripeCheckoutRoute(request, env, corsOrigin) {
     'consent_collection[promotions]': 'none',
   };
 
-  const res = await stripeApi(env, 'POST', '/checkout/sessions', params);
+  // Idempotency key — collapses double-clicks (and accidental
+  // browser-back-then-resubmit) into one Stripe session for ~5
+  // minutes. Bucket on the minute so a deliberate retry later still
+  // creates a fresh session if the user changed their mind. Includes
+  // email when present so two different prospects from the same NAT
+  // don't collide.
+  const minuteBucket = Math.floor(Date.now() / (5 * 60 * 1000));
+  const idemRaw = `checkout|${ip}|${planKey}|${email || ''}|${label || ''}|${minuteBucket}`;
+  const idemKey = await sha256Hex(idemRaw);
+
+  const res = await stripeApi(env, 'POST', '/checkout/sessions', params, { idempotencyKey: idemKey });
   if (!res.ok || !res.data || !res.data.url) {
     return json({ error: 'stripe_error', detail: (res.data && res.data.error && res.data.error.message) || 'unknown' }, 502, corsOrigin);
   }
@@ -1021,6 +2037,27 @@ async function handleStripeWebhookRoute(request, env, corsOrigin) {
   let event;
   try { event = JSON.parse(rawBody); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
 
+  // Event-ID dedupe. Stripe retries on 5xx and occasionally sends the
+  // same event twice; the underlying ops below are mostly idempotent
+  // (last-write-wins on subscription updates, customer-id guard on
+  // checkout.session.completed) but a stale `customer.subscription.
+  // updated` arriving AFTER a newer one can flip `suspended` the wrong
+  // way. Marking the event id as seen first kills that race entirely.
+  // 7-day TTL — Stripe stops retrying long before then.
+  if (env.KV && event && event.id) {
+    const seenKey = `stripe-event-seen:${event.id}`;
+    const already = await env.KV.get(seenKey);
+    if (already) return json({ received: true, deduped: true }, 200, corsOrigin);
+    // Write the marker BEFORE handling. If the handler then throws,
+    // we'll return 500 → Stripe retries → next attempt sees the marker
+    // and short-circuits. That's the right trade: better to skip a
+    // failed retry than to double-apply a partially-failed handler.
+    // (For the rare case where the marker write succeeds and the
+    // handler crashes the whole isolate, you can manually delete the
+    // KV key to force a re-process.)
+    await env.KV.put(seenKey, '1', { expirationTtl: 60 * 60 * 24 * 7 });
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed':
@@ -1045,6 +2082,85 @@ async function handleStripeWebhookRoute(request, env, corsOrigin) {
   return json({ received: true }, 200, corsOrigin);
 }
 
+// Pull the customer email out of a Stripe checkout session. Stripe
+// puts it in different fields depending on whether the customer
+// pre-filled it, so we check several places.
+function emailFromSession(session) {
+  if (!session) return '';
+  return (session.customer_details && session.customer_details.email)
+      || session.customer_email
+      || (session.customer && typeof session.customer === 'object' && session.customer.email)
+      || '';
+}
+
+// Notify the operator (you) that a new tenant signed up. Sends to
+// env.OWNER_EMAIL. Best-effort — failure is logged but never throws,
+// so a flaky alert email never blocks provisioning.
+async function sendOwnerSignupNotification(env, tenant, customerEmail) {
+  if (!env.OWNER_EMAIL) return { ok: false, error: 'owner_email_unset' };
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, error: 'email_not_configured' };
+
+  const planNoun = tenant.planType === 'family' ? 'Family' : 'Classroom';
+  const subject = `[KidQuest] New ${planNoun} signup: ${tenant.label || tenant.code}`;
+  const text = [
+    `New KidQuest signup just landed.`,
+    ``,
+    `Plan:        ${tenant.planType}`,
+    `Label:       ${tenant.label || '(none)'}`,
+    `Code:        ${String(tenant.code).toUpperCase()}`,
+    `Tenant ID:   ${tenant.id}`,
+    `Customer:    ${customerEmail || '(no email on session)'}`,
+    `Stripe Cust: ${tenant.stripeCustomerId || '(none)'}`,
+    `Stripe Sub:  ${tenant.stripeSubscriptionId || '(none)'}`,
+    `Created:     ${tenant.createdAt}`,
+    ``,
+    `Manage in admin dashboard.`,
+  ].join('\n');
+
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;background:#fafafa;padding:24px;color:#1a1035;">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;border:1px solid #eee;">
+      <tr><td>
+        <h2 style="margin:0 0 8px;font-size:20px;">🎉 New ${escapeHtml(planNoun)} signup</h2>
+        <p style="margin:0 0 16px;color:#666;font-size:14px;">${escapeHtml(tenant.label || '(no label)')}</p>
+        <table role="presentation" width="100%" cellpadding="6" cellspacing="0" style="font-size:14px;font-family:'SF Mono',Menlo,monospace;background:#f7f5ff;border-radius:8px;">
+          <tr><td style="color:#666;width:120px;">Plan</td><td>${escapeHtml(tenant.planType)}</td></tr>
+          <tr><td style="color:#666;">Code</td><td><strong>${escapeHtml(String(tenant.code).toUpperCase())}</strong></td></tr>
+          <tr><td style="color:#666;">Tenant ID</td><td>${escapeHtml(tenant.id)}</td></tr>
+          <tr><td style="color:#666;">Customer</td><td>${escapeHtml(customerEmail || '(none)')}</td></tr>
+          <tr><td style="color:#666;">Stripe Cust</td><td>${escapeHtml(tenant.stripeCustomerId || '(none)')}</td></tr>
+          <tr><td style="color:#666;">Stripe Sub</td><td>${escapeHtml(tenant.stripeSubscriptionId || '(none)')}</td></tr>
+          <tr><td style="color:#666;">Created</td><td>${escapeHtml(tenant.createdAt)}</td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.RESEND_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: [env.OWNER_EMAIL],
+        subject, text, html,
+      }),
+    });
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.text()).slice(0, 200); } catch {}
+      console.warn('owner notification failed:', r.status, detail);
+      return { ok: false, status: r.status, error: detail };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.warn('owner notification threw:', String(e && e.message || e));
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
 // Provision a tenant from a completed checkout session. Idempotent —
 // if we already provisioned for this customer, just update the
 // stored record instead of creating a duplicate.
@@ -1054,8 +2170,14 @@ async function handleStripeCheckoutCompleted(session, env) {
   const subscriptionId = session.subscription || '';
   if (!customerId) return; // can't correlate → skip silently
 
+  const customerEmail = emailFromSession(session);
+
   // If we already have a tenant for this customer, this is a replay
-  // — just refresh the subscription id + status and return.
+  // — just refresh the subscription id + status and return. We do
+  // NOT re-send the welcome email on replay (that would spam the
+  // customer if Stripe redelivers the event), but we DO re-send the
+  // owner notification because the operator wants to know about every
+  // signup attempt for monitoring.
   const existingId = await env.KV.get(`customer:stripe:${customerId}`);
   if (existingId) {
     const raw = await env.KV.get(`tenant:${existingId}`);
@@ -1064,6 +2186,7 @@ async function handleStripeCheckoutCompleted(session, env) {
       existing.stripeSubscriptionId = subscriptionId || existing.stripeSubscriptionId;
       existing.suspended = false;
       existing.updatedAt = Date.now();
+      if (customerEmail && !existing.customerEmail) existing.customerEmail = customerEmail;
       await env.KV.put(`tenant:${existingId}`, JSON.stringify(existing));
     }
     return;
@@ -1096,16 +2219,31 @@ async function handleStripeCheckoutCompleted(session, env) {
     stripeCustomerId: customerId,
     stripeSubscriptionId: subscriptionId,
     suspended: false,
+    customerEmail: customerEmail || '',  // surfaces in admin dashboard + needed for resend
     createdAt: new Date().toISOString(),
     updatedAt: Date.now(),
   };
   await env.KV.put(`tenant:${id}`, JSON.stringify(tenant));
   await env.KV.put(`code:${code}`, id);
   await env.KV.put(`customer:stripe:${customerId}`, id);
-  // Intentionally no email send here — we keep the Worker
-  // provider-agnostic. Stripe sends its own receipt + the success
-  // URL shows the code to the user. Wire EmailJS or Resend later
-  // if we want a branded welcome email.
+
+  // Email the customer their login code. Best-effort — failure is
+  // logged but does NOT throw, because the tenant is already
+  // provisioned and we'd rather succeed-with-warning than re-trigger
+  // the whole webhook (which would race against the operator using
+  // the resend endpoint to recover).
+  if (customerEmail) {
+    try {
+      const emailRes = await sendTenantCodeEmail(env, customerEmail, code, label, planType);
+      if (!emailRes.ok) console.warn('tenant code email failed:', emailRes.status, emailRes.error);
+    } catch (e) {
+      console.warn('tenant code email threw:', String(e && e.message || e));
+    }
+  }
+
+  // Notify the operator about every new signup. Best-effort, never
+  // throws — the tenant is already created either way.
+  await sendOwnerSignupNotification(env, tenant, customerEmail);
 }
 
 // Sync tenant.suspended with Stripe subscription status.
@@ -1194,8 +2332,20 @@ async function handleStripePortalRoute(request, env, corsOrigin) {
   if (!password) return json({ error: 'missing_password' }, 400, corsOrigin);
 
   let ok = false;
-  if (tenant.teacherPasswordHash) ok = await verifyPassword(password, tenant.teacherPasswordHash);
-  else if (tenant.teacherPassword) ok = (password === tenant.teacherPassword);
+  if (tenant.teacherPasswordHash) {
+    ok = await verifyPassword(password, tenant.teacherPasswordHash);
+  } else if (tenant.teacherPassword) {
+    // Legacy plaintext record — compare, then migrate on success so
+    // the next call runs the PBKDF2 path and plaintext disappears.
+    // Mirrors the upgrade flow in /auth and /teacher-auth so a teacher
+    // touching billing also gets their tenant migrated off plaintext.
+    ok = (password === tenant.teacherPassword);
+    if (ok) {
+      tenant.teacherPasswordHash = await hashPassword(password);
+      delete tenant.teacherPassword;
+      await env.KV.put(`tenant:${tenant.id}`, JSON.stringify(tenant));
+    }
+  }
   if (!ok) {
     await rateLimitHit(env, ipKey,   RL.TAUTH_IP.max,   RL.TAUTH_IP.window);
     await rateLimitHit(env, codeKey, RL.TAUTH_CODE.max, RL.TAUTH_CODE.window);
@@ -1217,12 +2367,34 @@ async function handleStripePortalRoute(request, env, corsOrigin) {
 }
 
 // GET /stripe/session/:id — public, read-only. The marketing
-// "thank you" page uses this to look up the code that was just
-// provisioned, so the user sees it immediately after paying
-// without needing to check email. Returns just the tenant code —
-// nothing sensitive.
+// "thank you" page uses this AFTER checkout to confirm the payment
+// went through and tell the user "we sent your code to k***@…".
+//
+// Security note: the tenant code IS a credential (it's how teachers
+// log in), so we MUST assume Stripe session IDs leak — they appear
+// in browser history, Referer headers to any third-party tracker on
+// the thank-you page, and screenshotted URLs.
+//
+// Defense (this is the leak-class fix): the response NEVER contains
+// the tenant code itself. Only label, plan type, and a masked email
+// (e.g. "k***@gmail.com") so the user can confirm the right inbox.
+// The credential is delivered exclusively via the welcome email sent
+// by the webhook. If the user lost the email, they hit the
+// /stripe/resend-code endpoint (rate-limited) to get a fresh send.
+//
+// Per-IP rate limit kept anyway as a belt-and-suspenders measure
+// against enumeration of the masked-email surface.
 async function handleStripeSessionLookupRoute(request, env, corsOrigin) {
   if (!env.KV || !env.STRIPE_SECRET_KEY) return json({ error: 'not_configured' }, 503, corsOrigin);
+
+  // Per-IP rate limit. Reuses the AUTH_IP bucket shape (10/hr) —
+  // legit users hit this endpoint exactly once per checkout, so 10
+  // is plenty of headroom for retries while still capping abuse.
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rlKey = `ratelimit:stripe-session:ip:${ip}`;
+  const rl = await rateLimitHit(env, rlKey, RL.AUTH_IP.max, RL.AUTH_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
   const url = new URL(request.url);
   const sessionId = url.pathname.split('/').pop() || '';
   if (!sessionId.startsWith('cs_')) return json({ error: 'bad_session_id' }, 400, corsOrigin);
@@ -1238,12 +2410,73 @@ async function handleStripeSessionLookupRoute(request, env, corsOrigin) {
   const rawT = await env.KV.get(`tenant:${tenantId}`);
   if (!rawT) return json({ error: 'tenant_gone' }, 404, corsOrigin);
   const tenant = JSON.parse(rawT);
+
+  // Pull the customer email from the session if the tenant record
+  // doesn't have it cached yet (older provisions, or webhook race).
+  const emailForMask = tenant.customerEmail || emailFromSession(res.data) || '';
+
   return json({
     ok: true,
-    code: tenant.code,
     label: tenant.label,
     planType: tenant.planType,
+    emailMasked: maskEmail(emailForMask),
+    hasEmail: !!emailForMask,
+    // session id echoed back so the page can hand it to /resend-code
+    // without the user having to do anything.
+    sessionId,
   }, 200, corsOrigin);
+}
+
+// POST /stripe/resend-code — body: { sessionId }. Re-sends the
+// welcome email to whatever address Stripe has on file for this
+// session's customer. Two important guarantees:
+//
+//   1) The destination is NEVER user-supplied. We look up the email
+//      from the Stripe session (or the cached tenant record). This
+//      stops an attacker from holding a session id and redirecting
+//      the code to their own inbox.
+//   2) Heavily rate-limited per session AND per IP — a stolen
+//      session id is good for at most a few resends before the
+//      bucket trips, and an IP can't pivot across sessions.
+async function handleStripeResendCodeRoute(request, env, corsOrigin) {
+  if (!env.KV || !env.STRIPE_SECRET_KEY) return json({ error: 'not_configured' }, 503, corsOrigin);
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return json({ error: 'email_not_configured' }, 503, corsOrigin);
+
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const sessionId = String(body.sessionId || '').trim();
+  if (!sessionId.startsWith('cs_')) return json({ error: 'bad_session_id' }, 400, corsOrigin);
+
+  // Per-IP cap (10/hr). Per-session cap (3/24h) — enough for "didn't
+  // get it, check spam, try once more" but not enough for harassment.
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const ipKey   = `ratelimit:resend-code:ip:${ip}`;
+  const sesKey  = `ratelimit:resend-code:ses:${sessionId}`;
+  const ipRl  = await rateLimitHit(env, ipKey,  RL.AUTH_IP.max, RL.AUTH_IP.window);
+  if (!ipRl.ok)  return json({ error: 'rate_limited', resetAt: ipRl.resetAt }, 429, corsOrigin);
+  const sesRl = await rateLimitHit(env, sesKey, 3, 60 * 60 * 24 * 1000);
+  if (!sesRl.ok) return json({ error: 'rate_limited', resetAt: sesRl.resetAt }, 429, corsOrigin);
+
+  // Resolve session → customer → tenant.
+  const res = await stripeApi(env, 'GET', `/checkout/sessions/${encodeURIComponent(sessionId)}`);
+  if (!res.ok || !res.data) return json({ error: 'stripe_error' }, 502, corsOrigin);
+  const customerId = res.data.customer;
+  if (!customerId) return json({ error: 'no_customer_yet' }, 404, corsOrigin);
+  const tenantId = await env.KV.get(`customer:stripe:${customerId}`);
+  if (!tenantId) return json({ error: 'not_provisioned_yet' }, 404, corsOrigin);
+  const rawT = await env.KV.get(`tenant:${tenantId}`);
+  if (!rawT) return json({ error: 'tenant_gone' }, 404, corsOrigin);
+  const tenant = JSON.parse(rawT);
+
+  const toEmail = tenant.customerEmail || emailFromSession(res.data) || '';
+  if (!toEmail) return json({ error: 'no_email_on_file' }, 400, corsOrigin);
+
+  const r = await sendTenantCodeEmail(env, toEmail, tenant.code, tenant.label, tenant.planType);
+  if (!r.ok) return json({ error: 'send_failed', detail: r.error }, 502, corsOrigin);
+
+  // Confirm to caller WHICH inbox we sent to — but masked, so a
+  // session-id holder can't fish for the full address.
+  return json({ ok: true, emailMasked: maskEmail(toEmail) }, 200, corsOrigin);
 }
 
 // /data and /snapshots routing table — same shape as before, but the
@@ -1344,6 +2577,30 @@ export default {
       const routeKey = `${request.method} ${url.pathname}`;
       if (routeKey === 'POST /provision')    return await handleProvisionRoute(request, env, corsOrigin);
       if (routeKey === 'POST /unprovision')  return await handleUnprovisionRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /admin/reset-teacher-password') return await handleAdminResetTeacherPasswordRoute(request, env, corsOrigin);
+      // Admin dashboard endpoints — all ADMIN_TOKEN-gated, all rate-limited.
+      if (routeKey === 'GET /admin/tenants') return await handleAdminListTenantsRoute(request, env, corsOrigin);
+      if (routeKey === 'GET /admin/stats')   return await handleAdminStatsRoute(request, env, corsOrigin);
+      // Demo PIN admin routes (list active, manually generate). The
+      // /admin/demo-pins prefix is matched before the generic
+      // /admin/tenant/ block below so the order matters — keep these
+      // above any startsWith('/admin/') catchalls.
+      if (routeKey === 'GET /admin/demo-pins')           return await handleAdminListDemoPinsRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /admin/demo-pins/generate') return await handleAdminGenerateDemoPinRoute(request, env, corsOrigin);
+      // Public demo-PIN request (visitor on the marketing page).
+      if (routeKey === 'POST /demo/request') return await handleDemoRequestRoute(request, env, corsOrigin);
+      if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && !url.pathname.includes('/suspend') && !url.pathname.includes('/unsuspend') && !url.pathname.includes('/resend-code')) {
+        return await handleAdminGetTenantRoute(request, env, corsOrigin);
+      }
+      if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/suspend')) {
+        return await handleAdminTenantSuspendRoute(request, env, corsOrigin, 'suspend');
+      }
+      if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/unsuspend')) {
+        return await handleAdminTenantSuspendRoute(request, env, corsOrigin, 'unsuspend');
+      }
+      if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/resend-code')) {
+        return await handleAdminResendCodeRoute(request, env, corsOrigin);
+      }
       if (routeKey === 'POST /auth')         return await handleAuthRoute(request, env, corsOrigin);
       if (routeKey === 'GET /tenant')        return await handleTenantInfoRoute(request, env, corsOrigin);
       if (routeKey === 'POST /teacher-auth') return await handleTeacherAuthRoute(request, env, corsOrigin);
@@ -1353,7 +2610,8 @@ export default {
       // teacher-auth'd. Session-lookup is public (returns only code).
       if (routeKey === 'POST /stripe/checkout')  return await handleStripeCheckoutRoute(request, env, corsOrigin);
       if (routeKey === 'POST /stripe/webhook')   return await handleStripeWebhookRoute(request, env, corsOrigin);
-      if (routeKey === 'POST /stripe/portal')    return await handleStripePortalRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /stripe/portal')      return await handleStripePortalRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /stripe/resend-code') return await handleStripeResendCodeRoute(request, env, corsOrigin);
       if (request.method === 'GET' && url.pathname.startsWith('/stripe/session/')) {
         return await handleStripeSessionLookupRoute(request, env, corsOrigin);
       }

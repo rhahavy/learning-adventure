@@ -203,6 +203,31 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   0%  {background-position:0% center}
   100%{background-position:200% center}
 }
+
+/* "Request a demo" section. Friendly form on a tinted card so it
+   visually distinguishes itself from the pricing/FAQ blocks above. */
+.demo-section{background:linear-gradient(135deg,#FFF8E1 0%,#F0EEFF 100%)}
+.demo-card{max-width:600px;margin:0 auto;background:var(--card);border-radius:var(--r-lg);padding:40px;box-shadow:var(--shadow-lg);border:1px solid var(--line)}
+.demo-card h2{font-size:clamp(24px,3vw,32px);font-weight:800;margin-bottom:10px;text-align:center;line-height:1.15}
+.demo-card .sub{color:var(--ink2);font-size:15px;line-height:1.55;text-align:center;margin-bottom:28px}
+.demo-form{display:flex;flex-direction:column;gap:14px}
+.demo-form label{font-size:13px;font-weight:700;color:var(--ink);display:block;margin-bottom:6px}
+.demo-form label .opt{color:var(--ink3);font-weight:500;font-size:12px;margin-left:4px}
+.demo-form input,
+.demo-form textarea{width:100%;padding:13px 16px;border-radius:14px;border:1.5px solid var(--line);font-size:15px;font-family:inherit;background:#fafafa;color:var(--ink);transition:border-color .15s ease,background .15s ease}
+.demo-form input:focus,
+.demo-form textarea:focus{outline:none;border-color:var(--primary);background:#fff}
+.demo-form textarea{min-height:80px;resize:vertical}
+/* Honeypot — visually hidden but not display:none (bots skip those). */
+.demo-form .hp{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.demo-form button{margin-top:6px;width:100%}
+.demo-form .err{color:var(--coral);font-size:13px;font-weight:600;text-align:center;min-height:18px}
+.demo-success{text-align:center;padding:24px 8px}
+.demo-success .check{font-size:48px;margin-bottom:10px}
+.demo-success h3{font-size:22px;font-weight:800;margin-bottom:8px}
+.demo-success p{color:var(--ink2);font-size:15px;line-height:1.55;margin-bottom:18px}
+.demo-success .where{font-family:'SF Mono',Menlo,monospace;font-size:14px;color:var(--primary);font-weight:700}
+.demo-fineprint{text-align:center;font-size:12px;color:var(--ink3);margin-top:18px;line-height:1.55}
 </style>
 </head>
 <body>
@@ -213,6 +238,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
     <div class="nav-links">
       <a href="#features" class="hide-sm">Features</a>
       <a href="#pricing" class="hide-sm">Pricing</a>
+      <a href="#demo" class="hide-sm">Try free</a>
       <a href="#faq" class="hide-sm">FAQ</a>
       <a href="/app/" class="btn btn-ghost">Sign in</a>
     </div>
@@ -222,7 +248,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 <header class="hero">
   <div class="container hero-grid">
     <div>
-      <span class="eyebrow">🎓 Ages 5–12 · AI-powered</span>
+      <span class="eyebrow">🎓 Ages 5–13 · AI-powered</span>
       <h1>Where learning<br>becomes an <span class="accent">adventure.</span></h1>
       <p class="lede">Daily quests across 8 subjects, guided by an AI tutor that adapts to how your child thinks. Parents and teachers get real dashboards — not just a screen-time number.</p>
       <div class="hero-ctas">
@@ -397,7 +423,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
       </details>
       <details class="faq-item">
         <summary>What ages is Solvix for?</summary>
-        <p>Designed for elementary learners, roughly ages 5–12 (kindergarten through grade 6). Content adapts to each child's actual level, not just their grade.</p>
+        <p>Designed for elementary learners, roughly ages 5–13 (kindergarten through grade 7). Content adapts to each child's actual level, not just their grade.</p>
       </details>
       <details class="faq-item">
         <summary>How do you protect my child's data?</summary>
@@ -415,6 +441,45 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         <summary>Do yearly plans really save that much?</summary>
         <p>Yep. Family goes from $120/yr (monthly) down to $79/yr (~34% off). Classroom goes from $360/yr down to $249/yr (~31% off). Same features either way.</p>
       </details>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="tight demo-section">
+  <div class="container">
+    <div class="demo-card">
+      <div id="demoFormWrap">
+        <h2>🎮 Want to try it first?</h2>
+        <p class="sub">Drop your email and we'll send you a one-time demo PIN. No card. No commitment. Demo data wipes after 24 hours.</p>
+        <form class="demo-form" id="demoForm" onsubmit="requestDemoPin(event)" novalidate>
+          <div>
+            <label for="demoName">Your name <span class="opt">(optional)</span></label>
+            <input type="text" id="demoName" name="name" autocomplete="name" maxlength="80" placeholder="Sarah from Lincoln Elementary">
+          </div>
+          <div>
+            <label for="demoEmail">Email <span class="opt">(we send the PIN here)</span></label>
+            <input type="email" id="demoEmail" name="email" autocomplete="email" required maxlength="200" placeholder="you@example.com">
+          </div>
+          <div>
+            <label for="demoMessage">Anything we should know? <span class="opt">(optional)</span></label>
+            <textarea id="demoMessage" name="message" maxlength="500" placeholder="My 2nd-grader struggles with reading. Looking for something that adapts."></textarea>
+          </div>
+          <!-- Honeypot — real users leave this blank; bots fill every field. -->
+          <div class="hp" aria-hidden="true">
+            <label>Website (leave empty)</label>
+            <input type="text" name="website" id="demoHoneypot" tabindex="-1" autocomplete="off">
+          </div>
+          <button type="submit" id="demoSubmit" class="btn btn-primary btn-lg">📧 Email me a demo PIN</button>
+          <div class="err" id="demoErr" role="alert"></div>
+        </form>
+        <p class="demo-fineprint">We'll email Rhahavy too so we can follow up if you have questions. We don't sell your address — ever.</p>
+      </div>
+      <div id="demoSuccessWrap" style="display:none;" class="demo-success">
+        <div class="check">📬</div>
+        <h3>Check your inbox!</h3>
+        <p>We just sent a 24-hour demo PIN to <span class="where" id="demoSentTo">your email</span>.</p>
+        <p style="font-size:13px;color:var(--ink3);">Don't see it? Check spam, or <a href="#" onclick="resetDemoForm(event)" style="color:var(--primary);font-weight:700;">try again</a>.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -523,6 +588,78 @@ async function startTrial(planFamily){
   }
   // Off to Stripe's hosted checkout. No restore() — the page is leaving.
   window.location.assign(data.url);
+}
+
+// "Request a 24h demo PIN" form handler. POSTs to /demo/request — the
+// worker generates a fresh demo tenant code valid for 24h, emails the
+// PIN to the visitor, and notifies the operator. The PIN is never
+// returned to the browser (email-only) so a script kiddie can't farm
+// PINs by spamming the endpoint. We rely on:
+//   - server-side IP rate-limit (5/hr/IP)
+//   - the honeypot field below (bots fill every field; humans don't)
+async function requestDemoPin(ev){
+  ev && ev.preventDefault && ev.preventDefault();
+  var btn   = document.getElementById('demoSubmit');
+  var errEl = document.getElementById('demoErr');
+  var name  = (document.getElementById('demoName').value  || '').trim();
+  var email = (document.getElementById('demoEmail').value || '').trim();
+  var msg   = (document.getElementById('demoMessage').value || '').trim();
+  var honeypot = (document.getElementById('demoHoneypot').value || '').trim();
+  errEl.textContent = '';
+
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    errEl.textContent = 'Please enter a valid email address.';
+    return;
+  }
+  btn.disabled = true;
+  var originalLabel = btn.textContent;
+  btn.textContent = 'Sending…';
+
+  var res;
+  try {
+    res = await fetch(CHECKOUT_BACKEND_URL.replace(/\/+$/,'') + '/demo/request', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email: email, name: name, message: msg, website: honeypot }),
+    });
+  } catch(e){
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    errEl.textContent = 'Network error. Please try again, or email hello@kidquest.fun.';
+    return;
+  }
+  var data; try { data = await res.json(); } catch(e){ data = null; }
+  if(!res.ok || !data || !data.ok){
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+    var code = data && data.error || '';
+    if(code === 'rate_limited')        errEl.textContent = 'Too many requests from your IP. Try again in an hour.';
+    else if(code === 'invalid_email')  errEl.textContent = 'That email address looks malformed.';
+    else if(code === 'email_not_configured') errEl.textContent = 'Demo email is temporarily unavailable. Please email hello@kidquest.fun.';
+    else                               errEl.textContent = 'Something went wrong. Please try again or email hello@kidquest.fun.';
+    return;
+  }
+  // Success — swap the form for the "check your inbox" panel.
+  document.getElementById('demoSentTo').textContent = data.sentTo || email;
+  document.getElementById('demoFormWrap').style.display    = 'none';
+  document.getElementById('demoSuccessWrap').style.display = 'block';
+  // Restore button state in case the user clicks "try again" later.
+  btn.disabled = false;
+  btn.textContent = originalLabel;
+}
+
+// Operator-side reset — visitor clicks "try again" on the success panel
+// (e.g. they typed the wrong address). Bring the form back, blank.
+function resetDemoForm(ev){
+  ev && ev.preventDefault && ev.preventDefault();
+  var f = document.getElementById('demoForm');
+  if(f) f.reset();
+  document.getElementById('demoErr').textContent = '';
+  document.getElementById('demoSuccessWrap').style.display = 'none';
+  document.getElementById('demoFormWrap').style.display    = 'block';
+  // Move focus into the email field so a quick retype is one keystroke away.
+  var em = document.getElementById('demoEmail');
+  if(em) em.focus();
 }
 
 // Wrap every text occurrence of "Solvix" in a rainbow-styled span, and keep
