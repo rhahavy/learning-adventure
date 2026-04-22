@@ -272,7 +272,11 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
    the curriculum chip, and a popover slides down — same labels
    ("Strand:" / "Expectation:") and the same "Read the full Ontario
    expectation" link the real <details> panel uses. 14s total. */
-.mock-curriculum{flex-direction:column;gap:0;justify-content:center}
+/* Anchor the card to the TOP of the frame so the popover (which now
+   drops down beneath the card) has room to fully appear without
+   getting clipped by the frame's overflow:hidden. */
+.mock-curriculum{flex-direction:column;gap:0;justify-content:flex-start;align-items:center}
+.mock-curriculum .mc-card{margin-top:8px}
 .mc-card{position:relative;background:#fff;color:#2D2356;border-radius:14px;padding:12px 14px 14px;width:90%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:mc-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px}
 .mc-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .mc-qt{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;line-height:1.1;min-width:0}
@@ -284,13 +288,22 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 .mc-qc{background:rgba(0,0,0,.05);color:#5b5274;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700}
 .mc-progress{height:4px;background:rgba(0,0,0,.05);border-radius:99px;overflow:hidden}
 .mc-progress > i{display:block;height:100%;width:25%;background:linear-gradient(90deg,#7C6DF2,#5BE0C5);border-radius:99px}
-.mc-popover{position:absolute;right:14px;top:38px;background:#fff;color:#2D2356;border:1px solid rgba(108,92,231,.22);border-radius:10px;padding:9px 12px;box-shadow:0 12px 28px rgba(45,35,86,.22);font-size:10.5px;line-height:1.4;width:236px;opacity:0;transform:translateY(-6px) scale(.94);transform-origin:top right;pointer-events:none;animation:mc-popover-show 14s ease-out infinite;z-index:3}
-.mc-popover::before{content:'';position:absolute;right:46px;top:-5px;width:9px;height:9px;background:#fff;border-left:1px solid rgba(108,92,231,.22);border-top:1px solid rgba(108,92,231,.22);transform:rotate(45deg)}
+/* Popover sits BELOW the card (top:calc(100% + 8px)) instead of
+   on top of the question + number-line content. The card has no
+   overflow:hidden, so the popover is free to extend beyond. The
+   arrow on top points UP into the curriculum chip the cursor just
+   clicked, mirroring the real <details> drop-down. */
+.mc-popover{position:absolute;right:0;top:calc(100% + 8px);background:#fff;color:#2D2356;border:1px solid rgba(108,92,231,.22);border-radius:10px;padding:9px 12px;box-shadow:0 12px 28px rgba(45,35,86,.22);font-size:10.5px;line-height:1.4;width:236px;opacity:0;transform:translateY(-6px) scale(.94);transform-origin:top right;pointer-events:none;animation:mc-popover-show 14s ease-out infinite;z-index:3}
+.mc-popover::before{content:'';position:absolute;right:84px;top:-5px;width:9px;height:9px;background:#fff;border-left:1px solid rgba(108,92,231,.22);border-top:1px solid rgba(108,92,231,.22);transform:rotate(45deg)}
 .mc-popover-row{margin-bottom:4px}
 .mc-popover-row:last-of-type{margin-bottom:6px}
 .mc-popover-label{font-weight:800;color:var(--primary);margin-right:4px}
 .mc-popover-link{font-size:9.5px;font-weight:700;color:var(--primary);padding-top:5px;border-top:1px solid rgba(108,92,231,.15)}
-.mc-cursor{position:absolute;right:24px;top:24px;width:16px;height:20px;pointer-events:none;opacity:0;animation:mc-cursor-move 14s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+/* Cursor lands directly on the .mc-tag chip (measured from the
+   real layout: chip center sits ~97px from the card's right edge,
+   ~22px down from the top). The SVG click-tip is at (1.5,1) inside
+   the 16x20 viewBox, so right:98/top:20 puts the tip on the chip. */
+.mc-cursor{position:absolute;right:98px;top:20px;width:16px;height:20px;pointer-events:none;opacity:0;animation:mc-cursor-move 14s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 .mc-question{font-size:13px;font-weight:700;line-height:1.3;margin-top:2px;opacity:0;animation:mc-fade-in 14s ease-out infinite}
 .mc-line{position:relative;height:4px;background:#EAE6FF;border-radius:2px;margin-top:8px;margin-bottom:18px}
 .mc-line .tick{position:absolute;top:-3px;width:2px;height:10px;background:#B5ACE0;border-radius:1px}
@@ -391,77 +404,68 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 }
 
 /* ===== Mock 3: learning quests + brain-break games =====
-   Two stacked cards crossfading every 16s. Quest card matches the real
-   .level-card chrome: round number badge (.mg-num), title (.mg-quest-
-   title), status text (.mg-quest-status — "Ready to start!" / "Completed
-   ✓"), subject emoji on the right. NO progress bar on the card itself
-   — that lives inside the activity in the real app.
-   Memory Match below is a 4×3 grid (12 cards = 6 pairs) — Easy mode in
-   the real app. Stats row above the board (Moves / Time / Pairs).
-   Cards have the real "?" gradient front + emoji back, flipping with
-   a rotateY transform; matched cards get the green-gradient back. */
-.mock-games{padding:0}
-.mock-games .mg-card{position:absolute;border-radius:14px;color:#2D2356;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35);box-sizing:border-box}
-.mock-games .mg-card-quest{inset:14px 14px auto;padding:14px 16px;animation:mg-quest 16s ease-in-out infinite}
-.mock-games .mg-card-break{inset:14px;padding:10px 12px 12px;background:linear-gradient(180deg,#faf9ff,#fff);border:1px solid rgba(45,35,86,.08);animation:mg-break 16s ease-in-out infinite;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+   Both cards live in the same frame at the same time — quest card
+   on top, Memory Match below — so the section title "Learning quests
+   AND brain-break games — both" is visually true at every moment.
+   No crossfade ghost-state where one card sits alone in a black void.
+   Quest card mirrors the real .level-card chrome (round badge + title
+   + status + subject emoji); Memory Match mirrors the real game
+   (4×3 grid = 6 pairs / Easy mode, with the Moves/Time/Pairs stats
+   row above). One pair flips up + matches in a 16s loop. */
+.mock-games{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:6px;padding:12px 14px}
+.mock-games .mg-card{border-radius:12px;color:#2D2356;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.30);box-sizing:border-box;flex-shrink:0}
+.mock-games .mg-card-quest{padding:5px 10px}
+.mock-games .mg-card-break{padding:6px 10px 8px;background:linear-gradient(180deg,#faf9ff,#fff);border:1px solid rgba(45,35,86,.08);display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden}
 /* Quest card — real .level-card lookalike. Border-left accent matches
-   the real "current" state (4px solid var(--primary)). */
-.mg-quest-row{display:flex;align-items:center;gap:12px;border-left:4px solid var(--primary);padding-left:10px;background:linear-gradient(90deg,rgba(108,92,231,.04),transparent);border-radius:6px;padding-top:6px;padding-bottom:6px}
-.mg-num{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff;background:var(--primary);flex-shrink:0;animation:mg-num-pulse 2s ease-in-out infinite}
+   the real "current" state (4px solid var(--primary)). Kept compact
+   so the Memory Match card below has room for the full 4×3 grid. */
+.mg-quest-row{display:flex;align-items:center;gap:10px;border-left:3px solid var(--primary);padding-left:8px;background:linear-gradient(90deg,rgba(108,92,231,.06),transparent);border-radius:6px;padding-top:2px;padding-bottom:2px}
+.mg-num{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;background:var(--primary);flex-shrink:0;animation:mg-num-pulse 2s ease-in-out infinite}
 .mg-quest-info{flex:1;min-width:0}
-.mg-quest-title{font-size:14px;font-weight:700;line-height:1.2}
-.mg-quest-status{font-size:11px;color:#7B6FA8;font-weight:600;margin-top:2px}
-.mg-quest-emoji{font-size:24px;flex-shrink:0}
+.mg-quest-title{font-size:12px;font-weight:700;line-height:1.2}
+.mg-quest-status{font-size:9px;color:#7B6FA8;font-weight:600;margin-top:1px}
+.mg-quest-emoji{font-size:18px;flex-shrink:0}
 @keyframes mg-num-pulse{
   0%,100%{box-shadow:0 0 0 0 rgba(108,92,231,.5)}
-  50%    {box-shadow:0 0 0 6px rgba(108,92,231,0)}
+  50%    {box-shadow:0 0 0 5px rgba(108,92,231,0)}
 }
-/* Break card — Memory Match. */
-.mg-break-head{display:flex;align-items:center;justify-content:flex-start}
-.mg-break-title{font-size:14px;font-weight:800;display:inline-flex;align-items:center;gap:6px;margin:0}
-.mg-break-title span:first-child{font-size:18px;line-height:1}
-.mg-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.mg-stat{background:rgba(108,92,231,.08);border-radius:8px;padding:4px 6px;text-align:center}
-.mg-stat-label{font-size:9px;font-weight:700;color:#7B6FA8;text-transform:uppercase;letter-spacing:.04em}
-.mg-stat-val{font-size:12px;font-weight:800;color:#2D2356;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+/* Break card — Memory Match. Stats live INLINE with the title so
+   the tile grid has room for all 12 cards within the 16:9 frame. */
+.mg-break-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mg-break-title{font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:5px;margin:0;flex-shrink:0}
+.mg-break-title span:first-child{font-size:14px;line-height:1}
+.mg-stats{display:flex;align-items:center;gap:8px;font-size:9px;font-weight:700;color:#7B6FA8;text-transform:uppercase;letter-spacing:.04em}
+.mg-stat{display:inline-flex;align-items:baseline;gap:3px}
+.mg-stat-label{font-size:9px;font-weight:700;color:#7B6FA8;letter-spacing:.04em}
+.mg-stat-val{font-size:10px;font-weight:800;color:#2D2356;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0}
 .mg-stat-moves,.mg-stat-time,.mg-stat-pairs{animation:mg-stat-tick 16s ease-in-out infinite}
-.mg-tiles{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:4px;flex:1;min-height:0}
-.mg-tile{position:relative;border-radius:6px;overflow:hidden;perspective:600px;aspect-ratio:1/1}
-.mg-tile-front,.mg-tile-back{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:6px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .5s cubic-bezier(.34,1.56,.64,1)}
-.mg-tile-front{background:linear-gradient(135deg,#e84393,#7C6DF2);color:#fff;font-size:13px;font-weight:800}
+/* Tile grid: explicit 4×3 with 30px tiles so the full board fits in
+   the 16:9 frame. 30*4 + 4*3 = 132px wide × 30*3 + 4*2 = 98px tall. */
+.mg-tiles{display:grid;grid-template-columns:repeat(4,30px);grid-template-rows:repeat(3,30px);gap:4px;justify-content:center;align-content:start;flex:1;min-height:0}
+.mg-tile{position:relative;border-radius:6px;overflow:hidden}
+.mg-tile-front,.mg-tile-back{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:6px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.mg-tile-front{background:linear-gradient(135deg,#e84393,#7C6DF2);color:#fff;font-size:13px;font-weight:800;transform:rotateY(0deg)}
 .mg-tile-back{background:#fff;color:#2D2356;font-size:14px;transform:rotateY(180deg)}
-/* Two tiles flip up showing matching 🍎. After ~3s of "checking" the
-   match resolves and the back turns green. */
+/* Two tiles flip up showing matching 🍎. After a brief "checking"
+   moment the match resolves and the back turns green. */
 .mg-tile-flip-a .mg-tile-front,
 .mg-tile-flip-b .mg-tile-front{animation:mg-tile-front-flip 16s ease-in-out infinite}
 .mg-tile-flip-a .mg-tile-back,
 .mg-tile-flip-b .mg-tile-back{animation:mg-tile-back-flip 16s ease-in-out infinite}
 @keyframes mg-tile-front-flip{
-  0%,55%   {transform:rotateY(0)}
-  62%,100% {transform:rotateY(180deg)}
+  0%,18%   {transform:rotateY(0)}
+  26%,100% {transform:rotateY(180deg)}
 }
 @keyframes mg-tile-back-flip{
-  0%,55%   {transform:rotateY(180deg);background:#fff}
-  62%,72%  {transform:rotateY(0);background:#fff}
-  78%,100% {transform:rotateY(0);background:linear-gradient(135deg,#b8f2c6,#55efc4)}
+  0%,18%   {transform:rotateY(180deg);background:#fff}
+  26%,55%  {transform:rotateY(0);background:#fff}
+  62%,100% {transform:rotateY(0);background:linear-gradient(135deg,#b8f2c6,#55efc4)}
 }
 @keyframes mg-stat-tick{
-  /* Stats row tweaks once the match resolves: 0 moves → 1 move,
-     0/6 pairs → 1/6 pairs. Time kept static at 0:08 for legibility. */
-  0%,72%   {opacity:.85}
-  78%,100% {opacity:1}
-}
-@keyframes mg-quest{
-  0%,42% {opacity:1}
-  50%,55%{opacity:0}
-  63%,92%{opacity:1}
-  98%,100%{opacity:0}
-}
-@keyframes mg-break{
-  0%,42% {opacity:0}
-  50%,55%{opacity:1}
-  63%,92%{opacity:0}
-  98%,100%{opacity:1}
+  /* Stats row tweaks once the match resolves: 0 moves → 2 moves,
+     0/6 → 1/6 pairs. Time kept static for legibility. */
+  0%,55%   {opacity:.85}
+  62%,100% {opacity:1}
 }
 
 /* ===== Mock 4: autoplay queue (JS-driven) =====
@@ -506,12 +510,13 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   .ml-opt-correct{background:#e6fff5;border-color:#00b894;color:#00855a}
   .ml-progress::after{transform:scaleX(.50)}
   .mc-line .marker{left:50%}
-  .mock-games .mg-card-quest{opacity:1}
-  .mock-games .mg-card-break{opacity:0}
-  /* Memory-match tiles: hold a flipped pair (a) face-up so the
-     example reads as "matched" without animating. */
-  .mg-tile-flip-a .mg-tile-front{transform:rotateY(180deg)}
-  .mg-tile-flip-a .mg-tile-back{transform:rotateY(0deg)}
+  /* Both Mock-3 cards are always visible now — no opacity overrides
+     needed. Memory-match tiles hold a flipped + matched pair as the
+     end-state so the example reads as a successful match. */
+  .mg-tile-flip-a .mg-tile-front,
+  .mg-tile-flip-b .mg-tile-front{transform:rotateY(180deg)}
+  .mg-tile-flip-a .mg-tile-back,
+  .mg-tile-flip-b .mg-tile-back{transform:rotateY(0deg);background:linear-gradient(135deg,#b8f2c6,#55efc4)}
 }
 
 /* "Try it" section — two side-by-side dashboards on a tinted band.
@@ -764,13 +769,15 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
               </div>
             </div>
             <div class="mg-card mg-card-break">
+              <!-- Title + compact stats share one row so the tile grid
+                   has room for all 12 cards within 16:9. -->
               <div class="mg-break-head">
                 <h3 class="mg-break-title"><span>🃏</span><span>Memory Match</span></h3>
-              </div>
-              <div class="mg-stats">
-                <div class="mg-stat"><div class="mg-stat-label">Moves</div><div class="mg-stat-val mg-stat-moves">0</div></div>
-                <div class="mg-stat"><div class="mg-stat-label">Time</div><div class="mg-stat-val mg-stat-time">0:08</div></div>
-                <div class="mg-stat"><div class="mg-stat-label">Pairs</div><div class="mg-stat-val mg-stat-pairs">0 / 6</div></div>
+                <div class="mg-stats">
+                  <span class="mg-stat"><span class="mg-stat-label">Moves</span><span class="mg-stat-val mg-stat-moves">0</span></span>
+                  <span class="mg-stat"><span class="mg-stat-label">Time</span><span class="mg-stat-val mg-stat-time">0:08</span></span>
+                  <span class="mg-stat"><span class="mg-stat-label">Pairs</span><span class="mg-stat-val mg-stat-pairs">0/6</span></span>
+                </div>
               </div>
               <!-- 4×3 grid (12 cards = 6 pairs) — real Easy mode. Tiles 2
                    and 7 flip up showing matching 🍎, then turn green. -->
