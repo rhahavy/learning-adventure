@@ -1,4 +1,4 @@
-/* KidQuest TTS Proxy — Cloudflare Worker
+/* Solvix TTS Proxy — Cloudflare Worker
  * ---------------------------------------------------------------
  * Tiny proxy that puts ElevenLabs behind the site without exposing
  * the API key in the frontend. The Worker holds the secret; the

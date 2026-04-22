@@ -1,6 +1,6 @@
-# KidQuest TTS Proxy
+# Solvix TTS Proxy
 
-Tiny Cloudflare Worker that proxies ElevenLabs text-to-speech for the KidQuest
+Tiny Cloudflare Worker that proxies ElevenLabs text-to-speech for the Solvix
 site. The Worker holds the ElevenLabs API key; the frontend never sees it.
 
 ## Why this exists

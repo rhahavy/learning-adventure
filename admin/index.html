@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- KidQuest admin dashboard
+<!-- Solvix admin dashboard
      ------------------------
      Operator-only console for managing tenants. Auth model:
        1. Operator types ADMIN_TOKEN once → stored in localStorage
@@ -16,7 +16,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
-<title>KidQuest — Admin</title>
+<title>Solvix — Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -164,6 +164,51 @@ tbody tr:last-child td{border-bottom:none}
 .demo-empty{padding:30px 20px;text-align:center;color:var(--ink2);font-size:14px}
 .demo-empty .emoji{font-size:32px;margin-bottom:8px}
 
+/* REFUND DIALOG — second-tier modal that opens on top of the tenant
+   modal. Has its own backdrop so closing it doesn't dismiss the
+   underlying tenant view (operator can flip back and forth). */
+.refund-dialog{max-width:640px}
+.refund-dialog h3{font-size:16px;margin:0 0 14px;color:var(--ink);font-weight:800}
+.refund-dialog .mode-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.refund-dialog .mode-pick label{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 8px;border:1.5px solid var(--line);border-radius:14px;cursor:pointer;background:#fafafa;text-align:center;transition:all .15s ease}
+.refund-dialog .mode-pick label:hover{background:#f7f5ff;border-color:var(--primary2)}
+.refund-dialog .mode-pick input[type=radio]{display:none}
+.refund-dialog .mode-pick input[type=radio]:checked + .mp-icon ~ *,
+.refund-dialog .mode-pick input[type=radio]:checked ~ *{}
+.refund-dialog .mode-pick label.active{background:#f0e8ff;border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,92,231,.12)}
+.refund-dialog .mode-pick .mp-icon{font-size:22px;line-height:1}
+.refund-dialog .mode-pick .mp-name{font-weight:800;font-size:13px;color:var(--ink)}
+.refund-dialog .mode-pick .mp-sub{font-size:11px;color:var(--ink2);font-weight:600;line-height:1.3}
+.refund-dialog .mode-panel{display:none;background:#faf9ff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+.refund-dialog .mode-panel.show{display:block}
+.refund-dialog .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.refund-dialog .field:last-child{margin-bottom:0}
+.refund-dialog .field label{font-size:12px;font-weight:700;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px}
+.refund-dialog .field input,.refund-dialog .field select,.refund-dialog .field textarea{padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:14px;background:#fff;font-family:inherit}
+.refund-dialog .field input:focus,.refund-dialog .field select:focus,.refund-dialog .field textarea:focus{outline:none;border-color:var(--primary)}
+.refund-dialog .field .hint{font-size:11px;color:var(--ink3);font-weight:600}
+.refund-dialog .charge-list{max-height:240px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.refund-dialog .charge-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:center;cursor:pointer;font-size:13px}
+.refund-dialog .charge-row:last-child{border-bottom:none}
+.refund-dialog .charge-row:hover{background:#faf9ff}
+.refund-dialog .charge-row input[type=radio]{margin:0}
+.refund-dialog .charge-row .ch-meta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.refund-dialog .charge-row .ch-amt{font-weight:800;font-family:var(--mono);color:var(--ink);white-space:nowrap}
+.refund-dialog .charge-row .ch-desc{color:var(--ink);font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.refund-dialog .charge-row .ch-sub{color:var(--ink3);font-size:11px;font-family:var(--mono);font-weight:600}
+.refund-dialog .charge-row.disabled{opacity:.5;cursor:not-allowed}
+.refund-dialog .charge-row.disabled:hover{background:transparent}
+.refund-dialog .preview{background:#fff;border:1.5px solid var(--primary);border-radius:12px;padding:14px;margin:14px 0;text-align:center}
+.refund-dialog .preview .label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ink3);margin-bottom:4px}
+.refund-dialog .preview .amount{font-size:30px;font-weight:800;color:var(--primary);font-family:var(--mono);line-height:1.1}
+.refund-dialog .preview .sub{font-size:12px;color:var(--ink2);font-weight:600;margin-top:4px}
+.refund-dialog .preview.invalid{border-color:var(--rose)}
+.refund-dialog .preview.invalid .amount{color:var(--rose)}
+.refund-dialog .preview.invalid .sub{color:var(--rose)}
+.refund-dialog .actions{display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--line);padding-top:14px;margin-top:6px}
+.refund-dialog .totals{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);font-weight:600;padding:8px 2px}
+.refund-dialog .totals strong{color:var(--ink);font-family:var(--mono)}
+
 @media (max-width:768px){
   .stat{padding:10px 12px}
   .stat-value{font-size:20px}
@@ -182,7 +227,7 @@ tbody tr:last-child td{border-bottom:none}
 <div id="gate" class="gate hidden">
   <div class="brand" style="justify-content:center;margin-bottom:18px">
     <div class="brand-mark">🌟</div>
-    <div>KidQuest <span class="brand-sub">Admin</span></div>
+    <div>Solvix <span class="brand-sub">Admin</span></div>
   </div>
   <h1>Sign in</h1>
   <p>Paste your <code>ADMIN_TOKEN</code> to continue. The token never leaves your browser except as a Bearer header on API calls.</p>
@@ -196,7 +241,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="topbar">
     <div class="brand">
       <div class="brand-mark">🌟</div>
-      <div>KidQuest <span class="brand-sub">Admin</span></div>
+      <div>Solvix <span class="brand-sub">Admin</span></div>
     </div>
     <div class="topbar-actions">
       <button class="btn btn-ghost btn-sm" id="refresh-btn" title="Refresh data">🔄 Refresh</button>
@@ -276,6 +321,94 @@ tbody tr:last-child td{border-bottom:none}
       <div style="text-align:center;padding:30px"><span class="spinner"></span></div>
     </div>
     <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<!-- ============ REFUND DIALOG (second-tier modal) ============
+     Opens on top of the tenant modal when the operator clicks 💸 Refund.
+     Three modes: months / amount / charge_full. Server enforces the
+     same validation; this is just the picker. -->
+<div id="refund-bg" class="modal-bg" role="dialog" aria-modal="true">
+  <div class="modal refund-dialog" style="position:relative">
+    <button class="modal-close" id="refund-close" aria-label="Close">×</button>
+    <h2>💸 Refund</h2>
+    <div class="sub" id="refund-sub">—</div>
+    <div id="refund-loading" style="text-align:center;padding:30px"><span class="spinner"></span> Loading charges…</div>
+    <div id="refund-content" style="display:none">
+      <div class="totals" id="refund-totals"></div>
+      <div class="mode-pick" id="refund-mode-pick">
+        <label data-mode="months">
+          <input type="radio" name="rf-mode" value="months">
+          <div class="mp-icon">📅</div>
+          <div class="mp-name">By months</div>
+          <div class="mp-sub">Refund N billing cycles</div>
+        </label>
+        <label data-mode="amount">
+          <input type="radio" name="rf-mode" value="amount">
+          <div class="mp-icon">💵</div>
+          <div class="mp-name">By amount</div>
+          <div class="mp-sub">Refund a specific $</div>
+        </label>
+        <label data-mode="charge_full">
+          <input type="radio" name="rf-mode" value="charge_full">
+          <div class="mp-icon">🧾</div>
+          <div class="mp-name">One charge</div>
+          <div class="mp-sub">Refund a full invoice</div>
+        </label>
+      </div>
+
+      <!-- months panel -->
+      <div class="mode-panel" id="rf-panel-months">
+        <div class="field">
+          <label for="rf-months">How many billing months?</label>
+          <input type="number" id="rf-months" min="1" max="36" step="1" value="1">
+          <div class="hint" id="rf-months-hint">—</div>
+        </div>
+      </div>
+
+      <!-- amount panel -->
+      <div class="mode-panel" id="rf-panel-amount">
+        <div class="field">
+          <label for="rf-amount">Amount in dollars (e.g. 12.50)</label>
+          <input type="text" id="rf-amount" inputmode="decimal" placeholder="0.00">
+          <div class="hint">Maximum refundable shown above. We bill in your customer's currency.</div>
+        </div>
+      </div>
+
+      <!-- charge_full panel -->
+      <div class="mode-panel" id="rf-panel-charge_full">
+        <div class="field">
+          <label>Pick the invoice to refund in full</label>
+          <div class="charge-list" id="rf-charge-list"></div>
+        </div>
+      </div>
+
+      <div class="preview" id="rf-preview">
+        <div class="label">Will refund</div>
+        <div class="amount" id="rf-preview-amount">$0.00</div>
+        <div class="sub" id="rf-preview-sub">Pick a mode</div>
+      </div>
+
+      <div class="field">
+        <label for="rf-stripe-reason">Stripe reason (shown in Stripe dashboard)</label>
+        <select id="rf-stripe-reason">
+          <option value="requested_by_customer" selected>Requested by customer</option>
+          <option value="duplicate">Duplicate charge</option>
+          <option value="fraudulent">Fraudulent</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="rf-reason">Operator note (audit log only)</label>
+        <textarea id="rf-reason" rows="2" maxlength="500" placeholder="e.g. Family is unhappy with the AI quality on Grade 1 math."></textarea>
+        <div class="hint">Saved to refund:&lt;id&gt; KV record + the owner notification email.</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-ghost btn-sm" id="rf-cancel">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="rf-submit" disabled>💸 Issue refund</button>
+      </div>
+    </div>
+    <div id="refund-error" style="display:none"></div>
   </div>
 </div>
 
@@ -510,6 +643,11 @@ tbody tr:last-child td{border-bottom:none}
         actions.push('<button class="btn btn-ghost btn-sm" id="m-resend">📧 Resend code email</button>');
       }
       actions.push('<button class="btn btn-ghost btn-sm" id="m-resend-other">📧 Resend to different email…</button>');
+      // Refund button only makes sense if there's a Stripe customer on
+      // file. Manual / demo / free tenants have no charges to refund.
+      if(t.stripeCustomerId){
+        actions.push('<button class="btn btn-ghost btn-sm" id="m-refund">💸 Refund…</button>');
+      }
       if(t.suspended){
         actions.push('<button class="btn btn-primary btn-sm" id="m-unsuspend">Unsuspend</button>');
       } else {
@@ -538,6 +676,8 @@ tbody tr:last-child td{border-bottom:none}
       if($u) $u.addEventListener('click', function(){
         api('/admin/tenant/'+id+'/unsuspend', {method:'POST', body:{}}).then(function(){ toast('✓ Unsuspended', 'success'); $modalBg.classList.remove('show'); loadTenants(); }).catch(function(e){ toast('Error: '+e.message, 'error'); });
       });
+      var $rf = document.getElementById('m-refund');
+      if($rf) $rf.addEventListener('click', function(){ openRefundDialog(t); });
     } catch(e){
       $modalB.innerHTML = '<div class="empty"><div class="emoji">⚠️</div><h3>Failed to load</h3><p>'+escapeHtml(e.message)+'</p></div>';
     }
@@ -545,6 +685,263 @@ tbody tr:last-child td{border-bottom:none}
 
   document.getElementById('modal-close').addEventListener('click', function(){ $modalBg.classList.remove('show'); });
   $modalBg.addEventListener('click', function(e){ if(e.target === $modalBg) $modalBg.classList.remove('show'); });
+
+  // -------- Refund dialog --------
+  // Opens on top of the tenant modal. Loads charges via
+  // /admin/tenant/<id>/charges, then drives a 3-mode picker that
+  // POSTs to /admin/tenant/<id>/refund. Server is the source of
+  // truth — this UI is a friendly wrapper, not a security boundary.
+  var $refundBg = document.getElementById('refund-bg');
+  var $refundSub = document.getElementById('refund-sub');
+  var $refundLoading = document.getElementById('refund-loading');
+  var $refundContent = document.getElementById('refund-content');
+  var $refundError   = document.getElementById('refund-error');
+  var $refundTotals  = document.getElementById('refund-totals');
+  var $rfModePick    = document.getElementById('refund-mode-pick');
+  var $rfPanelMonths = document.getElementById('rf-panel-months');
+  var $rfPanelAmount = document.getElementById('rf-panel-amount');
+  var $rfPanelCharge = document.getElementById('rf-panel-charge_full');
+  var $rfMonths      = document.getElementById('rf-months');
+  var $rfMonthsHint  = document.getElementById('rf-months-hint');
+  var $rfAmount      = document.getElementById('rf-amount');
+  var $rfChargeList  = document.getElementById('rf-charge-list');
+  var $rfPreview     = document.getElementById('rf-preview');
+  var $rfPreviewAmt  = document.getElementById('rf-preview-amount');
+  var $rfPreviewSub  = document.getElementById('rf-preview-sub');
+  var $rfStripeReason= document.getElementById('rf-stripe-reason');
+  var $rfReason      = document.getElementById('rf-reason');
+  var $rfSubmit      = document.getElementById('rf-submit');
+  var $rfCancel      = document.getElementById('rf-cancel');
+
+  // Per-dialog state. Reset on every openRefundDialog().
+  var refundState = {
+    tenantId:     null,
+    tenant:       null,
+    charges:      [],
+    monthlyCents: null,
+    currency:     'usd',
+    billingInterval: null,
+    totalRefundableCents: 0,
+    selectedChargeId: null,
+    mode:         null,
+  };
+
+  function fmtMoney(cents, currency){
+    var n = (cents || 0) / 100;
+    var sign = n < 0 ? '-' : '';
+    var amt = Math.abs(n).toFixed(2);
+    var sym = (currency || 'usd').toUpperCase();
+    if(sym === 'USD' || sym === 'CAD' || sym === 'AUD' || sym === 'NZD' || sym === 'HKD' || sym === 'SGD') return sign + '$' + amt + (sym === 'USD' ? '' : ' '+sym);
+    if(sym === 'EUR') return sign + '€' + amt;
+    if(sym === 'GBP') return sign + '£' + amt;
+    return sign + amt + ' ' + sym;
+  }
+
+  function closeRefundDialog(){
+    $refundBg.classList.remove('show');
+  }
+
+  async function openRefundDialog(tenant){
+    refundState = {
+      tenantId: tenant.id,
+      tenant: tenant,
+      charges: [],
+      monthlyCents: null,
+      currency: 'usd',
+      billingInterval: null,
+      totalRefundableCents: 0,
+      selectedChargeId: null,
+      mode: null,
+    };
+    $refundSub.textContent = (tenant.label || '(no label)') + ' — ' + tenant.id;
+    $refundLoading.style.display = '';
+    $refundContent.style.display = 'none';
+    $refundError.style.display   = 'none';
+    $refundError.innerHTML = '';
+    // Reset form
+    $rfMonths.value = '1';
+    $rfAmount.value = '';
+    $rfReason.value = '';
+    $rfStripeReason.value = 'requested_by_customer';
+    Array.prototype.forEach.call($rfModePick.querySelectorAll('label'), function(l){ l.classList.remove('active'); });
+    Array.prototype.forEach.call($rfModePick.querySelectorAll('input[type=radio]'), function(r){ r.checked = false; });
+    $rfPanelMonths.classList.remove('show');
+    $rfPanelAmount.classList.remove('show');
+    $rfPanelCharge.classList.remove('show');
+    $rfSubmit.disabled = true;
+    $rfPreviewAmt.textContent = '$0.00';
+    $rfPreviewSub.textContent = 'Pick a mode';
+    $rfPreview.classList.remove('invalid');
+    $refundBg.classList.add('show');
+
+    try {
+      var data = await api('/admin/tenant/'+tenant.id+'/charges');
+      refundState.charges          = data.charges || [];
+      refundState.monthlyCents     = data.monthlyCents || null;
+      refundState.currency         = data.currency || 'usd';
+      refundState.billingInterval  = data.billingInterval || null;
+      refundState.totalRefundableCents = refundState.charges.reduce(function(s, c){ return s + (c.refundableCents || 0); }, 0);
+
+      // Render charge list (used by charge_full mode AND informational
+      // for the other modes — operator can see what's available).
+      if(!refundState.charges.length){
+        $rfChargeList.innerHTML = '<div style="padding:14px;color:var(--ink2);font-size:13px;text-align:center">No paid invoices found for this customer.</div>';
+      } else {
+        $rfChargeList.innerHTML = refundState.charges.map(function(c){
+          var disabled = c.refundableCents <= 0 ? 'disabled' : '';
+          var dateStr = c.createdAt ? new Date(c.createdAt).toLocaleDateString(undefined, {month:'short',day:'numeric',year:'numeric'}) : '—';
+          var refundedNote = c.amountRefundedCents > 0 ? ' • '+fmtMoney(c.amountRefundedCents, c.currency)+' already refunded' : '';
+          return '<label class="charge-row '+disabled+'">'+
+            '<input type="radio" name="rf-charge" value="'+escapeHtml(c.chargeId)+'" '+(c.refundableCents <= 0 ? 'disabled' : '')+'>'+
+            '<div class="ch-meta">'+
+              '<div class="ch-desc">'+escapeHtml(c.description || c.invoiceNumber || c.chargeId)+'</div>'+
+              '<div class="ch-sub">'+escapeHtml(dateStr)+' • '+escapeHtml(c.chargeId)+escapeHtml(refundedNote)+'</div>'+
+            '</div>'+
+            '<div class="ch-amt">'+fmtMoney(c.refundableCents, c.currency)+'</div>'+
+          '</label>';
+        }).join('');
+      }
+
+      // Header totals + months hint.
+      $refundTotals.innerHTML =
+        '<span>Refundable balance</span>'+
+        '<strong>'+fmtMoney(refundState.totalRefundableCents, refundState.currency)+
+          ' across '+refundState.charges.filter(function(c){ return c.refundableCents > 0; }).length+' invoice(s)'+
+        '</strong>';
+      if(refundState.monthlyCents){
+        var intervalNote = refundState.billingInterval === 'year' ? ' (yearly plan, prorated to monthly)' : '';
+        $rfMonthsHint.textContent = 'Per-month price: '+fmtMoney(refundState.monthlyCents, refundState.currency)+intervalNote;
+      } else {
+        $rfMonthsHint.textContent = 'Cannot determine per-month price — use "By amount" or "One charge" instead.';
+      }
+
+      $refundLoading.style.display = 'none';
+      $refundContent.style.display = '';
+    } catch(e){
+      $refundLoading.style.display = 'none';
+      $refundError.style.display = '';
+      $refundError.innerHTML = '<div class="empty"><div class="emoji">⚠️</div><h3>Failed to load charges</h3><p>'+escapeHtml(e.message)+'</p></div>';
+    }
+  }
+
+  // Mode picker — radio buttons styled as cards. Clicking a card
+  // checks its radio AND swaps the visible details panel.
+  $rfModePick.addEventListener('click', function(e){
+    var lbl = e.target.closest('label[data-mode]');
+    if(!lbl) return;
+    var mode = lbl.getAttribute('data-mode');
+    Array.prototype.forEach.call($rfModePick.querySelectorAll('label'), function(l){ l.classList.remove('active'); });
+    lbl.classList.add('active');
+    var radio = lbl.querySelector('input[type=radio]');
+    if(radio) radio.checked = true;
+    refundState.mode = mode;
+    $rfPanelMonths.classList.toggle('show', mode === 'months');
+    $rfPanelAmount.classList.toggle('show', mode === 'amount');
+    $rfPanelCharge.classList.toggle('show', mode === 'charge_full');
+    updateRefundPreview();
+  });
+
+  // Charge picker (only relevant in charge_full mode).
+  $rfChargeList.addEventListener('change', function(e){
+    if(e.target && e.target.name === 'rf-charge'){
+      refundState.selectedChargeId = e.target.value;
+      updateRefundPreview();
+    }
+  });
+  $rfMonths.addEventListener('input', updateRefundPreview);
+  $rfAmount.addEventListener('input', updateRefundPreview);
+
+  // Compute the preview $ + enable/disable the submit button. Mirrors
+  // the server's logic so the operator sees ahead of time when their
+  // ask is invalid (exceeds refundable / no charge selected / etc.).
+  function updateRefundPreview(){
+    var mode = refundState.mode;
+    var cents = 0;
+    var sub = '';
+    var invalid = false;
+    if(mode === 'months'){
+      var n = parseInt($rfMonths.value, 10);
+      if(!Number.isFinite(n) || n <= 0){ sub = 'Enter a positive number'; invalid = true; }
+      else if(!refundState.monthlyCents){ sub = 'Per-month price unknown for this plan'; invalid = true; }
+      else {
+        cents = refundState.monthlyCents * n;
+        sub = n+' month(s) × '+fmtMoney(refundState.monthlyCents, refundState.currency);
+        if(cents > refundState.totalRefundableCents){
+          invalid = true;
+          sub += ' — exceeds refundable balance ('+fmtMoney(refundState.totalRefundableCents, refundState.currency)+')';
+        }
+      }
+    } else if(mode === 'amount'){
+      var dollars = parseFloat($rfAmount.value);
+      if(!Number.isFinite(dollars) || dollars <= 0){ sub = 'Enter a positive amount'; invalid = true; }
+      else {
+        cents = Math.round(dollars * 100);
+        if(cents > refundState.totalRefundableCents){
+          invalid = true;
+          sub = 'Exceeds refundable balance ('+fmtMoney(refundState.totalRefundableCents, refundState.currency)+')';
+        } else {
+          sub = 'Walks invoices newest-first until '+fmtMoney(cents, refundState.currency)+' is refunded';
+        }
+      }
+    } else if(mode === 'charge_full'){
+      if(!refundState.selectedChargeId){ sub = 'Pick an invoice above'; invalid = true; }
+      else {
+        var ch = refundState.charges.find(function(c){ return c.chargeId === refundState.selectedChargeId; });
+        if(!ch || ch.refundableCents <= 0){ sub = 'Selected charge has nothing to refund'; invalid = true; }
+        else { cents = ch.refundableCents; sub = ch.description || ch.invoiceNumber || ch.chargeId; }
+      }
+    } else {
+      sub = 'Pick a mode';
+      invalid = true;
+    }
+    $rfPreviewAmt.textContent = fmtMoney(cents, refundState.currency);
+    $rfPreviewSub.textContent = sub;
+    $rfPreview.classList.toggle('invalid', invalid);
+    $rfSubmit.disabled = invalid || cents <= 0;
+  }
+
+  $rfCancel.addEventListener('click', closeRefundDialog);
+  document.getElementById('refund-close').addEventListener('click', closeRefundDialog);
+  $refundBg.addEventListener('click', function(e){ if(e.target === $refundBg) closeRefundDialog(); });
+
+  // Submit — POST /admin/tenant/<id>/refund. Final confirm is mandatory
+  // because this moves real money. Disable the button while in flight.
+  $rfSubmit.addEventListener('click', async function(){
+    var mode = refundState.mode;
+    if(!mode) return;
+    var body = { mode: mode, reason: $rfReason.value.trim(), stripeReason: $rfStripeReason.value };
+    var amountForConfirm = 0;
+    if(mode === 'months'){
+      body.months = parseInt($rfMonths.value, 10);
+      amountForConfirm = (refundState.monthlyCents || 0) * body.months;
+    } else if(mode === 'amount'){
+      body.amountCents = Math.round(parseFloat($rfAmount.value) * 100);
+      amountForConfirm = body.amountCents;
+    } else if(mode === 'charge_full'){
+      body.chargeId = refundState.selectedChargeId;
+      var ch = refundState.charges.find(function(c){ return c.chargeId === body.chargeId; });
+      amountForConfirm = ch ? ch.refundableCents : 0;
+    }
+    if(!confirm('Issue a refund of '+fmtMoney(amountForConfirm, refundState.currency)+' to '+(refundState.tenant.customerEmail || refundState.tenant.label || refundState.tenantId)+'?\n\nThis cannot be undone from this dashboard. Click the Stripe dashboard for advanced controls.')) return;
+
+    var orig = $rfSubmit.textContent;
+    $rfSubmit.disabled = true;
+    $rfSubmit.textContent = 'Refunding…';
+    try {
+      var r = await api('/admin/tenant/'+refundState.tenantId+'/refund', {method:'POST', body: body});
+      var refunded = (r.audit && r.audit.refundedCents) || 0;
+      var msg = '✓ Refunded '+fmtMoney(refunded, refundState.currency);
+      if(r.partial) msg += ' (partial — see audit)';
+      toast(msg, 'success');
+      closeRefundDialog();
+      // Reopen the tenant modal so the operator sees fresh state next.
+      openTenantModal(refundState.tenantId);
+    } catch(e){
+      toast('Refund failed: '+e.message, 'error');
+      $rfSubmit.disabled = false;
+      $rfSubmit.textContent = orig;
+    }
+  });
 
   // -------- Filter / search wiring --------
   $filter.addEventListener('click', function(e){

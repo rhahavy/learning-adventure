@@ -1,6 +1,6 @@
 # Weekly Content Routine — How to keep the levels fresh
 
-KidQuest's "week" clock is per-student — it starts the moment a kid first
+Solvix's "week" clock is per-student — it starts the moment a kid first
 logs in, and rolls forward every 7 days. So Isaiah might be on his Week 3
 while Akaran is still on Week 1. Whenever anyone's clock advances past
 the most recent WEEKS[N] you've authored, the app shows a "you're ahead,

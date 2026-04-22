@@ -1,6 +1,6 @@
 name: Weekly Parent Reports
 
-# Sends a weekly KidQuest progress email to each student's parent. The heavy
+# Sends a weekly Solvix progress email to each student's parent. The heavy
 # lifting lives in scripts/send-weekly-reports.mjs — this workflow just
 # schedules it and wires env vars.
 #
@@ -11,7 +11,7 @@ name: Weekly Parent Reports
 #
 # Required secrets / vars (see WEEKLY_REPORTS_SETUP.md):
 #   secrets.RESEND_API_KEY  — Resend API key (required for real sends)
-#   secrets.FROM_EMAIL      — "KidQuest Reports <reports@your-domain>" (optional)
+#   secrets.FROM_EMAIL      — "Solvix Reports <reports@your-domain>" (optional)
 #   secrets.CC_EMAIL        — CC address on every report (optional)
 #   vars.DASHBOARD_URL      — URL shown in the email CTA (optional)
 #   vars.CLOUD_BUCKET       — textdb.dev bucket override (optional)

@@ -25,7 +25,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#6C5CE7">
 <meta name="robots" content="noindex,nofollow">
-<title>Welcome to KidQuest — check your email</title>
+<title>Welcome to Solvix — check your email</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -86,7 +86,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
 <div class="wrap">
   <div class="brand">
     <div class="brand-mark">🌟</div>
-    <div>KidQuest</div>
+    <div>Solvix</div>
   </div>
 
   <div class="card">
@@ -101,7 +101,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
     <!-- Ready state — payment confirmed, email dispatched. We show
          the masked email so the user can confirm which inbox to check. -->
     <div id="state-ready" class="hidden">
-      <h1>🎉 Welcome to KidQuest!</h1>
+      <h1>🎉 Welcome to Solvix!</h1>
       <p class="lede" id="welcome-lede">Your classroom is ready and your login code is on its way.</p>
 
       <div class="email-card">
@@ -113,19 +113,19 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
       <div class="next-steps">
         <h2>What's next:</h2>
         <ol>
-          <li>Open the email titled <strong>"Your KidQuest login code"</strong>.</li>
-          <li>Click <strong>Open KidQuest</strong> in the email (or below) and enter your code.</li>
+          <li>Open the email titled <strong>"Your Solvix login code"</strong>.</li>
+          <li>Click <strong>Open Solvix</strong> in the email (or below) and enter your code.</li>
           <li>Your 7-day free trial starts now — no charge until day 8. Cancel anytime from Teacher Dashboard → Subscription &amp; Billing.</li>
         </ol>
       </div>
 
       <div class="cta-row">
-        <a href="/app/" class="btn btn-primary">Open KidQuest →</a>
+        <a href="/app/" class="btn btn-primary">Open Solvix →</a>
         <button class="btn btn-ghost" id="resend-btn" type="button">📧 Resend email</button>
       </div>
       <p class="small">
         Don't see it? Check your spam folder, then click <strong>Resend email</strong>.
-        Still nothing? Email <a href="mailto:hello@kidquest.fun">hello@kidquest.fun</a> from the same address you used to pay and we'll sort it out within the hour.
+        Still nothing? Email <a href="mailto:solvixadmin@kidquest.fun">solvixadmin@kidquest.fun</a> from the same address you used to pay and we'll sort it out within the hour.
       </p>
     </div>
 
@@ -137,9 +137,9 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
       <p class="lede" id="error-detail">Stripe's confirmation hasn't reached us yet — this is usually a quick hiccup.</p>
       <div class="cta-row" style="justify-content:center">
         <button class="btn btn-primary" id="retry-btn" type="button">🔄 Try again</button>
-        <a href="mailto:hello@kidquest.fun" class="btn btn-ghost">Contact support</a>
+        <a href="mailto:solvixadmin@kidquest.fun" class="btn btn-ghost">Contact support</a>
       </div>
-      <p class="small">If this keeps happening, email <a href="mailto:hello@kidquest.fun">hello@kidquest.fun</a> from the address you used to pay — we'll hand-provision your classroom within the hour.</p>
+      <p class="small">If this keeps happening, email <a href="mailto:solvixadmin@kidquest.fun">solvixadmin@kidquest.fun</a> from the address you used to pay — we'll hand-provision your classroom within the hour.</p>
     </div>
   </div>
 </div>
@@ -219,7 +219,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
     var data;
     try { data = await res.json(); } catch(e){ data = null; }
     if(!data || !data.ok){
-      showError('Your payment went through but we couldn\'t confirm your account is ready. Email hello@kidquest.fun and we\'ll send your code right over.');
+      showError('Your payment went through but we couldn\'t confirm your account is ready. Email solvixadmin@kidquest.fun and we\'ll send your code right over.');
       return;
     }
     // Success — show the masked recipient and personalise the welcome.
@@ -258,7 +258,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
       } else if(r.status === 429){
         toast('Slow down — try again in a few minutes.');
       } else {
-        toast('Couldn\'t resend. Email hello@kidquest.fun and we\'ll help.');
+        toast('Couldn\'t resend. Email solvixadmin@kidquest.fun and we\'ll help.');
       }
     } catch(e){
       toast('Network hiccup. Try again or email support.');

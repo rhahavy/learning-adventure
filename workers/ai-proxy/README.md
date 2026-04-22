@@ -1,7 +1,7 @@
-# KidQuest AI Proxy
+# Solvix AI Proxy
 
 Cloudflare Worker that fronts AI providers (Anthropic, OpenAI, ElevenLabs)
-for every AI-powered feature on the KidQuest site. One worker, many
+for every AI-powered feature on the Solvix site. One worker, many
 endpoints, shared security + caps + audit.
 
 ## What this is

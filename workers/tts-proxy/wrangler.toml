@@ -1,4 +1,4 @@
-# KidQuest TTS Proxy — Cloudflare Worker config
+# Solvix TTS Proxy — Cloudflare Worker config
 # ------------------------------------------------------------------
 # Deploys worker.js to Cloudflare Workers. The ElevenLabs API key is
 # NOT stored here — it's a runtime secret. See README.md for the

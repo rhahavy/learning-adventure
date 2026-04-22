@@ -1,7 +1,7 @@
 {
   "name": "ai-proxy",
   "version": "1.0.0",
-  "description": "Cloudflare Worker that fronts AI providers (Anthropic, OpenAI, ElevenLabs) for every AI-powered feature on the KidQuest site. One worker, many endpoints, shared security + caps + audit.",
+  "description": "Cloudflare Worker that fronts AI providers (Anthropic, OpenAI, ElevenLabs) for every AI-powered feature on the Solvix site. One worker, many endpoints, shared security + caps + audit.",
   "main": "worker.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

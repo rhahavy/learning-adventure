@@ -1,7 +1,7 @@
-/* KidQuest AI Proxy — Cloudflare Worker
+/* Solvix AI Proxy — Cloudflare Worker
  * ---------------------------------------------------------------
  * Single worker that fronts Anthropic / OpenAI / other AI providers
- * for every AI-powered feature on the KidQuest site. One worker,
+ * for every AI-powered feature on the Solvix site. One worker,
  * many endpoints, shared security layer — same idea as grouping
  * API routes on a normal backend instead of spinning up 11 separate
  * services.
@@ -230,7 +230,7 @@ function scanOutputForBannedContent(out) {
 // ==========================================================================
 // CURRICULUM ALIGNMENT — the AI's north star
 // ==========================================================================
-// Every lesson in KidQuest is tagged with Ontario Curriculum metadata:
+// Every lesson in Solvix is tagged with Ontario Curriculum metadata:
 //   { grade, strand, codes: ['B2.4', ...], notes }
 // When AI edits or rewrites any lesson content, it MUST stay anchored to
 // that tag. Kids' sessions are structured around grade-level expectations;
@@ -399,6 +399,13 @@ const RL = {
   // emailing themselves a hundred PINs in a minute. Bump if legit
   // demand outpaces this cap; it's a comfort number, not load-bearing.
   DEMO_REQ_IP:{ max: 5,  window: 60 * 60 * 1000 },
+  // Refunds are MONEY OUT. If the admin token leaks, refund spam is
+  // the highest-impact abuse path — every successful call drains real
+  // dollars to a real card. Tighter than ADMIN_IP on purpose: 10/hr is
+  // plenty for legit operator use (you're not refunding 30 customers
+  // an hour) and caps blast radius if a token is in the wild before
+  // we notice the OWNER_EMAIL alerts.
+  REFUND_IP:  { max: 10, window: 60 * 60 * 1000 },
 };
 // Kept as an alias so existing callers that reference this constant
 // (if any linger) don't break. Prefer RL.AUTH_IP.
@@ -426,7 +433,7 @@ const PBKDF2_ITERATIONS = 100000;
 // Settings used on self-heal:
 //   isDemo: true            — flagged as demo in admin UI / CSS
 //   planType: 'classroom'   — full feature set, since these are "show
-//                             everything KidQuest can do" demos
+//                             everything Solvix can do" demos
 //   teacherPasswordHash:null — no teacher gate; the PIN is the only secret
 //   storeEnabled: true      — rewards shop visible
 //
@@ -436,7 +443,7 @@ const PBKDF2_ITERATIONS = 100000;
 const RESERVED_TENANTS = {
   '2228': {
     id: 'reserved-2228',
-    label: 'KidQuest Demo (PIN 2228)',
+    label: 'Solvix Demo (PIN 2228)',
     code: '2228',
     teacherPasswordHash: null,
     isDemo: true,
@@ -673,12 +680,12 @@ function escapeHtml(s) {
 //
 // Required:
 //   env.RESEND_API_KEY  (secret)  — re_xxx from resend.com dashboard
-//   env.EMAIL_FROM      (var)     — "KidQuest <hello@kidquest.fun>"
+//   env.EMAIL_FROM      (var)     — "Solvix <solvixadmin@kidquest.fun>"
 //                                   The sender domain MUST be verified
 //                                   in Resend; otherwise sends fail
 //                                   immediately with 403.
 // Optional:
-//   env.EMAIL_REPLY_TO  (var)     — e.g. "support@kidquest.fun"
+//   env.EMAIL_REPLY_TO  (var)     — e.g. "solvixadmin@kidquest.fun"
 //   env.APP_URL         (var)     — link target in the email body.
 //                                   Falls back to the bare path "/app/"
 //                                   so it works even if unset.
@@ -698,10 +705,10 @@ async function sendTenantCodeEmail(env, toEmail, code, label, planType) {
   const labelClean = escapeHtml(label || (planType === 'family' ? 'your family' : 'your classroom'));
   const codeUpper = String(code).toUpperCase();
 
-  const subject = `Your KidQuest login code: ${codeUpper}`;
+  const subject = `Your Solvix login code: ${codeUpper}`;
   // Plain-text fallback for clients that prefer it (Apple Mail, etc.)
   const text = [
-    `Welcome to KidQuest!`,
+    `Welcome to Solvix!`,
     ``,
     `Your ${planNoun} "${label || 'is ready'}" is set up.`,
     ``,
@@ -725,7 +732,7 @@ async function sendTenantCodeEmail(env, toEmail, code, label, planType) {
     <tr><td align="center">
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:24px;padding:36px;box-shadow:0 12px 32px rgba(108,92,231,0.15);">
         <tr><td>
-          <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1A1035;">🎉 Welcome to KidQuest!</h1>
+          <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1A1035;">🎉 Welcome to Solvix!</h1>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#5B5580;">Your ${escapeHtml(planNoun)} <strong>${labelClean}</strong> is ready to go.</p>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#6C5CE7,#A29BFE);border-radius:18px;padding:24px;text-align:center;margin:0 0 24px;">
@@ -737,14 +744,14 @@ async function sendTenantCodeEmail(env, toEmail, code, label, planType) {
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
             <tr><td align="center">
-              <a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#6C5CE7;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;">Open KidQuest →</a>
+              <a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#6C5CE7;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;">Open Solvix →</a>
             </td></tr>
           </table>
 
           <div style="background:#F7F5FF;padding:18px 22px;border-radius:14px;margin:0 0 20px;">
             <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1A1035;">What's next:</p>
             <ol style="margin:0;padding-left:20px;color:#5B5580;font-size:14px;line-height:1.7;">
-              <li>Click <strong>Open KidQuest</strong> above.</li>
+              <li>Click <strong>Open Solvix</strong> above.</li>
               <li>Enter your code on the sign-in screen.</li>
               <li>Your 7-day free trial starts now — no charge until day 8.</li>
             </ol>
@@ -813,9 +820,9 @@ async function sendDemoCodeEmail(env, toEmail, code, requesterName) {
   const codeUpper = String(code).toUpperCase();
   const greeting = requesterName ? `Hi ${escapeHtml(requesterName.toString().slice(0, 60))},` : 'Hi there,';
 
-  const subject = `Your KidQuest demo code: ${codeUpper}`;
+  const subject = `Your Solvix demo code: ${codeUpper}`;
   const text = [
-    `Thanks for trying KidQuest!`,
+    `Thanks for trying Solvix!`,
     ``,
     `Your demo code: ${codeUpper}`,
     ``,
@@ -837,7 +844,7 @@ async function sendDemoCodeEmail(env, toEmail, code, requesterName) {
     <tr><td align="center">
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:24px;padding:36px;box-shadow:0 12px 32px rgba(108,92,231,0.15);">
         <tr><td>
-          <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1A1035;">🎮 Your KidQuest demo is ready</h1>
+          <h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#1A1035;">🎮 Your Solvix demo is ready</h1>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.5;color:#5B5580;">${greeting} here's your one-time demo PIN — kick the tires for 24 hours, no card required.</p>
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#6C5CE7,#A29BFE);border-radius:18px;padding:24px;text-align:center;margin:0 0 24px;">
@@ -850,7 +857,7 @@ async function sendDemoCodeEmail(env, toEmail, code, requesterName) {
 
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
             <tr><td align="center">
-              <a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#6C5CE7;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;">Try KidQuest →</a>
+              <a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#6C5CE7;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;">Try Solvix →</a>
             </td></tr>
           </table>
 
@@ -899,7 +906,7 @@ async function sendOwnerDemoNotification(env, demo) {
   if (!env.OWNER_EMAIL) return { ok: false, error: 'owner_email_unset' };
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, error: 'email_not_configured' };
 
-  const subject = `[KidQuest] Demo requested: ${demo.requestedBy || '(no email)'}`;
+  const subject = `[Solvix] Demo requested: ${demo.requestedBy || '(no email)'}`;
   const codeUpper = String(demo.code).toUpperCase();
   const text = [
     `Someone just requested a 24h demo PIN.`,
@@ -1678,6 +1685,463 @@ async function handleAdminGenerateDemoPinRoute(request, env, corsOrigin) {
 // =====================================================================
 
 // =====================================================================
+// REFUND ROUTES
+// =====================================================================
+// Refunds let the operator give a customer money back without leaving
+// the admin dashboard. Three modes:
+//
+//   mode: 'months', months: N          — refund N billing-months worth.
+//   mode: 'amount', amountCents: N     — refund a specific dollar amount.
+//   mode: 'charge_full', chargeId: ch_ — refund exactly one charge in full.
+//
+// All three walk the customer's PAID invoices newest-first, refunding
+// each invoice's underlying charge fully (or partially on the last one)
+// until the target amount is met. We can only refund what was actually
+// paid — so a 6-month refund on a customer who's been on a monthly plan
+// for 3 months refunds the 3 months we have, not 6.
+//
+// Money safety guarantees (paranoid by design — these are real $ moving):
+//   1. Idempotency-Key on every Stripe POST /refunds call. A double-click
+//      cannot create two refunds for the same target.
+//   2. Audit log: every refund writes a refund:<id> KV record with
+//      who/what/when/why so a future "what happened?" investigation
+//      has ground truth even if Stripe's UI is unavailable.
+//   3. Owner email after every refund. Operator gets a paper-trail
+//      receipt in their inbox immediately — and if a stolen admin
+//      token starts spraying refunds, the operator notices in minutes
+//      instead of at the next bank statement.
+//   4. Tighter rate limit (RL.REFUND_IP) than other admin actions.
+//      Refunds are money-OUT; if the token leaks, this is the first
+//      thing an attacker would abuse.
+//   5. If the operator asks for more than the refundable balance, we
+//      REFUSE rather than silently capping. Money decisions stay
+//      explicit.
+
+// Lists the customer's PAID invoices, with the underlying charge
+// object inlined so we can compute refundable-cents in one round-trip.
+// Stripe caps `limit` at 100 per page; 12-24 covers a typical customer.
+async function stripeListPaidInvoices(env, customerId, limit) {
+  const lim = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 100);
+  // expand[]=data.charge inlines the charge object so we get amount,
+  // amount_refunded, etc. without an extra GET per invoice.
+  const path = `/invoices?customer=${encodeURIComponent(customerId)}` +
+               `&status=paid&limit=${lim}&expand%5B%5D=data.charge`;
+  const r = await stripeApi(env, 'GET', path);
+  if (!r.ok) {
+    return { ok: false, status: r.status,
+             error: (r.data && r.data.error && r.data.error.message) || 'list_failed' };
+  }
+  return { ok: true, invoices: (r.data && r.data.data) || [] };
+}
+
+// Resolve a subscription's effective per-month price in cents. Returns
+// null if we can't tell (no items, non-recurring price, weird interval).
+// Used by mode=months to compute target = monthly × N.
+function subscriptionMonthlyCents(sub) {
+  try {
+    const item = sub && sub.items && sub.items.data && sub.items.data[0];
+    if (!item || !item.price || !item.price.recurring) return null;
+    const cents = parseInt(item.price.unit_amount, 10);
+    if (!Number.isFinite(cents) || cents <= 0) return null;
+    const interval = item.price.recurring.interval;            // 'month' | 'year' | 'week' | 'day'
+    const ic       = parseInt(item.price.recurring.interval_count, 10) || 1;
+    if (interval === 'month') return Math.round(cents / ic);
+    if (interval === 'year')  return Math.round(cents / (12 * ic));
+    if (interval === 'week')  return Math.round((cents * 52) / (12 * ic));
+    if (interval === 'day')   return Math.round((cents * 30) / ic);
+    return null;
+  } catch { return null; }
+}
+
+// GET /admin/tenant/:id/charges — admin only. Returns the customer's
+// recent paid invoices with refundable-cents per invoice + the
+// subscription's billing interval so the UI can preview "N months = $X".
+async function handleAdminListChargesRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-charges:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const url = new URL(request.url);
+  // /admin/tenant/<id>/charges → split = ['', 'admin', 'tenant', '<id>', 'charges']
+  const parts = url.pathname.split('/');
+  const tenantId = parts[3] || '';
+  if (!tenantId) return json({ error: 'missing_id' }, 400, corsOrigin);
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return json({ error: 'not_found' }, 404, corsOrigin);
+  let t; try { t = JSON.parse(raw); } catch { return json({ error: 'malformed' }, 500, corsOrigin); }
+
+  const customerId = t.stripeCustomerId || '';
+  if (!customerId) {
+    return json({
+      error: 'no_stripe_customer',
+      detail: 'Tenant has no Stripe customer on file (manual or demo tenant). No refundable history.',
+    }, 400, corsOrigin);
+  }
+
+  // Pull the subscription (if any) so we can tell the UI the billing
+  // interval and per-month price for the months-mode preview.
+  let subscription = null, monthlyCents = null, currency = null, billingInterval = null;
+  if (t.stripeSubscriptionId) {
+    const subRes = await stripeApi(env, 'GET', `/subscriptions/${encodeURIComponent(t.stripeSubscriptionId)}`);
+    if (subRes.ok && subRes.data) {
+      subscription = subRes.data;
+      monthlyCents    = subscriptionMonthlyCents(subscription);
+      const item      = subscription.items && subscription.items.data && subscription.items.data[0];
+      currency        = (item && item.price && item.price.currency) || null;
+      billingInterval = (item && item.price && item.price.recurring && item.price.recurring.interval) || null;
+    }
+  }
+
+  const inv = await stripeListPaidInvoices(env, customerId, 12);
+  if (!inv.ok) return json({ error: 'stripe_list_failed', detail: inv.error }, 502, corsOrigin);
+
+  const charges = [];
+  for (const i of inv.invoices) {
+    const ch = i.charge && typeof i.charge === 'object' ? i.charge : null;
+    if (!ch || !ch.id) continue;            // unpaid / no underlying charge → not refundable here
+    const amt        = parseInt(ch.amount, 10) || 0;
+    const refunded   = parseInt(ch.amount_refunded, 10) || 0;
+    const refundable = Math.max(0, amt - refunded);
+    charges.push({
+      chargeId:           ch.id,
+      invoiceId:          i.id,
+      invoiceNumber:      i.number || null,
+      createdAt:          (ch.created ? new Date(ch.created * 1000).toISOString() : null),
+      amountCents:        amt,
+      amountRefundedCents:refunded,
+      refundableCents:    refundable,
+      currency:           ch.currency || i.currency || null,
+      description:        (i.lines && i.lines.data && i.lines.data[0] && i.lines.data[0].description) || i.description || null,
+      hostedInvoiceUrl:   i.hosted_invoice_url || null,
+      receiptUrl:         ch.receipt_url || null,
+      paid:               !!ch.paid,
+      fullyRefunded:      refundable === 0 && amt > 0,
+    });
+  }
+
+  return json({
+    ok: true,
+    tenantId,
+    customerId,
+    subscriptionId:     t.stripeSubscriptionId || null,
+    subscriptionStatus: subscription ? subscription.status : null,
+    billingInterval,                                                 // 'month' | 'year' | null
+    monthlyCents,                                                    // computed per-month price
+    currency: currency || (charges[0] && charges[0].currency) || 'usd',
+    charges,
+  }, 200, corsOrigin);
+}
+
+// POST /admin/tenant/:id/refund — admin only. Body:
+//   { mode: 'months'|'amount'|'charge_full',
+//     months?: number,        // mode=months
+//     amountCents?: number,   // mode=amount
+//     chargeId?: string,      // mode=charge_full
+//     reason?: string,        // free-text operator note (audit log)
+//     stripeReason?: 'duplicate'|'fraudulent'|'requested_by_customer' }
+async function handleAdminRefundRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-refund:ip:${ip}`, RL.REFUND_IP.max, RL.REFUND_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  const url = new URL(request.url);
+  const parts = url.pathname.split('/');
+  const tenantId = parts[3] || '';
+  if (!tenantId) return json({ error: 'missing_id' }, 400, corsOrigin);
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return json({ error: 'not_found' }, 404, corsOrigin);
+  let t; try { t = JSON.parse(raw); } catch { return json({ error: 'malformed' }, 500, corsOrigin); }
+
+  const customerId = t.stripeCustomerId || '';
+  if (!customerId) return json({ error: 'no_stripe_customer' }, 400, corsOrigin);
+
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const mode    = String(body.mode || '').trim();
+  const reason  = (body.reason || '').toString().trim().slice(0, 500);
+  // Stripe accepts only these reason enums; anything else is rejected.
+  // Default to requested_by_customer because that's the typical case
+  // and it's the most innocuous — fraudulent/duplicate have downstream
+  // effects in Stripe Radar's risk scoring.
+  const allowedReasons = ['duplicate', 'fraudulent', 'requested_by_customer'];
+  const stripeReasonRaw = String(body.stripeReason || '').trim();
+  const stripeReason = allowedReasons.includes(stripeReasonRaw) ? stripeReasonRaw : 'requested_by_customer';
+
+  // Compute target_cents per mode and build the work queue (charges
+  // newest-first to refund). For charge_full mode we skip the queue
+  // and refund just that one charge.
+  let targetCents = 0;
+  let workQueue = [];   // [{chargeId, refundableCents, createdAt?}]
+
+  if (mode === 'charge_full') {
+    const chargeId = String(body.chargeId || '').trim();
+    if (!chargeId) return json({ error: 'missing_chargeId' }, 400, corsOrigin);
+    // Fetch the charge to know its refundable amount AND verify it
+    // belongs to this tenant — never accept arbitrary IDs from the
+    // operator, even with auth (defends against typos and stale UI).
+    const cr = await stripeApi(env, 'GET', `/charges/${encodeURIComponent(chargeId)}`);
+    if (!cr.ok) {
+      return json({
+        error: 'charge_lookup_failed',
+        detail: (cr.data && cr.data.error && cr.data.error.message) || ('http_'+cr.status),
+      }, 502, corsOrigin);
+    }
+    const ch = cr.data || {};
+    if (ch.customer !== customerId) {
+      return json({
+        error: 'charge_customer_mismatch',
+        detail: 'Charge belongs to a different Stripe customer.',
+      }, 400, corsOrigin);
+    }
+    const refundable = Math.max(0, (parseInt(ch.amount,10)||0) - (parseInt(ch.amount_refunded,10)||0));
+    if (refundable <= 0) {
+      return json({ error: 'nothing_to_refund', detail: 'Charge is already fully refunded.' }, 400, corsOrigin);
+    }
+    targetCents = refundable;
+    workQueue.push({ chargeId, refundableCents: refundable });
+  } else {
+    // Need invoice list for both 'months' and 'amount' modes.
+    const inv = await stripeListPaidInvoices(env, customerId, 24);
+    if (!inv.ok) return json({ error: 'stripe_list_failed', detail: inv.error }, 502, corsOrigin);
+    for (const i of inv.invoices) {
+      const ch = i.charge && typeof i.charge === 'object' ? i.charge : null;
+      if (!ch || !ch.id) continue;
+      const refundable = Math.max(0, (parseInt(ch.amount,10)||0) - (parseInt(ch.amount_refunded,10)||0));
+      if (refundable <= 0) continue;
+      workQueue.push({ chargeId: ch.id, refundableCents: refundable, createdAt: ch.created || 0 });
+    }
+    // Newest-first — that's the customer's intuitive expectation
+    // ("refund my last 2 months", not "refund my first 2 months").
+    workQueue.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    if (mode === 'amount') {
+      const amt = parseInt(body.amountCents, 10);
+      if (!Number.isFinite(amt) || amt <= 0) return json({ error: 'invalid_amountCents' }, 400, corsOrigin);
+      targetCents = amt;
+    } else if (mode === 'months') {
+      const months = parseInt(body.months, 10);
+      if (!Number.isFinite(months) || months <= 0) return json({ error: 'invalid_months' }, 400, corsOrigin);
+      if (!t.stripeSubscriptionId) {
+        return json({
+          error: 'no_subscription',
+          detail: 'Tenant has no subscription; use mode=amount or mode=charge_full instead.',
+        }, 400, corsOrigin);
+      }
+      const subRes = await stripeApi(env, 'GET', `/subscriptions/${encodeURIComponent(t.stripeSubscriptionId)}`);
+      if (!subRes.ok) {
+        return json({
+          error: 'subscription_lookup_failed',
+          detail: (subRes.data && subRes.data.error && subRes.data.error.message) || ('http_'+subRes.status),
+        }, 502, corsOrigin);
+      }
+      const monthlyCents = subscriptionMonthlyCents(subRes.data);
+      if (!monthlyCents || monthlyCents <= 0) {
+        return json({
+          error: 'cannot_compute_monthly_price',
+          detail: 'Subscription has no resolvable monthly price; use mode=amount instead.',
+        }, 400, corsOrigin);
+      }
+      targetCents = monthlyCents * months;
+    } else {
+      return json({
+        error: 'invalid_mode',
+        detail: 'mode must be one of: months, amount, charge_full',
+      }, 400, corsOrigin);
+    }
+
+    // Refuse-rather-than-cap if the ask exceeds available balance.
+    // Silent capping would have the operator believe a $100 refund went
+    // through when only $30 was actually refundable — bad for trust and
+    // bad for accounting reconciliation.
+    const totalRefundable = workQueue.reduce((s, x) => s + x.refundableCents, 0);
+    if (totalRefundable <= 0) {
+      return json({ error: 'nothing_to_refund', detail: 'No paid invoices have any refundable balance.' }, 400, corsOrigin);
+    }
+    if (targetCents > totalRefundable) {
+      return json({
+        error: 'amount_exceeds_refundable',
+        detail: `Asked to refund ${targetCents}¢ but only ${totalRefundable}¢ is refundable across all paid invoices.`,
+        targetCents,
+        totalRefundableCents: totalRefundable,
+      }, 400, corsOrigin);
+    }
+  }
+
+  // Walk the queue and issue refunds. Track everything for the audit
+  // log and the response. If a single refund fails, STOP — don't keep
+  // trying. The operator can decide whether to retry with the partial
+  // state captured in refundsCreated/refundsFailed.
+  let remaining = targetCents;
+  const refundsCreated = [];
+  const refundsFailed  = [];
+  // idemBase scopes idempotency to (tenant, mode, this request). Same
+  // base on a retry within Stripe's 24h replay window returns the same
+  // refund records — no double-spend on a double-clicked button.
+  const idemBase = `refund-${tenantId}-${mode}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+
+  for (const item of workQueue) {
+    if (remaining <= 0) break;
+    const thisAmount = Math.min(item.refundableCents, remaining);
+    const refundBody = {
+      charge: item.chargeId,
+      amount: thisAmount,
+      reason: stripeReason,
+      // Metadata travels with the refund forever in Stripe's UI — gives
+      // the operator (or an auditor) full provenance for "why did this
+      // refund happen?" without leaving the dashboard.
+      'metadata[tenant_id]':    tenantId,
+      'metadata[admin_mode]':   mode,
+      'metadata[admin_reason]': reason || '(none)',
+      'metadata[admin_actor]':  'admin-dashboard',
+      'metadata[from_ip]':      ip || '(none)',
+    };
+    const idemKey = `${idemBase}-${item.chargeId}`;
+    const r = await stripeApi(env, 'POST', '/refunds', refundBody, { idempotencyKey: idemKey });
+    if (r.ok && r.data && r.data.id) {
+      refundsCreated.push({
+        refundId:    r.data.id,
+        chargeId:    item.chargeId,
+        amountCents: thisAmount,
+        status:      r.data.status,
+      });
+      remaining -= thisAmount;
+    } else {
+      refundsFailed.push({
+        chargeId:    item.chargeId,
+        amountCents: thisAmount,
+        error:       (r.data && r.data.error && r.data.error.message) || ('http_'+r.status),
+      });
+      break;  // stop cascading if Stripe is having a bad time
+    }
+  }
+
+  const refundedCents = targetCents - remaining;
+  const auditId = idemBase;
+  const audit = {
+    auditId,
+    tenantId,
+    customerId,
+    mode,
+    targetCents,
+    refundedCents,
+    requestedBy:     'admin-dashboard',
+    requestedAt:     new Date().toISOString(),
+    requestedFromIp: ip || null,
+    reason,
+    stripeReason,
+    months:      mode === 'months'      ? parseInt(body.months,10)  : null,
+    chargeIdReq: mode === 'charge_full' ? String(body.chargeId||'') : null,
+    refundsCreated,
+    refundsFailed,
+    fullySatisfied: remaining === 0 && refundsFailed.length === 0,
+  };
+  // 90-day audit retention. Stripe also keeps the refund record forever
+  // on its side, so this KV record is just for in-app history / quick
+  // operator lookup. Bump or drop the TTL as you like.
+  try { await env.KV.put(`refund:${auditId}`, JSON.stringify(audit), { expirationTtl: 60*60*24*90 }); } catch {}
+
+  // Owner notification — paper trail for stolen-token detection. Best
+  // effort, never blocks the response on email delivery.
+  sendOwnerRefundNotification(env, audit, t).catch(() => {});
+
+  if (refundsFailed.length > 0 && refundedCents === 0) {
+    // Total failure — no money moved. Surface 502 so the UI can show
+    // "Refund failed, nothing refunded" rather than a fake success.
+    return json({ ok: false, error: 'refund_failed', audit }, 502, corsOrigin);
+  }
+  return json({ ok: true, audit, partial: !audit.fullySatisfied }, 200, corsOrigin);
+}
+
+// Owner notification email after every refund. Best-effort, never throws.
+// Includes amount + tenant + reason so the operator gets an instant
+// receipt — and notices fast if a stolen admin token is firing refunds.
+async function sendOwnerRefundNotification(env, audit, tenant) {
+  if (!env.OWNER_EMAIL) return { ok: false, error: 'owner_email_unset' };
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, error: 'email_not_configured' };
+
+  const dollarsRefunded = (audit.refundedCents / 100).toFixed(2);
+  const dollarsTarget   = (audit.targetCents   / 100).toFixed(2);
+  const subject = `[Solvix] Refund issued: $${dollarsRefunded} to ${tenant.label || tenant.code || tenant.id}`;
+  const text = [
+    `An admin-dashboard refund just executed.`,
+    ``,
+    `Tenant:        ${tenant.label || '(no label)'} (${tenant.id})`,
+    `Code:          ${(tenant.code || '').toUpperCase()}`,
+    `Customer:      ${tenant.customerEmail || '(no email)'}`,
+    `Stripe cust:   ${audit.customerId}`,
+    ``,
+    `Mode:          ${audit.mode}${audit.months ? ' ('+audit.months+' months)' : ''}`,
+    `Target:        $${dollarsTarget}`,
+    `Refunded:      $${dollarsRefunded}`,
+    `Stripe reason: ${audit.stripeReason}`,
+    `Operator note: ${audit.reason || '(none)'}`,
+    `Audit ID:      ${audit.auditId}`,
+    `From IP:       ${audit.requestedFromIp || '(none)'}`,
+    ``,
+    `Refunds created (${audit.refundsCreated.length}):`,
+    ...audit.refundsCreated.map(r => `  • ${r.refundId} — $${(r.amountCents/100).toFixed(2)} on ${r.chargeId} (status=${r.status})`),
+    audit.refundsFailed.length ? `\nRefunds FAILED (${audit.refundsFailed.length}):` : '',
+    ...audit.refundsFailed.map(r => `  ✗ $${(r.amountCents/100).toFixed(2)} on ${r.chargeId}: ${r.error}`),
+    ``,
+    `If you did NOT initiate this refund, your ADMIN_TOKEN may be compromised — rotate immediately:`,
+    `  wrangler secret put ADMIN_TOKEN`,
+  ].filter(Boolean).join('\n');
+
+  const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,sans-serif;background:#fafafa;padding:24px;color:#1a1035;">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff;border-radius:14px;padding:28px;border:1px solid #eee;">
+      <tr><td>
+        <h2 style="margin:0 0 8px;font-size:20px;">💸 Refund issued</h2>
+        <p style="margin:0 0 16px;color:#666;font-size:14px;">$${escapeHtml(dollarsRefunded)} refunded to <strong>${escapeHtml(tenant.label || tenant.code || tenant.id)}</strong>.</p>
+        <table role="presentation" width="100%" cellpadding="6" cellspacing="0" style="font-size:14px;font-family:'SF Mono',Menlo,monospace;background:#f7f5ff;border-radius:8px;">
+          <tr><td style="color:#666;width:140px;">Tenant</td><td>${escapeHtml(tenant.label || '(no label)')} (${escapeHtml(tenant.id)})</td></tr>
+          <tr><td style="color:#666;">Code</td><td><strong>${escapeHtml((tenant.code||'').toUpperCase())}</strong></td></tr>
+          <tr><td style="color:#666;">Customer email</td><td>${escapeHtml(tenant.customerEmail || '(none)')}</td></tr>
+          <tr><td style="color:#666;">Mode</td><td>${escapeHtml(audit.mode)}${audit.months ? ' ('+escapeHtml(String(audit.months))+' months)' : ''}</td></tr>
+          <tr><td style="color:#666;">Target</td><td>$${escapeHtml(dollarsTarget)}</td></tr>
+          <tr><td style="color:#666;">Refunded</td><td><strong>$${escapeHtml(dollarsRefunded)}</strong></td></tr>
+          <tr><td style="color:#666;">Stripe reason</td><td>${escapeHtml(audit.stripeReason)}</td></tr>
+          <tr><td style="color:#666;">Operator note</td><td>${escapeHtml(audit.reason || '(none)')}</td></tr>
+          <tr><td style="color:#666;">From IP</td><td>${escapeHtml(audit.requestedFromIp || '(none)')}</td></tr>
+          <tr><td style="color:#666;">Audit ID</td><td>${escapeHtml(audit.auditId)}</td></tr>
+        </table>
+        ${audit.refundsCreated.length ? `<p style="margin:16px 0 6px;font-weight:700;font-size:13px;">Refunds created:</p><ul style="margin:0 0 8px 16px;padding:0;font-size:13px;color:#444;font-family:'SF Mono',Menlo,monospace;">${audit.refundsCreated.map(r => `<li>${escapeHtml(r.refundId)} — $${escapeHtml((r.amountCents/100).toFixed(2))} on ${escapeHtml(r.chargeId)} (${escapeHtml(r.status)})</li>`).join('')}</ul>` : ''}
+        ${audit.refundsFailed.length ? `<p style="margin:16px 0 6px;font-weight:700;font-size:13px;color:#b91c1c;">Refunds FAILED:</p><ul style="margin:0 0 8px 16px;padding:0;font-size:13px;color:#b91c1c;font-family:'SF Mono',Menlo,monospace;">${audit.refundsFailed.map(r => `<li>$${escapeHtml((r.amountCents/100).toFixed(2))} on ${escapeHtml(r.chargeId)}: ${escapeHtml(r.error)}</li>`).join('')}</ul>` : ''}
+        <p style="margin:18px 0 0;color:#888;font-size:12px;">If you did NOT initiate this refund, rotate <code>ADMIN_TOKEN</code> immediately.</p>
+      </td></tr>
+    </table>
+  </body></html>`;
+
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.RESEND_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: env.EMAIL_FROM, to: [env.OWNER_EMAIL], subject, text, html }),
+    });
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.text()).slice(0, 200); } catch {}
+      console.warn('owner refund notification failed:', r.status, detail);
+      return { ok: false, status: r.status, error: detail };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.warn('owner refund notification threw:', String(e && e.message || e));
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
+// =====================================================================
+// END REFUND ROUTES
+// =====================================================================
+
+// =====================================================================
 // END ADMIN DASHBOARD ROUTES
 // =====================================================================
 
@@ -2101,9 +2565,9 @@ async function sendOwnerSignupNotification(env, tenant, customerEmail) {
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, error: 'email_not_configured' };
 
   const planNoun = tenant.planType === 'family' ? 'Family' : 'Classroom';
-  const subject = `[KidQuest] New ${planNoun} signup: ${tenant.label || tenant.code}`;
+  const subject = `[Solvix] New ${planNoun} signup: ${tenant.label || tenant.code}`;
   const text = [
-    `New KidQuest signup just landed.`,
+    `New Solvix signup just landed.`,
     ``,
     `Plan:        ${tenant.planType}`,
     `Label:       ${tenant.label || '(none)'}`,
@@ -2589,7 +3053,12 @@ export default {
       if (routeKey === 'POST /admin/demo-pins/generate') return await handleAdminGenerateDemoPinRoute(request, env, corsOrigin);
       // Public demo-PIN request (visitor on the marketing page).
       if (routeKey === 'POST /demo/request') return await handleDemoRequestRoute(request, env, corsOrigin);
-      if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && !url.pathname.includes('/suspend') && !url.pathname.includes('/unsuspend') && !url.pathname.includes('/resend-code')) {
+      // GET /admin/tenant/<id>/charges — list refundable charges. Match
+      // BEFORE the catch-all GET below so it doesn't get swallowed.
+      if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/charges')) {
+        return await handleAdminListChargesRoute(request, env, corsOrigin);
+      }
+      if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && !url.pathname.includes('/suspend') && !url.pathname.includes('/unsuspend') && !url.pathname.includes('/resend-code') && !url.pathname.includes('/charges') && !url.pathname.includes('/refund')) {
         return await handleAdminGetTenantRoute(request, env, corsOrigin);
       }
       if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/suspend')) {
@@ -2600,6 +3069,11 @@ export default {
       }
       if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/resend-code')) {
         return await handleAdminResendCodeRoute(request, env, corsOrigin);
+      }
+      // POST /admin/tenant/<id>/refund — execute a refund. Money-out;
+      // see handleAdminRefundRoute for the safety guarantees.
+      if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/refund')) {
+        return await handleAdminRefundRoute(request, env, corsOrigin);
       }
       if (routeKey === 'POST /auth')         return await handleAuthRoute(request, env, corsOrigin);
       if (routeKey === 'GET /tenant')        return await handleTenantInfoRoute(request, env, corsOrigin);

@@ -1,7 +1,7 @@
 # Weekly Parent Reports — Setup Guide
 
 This repo ships with an automated weekly-email pipeline that sends each
-student's parent a KidQuest progress report every Sunday. Everything runs
+student's parent a Solvix progress report every Sunday. Everything runs
 from GitHub Actions; nothing needs to live on your laptop.
 
 **Pipeline at a glance**
@@ -43,14 +43,14 @@ Go to **Settings → Secrets and variables → Actions** on this repo.
 | Name             | Example value                                    | Required? |
 | ---------------- | ------------------------------------------------ | --------- |
 | `RESEND_API_KEY` | `re_xxxxxxxxxxxxxxxxxxxxxxxx`                    | **Yes**   |
-| `FROM_EMAIL`     | `KidQuest Reports <reports@kidquest.fun>`        | Optional  |
+| `FROM_EMAIL`     | `Solvix Reports <reports@kidquest.fun>`        | Optional  |
 | `CC_EMAIL`       | `rhahavy.b@gmail.com`                            | Optional  |
 
 - `RESEND_API_KEY` is the only truly required one. Without it the script
   runs in forced dry-run mode.
-- `FROM_EMAIL` defaults to `KidQuest Reports <reports@kidquest.fun>`.
+- `FROM_EMAIL` defaults to `Solvix Reports <reports@kidquest.fun>`.
   Override it if you haven't verified that domain on Resend — use something
-  like `KidQuest <onboarding@resend.dev>` while testing.
+  like `Solvix <onboarding@resend.dev>` while testing.
 - `CC_EMAIL` defaults to `rhahavy.b@gmail.com`. Set to an empty value to
   disable the CC.
 
@@ -83,9 +83,9 @@ lines like:
 ```
 [weekly-reports] Fetching cloud state: https://textdb.dev/api/data/kidquest-…
 [weekly-reports] Will process 2 student(s): isaiah, akshayan
-[weekly-reports] isaiah: KidQuest weekly report — Isaiah (…) → parent@example.com
+[weekly-reports] isaiah: Solvix weekly report — Isaiah (…) → parent@example.com
 [weekly-reports]   (dry-run) preview:
-  KidQuest — Weekly Progress Report
+  Solvix — Weekly Progress Report
   Student: Isaiah (Grade 5)
   …
 ```
@@ -117,7 +117,7 @@ student to have 7 days of history.
 4. **Run workflow**
 
 The script sends ONE sample email with demo data, using
-`KidQuest Test <onboarding@resend.dev>` as the From. This works before your
+`Solvix Test <onboarding@resend.dev>` as the From. This works before your
 domain is verified because `onboarding@resend.dev` is Resend's pre-verified
 sandbox address.
 
@@ -182,7 +182,7 @@ That means:
 ### "Resend 403: domain not verified"
 You set `FROM_EMAIL` to an address on a domain that isn't verified on
 Resend yet. Either finish verification, or temporarily set `FROM_EMAIL` to
-`KidQuest <onboarding@resend.dev>` for testing.
+`Solvix <onboarding@resend.dev>` for testing.
 
 ### "No RESEND_API_KEY in env — forcing dry-run" in every run
 The secret isn't set, or the workflow can't read it. Secrets are
@@ -213,7 +213,7 @@ You can run the script from your laptop without touching GitHub Actions:
 DRY_RUN=true node scripts/send-weekly-reports.mjs
 
 # Real send — needs a Resend key with a verified sender
-RESEND_API_KEY=re_... FROM_EMAIL="KidQuest <onboarding@resend.dev>" \
+RESEND_API_KEY=re_... FROM_EMAIL="Solvix <onboarding@resend.dev>" \
   node scripts/send-weekly-reports.mjs
 ```
 

@@ -1,4 +1,4 @@
-# KidQuest AI Proxy — Cloudflare Worker config
+# Solvix AI Proxy — Cloudflare Worker config
 # ------------------------------------------------------------------
 # Fronts Anthropic / OpenAI / etc. for every AI feature on the site.
 # All secrets (API keys) live in `wrangler secret`, NOT here. See
@@ -93,8 +93,8 @@ ANTHROPIC_MODEL = "claude-haiku-4-5"
 # All three vars are OPTIONAL at the wrangler level — if any is unset
 # the email path silently no-ops and provisioning still succeeds.
 # The thank-you page surfaces a clear error in that case.
-EMAIL_FROM      = "KidQuest <hello@kidquest.fun>"
-EMAIL_REPLY_TO  = "hello@kidquest.fun"
+EMAIL_FROM      = "Solvix <solvixadmin@kidquest.fun>"
+EMAIL_REPLY_TO  = "solvixadmin@kidquest.fun"
 OWNER_EMAIL     = "rhahavy.b@gmail.com"
 APP_URL         = "https://kidquest.fun/app/"
 

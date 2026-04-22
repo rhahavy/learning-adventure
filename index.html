@@ -70,10 +70,26 @@
   --shadow-lg:0 20px 50px rgba(108,92,231,.18),0 8px 20px rgba(26,16,53,.1);
   --font:'DM Sans',system-ui,-apple-system,sans-serif;
 }
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{font-family:var(--font);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
 a{color:var(--primary);text-decoration:none}
-a:hover{text-decoration:underline}
+/* No hover underline anywhere — clean look. (Nav/footer link pairs already
+   had their own :hover overrides; this normalizes the rest.) */
+a:hover{text-decoration:none}
+/* Suppress the click/tap focus ring on every focusable element, but
+   restore it for keyboard users via :focus-visible (a11y). */
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
+/* Brand words (Solvix, Nova) get wrapped in spans by the IIFE at the end
+   of body. Disabling text-selection on them prevents the "weird selection
+   box" that appears when a kid taps the brand name on touch devices, and
+   it keeps the rainbow wordmark from showing the highlight color. */
+.brand-name,.solvix-rainbow{
+  -webkit-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select:none;
+  user-select:none;
+}
 button{font-family:inherit;cursor:pointer}
 img{max-width:100%;display:block}
 .container{max-width:1120px;margin:0 auto;padding:0 24px}
@@ -167,9 +183,19 @@ section.tight{padding:56px 0}
 .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
 details.faq-item{background:var(--card);border-radius:16px;padding:20px 24px;box-shadow:var(--shadow);border:1px solid var(--line);transition:all .2s ease}
 details.faq-item[open]{box-shadow:var(--shadow-lg)}
-details.faq-item summary{font-weight:700;font-size:16px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px}
-details.faq-item summary::after{content:'+';font-size:24px;color:var(--primary);font-weight:700;transition:transform .2s ease;flex-shrink:0}
-details.faq-item[open] summary::after{transform:rotate(45deg)}
+/* Layout note: we deliberately do NOT use display:flex here. The
+   setupSolvixRainbow IIFE wraps every "Solvix" in a <span>, which
+   splits the summary's text node into multiple inline children. With
+   any flex layout (even gap:0), each contiguous text run becomes its
+   own anonymous flex item and gets pushed apart — producing huge gaps
+   between "What ages is", "Solvix", and "for?". Block layout keeps the
+   text inline on its natural baseline; the + icon is absolutely
+   positioned on the right. padding-right reserves space for it. */
+details.faq-item summary{font-weight:700;font-size:16px;cursor:pointer;list-style:none;position:relative;padding-right:32px}
+details.faq-item summary::after{content:'+';font-size:24px;color:var(--primary);font-weight:700;transition:transform .2s ease;position:absolute;right:0;top:50%;transform:translateY(-50%);line-height:1}
+/* Keep the centering offset (-50% Y) when rotating into an × on open —
+   transform replaces, not stacks, so we re-state both. */
+details.faq-item[open] summary::after{transform:translateY(-50%) rotate(45deg)}
 details.faq-item p{color:var(--ink2);line-height:1.55;margin-top:12px;font-size:15px}
 
 /* CTA band */
@@ -202,6 +228,254 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 @keyframes solvix-rainbow-shift{
   0%  {background-position:0% center}
   100%{background-position:200% center}
+}
+
+/* "See it in action" section. Four animated walkthroughs in a 2×2 grid
+   showing how the curriculum drives lessons, what an interactive lesson
+   looks like, the mix of learning quests + brain-break games, and how
+   autoplay strings activities together.
+
+   These are pure-CSS/JS mock-ups — not real screen recordings. They
+   convey the SHAPE of the product (UI rhythm, what kids see, how flow
+   works) without the bandwidth/maintenance cost of MP4s. Mocks 1-3 are
+   pure-CSS keyframe loops; mock 4 uses a tiny JS tick to advance the
+   autoplay queue so the active item / done states feel real.
+
+   The .video-* class names predate the switch to mocks; we kept them so
+   the section's grid/card layout matches the rest of the site visually.
+   The .mock-* classes inside each .video-frame are what actually animate. */
+.see-section{background:linear-gradient(180deg,transparent 0%,#FAF7FF 100%)}
+.video-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:1100px;margin:0 auto}
+@media(max-width:820px){.video-grid{grid-template-columns:1fr;gap:18px}}
+.video-card{background:var(--card);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);display:flex;flex-direction:column;transition:transform .2s ease,box-shadow .2s ease}
+.video-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.video-frame{position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;background:linear-gradient(135deg,#2A1F4A 0%,#1A1035 100%)}
+.video-frame::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 30% 20%,rgba(253,121,168,.18),transparent 55%),
+             radial-gradient(circle at 80% 80%,rgba(116,185,255,.20),transparent 55%);
+}
+.video-meta{padding:20px 22px}
+.video-meta .video-tag{display:inline-block;background:#F0EEFF;color:var(--primary);padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.video-meta h3{font-size:18px;font-weight:800;margin-bottom:6px;line-height:1.25}
+.video-meta p{color:var(--ink2);font-size:14px;line-height:1.55}
+
+/* ===== Mocks: shared base ===== */
+.mock{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:inherit;color:#fff;padding:14px;box-sizing:border-box;z-index:1}
+.mock *{box-sizing:border-box}
+
+/* ===== Mock 1: curriculum-anchored lesson =====
+   Card slides up with the question + number line. The marker slides
+   to ½ and a coin pops (correct). Then a cursor enters from the
+   bottom-right, clicks the curriculum tag (📋 G4 · B1.7 — same shape
+   as the real .lc-compact chip in /app/), and a popover slides down
+   showing the strand + Ontario expectation. Cursor exits, loop
+   restarts. 14s total — slow enough to register the click clearly. */
+.mock-curriculum{flex-direction:column;gap:0;justify-content:center}
+.mc-card{position:relative;background:#fff;color:#2D2356;border-radius:14px;padding:12px 16px 16px;width:88%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:mc-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:8px}
+.mc-tag{align-self:flex-start;display:inline-flex;align-items:center;gap:5px;background:rgba(108,92,231,.10);border:1px solid rgba(108,92,231,.22);color:var(--primary);padding:4px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.2px;animation:mc-tag-pulse 14s ease-in-out infinite;position:relative;z-index:2}
+.mc-tag-icon{font-size:12px;line-height:1}
+.mc-tag-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;letter-spacing:.02em}
+.mc-popover{position:absolute;left:16px;top:42px;background:#2D2356;color:#fff;border-radius:9px;padding:8px 11px;box-shadow:0 8px 22px rgba(0,0,0,.30);font-size:10.5px;line-height:1.35;max-width:200px;opacity:0;transform:translateY(-6px) scale(.94);transform-origin:top left;pointer-events:none;animation:mc-popover-show 14s ease-out infinite;z-index:3}
+.mc-popover::before{content:'';position:absolute;left:20px;top:-4px;width:8px;height:8px;background:#2D2356;transform:rotate(45deg)}
+.mc-popover-strand{font-weight:800;color:#FFD85C;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+.mc-popover-expect{font-weight:600}
+.mc-cursor{position:absolute;left:18px;top:48px;width:16px;height:20px;pointer-events:none;opacity:0;animation:mc-cursor-move 14s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.mc-question{font-size:13px;font-weight:700;line-height:1.3;opacity:0;animation:mc-fade-in 14s ease-out infinite}
+.mc-line{position:relative;height:4px;background:#EAE6FF;border-radius:2px;margin-top:8px;margin-bottom:18px}
+.mc-line .tick{position:absolute;top:-3px;width:2px;height:10px;background:#B5ACE0;border-radius:1px}
+.mc-line .tick.t0{left:0}
+.mc-line .tick.thalf{left:50%;transform:translateX(-50%)}
+.mc-line .tick.t1{right:0}
+.mc-line .label{position:absolute;font-size:9px;color:#7B6FA8;font-weight:700;top:12px}
+.mc-line .label.l0{left:-2px}
+.mc-line .label.lhalf{left:50%;transform:translateX(-50%)}
+.mc-line .label.l1{right:-2px}
+.mc-line .marker{position:absolute;top:-7px;width:14px;height:14px;border-radius:50%;background:#FD79A8;border:3px solid #fff;box-shadow:0 2px 6px rgba(253,121,168,.5);left:0;animation:mc-marker-slide 14s ease-in-out infinite}
+.mc-coin{align-self:flex-start;display:inline-flex;align-items:center;gap:4px;background:#FFE082;color:#7A5C00;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;opacity:0;animation:mc-coin-pop 14s ease-out infinite}
+@keyframes mc-card-in{
+  0%,2%   {transform:translateY(20px);opacity:0}
+  7%,100% {transform:translateY(0);opacity:1}
+}
+/* Tag pulses ONLY at the moment the cursor clicks it (~52-58%). */
+@keyframes mc-tag-pulse{
+  0%,46%,62%,100%{box-shadow:0 0 0 0 rgba(108,92,231,0)}
+  50%            {box-shadow:0 0 0 0 rgba(108,92,231,.55)}
+  56%            {box-shadow:0 0 0 8px rgba(108,92,231,0)}
+}
+@keyframes mc-fade-in{
+  0%,12%  {opacity:0;transform:translateY(4px)}
+  18%,100%{opacity:1;transform:translateY(0)}
+}
+@keyframes mc-marker-slide{
+  0%,12%  {left:0%}
+  26%,100%{left:50%}
+}
+@keyframes mc-coin-pop{
+  0%,28%  {opacity:0;transform:scale(.6)}
+  33%     {opacity:1;transform:scale(1.2)}
+  38%,100%{opacity:1;transform:scale(1)}
+}
+/* Cursor parks "on" the tag (left:18px, top:48px) and animates
+   transform to enter from below-right, press, hold, then exit. Times
+   sync with mc-popover-show (popover appears right after the click)
+   and mc-tag-pulse (pulse fires under the cursor at click moment). */
+@keyframes mc-cursor-move{
+  0%,38%   {opacity:0;transform:translate(120px,90px) scale(1)}
+  44%      {opacity:1;transform:translate(60px,46px)  scale(1)}
+  50%      {opacity:1;transform:translate(0,0)        scale(1)}
+  53%      {opacity:1;transform:translate(0,0)        scale(.78)}
+  56%,78%  {opacity:1;transform:translate(0,0)        scale(1)}
+  86%      {opacity:1;transform:translate(60px,60px)  scale(1)}
+  92%,100% {opacity:0;transform:translate(120px,90px) scale(1)}
+}
+@keyframes mc-popover-show{
+  0%,53%  {opacity:0;transform:translateY(-6px) scale(.94)}
+  58%,82% {opacity:1;transform:translateY(0)    scale(1)}
+  88%,100%{opacity:0;transform:translateY(-4px) scale(.96)}
+}
+
+/* ===== Mock 2: interactive lesson with quiz =====
+   Lesson card slides in. Options fade in staggered. The correct one
+   pops in Solvix's real correct-answer palette (#e6fff5 bg, #00b894
+   border, #00855a text — same as the real /app/ quiz UI). The coin
+   counter bumps; the progress bar fills 1/4 → 2/4 (single bar, not
+   dots — matches the real .q-progress component). 14s total. */
+.mock-lessons{align-items:flex-start;justify-content:center;padding-top:16px}
+.ml-card{background:#fff;color:#2D2356;border-radius:14px;padding:11px 14px 12px;width:90%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:ml-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px}
+.ml-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:700;color:#7B6FA8}
+.ml-coin{display:inline-flex;align-items:center;gap:3px;background:#FFE082;color:#7A5C00;padding:2px 8px;border-radius:999px;animation:ml-coin-bump 14s ease-in-out infinite}
+.ml-question{font-size:14px;font-weight:800;line-height:1.25}
+.ml-opts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px}
+.ml-opt{background:#F4F1FF;border:2px solid transparent;border-radius:8px;padding:6px 8px;font-size:11px;font-weight:700;text-align:center;color:#2D2356;opacity:0}
+.ml-opt:nth-child(1){animation:ml-opt-in 14s ease-out 0s    infinite}
+.ml-opt:nth-child(2){animation:ml-opt-in 14s ease-out .15s  infinite}
+.ml-opt:nth-child(4){animation:ml-opt-in 14s ease-out .45s  infinite}
+.ml-opt-correct{animation:ml-opt-correct-full 14s ease-out infinite}
+.ml-progress{height:6px;background:#EAE6FF;border-radius:3px;margin-top:5px;overflow:hidden;position:relative}
+.ml-progress::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#7C6DF2,#FD79A8);border-radius:3px;transform-origin:left;transform:scaleX(.25);animation:ml-progress-fill 14s ease-out infinite}
+@keyframes ml-card-in{
+  0%,2%   {transform:translateY(18px);opacity:0}
+  7%,100% {transform:translateY(0);opacity:1}
+}
+@keyframes ml-opt-in{
+  0%,12%  {opacity:0;transform:translateY(4px)}
+  20%,100%{opacity:1;transform:translateY(0)}
+}
+/* Combined entry + answer-correct keyframes for the right option, so
+   only one animation (not stacked) controls its full lifecycle. Final
+   palette matches Solvix's real correct-answer styling. */
+@keyframes ml-opt-correct-full{
+  0%,15%  {opacity:0;transform:translateY(4px);background:#F4F1FF;border-color:transparent;color:#2D2356}
+  22%,40% {opacity:1;transform:translateY(0);background:#F4F1FF;border-color:transparent;color:#2D2356}
+  46%     {opacity:1;transform:scale(1.06);background:#FFFBE6;border-color:#FFD85C;color:#2D2356}
+  54%,100%{opacity:1;transform:scale(1);background:#e6fff5;border-color:#00b894;color:#00855a}
+}
+@keyframes ml-coin-bump{
+  0%,52%  {transform:scale(1)}
+  60%     {transform:scale(1.25)}
+  68%,100%{transform:scale(1)}
+}
+@keyframes ml-progress-fill{
+  0%,52%  {transform:scaleX(.25)}
+  68%,100%{transform:scaleX(.50)}
+}
+
+/* ===== Mock 3: learning quests + brain-break games =====
+   Two cards stacked in the same spot, crossfading every 16s. Quest
+   card has a reading-progress bar that creeps. Break card is "🧠
+   Memory Match" — one of the real brain-break games. Six face-down
+   tiles, two flip up showing matching ⭐s, then flash green for the
+   match. 16s total — long enough to read both states. */
+.mock-games{padding:0}
+.mock-games .mg-card{position:absolute;inset:14px;border-radius:14px;padding:14px 16px;color:#2D2356;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;flex-direction:column;justify-content:center;gap:10px}
+.mock-games .mg-card-quest{animation:mg-quest 16s ease-in-out infinite}
+.mock-games .mg-card-break{background:linear-gradient(135deg,#74B9FF 0%,#A29BFE 100%);color:#fff;animation:mg-break 16s ease-in-out infinite;align-items:center;justify-content:center;text-align:center;overflow:hidden;gap:8px}
+.mg-eyebrow{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--primary)}
+.mg-title{font-size:15px;font-weight:800;line-height:1.25}
+.mg-bar{height:6px;background:#EAE6FF;border-radius:3px;overflow:hidden}
+.mg-fill{display:block;height:100%;background:linear-gradient(90deg,#FD79A8,#7C6DF2);border-radius:3px;transform-origin:left;transform:scaleX(0);animation:mg-fill 16s ease-in-out infinite}
+.mg-meta{display:flex;justify-content:space-between;font-size:11px;color:#7B6FA8;font-weight:700}
+.mg-break-title{font-size:16px;font-weight:800;text-shadow:0 2px 6px rgba(0,0,0,.25);position:relative;z-index:1}
+.mg-break-sub{font-size:11px;font-weight:700;opacity:.95;position:relative;z-index:1}
+.mg-tiles{display:grid;grid-template-columns:repeat(3,28px);grid-template-rows:repeat(2,28px);gap:5px;position:relative;z-index:1}
+.mg-tile{background:rgba(255,255,255,.22);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;position:relative;overflow:hidden}
+.mg-tile-face{opacity:0}
+.mg-tile-1,.mg-tile-5{animation:mg-tile-flip 16s ease-in-out infinite}
+.mg-tile-1 .mg-tile-face,.mg-tile-5 .mg-tile-face{animation:mg-tile-face-show 16s ease-in-out infinite}
+@keyframes mg-quest{
+  0%,42% {opacity:1}
+  50%,55%{opacity:0}
+  63%,92%{opacity:1}
+  98%,100%{opacity:0}
+}
+@keyframes mg-break{
+  0%,42% {opacity:0}
+  50%,55%{opacity:1}
+  63%,92%{opacity:0}
+  98%,100%{opacity:1}
+}
+@keyframes mg-fill{
+  0%   {transform:scaleX(0)}
+  42%  {transform:scaleX(.55)}
+  63%  {transform:scaleX(.55)}
+  92%  {transform:scaleX(.95)}
+  100% {transform:scaleX(.95)}
+}
+@keyframes mg-tile-flip{
+  0%,52%   {background:rgba(255,255,255,.22)}
+  58%,68%  {background:rgba(255,255,255,.95)}
+  74%,84%  {background:#5BC07A}
+  90%,100% {background:rgba(255,255,255,.22)}
+}
+@keyframes mg-tile-face-show{
+  0%,54%   {opacity:0;transform:scale(.7);color:#2D2356}
+  60%,72%  {opacity:1;transform:scale(1);color:#2D2356}
+  76%,86%  {opacity:1;transform:scale(1);color:#fff}
+  92%,100% {opacity:0;transform:scale(.7);color:#2D2356}
+}
+
+/* ===== Mock 4: autoplay queue (JS-driven) =====
+   The CTA button pulses. The queue advances every ~2.5s — current
+   item is highlighted with a sliding progress bar, prior items get
+   a green check, then the cycle restarts. JS lives in
+   autoplayMockTick IIFE. Game names ("Memory Match", "Drop Sum")
+   match the actual brain-break games shipped in /app/. */
+.mock-autoplay{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:7px;padding:12px 14px}
+.ma-start{display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#FD79A8,#7C6DF2);color:#fff;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:800;box-shadow:0 4px 14px rgba(124,109,242,.45);animation:ma-start-pulse 2s ease-in-out infinite;flex-shrink:0}
+.ma-queue{display:flex;flex-direction:column;gap:4px;flex:1;justify-content:center}
+.ma-item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10);border-radius:8px;padding:5px 9px;font-size:11px;font-weight:700;color:rgba(255,255,255,.78);transition:background .25s ease,border-color .25s ease,color .25s ease,opacity .25s ease;position:relative;overflow:hidden}
+.ma-item .ma-icon{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.18);display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;line-height:1}
+.ma-item .ma-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ma-item .ma-bar{position:absolute;left:0;bottom:0;height:2px;background:linear-gradient(90deg,#FD79A8,#FFD85C);width:0}
+.ma-item.active{background:rgba(124,109,242,.30);border-color:rgba(255,255,255,.40);color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.10)}
+.ma-item.active .ma-icon{background:#FD79A8;color:#fff}
+.ma-item.done{opacity:.55}
+.ma-item.done .ma-text{text-decoration:line-through;text-decoration-color:rgba(255,255,255,.4)}
+.ma-item.done .ma-icon{background:#5BC07A;color:#fff}
+.ma-item.done .ma-icon-glyph{display:none}
+.ma-item.done .ma-icon::after{content:'✓';font-size:11px;font-weight:800}
+@keyframes ma-start-pulse{
+  0%,100%{box-shadow:0 4px 14px rgba(124,109,242,.45),0 0 0 0 rgba(253,121,168,.55)}
+  50%    {box-shadow:0 4px 14px rgba(124,109,242,.45),0 0 0 10px rgba(253,121,168,0)}
+}
+
+/* Respect prefers-reduced-motion: hold mocks at a sensible end-state
+   instead of looping animations for users who've opted out. */
+@media (prefers-reduced-motion: reduce){
+  .mock *,.mock{animation:none !important;transition:none !important}
+  .mc-card,.ml-card,.mc-question,.mc-coin{opacity:1;transform:none}
+  .mc-popover{opacity:1;transform:none}
+  .mc-cursor{opacity:0}
+  .ml-opt{opacity:1;transform:none}
+  .ml-opt-correct{background:#e6fff5;border-color:#00b894;color:#00855a}
+  .ml-progress::after{transform:scaleX(.50)}
+  .mc-line .marker{left:50%}
+  .mock-games .mg-card-quest{opacity:1}
+  .mock-games .mg-card-break{opacity:0}
+  .mg-fill{transform:scaleX(.6)}
+  .mg-tile-1,.mg-tile-5{background:rgba(255,255,255,.95)}
+  .mg-tile-1 .mg-tile-face,.mg-tile-5 .mg-tile-face{opacity:1;color:#2D2356}
 }
 
 /* "Request a demo" section. Friendly form on a tinted card so it
@@ -237,6 +511,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
     <a href="/" class="logo"><span class="logo-mark">🚀</span><span>Solvix</span></a>
     <div class="nav-links">
       <a href="#features" class="hide-sm">Features</a>
+      <a href="#see" class="hide-sm">See it</a>
       <a href="#pricing" class="hide-sm">Pricing</a>
       <a href="#demo" class="hide-sm">Try free</a>
       <a href="#faq" class="hide-sm">FAQ</a>
@@ -321,6 +596,149 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         <h3>8 core subjects</h3>
         <p>Reading, Writing, Spelling, Math, Logic, French, Science, and Social Studies — all bundled. One login covers every skill your elementary learner is building.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEE IT IN ACTION ============
+     Four animated walkthroughs of the actual product UI. NOT real screen
+     recordings — they're CSS keyframe loops (mocks 1-3) plus a tiny JS
+     queue ticker (mock 4). They show the SHAPE of the product (rhythm,
+     visual language, what kids see) without the bandwidth/maintenance
+     of MP4s. Fully autonomous — no autoplay attributes, no controls,
+     no fallbacks needed. Each loop runs forever once on screen. -->
+<section id="see" class="see-section">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-eyebrow">See it in action</span>
+      <h2>See how Solvix actually works</h2>
+      <p>Animated walkthroughs of the real UI — curriculum tags, lesson flow, brain breaks, and autoplay.</p>
+    </div>
+    <div class="video-grid">
+
+      <!-- 1. Curriculum-anchored lessons -->
+      <div class="video-card">
+        <div class="video-frame">
+          <div class="mock mock-curriculum" aria-hidden="true">
+            <div class="mc-card">
+              <span class="mc-tag"><span class="mc-tag-icon">📋</span><span class="mc-tag-code">G4 · B1.7</span></span>
+              <div class="mc-question">Where is ½ on the number line?</div>
+              <div class="mc-line">
+                <span class="tick t0"></span>
+                <span class="tick thalf"></span>
+                <span class="tick t1"></span>
+                <span class="marker"></span>
+                <span class="label l0">0</span>
+                <span class="label lhalf">½</span>
+                <span class="label l1">1</span>
+              </div>
+              <span class="mc-coin">💰 +5 coins</span>
+              <!-- Popover that appears below the curriculum tag once the
+                   cursor "clicks" it. Times match mc-cursor-move. -->
+              <div class="mc-popover">
+                <div class="mc-popover-strand">B · Number</div>
+                <div class="mc-popover-expect">Represent &amp; compare fractions on a number line</div>
+              </div>
+              <!-- Inline SVG cursor (no extra HTTP request, no font-icon
+                   dependency). Animated via mc-cursor-move keyframes. -->
+              <svg class="mc-cursor" viewBox="0 0 16 20" aria-hidden="true">
+                <path d="M1.5 1 L1.5 15 L5 12 L7.5 18 L10 17.2 L7 11.5 L12.5 11.5 Z"
+                      fill="#fff" stroke="#2D2356" stroke-width="1.3" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div class="video-meta">
+          <span class="video-tag">Curriculum</span>
+          <h3>Every lesson is anchored to the curriculum</h3>
+          <p>Every quest carries its Ontario Curriculum tag (grade, strand, code). Watch how Nova, the AI tutor, stays on grade level even when it personalizes — no drift into concepts your child hasn't met yet.</p>
+        </div>
+      </div>
+
+      <!-- 2. Lessons & quizzes -->
+      <div class="video-card">
+        <div class="video-frame">
+          <div class="mock mock-lessons" aria-hidden="true">
+            <div class="ml-card">
+              <div class="ml-head">
+                <span>Question 2 of 4</span>
+                <span class="ml-coin">💰 24</span>
+              </div>
+              <div class="ml-question">What is 3 × 4?</div>
+              <div class="ml-opts">
+                <div class="ml-opt">8</div>
+                <div class="ml-opt">10</div>
+                <div class="ml-opt ml-opt-correct">12</div>
+                <div class="ml-opt">14</div>
+              </div>
+              <!-- Single progress bar matches the real .q-progress in /app/
+                   (fills 1/4 → 2/4 as the current answer locks in). -->
+              <div class="ml-progress"></div>
+            </div>
+          </div>
+        </div>
+        <div class="video-meta">
+          <span class="video-tag">Lessons &amp; quizzes</span>
+          <h3>What an interactive lesson looks like</h3>
+          <p>Short intro, a handful of practice questions, friendly hints when your child gets stuck, and a quick check-for-understanding quiz at the end. Coins earned for every correct answer.</p>
+        </div>
+      </div>
+
+      <!-- 3. Learning quests + brain-break games -->
+      <div class="video-card">
+        <div class="video-frame">
+          <div class="mock mock-games" aria-hidden="true">
+            <div class="mg-card mg-card-quest">
+              <span class="mg-eyebrow">Quest · Reading · Ch. 4</span>
+              <div class="mg-title">A Lighthouse for Theo</div>
+              <div class="mg-bar"><span class="mg-fill"></span></div>
+              <div class="mg-meta"><span>Page 3 of 5</span><span>💰 +12</span></div>
+            </div>
+            <div class="mg-card mg-card-break">
+              <div class="mg-break-title">🧠 Memory Match</div>
+              <!-- 3×2 grid. Tiles 1 & 5 flip up showing matching ⭐,
+                   then flash green — mirrors the real Memory Match
+                   game loop. Other tiles stay face-down. -->
+              <div class="mg-tiles">
+                <span class="mg-tile mg-tile-1"><span class="mg-tile-face">⭐</span></span>
+                <span class="mg-tile mg-tile-2"></span>
+                <span class="mg-tile mg-tile-3"></span>
+                <span class="mg-tile mg-tile-4"></span>
+                <span class="mg-tile mg-tile-5"><span class="mg-tile-face">⭐</span></span>
+                <span class="mg-tile mg-tile-6"></span>
+              </div>
+              <div class="mg-break-sub">Brain break · 60 sec</div>
+            </div>
+          </div>
+        </div>
+        <div class="video-meta">
+          <span class="video-tag">Learning + brain breaks</span>
+          <h3>Learning quests and brain-break games — both</h3>
+          <p>Kids alternate between curriculum-anchored quests and short brain-break games (think mental palette cleansers). It keeps focus high without burning them out — and the breaks are still good for them.</p>
+        </div>
+      </div>
+
+      <!-- 4. Autoplay -->
+      <div class="video-card">
+        <div class="video-frame">
+          <div class="mock mock-autoplay" aria-hidden="true">
+            <div class="ma-start">▶ Start today's adventure</div>
+            <div class="ma-queue">
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">📖</span></span><span class="ma-text">Reading · Chapter 4</span><span class="ma-bar"></span></div>
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">⚡</span></span><span class="ma-text">Brain break · Drop Sum</span><span class="ma-bar"></span></div>
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">➗</span></span><span class="ma-text">Math · Fractions</span><span class="ma-bar"></span></div>
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">🧠</span></span><span class="ma-text">Brain break · Memory Match</span><span class="ma-bar"></span></div>
+              <div class="ma-item"><span class="ma-icon"><span class="ma-icon-glyph">🏆</span></span><span class="ma-text">Today's quiz</span><span class="ma-bar"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="video-meta">
+          <span class="video-tag">Autoplay</span>
+          <h3>Autoplay strings the day's quests together</h3>
+          <p>One tap on "Start today's adventure" and Solvix queues up the day's lessons, brain breaks, and quizzes back-to-back. Younger kids never have to navigate menus — they just learn.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -499,7 +917,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
     <div class="footer-copy">© 2026 Solvix · Made for curious kids</div>
     <div class="footer-links">
       <a href="/app/">Sign in</a>
-      <a href="mailto:hello@kidquest.fun">Contact</a>
+      <a href="mailto:solvixadmin@kidquest.fun">Contact</a>
       <a href="#faq">FAQ</a>
     </div>
   </div>
@@ -565,7 +983,7 @@ async function startTrial(planFamily){
     });
   } catch(e){
     restore();
-    alert("We couldn't reach the billing server. Please check your connection and try again — or email hello@kidquest.fun and we'll get you set up manually.");
+    alert("We couldn't reach the billing server. Please check your connection and try again — or email solvixadmin@kidquest.fun and we'll get you set up manually.");
     return;
   }
   if(res.status === 429){
@@ -577,13 +995,13 @@ async function startTrial(planFamily){
     restore();
     var detail = '';
     try { var j = await res.json(); detail = j && j.error ? ' ('+j.error+')' : ''; } catch(e){}
-    alert('Signup is temporarily unavailable'+detail+'. Please email hello@kidquest.fun and we\'ll set you up.');
+    alert('Signup is temporarily unavailable'+detail+'. Please email solvixadmin@kidquest.fun and we\'ll set you up.');
     return;
   }
   var data; try { data = await res.json(); } catch(e){ data = null; }
   if(!data || !data.ok || !data.url){
     restore();
-    alert('Signup is temporarily unavailable. Please email hello@kidquest.fun and we\'ll set you up.');
+    alert('Signup is temporarily unavailable. Please email solvixadmin@kidquest.fun and we\'ll set you up.');
     return;
   }
   // Off to Stripe's hosted checkout. No restore() — the page is leaving.
@@ -625,7 +1043,7 @@ async function requestDemoPin(ev){
   } catch(e){
     btn.disabled = false;
     btn.textContent = originalLabel;
-    errEl.textContent = 'Network error. Please try again, or email hello@kidquest.fun.';
+    errEl.textContent = 'Network error. Please try again, or email solvixadmin@kidquest.fun.';
     return;
   }
   var data; try { data = await res.json(); } catch(e){ data = null; }
@@ -635,8 +1053,8 @@ async function requestDemoPin(ev){
     var code = data && data.error || '';
     if(code === 'rate_limited')        errEl.textContent = 'Too many requests from your IP. Try again in an hour.';
     else if(code === 'invalid_email')  errEl.textContent = 'That email address looks malformed.';
-    else if(code === 'email_not_configured') errEl.textContent = 'Demo email is temporarily unavailable. Please email hello@kidquest.fun.';
-    else                               errEl.textContent = 'Something went wrong. Please try again or email hello@kidquest.fun.';
+    else if(code === 'email_not_configured') errEl.textContent = 'Demo email is temporarily unavailable. Please email solvixadmin@kidquest.fun.';
+    else                               errEl.textContent = 'Something went wrong. Please try again or email solvixadmin@kidquest.fun.';
     return;
   }
   // Success — swap the form for the "check your inbox" panel.
@@ -662,45 +1080,147 @@ function resetDemoForm(ev){
   if(em) em.focus();
 }
 
-// Wrap every text occurrence of "Solvix" in a rainbow-styled span, and keep
-// doing it as the DOM mutates (FAQ <details> open, dynamic inserts, etc).
-(function setupSolvixRainbow(){
-  var WORD='Solvix', CLASS='solvix-rainbow';
-  var SKIP=/^(STYLE|SCRIPT|TEXTAREA|TITLE|CODE|PRE|NOSCRIPT)$/;
-  function processTextNode(node){
-    if(!node || node.nodeType!==3 || !node.nodeValue || node.nodeValue.indexOf(WORD)<0) return;
-    var p=node.parentElement;
-    if(!p || p.classList.contains(CLASS) || SKIP.test(p.tagName)) return;
-    var parts=node.nodeValue.split(WORD);
-    var frag=document.createDocumentFragment();
-    for(var i=0;i<parts.length;i++){
-      if(parts[i]) frag.appendChild(document.createTextNode(parts[i]));
-      if(i<parts.length-1){
-        var s=document.createElement('span');
-        s.className=CLASS; s.textContent=WORD;
-        frag.appendChild(s);
+// Autoplay-queue mock (#see, mock 4): advance the active item every
+// ~2.5s, marking finished items "done" with a green check. After the
+// last item, hold briefly then reset and loop. Each row has a thin
+// progress bar that fills across its turn — we set width via inline
+// style with transition: none → reflow → transition restored, so the
+// bar resets cleanly between turns instead of animating backward.
+//
+// Tick was 1.6s originally; slowed to 2.5s so visitors can actually
+// read each queued item before it flips to done.
+//
+// We don't use IntersectionObserver here: 5 setIntervals on a marketing
+// page is fine, and pausing them when off-screen would just delay the
+// animation visitors see when they DO scroll into view. If we ever ship
+// many more mocks, gate this on visibility.
+(function autoplayMockTick(){
+  var TURN_MS = 2500;
+  function setupMock(root){
+    var items = root.querySelectorAll('.ma-item');
+    if(!items.length) return;
+    var idx = 0;
+    function setBar(item, pct, animate){
+      var bar = item.querySelector('.ma-bar');
+      if(!bar) return;
+      if(animate){
+        bar.style.transition = 'none';
+        bar.style.width = '0';
+        // Force reflow so the next assignment animates from 0.
+        // eslint-disable-next-line no-unused-expressions
+        bar.offsetWidth;
+        bar.style.transition = 'width ' + TURN_MS + 'ms linear';
+        bar.style.width = '100%';
+      } else {
+        bar.style.transition = 'none';
+        bar.style.width = pct + '%';
       }
     }
-    node.parentNode.replaceChild(frag,node);
+    function reset(){
+      Array.prototype.forEach.call(items, function(it){
+        it.classList.remove('active','done');
+        setBar(it, 0, false);
+      });
+    }
+    function tick(){
+      // Finalize the previously-active item.
+      if(idx > 0 && idx <= items.length){
+        var prev = items[idx - 1];
+        prev.classList.remove('active');
+        prev.classList.add('done');
+        setBar(prev, 100, false);
+      }
+      // End of queue → brief pause, then restart.
+      if(idx >= items.length){
+        idx = 0;
+        setTimeout(function(){ reset(); tick(); }, TURN_MS);
+        return;
+      }
+      var cur = items[idx];
+      cur.classList.add('active');
+      setBar(cur, 0, true);
+      idx++;
+    }
+    reset();
+    tick();
+    setInterval(tick, TURN_MS);
+  }
+  function init(){
+    var roots = document.querySelectorAll('.mock-autoplay');
+    Array.prototype.forEach.call(roots, setupMock);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+// Wrap brand words ("Solvix", "Nova") in spans so they can be styled
+// independently (rainbow gradient on Solvix) AND get `user-select:none`
+// applied via the .brand-name class — touch users tapping the brand
+// name were getting a "weird selection box" flash. MutationObserver
+// re-runs on dynamically inserted DOM (FAQ <details> open, dynamic
+// inserts, etc). Word boundaries prevent matching "Nova" inside e.g.
+// "supernova" or "innovation".
+(function setupBrandWords(){
+  var WORDS = [
+    {re: /\bSolvix\b/g, cls: 'solvix-rainbow brand-name'},
+    {re: /\bNova\b/g,   cls: 'brand-name'},
+  ];
+  var SKIP = /^(STYLE|SCRIPT|TEXTAREA|TITLE|CODE|PRE|NOSCRIPT|INPUT)$/;
+  function alreadyWrapped(p){
+    return p && (p.classList.contains('solvix-rainbow') ||
+                 p.classList.contains('brand-name'));
+  }
+  function processTextNode(node){
+    if(!node || node.nodeType !== 3 || !node.nodeValue) return;
+    var p = node.parentElement;
+    if(!p || alreadyWrapped(p) || SKIP.test(p.tagName)) return;
+    // Collect all matches across all WORDS, then sort by start index.
+    // (Using a fresh RegExp per call so the sticky `lastIndex` from a
+    // prior match doesn't leak between text nodes.)
+    var matches = [];
+    for(var w = 0; w < WORDS.length; w++){
+      var re = new RegExp(WORDS[w].re.source, 'g');
+      var m;
+      while((m = re.exec(node.nodeValue)) !== null){
+        matches.push({start: m.index, end: m.index + m[0].length, text: m[0], cls: WORDS[w].cls});
+      }
+    }
+    if(!matches.length) return;
+    matches.sort(function(a, b){ return a.start - b.start; });
+    var frag = document.createDocumentFragment();
+    var cursor = 0, src = node.nodeValue;
+    for(var i = 0; i < matches.length; i++){
+      var mm = matches[i];
+      if(mm.start < cursor) continue; // overlap — drop
+      if(mm.start > cursor) frag.appendChild(document.createTextNode(src.slice(cursor, mm.start)));
+      var s = document.createElement('span');
+      s.className = mm.cls;
+      s.textContent = mm.text;
+      frag.appendChild(s);
+      cursor = mm.end;
+    }
+    if(cursor < src.length) frag.appendChild(document.createTextNode(src.slice(cursor)));
+    node.parentNode.replaceChild(frag, node);
   }
   function walk(root){
     if(!root) return;
-    if(root.nodeType===3){ processTextNode(root); return; }
-    if(root.nodeType!==1) return;
-    var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
-    var list=[],n; while((n=w.nextNode())) list.push(n);
-    for(var i=0;i<list.length;i++) processTextNode(list[i]);
+    if(root.nodeType === 3){ processTextNode(root); return; }
+    if(root.nodeType !== 1) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var list = [], n;
+    while((n = w.nextNode())) list.push(n);
+    for(var i = 0; i < list.length; i++) processTextNode(list[i]);
   }
-  var run=function(){ walk(document.body); };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',run);
+  var run = function(){ walk(document.body); };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
   else run();
   new MutationObserver(function(muts){
-    for(var i=0;i<muts.length;i++){
-      var m=muts[i];
-      for(var j=0;j<m.addedNodes.length;j++) walk(m.addedNodes[j]);
-      if(m.type==='characterData') processTextNode(m.target);
+    for(var i = 0; i < muts.length; i++){
+      var m = muts[i];
+      for(var j = 0; j < m.addedNodes.length; j++) walk(m.addedNodes[j]);
+      if(m.type === 'characterData') processTextNode(m.target);
     }
-  }).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+  }).observe(document.documentElement, {childList:true, subtree:true, characterData:true});
 })();
 </script>
 

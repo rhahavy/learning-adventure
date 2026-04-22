@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # deploy.sh
 # ------------------------------------------------------------------
-# One-shot deployer for the KidQuest AI Proxy Worker (Phase 0b
+# One-shot deployer for the Solvix AI Proxy Worker (Phase 0b
 # multi-tenant data backend).
 #
 # Run this AFTER:

@@ -1,4 +1,4 @@
-/* KidQuest Service Worker
+/* Solvix Service Worker
    ------------------------
    Makes the app work offline on Chromebooks, iPads, and phones that lose
    connection mid-lesson. Strategy:
@@ -16,7 +16,7 @@
    current version. skipWaiting + clients.claim means the new SW takes
    over on the very next page load after deploy. */
 
-const SW_VERSION = 'kidquest-v14-demo-pin';
+const SW_VERSION = 'kidquest-v19-brand-polish';
 const SHELL_CACHE = SW_VERSION + '-shell';
 const RUNTIME_CACHE = SW_VERSION + '-runtime';
 
