@@ -2763,6 +2763,19 @@ const STUDENTS = [
     supports: ['articulation'] },
   { id:'akshayan', name:'Akshayan', grade:'Grade 3',               initial:'A', decoEmoji:'🎮', pin:'🦁', hint:'(l__n)',     colorLight:'#ff9f9f', colorDark:'#d63031' },
   { id:'axel',     name:'Axel',     grade:'Grade 3',               initial:'X', decoEmoji:'🏎️', pin:'🚀', hint:'(r_ck_t)',   colorLight:'#d9b3ff', colorDark:'#8e44ad' },
+  // Mia — Grade 3, on plan for general academic support. Works at grade
+  // level but benefits from a gentler on-ramp: quick adaptive-down to
+  // an easier bridge question when she struggles (earlyBridge triggers
+  // after 1 wrong, not 2), shorter sessions to limit fatigue, and
+  // extended time so the clock never pressures her. Not a formal
+  // provincial IEP — this is the tutor's judgement that she needs
+  // scaffolding to build confidence in Grade 3 content. No preset
+  // pin/hint — she picks her own emoji password on first login
+  // (matches the Evan pattern).
+  { id:'mia',      name:'Mia',      grade:'Grade 3',               initial:'M', decoEmoji:'🦋',                                 colorLight:'#ffb3d9', colorDark:'#e84393',
+    plan:{ type:'iep', workingAt:'Grade 3 with general support scaffolding',
+      notes:'Needs some academic support — start gently and ramp up as confidence grows. If she gets a question wrong, the engine swaps in an easier bridge question on the next one (earlyBridge). Sessions are capped at 3 questions (shortSessions) so she gets a real finish line without fatiguing, and every question has extended time (+30%) so the clock never pressures her. Celebrate effort and progress, not just correctness. As she shows strength, the tutor can flip shortSessions OFF in the Student Plans editor to let her tackle full-length activities.' },
+  },
   { id:'rushan',   name:'Rushan',   grade:'Grade 2',               initial:'R', decoEmoji:'⚡', pin:'🐶', hint:'(d_g)',      colorLight:'#81ecec', colorDark:'#00b894',
     // Rushan is on-grade overall but slightly ahead in math — not a formal
     // gifted designation, just a "push him harder in math" custom note.
@@ -6400,6 +6413,29 @@ evan: {
 })();
 
 /* ==========================================================================
+   MIA (Grade 3) — same curriculum clone as Axel above, but with the IEP
+   support plan wired up via STUDENTS[mia].plan. The plan-adjustments
+   layer (shortSessions, earlyBridge, extendedTime) reshapes each activity
+   at runtime for Mia — we don't need to author different questions here.
+   --------------------------------------------------------------------------
+   Activities re-IDed w1-akshayan-* → w1-mia-* so her completion, stars,
+   and progress track independently of Akshayan's and Axel's.
+   ========================================================================== */
+(function addMiaCurriculum(){
+  const src = WEEKS[1].akshayan;
+  if(!src) return;
+  const cloneActs = (acts) => acts.map(a => {
+    const copy = JSON.parse(JSON.stringify(a));
+    if(copy.id && copy.id.startsWith('w1-akshayan-')) {
+      copy.id = copy.id.replace('w1-akshayan-', 'w1-mia-');
+    }
+    return copy;
+  });
+  WEEKS[1].mia = {};
+  Object.keys(src).forEach(subj => { WEEKS[1].mia[subj] = cloneActs(src[subj]); });
+})();
+
+/* ==========================================================================
    SPELLING — new subject, grade-appropriate word patterns per student.
    --------------------------------------------------------------------------
    Nishan (SK): first letters, CVC words.
@@ -6657,6 +6693,18 @@ evan: {
     ]),
   ];
   put('akshayan', g3Spelling);
+  // Mia — Grade 3, on plan for general support. Uses the same G3 spelling
+  // content as Akshayan (she's on-grade) but with per-student activity
+  // IDs (w1-akshayan-sp* → w1-mia-sp*) so her completion tracks separately.
+  // The plan-adjustments runtime (earlyBridge + shortSessions + extendedTime)
+  // handles the scaffolding — no authored-easier questions needed.
+  put('mia', g3Spelling.map(a => {
+    const copy = JSON.parse(JSON.stringify(a));
+    if(copy.id && copy.id.startsWith('w1-akshayan-')){
+      copy.id = copy.id.replace('w1-akshayan-', 'w1-mia-');
+    }
+    return copy;
+  }));
   // Axel is nominally Grade 3 but still building core spelling confidence —
   // number words (like "three"), CVC patterns, silent E. His spelling
   // curriculum ramps SK → G1 → G2 → early G3 across 5 levels so he lands
@@ -15694,6 +15742,7 @@ const READ_SPEED = {
   rushan:   7,   // G2
   akshayan: 8,   // G3
   axel:     8,   // G3 (clone of Akshayan)
+  mia:      6,   // G3 on plan — slower rate gives her more time per question
   isaiah:   8,   // G5 but ADHD — slower pace keeps him out of time-pressure
   evan:     8,   // G7 ESL — extra processing for non-native English
 };
