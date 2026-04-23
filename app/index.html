@@ -1668,6 +1668,21 @@ body.has-dev-banner{padding-top:26px}
 .curr-modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
 .curr-modal-actions .btn{padding:10px 18px}
 
+/* Timer opt-in modal — shown before every quiz with a timer-eligible
+   question. Gives the kid agency: "Do you want a timer?" Timed runs
+   earn a +50% beat-the-clock coin bonus on correct answers, untimed
+   runs just let them focus. Kid-friendly tone (no teacher dialog
+   vibes): big emoji, two fat buttons, one-sentence explanation. */
+.timer-choice-modal{position:fixed;inset:0;background:rgba(20,20,35,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:320;display:grid;place-items:center;padding:20px;animation:fadeIn .2s ease}
+.timer-choice-inner{background:var(--card);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 24px 24px;width:min(460px,100%);text-align:center;display:flex;flex-direction:column;gap:14px;animation:popIn .25s var(--spring)}
+.timer-choice-emoji{font-size:54px;line-height:1}
+.timer-choice-title{font-size:22px;font-weight:800;color:var(--ink);margin:0}
+.timer-choice-sub{font-size:14px;color:var(--ink2);margin:0;line-height:1.45}
+.timer-choice-bonus{font-size:13px;color:var(--primary);background:rgba(108,92,231,.08);border:1px solid rgba(108,92,231,.2);border-radius:12px;padding:9px 14px;font-weight:700;line-height:1.4}
+.timer-choice-btns{display:flex;gap:10px;justify-content:center;margin-top:6px;flex-wrap:wrap}
+.timer-choice-btns .btn{flex:1;min-width:140px;padding:14px 16px;font-size:15px;justify-content:center}
+@media(max-width:420px){.timer-choice-btns{flex-direction:column}.timer-choice-btns .btn{width:100%}}
+
 /* Form-based course editor (replaces the raw JSON textarea as the
    default editing surface). The tutor should never see JSON unless they
    explicitly open the "Advanced (raw JSON)" escape hatch. */
@@ -15692,8 +15707,18 @@ const TIMER_CEIL  = { mcq:60, compare:45, dictate:45, fill:75, match:90, order:9
 function secondsForQuestion(q){
   if(!q) return null;
   if(quiz && quiz.activity && quiz.activity.timer===null) return null;
+  // Kid hasn't opted in to the per-quiz timer (see askTimerChoice) — all
+  // questions are untimed. This supersedes the content-aware formula and
+  // the per-type ceilings below.
+  if(quiz && quiz.timerEnabled === false) return null;
   const t = q.type || 'mcq';
   if(t === 'lesson') return null;
+  // Free writing is NEVER timed. Composing a sentence or short paragraph
+  // shouldn't race a clock — kids should be free to think, re-read, edit.
+  // A timer on `write` questions pushes them toward rushed, shallow
+  // writing, which is the opposite of the pedagogical goal. The per-quiz
+  // opt-in dialog still asks about timing for the rest of the questions.
+  if(t === 'write') return null;
 
   // Education-plan opt-out: IEP kids with `noTimer` toggled ON never see
   // the timer at all. Overrides the content-aware formula below.
@@ -15815,10 +15840,73 @@ function renderActivity(root,actId,subId){
   const qs = (activity.lesson && !useStretch)
     ? [{type:'lesson',lesson:activity.lesson}, ...filtered]
     : [...filtered];
-  quiz={activityId:actId, subject:subId, activity, questions:qs, idx:0, correct:0, locked:false, stretchMode: useStretch};
+  // `timerEnabled` starts false and is set by askTimerChoice below.
+  // Keeping the default off is important because the first renderQ() may
+  // look at the flag before the kid answers — off means "no timer shown",
+  // which is the safe default if anything ever races the modal.
+  quiz={activityId:actId, subject:subId, activity, questions:qs, idx:0, correct:0, locked:false, stretchMode: useStretch, timerEnabled:false};
   const wrap=h('div',{class:'quiz'});
   root.appendChild(wrap);
-  renderQ(wrap);
+  // Ask the kid up-front whether they want a timer for this quiz. The
+  // prompt is skipped (answered "false") when timing can't apply anyway —
+  // plan opt-out, activity opt-out, or a quiz that's only lessons + writes.
+  askTimerChoice(quiz, (enabled)=>{
+    quiz.timerEnabled = !!enabled;
+    renderQ(wrap);
+  });
+}
+
+/* Timer opt-in modal.
+   Kid-facing dialog shown once per quiz (right after renderActivity
+   builds the quiz, before the first question renders). Two choices:
+     • Yes, time me  → quiz.timerEnabled = true, +50% coin bonus on
+                       correct answers when coins would be awarded
+     • No timer      → quiz.timerEnabled = false, no timer bar, normal
+                       coins
+   Rationale: the clock is a good sometimes-tool — it adds stakes that
+   some kids thrive on — but it's the wrong default for reflective /
+   anxious / ESL learners. Asking each time respects agency; the bonus
+   rewards the kids who choose to challenge themselves without
+   punishing the ones who don't.
+   The dialog is SKIPPED (resolves false automatically) when a timer
+   couldn't run anyway:
+     • student plan has noTimer on (IEP accommodation)
+     • the activity has `timer:null` (e.g. reflective writing lesson)
+     • the question list has no timer-eligible questions (only lessons
+       and/or writes) — no point asking about a timer that wouldn't
+       appear for a single question. */
+function askTimerChoice(quiz, onDone){
+  if(!quiz){ onDone(false); return; }
+  const adj = planAdjustments(currentUser);
+  if(adj && adj.noTimer){ onDone(false); return; }
+  if(quiz.activity && quiz.activity.timer === null){ onDone(false); return; }
+  const anyTimerable = (quiz.questions||[]).some(q => q && q.type !== 'lesson' && q.type !== 'write');
+  if(!anyTimerable){ onDone(false); return; }
+
+  let resolved = false;
+  const overlay = h('div',{class:'timer-choice-modal','role':'dialog','aria-modal':'true','aria-label':'Choose timer mode'});
+  function resolve(val){
+    if(resolved) return; resolved = true;
+    try{ overlay.remove(); }catch(e){}
+    onDone(!!val);
+  }
+  const inner = h('div',{class:'timer-choice-inner'},[
+    h('div',{class:'timer-choice-emoji','aria-hidden':'true'},'⏱️'),
+    h('h2',{class:'timer-choice-title'},'Do you want a timer?'),
+    h('p',{class:'timer-choice-sub'},'A timer adds a fun challenge. No timer lets you think slowly and carefully — both are great!'),
+    h('div',{class:'timer-choice-bonus'},'⚡ Beat the clock: +50% coins on correct answers.'),
+    h('div',{class:'timer-choice-btns'},[
+      h('button',{class:'btn btn-ghost','type':'button',onclick:()=>resolve(false)},'🧘 No timer'),
+      h('button',{class:'btn btn-primary','type':'button',onclick:()=>resolve(true)},'⏱️ Yes, time me'),
+    ]),
+  ]);
+  overlay.appendChild(inner);
+  // Esc = No timer (safer default for a kid who freezes on the dialog).
+  overlay.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ e.preventDefault(); resolve(false); } });
+  document.body.appendChild(overlay);
+  // Focus the friendlier "No timer" button by default — kids who just
+  // hit Enter shouldn't be accidentally opted into the clock.
+  try{ inner.querySelector('.btn-ghost').focus(); }catch(e){}
 }
 
 function renderQ(wrap){
@@ -15866,11 +15954,13 @@ function renderQ(wrap){
   wrap.appendChild(h('div',{class:'q-progress'},[h('i',{style:'width:'+(quiz.idx/total*100)+'%'})]));
 
   // Timer bar — visually dominant pace signal (promoted above the quiz
-  // progress bar). Hidden during lessons, and also hidden when the
-  // activity has opted out of timing (`activity.timer === null`) — e.g.
-  // passage-reading comprehension and reflective writing where a ticking
-  // clock undermines the task.
-  const timerHidden = q.type==='lesson' || quiz.activity && quiz.activity.timer===null;
+  // progress bar). Hidden when:
+  //   • the current question is a lesson or a free-write (never timed),
+  //   • the kid opted out of timing for this quiz (askTimerChoice),
+  //   • the activity itself has opted out (`activity.timer === null`)
+  //     — e.g. passage-reading comprehension and reflective writing
+  //     where a ticking clock undermines the task.
+  const timerHidden = q.type==='lesson' || q.type==='write' || !quiz.timerEnabled || (quiz.activity && quiz.activity.timer===null);
   const timerWrap=h('div',{class:'timer-bar-wrap',style:timerHidden?'display:none':''},[
     h('span',{class:'timer-icon','aria-hidden':'true'},'⏱'),
     h('span',{class:'timer-text',id:'timerTxt'},''),
@@ -17349,7 +17439,14 @@ function finishActivity(){
   const prevProgForCoins = state.progress[a.id] || {};
   const wasAlreadyDone = prevProgForCoins.done === true;
   const shouldReward = isStretch || (passed && !wasAlreadyDone);
-  const coins = shouldReward ? correct * 2 : 0;
+  const baseCoins = shouldReward ? correct * 2 : 0;
+  // Beat-the-clock bonus: kid opted into the timer AND got at least one
+  // correct answer. +50% on top of base coins, rounded. Gated on
+  // shouldReward so we don't invent coins on a re-run of an already-done
+  // level (would break the anti-farm rule above). The reward overlay
+  // surfaces this so the kid feels the payoff for taking the challenge.
+  const timerBonusEarned = !!(quiz.timerEnabled && shouldReward && correct > 0);
+  const coins = timerBonusEarned ? Math.round(baseCoins * 1.5) : baseCoins;
   // ------------------------------------------------------------
   // STRETCH MODE vs NORMAL MODE
   // ------------------------------------------------------------
@@ -17421,10 +17518,14 @@ function finishActivity(){
               : pct===1 ? 'Perfect Score!'
               : pct>=.7 ? 'Awesome!'
               : 'Great Job!';
-  const msg   = !passed ? 'You need '+Math.ceil(scorable*PASS_THRESHOLD)+'/'+scorable+' to pass. Try again — you\'ve got this!'
+  const baseMsg = !passed ? 'You need '+Math.ceil(scorable*PASS_THRESHOLD)+'/'+scorable+' to pass. Try again — you\'ve got this!'
               : pct===1 ? 'Every answer right!'
               : pct>=.7 ? 'Really well done!'
               : 'Nice effort!';
+  // Celebrate the beat-the-clock bonus when it actually paid out, so the
+  // kid sees the choice → reward connection. Plain text suffix keeps the
+  // existing #rwMsg styling intact.
+  const msg = timerBonusEarned ? baseMsg + ' ⚡ +50% beat-the-clock bonus!' : baseMsg;
   $('#rwEmoji').textContent=emoji;$('#rwTitle').textContent=title;$('#rwMsg').textContent=msg;
   $('#rwCoins').textContent='+'+coins;$('#rwScore').textContent=correct+'/'+scorable;
   // Nova cameo — tone + pep line depend on the result tier. We also track
