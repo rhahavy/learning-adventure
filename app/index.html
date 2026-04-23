@@ -9637,6 +9637,57 @@ async function pullCloud(init){
     if(!r.ok)throw 0;
     const t=await r.text();if(!t)return;
     const d=JSON.parse(t);if(!d||!d.users)return;
+
+    // ========== MAINTENANCE SYNC — ALWAYS, BEFORE updatedAt GUARD ==========
+    // Maintenance is a GLOBAL admin flag, not per-student data. It must
+    // sync regardless of the updatedAt comparison below (which exists to
+    // protect student progress from stale-cloud overwrites). If we deferred
+    // the sync until after the guard, a user whose local updatedAt drifted
+    // past the cloud's (e.g., the LAST device to save before maintenance
+    // was turned off) would be stuck on a stale gate forever, because
+    // pullCloud would return early and never refresh allData.maintenance.
+    // This is the single most important un-stick path for the gate.
+    if(d.maintenance && typeof d.maintenance === 'object'){
+      allData.maintenance = {
+        active: !!d.maintenance.active,
+        message: typeof d.maintenance.message==='string'&&d.maintenance.message.trim() ? d.maintenance.message : DEFAULT_MAINTENANCE_MESSAGE,
+        updatedAt: typeof d.maintenance.updatedAt==='number' ? d.maintenance.updatedAt : 0,
+      };
+    } else if(allData.maintenance && allData.maintenance.active){
+      // Cloud has no maintenance object at all — treat as OFF. Clears the
+      // orphaned localStorage flag that was keeping this user gated.
+      allData.maintenance = { active:false, message:DEFAULT_MAINTENANCE_MESSAGE, updatedAt:0 };
+    }
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(allData)); }catch(e){}
+    // If cloud says OFF but the DOM is still gated, un-gate now.
+    // Runs on EVERY pull (init + polls) so a mid-session flip-off clears.
+    {
+      const _gatedDom = !!document.querySelector('.maintenance-screen');
+      const _maintOn  = !!(allData.maintenance && allData.maintenance.active);
+      if(_gatedDom && !_maintOn && !isTeacher){
+        try{
+          currentUser = null; state = null;
+          try{ localStorage.removeItem(LOCAL_USER_KEY); }catch(e){}
+          if(typeof __parentParamPresent !== 'undefined' && __parentParamPresent){
+            if(typeof __parentQuerySid !== 'undefined') parentViewSid = __parentQuerySid;
+            go('parent');
+          } else {
+            go('home');
+          }
+        }catch(e){
+          console.warn('[Solvix] un-gate after maintenance-off failed, reloading:', e);
+          try{ location.reload(); }catch(e2){}
+        }
+        return;
+      }
+      // If cloud flipped maintenance ON and we're NOT showing the gate, render it.
+      // Skip teachers (they're the ones toggling) and kids mid-activity (let them finish).
+      if(!init && _maintOn && !isMaintenanceBypassed() && !isTeacher && currentScreen!=='activity' && !_gatedDom){
+        renderMaintenanceScreen();
+        return;
+      }
+    }
+
     if((d.updatedAt||0)<=(allData.updatedAt||0))return;
     // Anti-wipe guard: if cloud is missing a student or has them as an
     // empty/wiped record, but local has real progress, REFUSE to overwrite.
@@ -9712,51 +9763,14 @@ async function pullCloud(init){
     // Local dedicated key ALWAYS wins over cloud for videoOverrides — this
     // protects against stale-tab pushes that omitted the field.
     try { rehydrateVideoOverrides(); } catch(e){}
-    // Maintenance state — sync so kids on other devices see the gate flip
-    if(d.maintenance&&typeof d.maintenance==='object'){
-      allData.maintenance={
-        active: !!d.maintenance.active,
-        message: typeof d.maintenance.message==='string'&&d.maintenance.message.trim() ? d.maintenance.message : DEFAULT_MAINTENANCE_MESSAGE,
-        updatedAt: typeof d.maintenance.updatedAt==='number' ? d.maintenance.updatedAt : 0,
-      };
-    }
+    // (Maintenance sync handled above, BEFORE the updatedAt guard, so a
+    //  stuck gate un-sticks even if local updatedAt >= cloud updatedAt.)
     allData.updatedAt=d.updatedAt;
     // Re-seed TTS defaults after cloud merge: if this is the first cloud
     // sync for a fresh STUDENTS_TTS_DEFAULT_ON member, flip them on.
     try{ seedTtsDefaults(); }catch(e){}
     if(currentUser)state=allData.users[currentUser];
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(allData))}catch(e){}
-    // If cloud says maintenance is OFF but the DOM is still showing the
-    // maintenance screen, the boot IIFE (line ~19954) gated this tab from
-    // STALE localStorage before cloud could weigh in. Un-gate now that
-    // we have authoritative state. Runs on the first pull too — that's
-    // the whole point, since `init=true` is exactly when the stale-local
-    // trap needs to be released. Skips teachers (they can be inside the
-    // dashboard toggling the flag) and parent views (separate code path).
-    const _gatedDom = !!document.querySelector('.maintenance-screen');
-    const _maintOn  = !!(allData.maintenance && allData.maintenance.active);
-    if(_gatedDom && !_maintOn && !isTeacher){
-      try{
-        currentUser = null; state = null;
-        try{ localStorage.removeItem(LOCAL_USER_KEY); }catch(e){}
-        if(typeof __parentParamPresent !== 'undefined' && __parentParamPresent){
-          if(typeof __parentQuerySid !== 'undefined') parentViewSid = __parentQuerySid;
-          go('parent');
-        } else {
-          go('home');
-        }
-      }catch(e){
-        console.warn('[Solvix] un-gate after maintenance-off failed, reloading:', e);
-        try{ location.reload(); }catch(e2){}
-      }
-      return;
-    }
-    // If maintenance just turned ON (and we're not bypassed), hijack the screen.
-    // Unless kid is mid-activity — let them finish, they'll gate on next screen change.
-    if(!init && allData.maintenance && allData.maintenance.active && !isMaintenanceBypassed() && !isTeacher && currentScreen!=='activity'){
-      renderMaintenanceScreen();
-      return;
-    }
     if(!init&&currentScreen&&currentScreen!=='activity')go(currentScreen,currentOpts);
   }catch(e){if(init)throw e}
 }
@@ -24245,10 +24259,65 @@ function renderMaintenanceScreen(){
     +     '<div class="maintenance-dots"><span></span><span></span><span></span></div>'
     +     '<div class="maintenance-footer">Rhahavy is working on something new. 🛠️</div>'
     +     '<button class="maint-unlock" id="maintUnlockBtn">🔑 Teacher unlock</button>'
+    +     '<div id="maintEscapeHatch" style="margin-top:18px;display:none;opacity:.85">'
+    +       '<p style="font-size:13px;margin:0 0 8px">Been stuck here for a while?</p>'
+    +       '<button id="maintRefreshBtn" style="padding:10px 18px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Check again / refresh</button>'
+    +     '</div>'
     +   '</div>'
     + '</div>';
   const btn = document.getElementById('maintUnlockBtn');
   if(btn) btn.addEventListener('click', promptMaintenanceUnlock);
+  // Escape hatch: if a user has been sitting on the gate for >15s without
+  // being un-gated by pullCloud, something went wrong (cloud unreachable,
+  // auth failure, stale localStorage the pullCloud never overwrote because
+  // of an error). Surface a manual "refresh" action so they can recover
+  // without having to clear their browser storage manually. The button
+  // tries a fresh cloud check first; if that still says ON, it clears
+  // the local flag and hard-reloads (which re-reads the cloud from zero).
+  try {
+    setTimeout(function(){
+      try{
+        const el = document.getElementById('maintEscapeHatch');
+        if(el && document.querySelector('.maintenance-screen')) el.style.display = 'block';
+        const rBtn = document.getElementById('maintRefreshBtn');
+        if(rBtn){
+          rBtn.addEventListener('click', async function(){
+            rBtn.disabled = true;
+            rBtn.textContent = 'Checking…';
+            // Direct cloud check, bypassing any pullCloud state caching.
+            let cloudSaysOff = false;
+            try {
+              if(isWorkerBackendActive()){
+                const r = await fetch(dataBackendUrl('data')+'?_='+Date.now(), { cache:'no-store', headers:dataBackendHeaders() });
+                if(r.ok){
+                  const tx = await r.text();
+                  if(tx){
+                    const d = JSON.parse(tx);
+                    cloudSaysOff = !(d && d.maintenance && d.maintenance.active);
+                  } else {
+                    // Empty body = default state = maintenance OFF
+                    cloudSaysOff = true;
+                  }
+                }
+              }
+            } catch(e){}
+            if(cloudSaysOff){
+              // Scrub local flag, then reload into a clean boot.
+              try{
+                allData.maintenance = { active:false, message:DEFAULT_MAINTENANCE_MESSAGE, updatedAt:0 };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+              }catch(e){}
+              location.reload();
+            } else {
+              rBtn.disabled = false;
+              rBtn.textContent = '🔄 Still under maintenance — try later';
+              setTimeout(()=>{ try{ rBtn.textContent = '🔄 Check again / refresh'; }catch(e){} }, 3000);
+            }
+          });
+        }
+      }catch(e){}
+    }, 15000);
+  } catch(e){}
 }
 async function promptMaintenanceUnlock(){
   const pw = prompt('Teacher password to unlock:');
@@ -24295,6 +24364,21 @@ const __maintenanceActive = (function(){
   // and don't mutate. Stale links still need to render the error card so
   // the parent gets a clear "ask for a fresh link" message.
   if(__parentParamPresent) return false;
+  // Orphan guard: maintenance is tenant-scoped (lives inside each tenant's
+  // KV state blob). If there's NO active tenant session on this device,
+  // the localStorage maintenance flag is an orphan left behind by a
+  // previous tenant logout/switch. Ignore it AND scrub it so the next
+  // session starts clean — the user will land on the code-entry screen
+  // anyway, where maintenance doesn't apply. Without this guard, a user
+  // who signed out while maintenance was ON would be permanently stuck,
+  // because there's no tenant to pullCloud from to un-gate.
+  if(!isWorkerBackendActive()){
+    try{
+      allData.maintenance = { active:false, message:DEFAULT_MAINTENANCE_MESSAGE, updatedAt:0 };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+    }catch(e){}
+    return false;
+  }
   renderMaintenanceScreen();
   return true;
 })();
