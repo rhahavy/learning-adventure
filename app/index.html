@@ -15878,9 +15878,61 @@ function renderActivity(root,actId,subId){
     const slim = baseQuestions.filter(q => q && q.type !== 'passage' && q.type !== 'write');
     if(slim.length >= 2) filtered = slim;
   }
+  // ----------------------------------------------------------------
+  // EASY-FIRST RAMP (universal, applies to every kid, every quiz)
+  // ----------------------------------------------------------------
+  // Reorder this activity's questions so the kid warms up on simpler
+  // ones before the harder ones. Rationale:
+  //   • Builds confidence — a win in the first 1-2 questions makes a
+  //     kid more willing to push through a tricky third.
+  //   • Critical for IEP kids — shortSessions (below) truncates to the
+  //     FIRST MAX_SHORT_SESSION_Q questions. After this sort, those
+  //     first N are GUARANTEED to be the easiest N, which is the
+  //     whole point for Mia-class plans ("start gently, ramp up").
+  //   • Safe for stretch mode — we sort both pools the same way, so
+  //     even in the harder stretch set there's still an internal
+  //     easy→hard arc within the harder content.
+  //
+  // Ordering rules (deterministic — no randomness, same quiz = same order):
+  //   1. If ANY question in this activity has an explicit `d` tier
+  //      (1 = easy, 2 = medium, 3 = hard), sort by that. Authors can
+  //      hand-tune sequences by tagging some or all questions. Untagged
+  //      questions in a mixed activity default to tier 2 (medium) so
+  //      they sit between hand-tagged easy and hand-tagged hard.
+  //   2. Otherwise use a zero-authoring-cost heuristic based on
+  //      question shape:
+  //        - type: mcq (0) → compare/dictate (1) → order/match (2)
+  //          → write (3) → passage (4). Reflects real cognitive load.
+  //        - tiebreak within a type: shorter question prompt first
+  //          (short ≈ concrete ≈ easier). Capped so one long prompt
+  //          can't leapfrog over a type boundary.
+  //
+  // Implementation note: ES2019+ Array.prototype.sort is stable, so
+  // tied scores preserve authored order. We keep the index-tiebreak
+  // in the comparator anyway as documentation of intent.
+  {
+    const TYPE_SCORE = { mcq:0, compare:1, dictate:1, order:2, match:2, emoji:2, write:3, passage:4 };
+    const anyTiered = filtered.some(q => q && typeof q.d === 'number');
+    const scoreOf = (q) => {
+      if(!q) return 99;
+      if(anyTiered) return (typeof q.d === 'number') ? q.d * 10 : 20; // untagged = tier 2
+      const typeBase = (TYPE_SCORE[q.type] != null ? TYPE_SCORE[q.type] : 1) * 10;
+      const text = (q.q || q.prompt || q.passage || '') + '';
+      // Each ~80 chars of prompt adds one subtier, capped so a single
+      // long MCQ can never leapfrog into the write/passage tier.
+      const lengthBump = Math.min(text.length / 80, 5);
+      return typeBase + lengthBump;
+    };
+    filtered = filtered
+      .map((q, i) => ({ q, i, s: scoreOf(q) }))
+      .sort((a, b) => (a.s - b.s) || (a.i - b.i))
+      .map(x => x.q);
+  }
   // shortSessions (IEP accommodation): cap at MAX_SHORT_SESSION_Q so a
   // kid who fatigues quickly gets a real finish line. The tutor's
   // "15-20 min max" guidance converts to 3 bite-sized questions.
+  // With the easy-first sort above, the N kept are now the EASIEST N —
+  // exactly what "start gently" means for IEP plans.
   if(adj && adj.shortSessions && filtered.length > MAX_SHORT_SESSION_Q){
     filtered = filtered.slice(0, MAX_SHORT_SESSION_Q);
   }
