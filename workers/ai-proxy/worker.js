@@ -3090,7 +3090,13 @@ export default {
     // Origin gate. An empty corsOrigin means the Origin header didn't
     // match the allow-list — block it so nobody can point a random
     // site at our Worker and drain API credits.
-    if (!corsOrigin) {
+    //
+    // EXCEPTION: server-to-server callers that don't send a browser
+    // Origin header. Stripe's webhook is the canonical case — it
+    // proves authenticity via HMAC signature on the raw body
+    // (see handleStripeWebhookRoute), so CORS gating would only
+    // create a false 403 without adding security.
+    if (!corsOrigin && !(url.pathname === '/stripe/webhook' && request.method === 'POST')) {
       return json({ error: 'origin_not_allowed' }, 403, '');
     }
 
