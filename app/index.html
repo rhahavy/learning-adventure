@@ -8567,7 +8567,7 @@ const CHALLENGE_BANK = {
      + domain-restricted in their dashboard). Never paste an SMTP password.
    ========================================================================== */
 const EMAIL_CONFIG = {
-  teacherEmail: 'rhahavy.b@gmail.com',
+  teacherEmail: 'admin@kidquest.fun',
   teacherName:  'Rhahavy',
   emailjs: {
     publicKey:  '',   // e.g. 'user_AbCd1234' — from EmailJS dashboard
@@ -8965,7 +8965,7 @@ const POLL_MS = 25000;
 // Parent progress reports — always CC the business owner so Rhahavy sees
 // every report that goes out. `mailto:` opens the teacher's mail client
 // pre-filled with subject/body/cc so they can review and hit send.
-const REPORT_CC_EMAIL = 'rhahavy.b@gmail.com';
+const REPORT_CC_EMAIL = 'admin@kidquest.fun';
 const REPORT_INTERVAL_DAYS = 7;
 const REPORT_INTERVAL_MS = REPORT_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
 const WRONG_ANSWER_LOG_CAP = 200;
@@ -23332,7 +23332,7 @@ function resetStudentSubject(sid, subjId){
    client via `mailto:` with subject/body/CC pre-filled. They review and
    hit Send themselves.
 
-   CC is always REPORT_CC_EMAIL (rhahavy.b@gmail.com) so the tutoring
+   CC is always REPORT_CC_EMAIL (admin@kidquest.fun) so the tutoring
    business owner sees every report that leaves the system.
 
    Cadence: banner turns red after REPORT_INTERVAL_DAYS (7) without a
@@ -24590,7 +24590,7 @@ function showTenantGate(){
     +   '<div id="kq-tg-msg" style="margin-top:14px;font-size:13px;color:#d63031;min-height:1em;line-height:1.4;" aria-live="polite"></div>'
     +   '<div style="margin-top:20px;padding-top:18px;border-top:1px solid #f1f3f5;font-size:12px;color:#b2bec3;line-height:1.5;">'
     +     (isDemoFlow
-            ? 'Don\'t have the demo PIN? <a href="mailto:solvixadmin@kidquest.fun?subject=Solvix%20demo%20PIN%20request" style="color:#667eea;font-weight:700;text-decoration:none;">Email solvixadmin@kidquest.fun</a> and I\'ll send it within a few hours.'
+            ? 'Don\'t have the demo PIN? <a href="mailto:admin@kidquest.fun?subject=Solvix%20demo%20PIN%20request" style="color:#667eea;font-weight:700;text-decoration:none;">Email admin@kidquest.fun</a> and I\'ll send it within a few hours.'
             : "Don't have a PIN? Ask the parent or teacher who set up your classroom.")
     +   '</div>'
     + '</div>';

@@ -718,12 +718,12 @@ function escapeHtml(s) {
 //
 // Required:
 //   env.RESEND_API_KEY  (secret)  — re_xxx from resend.com dashboard
-//   env.EMAIL_FROM      (var)     — "Solvix <solvixadmin@kidquest.fun>"
+//   env.EMAIL_FROM      (var)     — "Solvix <admin@kidquest.fun>"
 //                                   The sender domain MUST be verified
 //                                   in Resend; otherwise sends fail
 //                                   immediately with 403.
 // Optional:
-//   env.EMAIL_REPLY_TO  (var)     — e.g. "solvixadmin@kidquest.fun"
+//   env.EMAIL_REPLY_TO  (var)     — e.g. "admin@kidquest.fun"
 //   env.APP_URL         (var)     — link target in the email body.
 //                                   Falls back to the bare path "/app/"
 //                                   so it works even if unset.

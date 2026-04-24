@@ -43,15 +43,15 @@ Go to **Settings → Secrets and variables → Actions** on this repo.
 | Name             | Example value                                    | Required? |
 | ---------------- | ------------------------------------------------ | --------- |
 | `RESEND_API_KEY` | `re_xxxxxxxxxxxxxxxxxxxxxxxx`                    | **Yes**   |
-| `FROM_EMAIL`     | `Solvix Reports <reports@kidquest.fun>`        | Optional  |
-| `CC_EMAIL`       | `rhahavy.b@gmail.com`                            | Optional  |
+| `FROM_EMAIL`     | `Solvix Reports <admin@kidquest.fun>`        | Optional  |
+| `CC_EMAIL`       | `admin@kidquest.fun`                            | Optional  |
 
 - `RESEND_API_KEY` is the only truly required one. Without it the script
   runs in forced dry-run mode.
-- `FROM_EMAIL` defaults to `Solvix Reports <reports@kidquest.fun>`.
+- `FROM_EMAIL` defaults to `Solvix Reports <admin@kidquest.fun>`.
   Override it if you haven't verified that domain on Resend — use something
   like `Solvix <onboarding@resend.dev>` while testing.
-- `CC_EMAIL` defaults to `rhahavy.b@gmail.com`. Set to an empty value to
+- `CC_EMAIL` defaults to `admin@kidquest.fun`. Set to an empty value to
   disable the CC.
 
 **Variables** (non-sensitive — visible in logs):
@@ -113,7 +113,7 @@ student to have 7 days of history.
 1. **Actions** → **Weekly Parent Reports** → **Run workflow**
 2. Uncheck **Dry run**
 3. Fill in **Test recipient** with your own email address (the one you used
-   to sign up for Resend — e.g. `rhahavy.b@gmail.com`)
+   to sign up for Resend — e.g. `admin@kidquest.fun`)
 4. **Run workflow**
 
 The script sends ONE sample email with demo data, using

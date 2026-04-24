@@ -125,7 +125,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
       </div>
       <p class="small">
         Don't see it? Check your spam folder, then click <strong>Resend email</strong>.
-        Still nothing? Email <a href="mailto:solvixadmin@kidquest.fun">solvixadmin@kidquest.fun</a> from the same address you used to pay and we'll sort it out within the hour.
+        Still nothing? Email <a href="mailto:admin@kidquest.fun">admin@kidquest.fun</a> from the same address you used to pay and we'll sort it out within the hour.
       </p>
     </div>
 
@@ -137,9 +137,9 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
       <p class="lede" id="error-detail">Stripe's confirmation hasn't reached us yet — this is usually a quick hiccup.</p>
       <div class="cta-row" style="justify-content:center">
         <button class="btn btn-primary" id="retry-btn" type="button">🔄 Try again</button>
-        <a href="mailto:solvixadmin@kidquest.fun" class="btn btn-ghost">Contact support</a>
+        <a href="mailto:admin@kidquest.fun" class="btn btn-ghost">Contact support</a>
       </div>
-      <p class="small">If this keeps happening, email <a href="mailto:solvixadmin@kidquest.fun">solvixadmin@kidquest.fun</a> from the address you used to pay — we'll hand-provision your classroom within the hour.</p>
+      <p class="small">If this keeps happening, email <a href="mailto:admin@kidquest.fun">admin@kidquest.fun</a> from the address you used to pay — we'll hand-provision your classroom within the hour.</p>
     </div>
   </div>
 </div>
@@ -219,7 +219,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
     var data;
     try { data = await res.json(); } catch(e){ data = null; }
     if(!data || !data.ok){
-      showError('Your payment went through but we couldn\'t confirm your account is ready. Email solvixadmin@kidquest.fun and we\'ll send your code right over.');
+      showError('Your payment went through but we couldn\'t confirm your account is ready. Email admin@kidquest.fun and we\'ll send your code right over.');
       return;
     }
     // Success — show the masked recipient and personalise the welcome.
@@ -258,7 +258,7 @@ h1{font-size:clamp(28px,4vw,40px);line-height:1.1;letter-spacing:-.01em;font-wei
       } else if(r.status === 429){
         toast('Slow down — try again in a few minutes.');
       } else {
-        toast('Couldn\'t resend. Email solvixadmin@kidquest.fun and we\'ll help.');
+        toast('Couldn\'t resend. Email admin@kidquest.fun and we\'ll help.');
       }
     } catch(e){
       toast('Network hiccup. Try again or email support.');

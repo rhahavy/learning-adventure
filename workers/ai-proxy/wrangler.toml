@@ -93,9 +93,9 @@ ANTHROPIC_MODEL = "claude-haiku-4-5"
 # All three vars are OPTIONAL at the wrangler level — if any is unset
 # the email path silently no-ops and provisioning still succeeds.
 # The thank-you page surfaces a clear error in that case.
-EMAIL_FROM      = "Solvix <solvixadmin@kidquest.fun>"
-EMAIL_REPLY_TO  = "solvixadmin@kidquest.fun"
-OWNER_EMAIL     = "rhahavy.b@gmail.com"
+EMAIL_FROM      = "Solvix <admin@kidquest.fun>"
+EMAIL_REPLY_TO  = "admin@kidquest.fun"
+OWNER_EMAIL     = "admin@kidquest.fun"
 APP_URL         = "https://kidquest.fun/app/"
 
 # ----- OBSERVABILITY --------------------------------------------

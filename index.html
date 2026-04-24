@@ -989,7 +989,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         </div>
       </a>
     </div>
-    <p class="demo-fineprint">Both demos are gated by a short PIN. <a href="mailto:solvixadmin@kidquest.fun?subject=Solvix%20demo%20PIN%20request">Email us at solvixadmin@kidquest.fun</a> and we'll send it back within a few hours.</p>
+    <p class="demo-fineprint">Both demos are gated by a short PIN. <a href="mailto:admin@kidquest.fun?subject=Solvix%20demo%20PIN%20request">Email us at admin@kidquest.fun</a> and we'll send it back within a few hours.</p>
   </div>
 </section>
 
@@ -1008,7 +1008,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
     <div class="footer-copy">© 2026 Solvix · Made for curious kids</div>
     <div class="footer-links">
       <a href="/app/">Sign in</a>
-      <a href="mailto:solvixadmin@kidquest.fun">Contact</a>
+      <a href="mailto:admin@kidquest.fun">Contact</a>
       <a href="#faq">FAQ</a>
     </div>
   </div>
@@ -1074,7 +1074,7 @@ async function startTrial(planFamily){
     });
   } catch(e){
     restore();
-    alert("We couldn't reach the billing server. Please check your connection and try again — or email solvixadmin@kidquest.fun and we'll get you set up manually.");
+    alert("We couldn't reach the billing server. Please check your connection and try again — or email admin@kidquest.fun and we'll get you set up manually.");
     return;
   }
   if(res.status === 429){
@@ -1086,13 +1086,13 @@ async function startTrial(planFamily){
     restore();
     var detail = '';
     try { var j = await res.json(); detail = j && j.error ? ' ('+j.error+')' : ''; } catch(e){}
-    alert('Signup is temporarily unavailable'+detail+'. Please email solvixadmin@kidquest.fun and we\'ll set you up.');
+    alert('Signup is temporarily unavailable'+detail+'. Please email admin@kidquest.fun and we\'ll set you up.');
     return;
   }
   var data; try { data = await res.json(); } catch(e){ data = null; }
   if(!data || !data.ok || !data.url){
     restore();
-    alert('Signup is temporarily unavailable. Please email solvixadmin@kidquest.fun and we\'ll set you up.');
+    alert('Signup is temporarily unavailable. Please email admin@kidquest.fun and we\'ll set you up.');
     return;
   }
   // Off to Stripe's hosted checkout. No restore() — the page is leaving.
@@ -1102,7 +1102,7 @@ async function startTrial(planFamily){
 // Demo entry is now two static deeplinks (#demo section) — no email
 // gate, no /demo/request roundtrip. Visitors click Parent or Teacher
 // and the app opens straight to the right dashboard. The shared demo
-// PIN is handed out by the operator (solvixadmin@kidquest.fun) — not
+// PIN is handed out by the operator (admin@kidquest.fun) — not
 // in this file, not on the marketing page, not on the gate screen.
 // The /demo/request worker endpoint still exists for now in case we
 // want to bring it back, but nothing on this page hits it anymore.

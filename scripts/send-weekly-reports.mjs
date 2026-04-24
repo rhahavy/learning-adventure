@@ -20,7 +20,7 @@
  * Env vars (see WEEKLY_REPORTS_SETUP.md for full docs):
  *   RESEND_API_KEY   — Resend API key. If absent, forces dry-run.
  *   FROM_EMAIL       — "Name <addr@verified-domain>" sender address.
- *   CC_EMAIL         — CC on every report (default: rhahavy.b@gmail.com).
+ *   CC_EMAIL         — CC on every report (default: admin@kidquest.fun).
  *   DASHBOARD_URL    — CTA link in the email (default: https://kidquest.fun).
  *   CLOUD_BUCKET     — textdb.dev bucket ID (default matches index.html).
  *   DRY_RUN          — "true" = log what would send, don't actually send.
@@ -46,8 +46,8 @@ const DAY_MS               = 24 * 60 * 60 * 1000;
 
 // Defaults — can be overridden via env.
 const DEFAULT_BUCKET    = 'kidquest-dca83c70e20a70f247b6';
-const DEFAULT_CC_EMAIL  = 'rhahavy.b@gmail.com';
-const DEFAULT_FROM      = 'Solvix Reports <reports@kidquest.fun>';
+const DEFAULT_CC_EMAIL  = 'admin@kidquest.fun';
+const DEFAULT_FROM      = 'Solvix Reports <admin@kidquest.fun>';
 const DEFAULT_DASHBOARD = 'https://kidquest.fun';
 
 // Student roster — mirror of STUDENTS in index.html. Only id + name + grade
