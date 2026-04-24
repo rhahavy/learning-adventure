@@ -2516,9 +2516,13 @@ async function handleStripeCheckoutRoute(request, env, corsOrigin) {
     cancel_url:  cancelUrl,
     // Prefill email if provided; otherwise Stripe collects it.
     ...(email ? { customer_email: email } : {}),
-    // Consent mode: promotional emails OFF by default. We can
-    // always re-enable through portal / account settings.
-    'consent_collection[promotions]': 'none',
+    // NOTE: previously sent `consent_collection[promotions] = none`
+    // here, but that parameter is EU-only — Canadian/US Stripe
+    // accounts reject the entire Checkout call with
+    //   "consent_collection.promotions is not available in your country"
+    // Since the default behaviour is already "do not solicit
+    // promotional consent", omitting the field has the same end-user
+    // effect for our merchants and unblocks signup outside the EU.
   };
 
   // Idempotency key — collapses double-clicks (and accidental
