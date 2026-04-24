@@ -2163,6 +2163,27 @@ body.has-dev-banner{padding-top:26px}
 @keyframes dsComboFly{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.3)}100%{opacity:0;transform:translate(-50%,-140%) scale(1.1)}}
 .ds-hint{font-size:12.5px;color:var(--ink3);text-align:center;margin-top:10px;font-weight:600;line-height:1.4}
 .ds-intro{display:flex;flex-direction:column;align-items:center;gap:14px;margin:18px 0;text-align:center}
+/* Drop Sum difficulty-mode selector — three stacked buttons on the intro
+   screen. Each shows an emoji, mode name, the math the kid will hunt for,
+   and their personal best for that mode. Colored left-border keys the
+   button to a traffic-light tier so a kid scanning the list immediately
+   reads "green = warm-up, yellow = push, red = challenge." Layout stays
+   vertical on phones so tap targets stay large. */
+.ds-mode-grid{display:flex;flex-direction:column;gap:10px;width:100%;max-width:380px;margin:4px auto 0}
+.ds-mode-btn{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;background:#fff;border:2px solid var(--line);border-left-width:8px;border-radius:16px;cursor:pointer;text-align:left;transition:transform .18s var(--spring),box-shadow .18s ease,border-color .18s ease;font-family:inherit}
+.ds-mode-btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(26,16,53,.12)}
+.ds-mode-btn:active{transform:translateY(0) scale(.98)}
+.ds-mode-easy{border-left-color:#00b894}
+.ds-mode-easy:hover{border-color:#00b894}
+.ds-mode-medium{border-left-color:#f39c12}
+.ds-mode-medium:hover{border-color:#f39c12}
+.ds-mode-hard{border-left-color:#ee5253}
+.ds-mode-hard:hover{border-color:#ee5253}
+.ds-mode-emoji{font-size:32px;line-height:1;flex-shrink:0}
+.ds-mode-body{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.ds-mode-label{font-family:var(--font-display);font-size:17px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.ds-mode-sub{font-size:12.5px;color:var(--ink3);font-weight:600;line-height:1.35}
+.ds-mode-best{font-size:11.5px;color:#8b5a10;font-weight:700;margin-top:2px}
 
 /* Odd One Out game board */
 .oo-prompt{margin:18px auto 6px;max-width:540px;text-align:center;font-family:var(--font-display);font-size:clamp(20px,3vw,26px);font-weight:800;color:var(--ink);background:linear-gradient(135deg,#fff8e1,#fff);border:2px dashed #f39c12;border-radius:var(--r);padding:14px 18px}
@@ -15588,8 +15609,18 @@ function renderDashboard(root){
     // that doubles as a math drill (the make-10 pairs are foundational
     // first-grade facts). Everything else is grouped behind "Brain Break"
     // so the dashboard doesn't turn into an arcade.
-    const bestDS = (state.miniGameStats && state.miniGameStats.bestDropSumScore) || 0;
-    const dsSub = bestDS ? ('Best: '+bestDS+' cleared') : 'Make 10 — clear the board';
+    // Drop Sum now has three difficulty modes; the shortcut pitches the
+    // HIGHEST of the three as the headline best so a kid who's grinding
+    // Hard sees their Hard best, not a stale Easy one. Legacy
+    // bestDropSumScore is included for migrated stats that pre-date modes.
+    const ms = state.miniGameStats || {};
+    const bestDS = Math.max(
+      ms.bestDropSumEasy   || 0,
+      ms.bestDropSumMedium || 0,
+      ms.bestDropSumHard   || 0,
+      ms.bestDropSumScore  || 0
+    );
+    const dsSub = bestDS ? ('Best: '+bestDS+' pts') : 'Make 10 — clear the board';
     root.appendChild(h('div',{class:'brain-break-row'},[
       h('button',{class:'brain-break-btn hub',onclick:()=>go('mini-hub')},[
         h('span',{class:'bb-emoji'},'🧩'),
@@ -18434,6 +18465,12 @@ function ensureMiniGameStats(){
   if(state.miniGameStats.bestOddScore     === undefined) state.miniGameStats.bestOddScore     = 0;
   if(state.miniGameStats.bestSimonLevel   === undefined) state.miniGameStats.bestSimonLevel   = 0;
   if(state.miniGameStats.bestDropSumScore === undefined) state.miniGameStats.bestDropSumScore = 0;
+  // Drop Sum now has three difficulty modes. `bestDropSumScore` predates the
+  // split and is treated as the Easy best for migration; fresh bests track
+  // per-mode so a kid who unlocks Hard doesn't lose their Easy record.
+  if(state.miniGameStats.bestDropSumEasy   === undefined) state.miniGameStats.bestDropSumEasy   = state.miniGameStats.bestDropSumScore || 0;
+  if(state.miniGameStats.bestDropSumMedium === undefined) state.miniGameStats.bestDropSumMedium = 0;
+  if(state.miniGameStats.bestDropSumHard   === undefined) state.miniGameStats.bestDropSumHard   = 0;
 }
 
 /* ==========================================================================
@@ -18661,13 +18698,23 @@ function renderMiniHub(root){
     ]),
     h('div',{class:'mg-arrow'},'→'),
   ]));
-  const bestDS  = state.miniGameStats.bestDropSumScore || 0;
-  const dsBestTxt = bestDS ? ('Best: ' + bestDS + ' cleared') : 'Play to set a record!';
+  // Drop Sum best score: show the highest of the three difficulty modes so
+  // the mini-hub tile reflects a kid's peak achievement regardless of which
+  // mode they prefer. The legacy bestDropSumScore key is kept in the max()
+  // for migrated stats that pre-date mode tracking.
+  const _ms = state.miniGameStats || {};
+  const bestDS = Math.max(
+    _ms.bestDropSumEasy   || 0,
+    _ms.bestDropSumMedium || 0,
+    _ms.bestDropSumHard   || 0,
+    _ms.bestDropSumScore  || 0
+  );
+  const dsBestTxt = bestDS ? ('Best: ' + bestDS + ' pts') : 'Play to set a record!';
   grid.appendChild(h('button',{class:'mg-tile dropsum',onclick:()=>go('game-dropsum')},[
     h('div',{class:'mg-ico'},'🧮'),
     h('div',{class:'mg-info'},[
       h('div',{class:'mg-name'},'Drop Sum'),
-      h('div',{class:'mg-desc'},'Drop digits. Make 10. Clear the board.'),
+      h('div',{class:'mg-desc'},'Drop digits. Make 10. Pairs, triples, or quads!'),
       h('div',{class:'mg-best'}, dsBestTxt),
     ]),
     h('div',{class:'mg-arrow'},'→'),
@@ -19274,16 +19321,23 @@ function renderSimonSays(root, opts){
 /* ----- DROP SUM -----
    A 5×6 grid tile-dropper. Kid taps any column to drop the "next" digit into
    it; tiles stack from the bottom. After every drop we scan each column for
-   vertically-adjacent runs that sum to 10 — both tiles clear and the stack
-   falls. Cascade-clears bump a combo counter. Game ends when every column is
-   full to the top.
+   vertically-adjacent RUNS whose digits sum to exactly 10 — the run clears
+   and the tiles above settle. Cascade-clears bump a combo counter. Game ends
+   when every column is full to the top.
+
+   Three difficulty modes (picked on the intro screen):
+   • Easy   — only PAIRS count (the original mode). 1+9, 2+8, 3+7, 4+6, 5+5.
+   • Medium — pairs + TRIPLES. E.g. 1+2+7, 2+3+5, 3+3+4, 1+4+5.
+   • Hard   — pairs + triples + QUADS. E.g. 1+2+3+4, 1+1+2+6, 2+2+3+3.
+   Harder modes pay more per clear (triples 15, quads 20) and use a wider
+   tile pool so low-digit combos actually show up.
 
    Why it works as a brain-break:
    • Pure arithmetic: the kid is constantly thinking "what adds to 10?"
    • Spatial planning: which column to feed a 3 into depends on what's there
    • Fast feedback: a single good move can trigger a satisfying chain
-   The clear math covers 1+9, 2+8, 3+7, 4+6, 5+5 — the bedrock facts every
-   first-grader needs automatic. */
+   The pair math covers 1+9, 2+8, 3+7, 4+6, 5+5 — bedrock first-grade facts.
+   Triples/quads stretch into composed addition for grades 2+. */
 function renderDropSum(root, opts){
   if(!currentUser || !state){ go('home'); return; }
   ensureMiniGameStats();
@@ -19294,11 +19348,22 @@ function renderDropSum(root, opts){
   ]));
 
   const COLS = 5, ROWS = 6;
+  // Difficulty mode picked by the intro screen. Pre-selected from opts.mode
+  // if the win screen routed the kid back with "Replay" — keeps them in the
+  // same mode instead of bouncing them to the picker every game-over.
+  let mode = (opts && typeof opts.mode === 'string' && ['easy','medium','hard'].includes(opts.mode)) ? opts.mode : 'easy';
+  // Max run length that can clear. Easy = pairs only (original behavior);
+  // Medium permits triples; Hard permits quads. Run length 5+ is out of
+  // scope — a 5-run summing to 10 is a degenerate lucky drop (e.g. 2+2+2+2+2),
+  // and keeping the run-finder bounded at 4 makes it predictable and fast.
+  const MAX_RUN = { easy:2, medium:3, hard:4 };
+
   // grid[c] = array of digits, index 0 = bottom of stack. column-reverse in
   // CSS flips the visual order so index 0 appears at the visual bottom.
   let grid = Array(COLS).fill(null).map(()=>[]);
-  let score = 0;          // points earned (10 per pair, × cascade-step multiplier)
+  let score = 0;          // points earned (10/15/20 per clear, × cascade step)
   let maxCombo = 0;       // longest cascade chain in this run
+  let clearsByLen = { 2:0, 3:0, 4:0 }; // for win-screen stats
   let nextTile = rollTile();
   let pilotCol = Math.floor(COLS/2); // where the next tile will land; arrows shift it
   let gameActive = false;
@@ -19306,9 +19371,17 @@ function renderDropSum(root, opts){
   let kbdHandler = null;  // captured reference so we can removeEventListener
 
   function rollTile(){
-    // Slight bias toward middle digits so the kid isn't stuck placing 9s
-    // into a sparse board. The bias also makes 5+5 and 4+6 show up a lot.
-    const weights = {1:10, 2:12, 3:13, 4:13, 5:14, 6:13, 7:12, 8:10, 9:7};
+    // Per-mode tile weights. Easy biases toward mid-range digits so pair-
+    // hunting stays easy. Medium flattens so low digits show up often enough
+    // to form triples (1+2+7, 2+3+5). Hard pulls heavily toward 1–4 so quads
+    // like 1+2+3+4 and 1+1+2+6 are actually achievable — without a steady
+    // supply of low digits, quads become a lottery.
+    const W = {
+      easy:   {1:10, 2:12, 3:13, 4:13, 5:14, 6:13, 7:12, 8:10, 9:7},
+      medium: {1:14, 2:15, 3:14, 4:13, 5:12, 6:11, 7:10, 8:8,  9:6},
+      hard:   {1:18, 2:17, 3:15, 4:13, 5:10, 6:9,  7:8,  8:6,  9:4},
+    };
+    const weights = W[mode] || W.easy;
     let total = 0;
     for(const d in weights) total += weights[d];
     let r = Math.random() * total;
@@ -19319,13 +19392,35 @@ function renderDropSum(root, opts){
     return 5;
   }
 
+  // Intro — three mode buttons instead of one Start. Each shows the kid's
+  // best for THAT mode so they can see which ones have room to grow.
+  const bestE = state.miniGameStats.bestDropSumEasy   || 0;
+  const bestM = state.miniGameStats.bestDropSumMedium || 0;
+  const bestH = state.miniGameStats.bestDropSumHard   || 0;
+  function modeBtn(key, emoji, label, sub, best){
+    return h('button',{
+      class:'btn ds-mode-btn ds-mode-'+key,
+      onclick:()=>{ mode = key; startGame(); },
+    },[
+      h('span',{class:'ds-mode-emoji'}, emoji),
+      h('span',{class:'ds-mode-body'},[
+        h('span',{class:'ds-mode-label'}, label),
+        h('span',{class:'ds-mode-sub'}, sub),
+        h('span',{class:'ds-mode-best'}, best > 0 ? ('Best: ' + best) : 'Not played'),
+      ]),
+    ]);
+  }
   const intro = h('div',{class:'ds-intro'},[
-    createMascot({ tone:'magic', size:90, message:'Pair numbers to make 10!' }),
+    createMascot({ tone:'magic', size:90, message:'Pick a difficulty!' }),
     h('p',{style:'max-width:380px;margin:0 auto;font-size:13.5px;color:var(--ink3);font-weight:600;line-height:1.5'},
-      'A new number appears at the top. Press ← → to move it, then ↓ or Space to drop. When two stacked numbers add to 10 (like 4+6 or 3+7), they BOTH pop and everything above falls down. Chain clears to earn combo bonuses!'),
-    h('p',{style:'max-width:380px;margin:2px auto 0;font-size:12px;color:var(--ink3);font-weight:700;line-height:1.5;opacity:.85'},
-      'Scoring: 10 points per pair. Cascade step 2 pays ×2, step 3 pays ×3 — keep the chain alive!'),
-    h('button',{class:'btn btn-primary qm-start-btn',onclick:startGame}, '▶️ Start!'),
+      'A new number appears at the top. Press ← → to move it, then ↓ or Space to drop. Stack numbers that add to 10 to clear them — everything above falls down. Chain clears earn combo bonuses!'),
+    h('div',{class:'ds-mode-grid'},[
+      modeBtn('easy',   '🟢', 'Easy',   'Pairs only (1+9, 5+5…)',           bestE),
+      modeBtn('medium', '🟡', 'Medium', 'Pairs + triples (1+2+7, 3+3+4…)',  bestM),
+      modeBtn('hard',   '🔴', 'Hard',   'Pairs + triples + quads (1+2+3+4)',bestH),
+    ]),
+    h('p',{style:'max-width:380px;margin:2px auto 0;font-size:11.5px;color:var(--ink3);font-weight:700;line-height:1.5;opacity:.85'},
+      'Scoring: pair 10, triple 15, quad 20. Cascade step ×2/×3 multiplies everything — chain clears pay off big!'),
   ]);
   root.appendChild(intro);
 
@@ -19375,7 +19470,16 @@ function renderDropSum(root, opts){
   wrap.appendChild(board);
 
   wrap.appendChild(h('div',{class:'ds-hint'},'← → move  •  ↓ or Space to drop  •  or tap a column'));
-  wrap.appendChild(h('div',{class:'ds-hint'}, 'Pairs that make 10: 1+9 · 2+8 · 3+7 · 4+6 · 5+5'));
+  // Mode-aware tip: show the math facts the kid should be hunting for in
+  // THIS mode. Easy stays pair-only (the classic); Medium/Hard remind the
+  // kid that longer runs also clear so they don't wall off triples/quads
+  // under an accidental pair.
+  const modeHint = mode === 'easy'
+    ? 'Pairs that make 10: 1+9 · 2+8 · 3+7 · 4+6 · 5+5'
+    : mode === 'medium'
+      ? 'Pairs AND triples that make 10 both clear. Try: 1+2+7, 2+3+5, 3+3+4…'
+      : 'Pairs, triples, AND quads that make 10 all clear. Try: 1+2+3+4, 1+1+2+6…';
+  wrap.appendChild(h('div',{class:'ds-hint'}, modeHint));
   area.appendChild(wrap);
 
   function renderPilot(){
@@ -19443,20 +19547,37 @@ function renderDropSum(root, opts){
 
   function allColumnsFull(){ return grid.every(col => col.length >= ROWS); }
 
-  // Vertically-adjacent pairs summing to 10. When three-in-a-row all sum
-  // pairwise (e.g. 5-5-5 or 1-9-1) every tile in the run gets marked.
+  // Scan every column for vertically-adjacent RUNS summing to exactly 10.
+  // Returns an array of runs; each run is an array of [c, r] cell coords.
+  // Max run length depends on mode (2 easy, 3 medium, 4 hard). At each
+  // starting position we take the LONGEST valid run — prevents a quad from
+  // also double-counting a pair inside it, which would inflate scores and
+  // make difficulty curves misleading. Different starting positions CAN
+  // yield overlapping runs (e.g. 5-5-5 gives two overlapping pairs); both
+  // are returned, and the caller dedupes cells for rendering while scoring
+  // each run separately. */
   function findClears(){
-    const toClear = new Set();
+    const runs = [];
+    const maxLen = MAX_RUN[mode] || 2;
     for(let c=0; c<COLS; c++){
       const stack = grid[c];
-      for(let r=0; r<stack.length-1; r++){
-        if(stack[r] + stack[r+1] === 10){
-          toClear.add(c+','+r);
-          toClear.add(c+','+(r+1));
+      for(let r=0; r<stack.length; r++){
+        // Try longest-first; break on the first valid length from this start
+        // so we score e.g. 1+2+3+4 as ONE quad, not a quad plus sub-pairs.
+        const roomLeft = Math.min(maxLen, stack.length - r);
+        for(let len = roomLeft; len >= 2; len--){
+          let sum = 0;
+          for(let k=0; k<len; k++) sum += stack[r+k];
+          if(sum === 10){
+            const run = [];
+            for(let k=0; k<len; k++) run.push([c, r+k]);
+            runs.push(run);
+            break;
+          }
         }
       }
     }
-    return Array.from(toClear).map(k => k.split(',').map(Number));
+    return runs;
   }
 
   function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
@@ -19474,15 +19595,22 @@ function renderDropSum(root, opts){
     await sleep(430);
 
     // Cascade loop — find clears, animate them out, apply gravity, repeat
-    // until no more pairs are adjacent. Each pass is one combo step.
+    // until no more runs sum to 10. Each pass is one combo step.
     let combo = 0;
     while(true){
-      const toClear = findClears();
-      if(!toClear.length) break;
+      const runs = findClears();
+      if(!runs.length) break;
       combo++;
       if(combo > maxCombo) maxCombo = combo;
+      // Flatten all cell coords across runs into a dedup Set — a kid who
+      // sets up overlapping runs (e.g. 5-5-5 gives two pair runs sharing a
+      // middle tile) should see that middle tile clear exactly once.
+      const clearKeys = new Set();
+      for(const run of runs){
+        for(const [cc, rr] of run) clearKeys.add(cc + ',' + rr);
+      }
       const clearingMap = {};
-      toClear.forEach(([cc,rr]) => { clearingMap[cc+','+rr] = true; });
+      clearKeys.forEach(k => { clearingMap[k] = true; });
       renderGrid(clearingMap);
       if(combo >= 2){
         const pop = h('div',{class:'ds-combo-pop'}, '×'+combo+' COMBO!');
@@ -19493,16 +19621,25 @@ function renderDropSum(root, opts){
       // Remove the cleared cells. Group by column and splice highest-row
       // first so earlier splices don't invalidate later indices.
       const byCol = {};
-      toClear.forEach(([cc,rr])=>{ (byCol[cc] = byCol[cc] || []).push(rr); });
+      clearKeys.forEach(k => {
+        const [cc, rr] = k.split(',').map(Number);
+        (byCol[cc] = byCol[cc] || []).push(rr);
+      });
       for(const cc in byCol){
         byCol[cc].sort((a,b)=>b-a).forEach(rr => grid[+cc].splice(rr, 1));
       }
-      // Points: each cleared pair is worth 10 (= the sum that makes it valid).
-      // Cascade step N multiplies the reward, so keeping a chain alive pays
-      // off — 3 pairs at step 1 = 30, but 3 pairs across steps 1-2-3 pays
-      // 10 + 20 + 30 = 60. Encourages thinking a setup ahead.
-      const pairsCleared = toClear.length / 2;
-      const pts = Math.round(pairsCleared * 10 * combo);
+      // Points per run: pair=10, triple=15, quad=20. Longer runs pay more
+      // but not proportionally to their length — the big thrill is in the
+      // cascade multiplier, not the length itself. Cascade step N
+      // multiplies the pass total, so keeping a chain alive pays off:
+      // three pairs at step 1 = 30, but three pairs across steps 1-2-3
+      // pays 10 + 20 + 30 = 60. Encourages planning a setup ahead.
+      let basePts = 0;
+      for(const run of runs){
+        clearsByLen[run.length] = (clearsByLen[run.length] || 0) + 1;
+        basePts += run.length === 4 ? 20 : run.length === 3 ? 15 : 10;
+      }
+      const pts = Math.round(basePts * combo);
       score += pts;
       scoreDisp.textContent = String(score);
       comboDisp.textContent = '×' + combo;
@@ -19568,26 +19705,73 @@ function renderDropSum(root, opts){
 
   function onEnd(){
     teardown();
-    // Rating is now on POINTS, not tiles cleared. A single-pair-per-turn
-    // run tops out around 60 pts; triggering a 2-cascade now and then hits
-    // 120+; consistent cascaders clear 200+. Calibrated so a kid who puts
-    // in honest effort lands at 2 stars, and deliberate combo-chasing hits 3.
-    const rating = score >= 120 ? 3 : score >= 60 ? 2 : score >= 20 ? 1 : 0;
-    const prevBest = state.miniGameStats.bestDropSumScore || 0;
+    // Rating thresholds scale with difficulty — harder modes deserve easier
+    // star tiers because clears are rarer, but the ceiling still rewards
+    // combo-chasing. Easy keeps the original thresholds; Medium/Hard lower
+    // the floors a touch since quads are worth 20 but 2x as hard to line up.
+    const TH = {
+      easy:   { three:120, two:60, one:20 },
+      medium: { three:140, two:70, one:25 },
+      hard:   { three:160, two:80, one:30 },
+    };
+    const thr = TH[mode] || TH.easy;
+    const rating = score >= thr.three ? 3 : score >= thr.two ? 2 : score >= thr.one ? 1 : 0;
+    // Per-mode best-score tracking. Legacy bestDropSumScore is still written
+    // so any older UI that reads it keeps working, but the new per-mode
+    // fields are what the mode selector displays next run.
+    const bestKey = mode === 'hard'   ? 'bestDropSumHard'
+                  : mode === 'medium' ? 'bestDropSumMedium'
+                  : 'bestDropSumEasy';
+    const prevBest = state.miniGameStats[bestKey] || 0;
     const isNewBest = score > prevBest;
-    if(isNewBest) state.miniGameStats.bestDropSumScore = score;
+    if(isNewBest){
+      state.miniGameStats[bestKey] = score;
+      // Also bump the legacy Easy-only key if this Easy run beats it, so
+      // older dashboards stay in sync. (No-op for medium/hard.)
+      if(mode === 'easy' && score > (state.miniGameStats.bestDropSumScore || 0)){
+        state.miniGameStats.bestDropSumScore = score;
+      }
+    }
     const coins = miniGameAward(rating);
     saveState();
+    // Stat panel shows the clear breakdown when medium/hard is in play so
+    // the kid sees WHY they scored what they did — "oh, 2 triples + 1 quad
+    // is what got me to 110." Easy keeps it minimal since there's only pairs.
+    const modeLabel = mode === 'hard' ? 'Hard' : mode === 'medium' ? 'Medium' : 'Easy';
+    const stats = [
+      { lbl:'Mode',       val: modeLabel },
+      { lbl:'Score',      val: String(score) },
+      { lbl:'Best Combo', val: '×' + maxCombo },
+    ];
+    if(mode !== 'easy'){
+      const p2 = clearsByLen[2] || 0;
+      const p3 = clearsByLen[3] || 0;
+      const p4 = clearsByLen[4] || 0;
+      const parts = [];
+      if(p2) parts.push(p2 + '× pair');
+      if(p3) parts.push(p3 + '× triple');
+      if(p4) parts.push(p4 + '× quad');
+      if(parts.length) stats.push({ lbl:'Clears', val: parts.join(', ') });
+    }
     showMiniGameWin({
       title: score > 0 ? 'Board full!' : 'Good try!',
       rating, coins, isNewBest,
-      stats: [
-        { lbl:'Score',      val: String(score) },
-        { lbl:'Best Combo', val: '×' + maxCombo },
-      ],
-      onReplay: () => go('game-dropsum'),
+      stats,
+      // Replay stays in the same mode — a kid who just finished a Hard run
+      // almost always wants another Hard run, not to bounce back to the
+      // selector. They can still hit Back to pick a different mode.
+      onReplay: () => go('game-dropsum', { mode }),
       onHome:   () => go('dashboard'),
     });
+  }
+
+  // Auto-start if the kid came here via Replay — the mode was already
+  // chosen last round, no reason to make them re-pick. First-time entry
+  // (no opts.mode) still shows the intro + mode selector.
+  if(opts && opts.mode){
+    // queueMicrotask so the DOM is fully attached before we hide the intro
+    // and swap in the game area.
+    Promise.resolve().then(startGame);
   }
 }
 
