@@ -1110,7 +1110,13 @@ img{max-width:100%}
    Pure inline SVG. Renders anywhere via createMascot({size, message, tone}).
    Cheeks pulse, antenna bobs, arm waves — CSS-only, no JS animation loops.
    ========================================================================== */
-.mascot-wrap{display:inline-flex;align-items:flex-end;gap:14px;position:relative}
+/* align-items:center (not flex-end) keeps Nova's vertical position STABLE
+   regardless of how long the speech text is. Before: flex-end aligned
+   Nova's bottom with the bubble's bottom, so when the bubble wrapped to
+   more lines it pushed Nova down in the row — kids saw Nova "change" as
+   the greeting text varied by day. Now Nova floats centered beside the
+   bubble at a predictable height, text-length-independent. */
+.mascot-wrap{display:inline-flex;align-items:center;gap:14px;position:relative}
 .mascot{display:inline-block;flex-shrink:0;filter:drop-shadow(0 10px 18px rgba(108,92,231,.25));animation:novaBob 3.2s ease-in-out infinite}
 @keyframes novaBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
 .mascot .nova-antenna-tip{animation:novaAntenna 2.2s ease-in-out infinite;transform-origin:60px 12px}
@@ -1123,7 +1129,11 @@ img{max-width:100%}
 @keyframes novaBlink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.05)}}
 .speech-bubble{position:relative;background:#fff;color:var(--ink);padding:14px 18px;border-radius:18px;box-shadow:0 8px 22px rgba(26,16,53,.12);font-weight:700;font-size:15px;max-width:260px;border:2px solid rgba(108,92,231,.12);animation:bubbleIn .6s var(--spring)}
 @keyframes bubbleIn{0%{opacity:0;transform:translateY(6px) scale(.92)}100%{opacity:1;transform:translateY(0) scale(1)}}
-.speech-bubble::before{content:'';position:absolute;bottom:16px;left:-10px;width:0;height:0;border-style:solid;border-width:8px 12px 8px 0;border-color:transparent #fff transparent transparent;filter:drop-shadow(-2px 0 0 rgba(108,92,231,.12))}
+/* Tail points at Nova. Vertically centered on the bubble so it always
+   lines up with Nova's centered position in the flex row, no matter
+   how tall the bubble grows. Previously bottom:16px — which drifted
+   off Nova when text wrapped to multiple lines. */
+.speech-bubble::before{content:'';position:absolute;top:50%;transform:translateY(-50%);left:-10px;width:0;height:0;border-style:solid;border-width:8px 12px 8px 0;border-color:transparent #fff transparent transparent;filter:drop-shadow(-2px 0 0 rgba(108,92,231,.12))}
 .speech-bubble .sb-small{display:block;font-size:12px;font-weight:600;color:var(--ink3);margin-top:2px}
 
 /* Nova click-to-react — tap the mascot and she does a quick reaction
