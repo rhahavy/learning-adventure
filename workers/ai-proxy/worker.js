@@ -502,16 +502,35 @@ function getReservedTenant(code) {
   return Object.assign({}, RESERVED_TENANTS[String(code).toLowerCase()]);
 }
 
-// Generate a fresh tenant code. crypto.getRandomValues is unbiased
-// enough for 128-word selection (modulo bias is ~2^-25, undetectable).
+// Generate a fresh tenant code — a 4-digit PIN.
+//
+// Why digits, not the word-codes this used to return: the tenant gate
+// UI in app/index.html hard-codes the input to maxlength=4 +
+// pattern=[0-9]*. A word-code like "mint-star-brook-59" minted by the
+// Stripe webhook can't be typed into that input at all, so paying
+// customers got an unenterable code in their welcome email. Switching
+// to a PIN keeps the existing UI/marketing copy ("Enter your PIN")
+// honest and matches the demo PIN format already in use.
+//
+// 10,000-PIN space is fine for current scale; the per-call KV
+// existence check at the call site protects against collisions with
+// previously-minted codes. If we ever ship more than ~2,000 tenants
+// we should widen the gate UI to accept a 5- or 6-digit PIN and bump
+// the modulo here; until then 4 digits keeps the kid-typing UX.
+//
+// We re-roll past reserved codes (demo PINs) so a paying customer
+// never accidentally gets handed the read-only demo tenant.
 function generateTenantCode() {
-  const a = new Uint32Array(4);
-  crypto.getRandomValues(a);
-  const w1 = TENANT_WORDS[a[0] % TENANT_WORDS.length];
-  const w2 = TENANT_WORDS[a[1] % TENANT_WORDS.length];
-  const w3 = TENANT_WORDS[a[2] % TENANT_WORDS.length];
-  const dd = String(a[3] % 100).padStart(2, '0');
-  return `${w1}-${w2}-${w3}-${dd}`;
+  const a = new Uint32Array(1);
+  for (let i = 0; i < 30; i++) {
+    crypto.getRandomValues(a);
+    const candidate = String(a[0] % 10000).padStart(4, '0');
+    if (!isReservedCode(candidate)) return candidate;
+  }
+  // 30 reserved-code hits in a row is statistically impossible with
+  // the current ~3-entry RESERVED_TENANTS table, but guard anyway so
+  // we never return a reserved code.
+  return String((Date.now() ^ 0x9E3779B1) % 10000).padStart(4, '0');
 }
 
 // Generate a fresh DEMO code. Distinct shape from regular tenant codes
