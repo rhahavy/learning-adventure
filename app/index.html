@@ -26453,14 +26453,23 @@ catch(e) { console.warn('[Solvix] chat init failed:', e); }
 // Teacher unlock persists in sessionStorage for the current tab session only
 // — closing the tab re-gates; a fresh open requires password again.
 function renderMaintenanceScreen(){
-  // Message resolution: global gate's message wins when global is active
-  // (operators usually want a deploy-specific note like "back at 7pm");
-  // otherwise fall back to the per-tenant message, then the built-in
-  // friendly default.
-  const _gm = getCachedGlobalMaintenance();
-  const _gMsg = _gm && _gm.active && _gm.message ? _gm.message : '';
-  const _tMsg = (allData.maintenance && allData.maintenance.message) || '';
-  const msg = _gMsg || _tMsg || DEFAULT_MAINTENANCE_MESSAGE;
+  // Message resolution — DELIBERATELY does NOT surface the global gate's
+  // operator-set message to end-users. Why: the operator (me) flips the
+  // global gate during deploys, and any deploy-specific message
+  // ("Tightening the activity log so only grown-ups see it…") doubles
+  // as a roadmap leak. Kids and parents shouldn't see what I'm shipping.
+  // The operator's message is still stored in KV — it's visible via the
+  // admin console / `bash maintenance.sh status` for our own logging —
+  // it just never reaches the user-facing screen.
+  //
+  // Per-tenant messages ARE rendered: those are set by classroom teachers
+  // for THEIR own students ("Mrs. Smith's class is on a field trip"),
+  // and we want that intent to come through. We only render it if the
+  // per-tenant gate is actually ACTIVE — a stale message from a prior
+  // teacher set would otherwise leak into the global-gate-only case.
+  const _tActive = !!(allData.maintenance && allData.maintenance.active);
+  const _tMsg = _tActive && allData.maintenance.message ? allData.maintenance.message : '';
+  const msg = _tMsg || DEFAULT_MAINTENANCE_MESSAGE;
   const root = document.getElementById('screen') || document.body;
   // Escape HTML in the user-editable message so it can't break the DOM
   const safeMsg = String(msg).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

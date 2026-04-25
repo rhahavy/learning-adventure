@@ -2,9 +2,18 @@
 # maintenance.sh — flip the global-maintenance gate ON/OFF from the CLI.
 # ----------------------------------------------------------------------
 # Usage:
-#   bash workers/ai-proxy/maintenance.sh status              # read current state
-#   bash workers/ai-proxy/maintenance.sh on  ["msg shown"]   # flip ON  (optional message)
-#   bash workers/ai-proxy/maintenance.sh off                 # flip OFF
+#   bash workers/ai-proxy/maintenance.sh status                # read current state
+#   bash workers/ai-proxy/maintenance.sh on   ["operator note"] # flip ON
+#   bash workers/ai-proxy/maintenance.sh off                   # flip OFF
+#
+# About the optional message:
+#   It is NOT shown to end-users. The user-facing maintenance screen
+#   (renderMaintenanceScreen in app/index.html) intentionally ignores
+#   the global-gate message and always renders DEFAULT_MAINTENANCE_MESSAGE
+#   so we never leak deploy/roadmap details to kids or parents. The
+#   message you pass here is just an internal log/audit note, visible
+#   to the operator via `maintenance.sh status` or the admin console.
+#   In practice you can almost always omit it.
 #
 # Reads the admin token from workers/ai-proxy/.admin-token (chmod 600,
 # written by deploy.sh, gitignored). The token never leaves the file —
