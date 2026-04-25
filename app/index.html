@@ -2121,6 +2121,12 @@ body.has-dev-banner{padding-top:26px}
 .mg-tile.simon .mg-ico{background:linear-gradient(135deg,#ff9ff3,#e84393);color:#fff}
 .mg-tile.dropsum::before{background:linear-gradient(180deg,#81ECEC,#00cec9)}
 .mg-tile.dropsum .mg-ico{background:linear-gradient(135deg,#81ECEC,#00B894);color:#fff}
+/* Cosmic You — alien personality quiz. Galaxy purple-pink palette to
+   evoke nebulae and play off Nova's mascot colors. The quiz is pure
+   entertainment (no skill score), so the tile shows the kid's last
+   alien match instead of a "high score". */
+.mg-tile.alien::before{background:linear-gradient(180deg,#c39bff,#8b5fff)}
+.mg-tile.alien .mg-ico{background:linear-gradient(135deg,#d4a8ff,#7b3fff);color:#fff}
 
 /* ---------- DROP SUM — drop digits, clear any stack that adds to 10 ----------
    The grid is COLS×ROWS with a click-to-pick-a-column flow. Tiles stack from
@@ -2222,6 +2228,33 @@ body.has-dev-banner{padding-top:26px}
    they missed. A soft colored ring reinforces it without the hard 4px
    "selection box" look — softer for touch-heavy usage. */
 .ss-pad.wrong{animation:shake .4s;box-shadow:0 0 0 3px rgba(255,107,129,.85),0 0 14px rgba(255,107,129,.45)}
+
+/* ---- Cosmic You — alien personality quiz ----
+   Six fun questions, one of six alien archetypes returned. Pure
+   entertainment (no skill score, no time pressure), so the styling
+   leans into "magical galaxy lab" rather than "test." Question card
+   uses a subtle nebula gradient; answer buttons are large pill-shaped
+   tap targets with their archetype emoji on the left. The result
+   panel re-uses the same gradient and a big animated archetype emoji. */
+.aq-intro{display:flex;flex-direction:column;align-items:center;gap:14px;margin:18px 0;text-align:center}
+.aq-progress{max-width:420px;margin:8px auto 0;height:8px;background:#ece6ff;border-radius:99px;overflow:hidden}
+.aq-progress-fill{height:100%;background:linear-gradient(90deg,#c39bff,#7b3fff);border-radius:99px;transition:width .35s var(--spring)}
+.aq-card{max-width:520px;margin:14px auto 0;padding:22px 22px 18px;border-radius:var(--r);background:linear-gradient(155deg,#f5edff 0%,#fff 60%,#ffe8f7 100%);border:2px solid #ece6ff;box-shadow:var(--shadow);position:relative}
+.aq-q-num{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#7b3fff;margin-bottom:4px}
+.aq-q{font-family:var(--font-display);font-size:clamp(18px,2.6vw,22px);font-weight:800;color:var(--ink);line-height:1.25;margin-bottom:14px}
+.aq-options{display:flex;flex-direction:column;gap:10px}
+.aq-opt{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#fff;border:2px solid #e7defb;border-radius:16px;cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--ink);text-align:left;line-height:1.35;transition:all .2s var(--spring)}
+.aq-opt:hover{transform:translateY(-2px);border-color:#a78bff;box-shadow:0 6px 14px rgba(123,63,255,.18)}
+.aq-opt:active{transform:translateY(0) scale(.99)}
+.aq-opt-emoji{font-size:24px;line-height:1;flex-shrink:0;width:34px;text-align:center}
+/* Result panel — bigger, centered, with an animated archetype glyph. */
+.aq-result{max-width:520px;margin:14px auto 0;padding:24px;text-align:center;border-radius:var(--r);background:linear-gradient(155deg,#f5edff 0%,#fff 60%,#ffe8f7 100%);border:2px solid #ece6ff;box-shadow:var(--shadow)}
+.aq-result-emoji{font-size:72px;line-height:1;display:inline-block;animation:aqFloat 3.6s ease-in-out infinite}
+@keyframes aqFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+.aq-result-name{font-family:var(--font-display);font-size:clamp(22px,3vw,28px);font-weight:800;background:linear-gradient(90deg,#7b3fff,#e84393);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;margin:6px 0 8px}
+.aq-result-desc{font-size:15px;color:var(--ink2);line-height:1.5;margin-bottom:10px}
+.aq-result-fact{font-size:13px;color:#7b3fff;font-weight:700;background:#f5edff;border-radius:99px;padding:8px 14px;display:inline-block;margin-bottom:14px}
+.aq-result-buttons{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .mg-tile .mg-info{flex:1;min-width:0}
 .mg-tile .mg-name{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:-.01em}
 .mg-tile .mg-desc{font-size:13px;color:var(--ink3);font-weight:600;margin-top:3px}
@@ -14969,6 +15002,7 @@ function go(screen,opts={}){
     else if(screen==='game-odd') renderOddOneOut(root, opts);
     else if(screen==='game-simon') renderSimonSays(root, opts);
     else if(screen==='game-dropsum') renderDropSum(root, opts);
+    else if(screen==='game-alien')   renderGameAlienQuiz(root, opts);
     else if(screen==='store'){
       // Rewards Shop can be turned off by the teacher/parent. When off,
       // silently redirect any shop navigation back to the dashboard so
@@ -19242,6 +19276,10 @@ function ensureMiniGameStats(){
   if(state.miniGameStats.bestDropSumEasy   === undefined) state.miniGameStats.bestDropSumEasy   = state.miniGameStats.bestDropSumScore || 0;
   if(state.miniGameStats.bestDropSumMedium === undefined) state.miniGameStats.bestDropSumMedium = 0;
   if(state.miniGameStats.bestDropSumHard   === undefined) state.miniGameStats.bestDropSumHard   = 0;
+  // Cosmic You stores the most recent alien archetype id (e.g. 'comet'),
+  // not a high score — the mini-hub tile uses it to render a personalised
+  // "Last: 🌠 Comet Cadet" footer line. null/undefined = never played.
+  if(state.miniGameStats.lastAlien         === undefined) state.miniGameStats.lastAlien         = null;
 }
 
 /* ==========================================================================
@@ -19268,6 +19306,10 @@ const AUTOPLAY_BREAK_GAMES = [
   { screen:'game-odd',     opts:{ level:'medium' } },
   { screen:'game-simon',   opts:null },
   { screen:'game-dropsum', opts:null },
+  // Cosmic You — pure-fun personality quiz. Included in the rotation so
+  // autoplay sessions occasionally land on something pure-novelty between
+  // skill drills, but it's a single entry so it doesn't dominate.
+  { screen:'game-alien',   opts:null },
 ];
 function ensureAutoplay(){
   if(!state) return;
@@ -19487,6 +19529,21 @@ function renderMiniHub(root){
       h('div',{class:'mg-name'},'Drop Sum'),
       h('div',{class:'mg-desc'},'Drop digits. Make 10. Pairs, triples, or quads!'),
       h('div',{class:'mg-best'}, dsBestTxt),
+    ]),
+    h('div',{class:'mg-arrow'},'→'),
+  ]));
+  // Cosmic You — the personality quiz. Footer line shows the last alien
+  // match instead of a "high score" since this game has no score.
+  const lastAlien = _ms.lastAlien && ALIEN_ARCHETYPES[_ms.lastAlien];
+  const aqBestTxt = lastAlien
+    ? ('Last: ' + lastAlien.emoji + ' ' + lastAlien.name)
+    : 'Discover your alien archetype!';
+  grid.appendChild(h('button',{class:'mg-tile alien',onclick:()=>go('game-alien')},[
+    h('div',{class:'mg-ico'},'👽'),
+    h('div',{class:'mg-info'},[
+      h('div',{class:'mg-name'},'Cosmic You'),
+      h('div',{class:'mg-desc'},'Six fun questions. Find your alien match!'),
+      h('div',{class:'mg-best'}, aqBestTxt),
     ]),
     h('div',{class:'mg-arrow'},'→'),
   ]));
@@ -20543,6 +20600,244 @@ function renderDropSum(root, opts){
     // queueMicrotask so the DOM is fully attached before we hide the intro
     // and swap in the game area.
     Promise.resolve().then(startGame);
+  }
+}
+
+/* ==========================================================================
+   COSMIC YOU — alien personality quiz
+   --------------------------------------------------------------------------
+   Brain-break quiz that matches the kid to one of six alien archetypes.
+   Pure entertainment: no skill score, no time pressure. Six questions are
+   sampled from a 12-question bank and shuffled, so re-plays don't feel
+   identical. Each option votes for one archetype; the highest tally wins
+   (ties broken by the most-recently-voted archetype, so the last answer
+   nudges the result on close races — feels appropriately "fortune-teller-y"
+   to kids without being random).
+
+   Flow: intro screen → question card (×6) → result card → replay.
+
+   We award 1 coin per completed quiz (subject to MINI_GAME_COIN_CAP). Low
+   coin yield is deliberate — this is a short, low-effort game and we don't
+   want it to crowd out the more skill-building games (memory, math, dropsum).
+
+   Persistence: state.miniGameStats.lastAlien stores the most recent
+   archetype id, used to populate the mini-hub tile's footer line so kids
+   see "Last: 🌠 Comet Cadet" instead of a misleading "high score".
+   ========================================================================== */
+const ALIEN_ARCHETYPES = {
+  comet:   { id:'comet',   emoji:'🌠', name:'Comet Cadet',
+             desc:'You burn bright and move fast. New things light you up — you\u2019d rather try than wait.',
+             fact:'Cosmic snack: meteor crunch bars 💥' },
+  nebula:  { id:'nebula',  emoji:'🌌', name:'Nebula Dreamer',
+             desc:'Your imagination paints whole galaxies. You see stories everywhere — even in puddles.',
+             fact:'Cosmic snack: stardust marshmallows ✨' },
+  ring:    { id:'ring',    emoji:'🪐', name:'Ringmaster Rho',
+             desc:'Where you go, laughter follows. You bring people together with jokes and warmth.',
+             fact:'Cosmic snack: orbit gum (extra-fizzy) 🫧' },
+  moon:    { id:'moon',    emoji:'🌙', name:'Moonlit Sage',
+             desc:'You\u2019re calm, thoughtful, and a great listener. People feel safe near you.',
+             fact:'Cosmic snack: moonberry tea 🍵' },
+  star:    { id:'star',    emoji:'☄️', name:'Stardust Scout',
+             desc:'You ask "how?" and "why?" all day long. The universe is your puzzle to crack.',
+             fact:'Cosmic snack: trail mix from Mars 🥜' },
+  galaxy:  { id:'galaxy',  emoji:'🦋', name:'Galaxy Guardian',
+             desc:'You notice when someone needs a kind word — and you say it. Your big heart shines.',
+             fact:'Cosmic snack: nebula honey toast 🍯' },
+};
+
+// 12-question bank. Each option's `vote` field is an archetype id from
+// ALIEN_ARCHETYPES. Six are sampled per playthrough (Fisher-Yates shuffle)
+// and the option order is also shuffled per question so kids who memorize
+// "tap the third one for stardust" can\u2019t game it. Questions are kid-tested
+// for K-5 readability — short, concrete situations they\u2019ve actually
+// experienced, no abstract "how do you feel about…" prompts.
+const ALIEN_QUESTIONS = [
+  { q:'A new game appears at recess. You:', options:[
+    { vote:'comet',  emoji:'🌠', text:'Jump in first to try it' },
+    { vote:'ring',   emoji:'🪐', text:'Grab friends to play together' },
+    { vote:'star',   emoji:'☄️', text:'Watch a round to see how it works' },
+    { vote:'moon',   emoji:'🌙', text:'Check it out tomorrow when it\u2019s less busy' },
+  ]},
+  { q:'Your perfect rainy Saturday:', options:[
+    { vote:'nebula', emoji:'🌌', text:'Drawing or making up a story' },
+    { vote:'ring',   emoji:'🪐', text:'Video-calling friends to laugh together' },
+    { vote:'moon',   emoji:'🌙', text:'Reading a book under a cozy blanket' },
+    { vote:'galaxy', emoji:'🦋', text:'Baking cookies for your family' },
+  ]},
+  { q:'You find a mystery box in your room. You:', options:[
+    { vote:'comet',  emoji:'🌠', text:'Shake it to see what\u2019s inside' },
+    { vote:'star',   emoji:'☄️', text:'Inspect every side carefully' },
+    { vote:'nebula', emoji:'🌌', text:'Imagine what magical thing might be in it' },
+    { vote:'galaxy', emoji:'🦋', text:'Check if it belongs to someone first' },
+  ]},
+  { q:'A friend looks sad at lunch. You:', options:[
+    { vote:'galaxy', emoji:'🦋', text:'Sit down and ask how they\u2019re feeling' },
+    { vote:'ring',   emoji:'🪐', text:'Tell them a silly joke to cheer them up' },
+    { vote:'moon',   emoji:'🌙', text:'Give them quiet space and a friendly smile' },
+    { vote:'nebula', emoji:'🌌', text:'Draw them a tiny picture' },
+  ]},
+  { q:'Your favorite kind of weekend trip:', options:[
+    { vote:'comet',  emoji:'🌠', text:'A mountain trail or theme park' },
+    { vote:'nebula', emoji:'🌌', text:'An art museum or aquarium' },
+    { vote:'star',   emoji:'☄️', text:'A science center or planetarium' },
+    { vote:'galaxy', emoji:'🦋', text:'A visit to grandparents or a petting zoo' },
+  ]},
+  { q:'At a sleepover you usually:', options:[
+    { vote:'ring',   emoji:'🪐', text:'Make everyone laugh until midnight' },
+    { vote:'comet',  emoji:'🌠', text:'Lead the pillow fight' },
+    { vote:'moon',   emoji:'🌙', text:'Build a cozy reading fort' },
+    { vote:'star',   emoji:'☄️', text:'Start a "what if…" conversation' },
+  ]},
+  { q:'You see a new bug in the garden. You:', options:[
+    { vote:'star',   emoji:'☄️', text:'Look up what kind it is' },
+    { vote:'nebula', emoji:'🌌', text:'Imagine its name and family' },
+    { vote:'comet',  emoji:'🌠', text:'Try to follow it everywhere' },
+    { vote:'galaxy', emoji:'🦋', text:'Gently move it to a safe spot' },
+  ]},
+  { q:'Your dream superpower:', options:[
+    { vote:'comet',  emoji:'🌠', text:'Super-speed' },
+    { vote:'nebula', emoji:'🌌', text:'Turning thoughts into pictures' },
+    { vote:'star',   emoji:'☄️', text:'Understanding any language' },
+    { vote:'galaxy', emoji:'🦋', text:'Healing anyone who\u2019s sad' },
+  ]},
+  { q:'A surprise day off school! You:', options:[
+    { vote:'comet',  emoji:'🌠', text:'Plan a big outdoor adventure' },
+    { vote:'ring',   emoji:'🪐', text:'Invite three friends over' },
+    { vote:'nebula', emoji:'🌌', text:'Make up a movie in your head all day' },
+    { vote:'moon',   emoji:'🌙', text:'Finally finish that book' },
+  ]},
+  { q:'Picking a class pet, you vote for:', options:[
+    { vote:'galaxy', emoji:'🦋', text:'The one that needs the most love' },
+    { vote:'comet',  emoji:'🌠', text:'The most playful, jumpy one' },
+    { vote:'moon',   emoji:'🌙', text:'The calmest, snuggliest one' },
+    { vote:'star',   emoji:'☄️', text:'The most interesting one to watch' },
+  ]},
+  { q:'In a board game with friends you:', options:[
+    { vote:'ring',   emoji:'🪐', text:'Crack jokes the whole game' },
+    { vote:'star',   emoji:'☄️', text:'Figure out the best strategy' },
+    { vote:'galaxy', emoji:'🦋', text:'Cheer for whoever\u2019s losing' },
+    { vote:'nebula', emoji:'🌌', text:'Invent your own bonus rule' },
+  ]},
+  { q:'Your favorite kind of song:', options:[
+    { vote:'comet',  emoji:'🌠', text:'Fast and bouncy' },
+    { vote:'moon',   emoji:'🌙', text:'Quiet and calm' },
+    { vote:'nebula', emoji:'🌌', text:'Dreamy and a little weird' },
+    { vote:'ring',   emoji:'🪐', text:'Funny lyrics that make you laugh' },
+  ]},
+];
+
+function renderGameAlienQuiz(root, opts){
+  if(!currentUser||!state){go('home');return}
+  ensureMiniGameStats();
+
+  root.appendChild(h('div',{class:'week-head'},[
+    h('h2',{},[h('span',{style:'font-size:24px;margin-right:8px'},'👽'),h('span',{},'Cosmic You')]),
+    h('button',{class:'back-btn',onclick:()=>go('mini-hub')},'← Back'),
+  ]));
+
+  // Sample 6 distinct questions and shuffle each one\u2019s options. We snapshot
+  // the picks up front so navigation/replays render deterministically and
+  // the "X of 6" counter stays honest.
+  const QUIZ_LEN = 6;
+  const pool = ALIEN_QUESTIONS.slice().sort(()=>Math.random()-0.5).slice(0, QUIZ_LEN);
+  const questions = pool.map(q => ({
+    q: q.q,
+    options: q.options.slice().sort(()=>Math.random()-0.5),
+  }));
+  const tally = {};                        // archetype id → vote count
+  let lastVote = null;                     // tie-break key (most recent)
+  let qi = 0;
+
+  // ---- INTRO ----
+  const intro = h('div',{class:'aq-intro'},[
+    createMascot({ tone:'magic', size:90, message:'Six fun questions. Find your alien match!' }),
+    h('button',{class:'btn btn-primary qm-start-btn',onclick:startQuiz}, '🚀 Start!'),
+  ]);
+  root.appendChild(intro);
+
+  // ---- QUIZ AREA (built on start, hidden initially) ----
+  const area = h('div',{style:'display:none'});
+  root.appendChild(area);
+  const progressFill = h('div',{class:'aq-progress-fill',style:'width:0%'});
+  area.appendChild(h('div',{class:'aq-progress'}, progressFill));
+  const card = h('div',{class:'aq-card'});
+  area.appendChild(card);
+
+  function startQuiz(){
+    intro.style.display = 'none';
+    area.style.display  = '';
+    renderQuestion();
+  }
+
+  function renderQuestion(){
+    if(qi >= QUIZ_LEN){ renderResult(); return; }
+    const q = questions[qi];
+    const num = qi + 1;
+    progressFill.style.width = ((num - 1) / QUIZ_LEN * 100) + '%';
+    card.innerHTML = '';
+    card.appendChild(h('div',{class:'aq-q-num'}, 'Question ' + num + ' of ' + QUIZ_LEN));
+    card.appendChild(h('div',{class:'aq-q'}, q.q));
+    const opts = h('div',{class:'aq-options'});
+    q.options.forEach(opt => {
+      const btn = h('button',{class:'aq-opt', type:'button'},[
+        h('span',{class:'aq-opt-emoji'}, opt.emoji),
+        h('span',{}, opt.text),
+      ]);
+      btn.onclick = () => {
+        // Lock further taps on this question to avoid double-counts during
+        // the brief render swap.
+        Array.from(opts.children).forEach(c => c.disabled = true);
+        tally[opt.vote] = (tally[opt.vote]||0) + 1;
+        lastVote = opt.vote;
+        qi++;
+        // Tiny pause so the kid sees the press feedback before the question
+        // swaps — feels less janky than an instant repaint.
+        setTimeout(renderQuestion, 180);
+      };
+      opts.appendChild(btn);
+    });
+    card.appendChild(opts);
+  }
+
+  function renderResult(){
+    progressFill.style.width = '100%';
+    // Pick the archetype with the highest vote count. Ties are broken by
+    // the most recently voted archetype (lastVote) so the final question
+    // tips a deadlock — feels appropriately "the universe decides!" to kids.
+    let winnerId = null, winnerCount = -1;
+    Object.keys(tally).forEach(id => {
+      const c = tally[id];
+      if(c > winnerCount){ winnerId = id; winnerCount = c; }
+      else if(c === winnerCount && id === lastVote){ winnerId = id; }
+    });
+    const a = ALIEN_ARCHETYPES[winnerId] || ALIEN_ARCHETYPES.nebula;
+
+    // Persist the match so the mini-hub tile can show "Last: 🌠 Comet Cadet"
+    // and award a small coin bonus (capped by daily mini-game ceiling).
+    state.miniGameStats.lastAlien = a.id;
+    const coins = miniGameAward(1);
+    try{ saveState(); }catch(e){}
+
+    card.innerHTML = '';                    // empty the question card so
+    card.style.display = 'none';            // the result panel reads as the
+                                            // primary content, not a follow-up.
+    const result = h('div',{class:'aq-result'},[
+      h('div',{class:'aq-result-emoji'}, a.emoji),
+      h('div',{class:'aq-result-name'}, 'You\u2019re a ' + a.name + '!'),
+      h('div',{class:'aq-result-desc'}, a.desc),
+      h('div',{class:'aq-result-fact'}, a.fact),
+      h('div',{style:'font-size:13px;font-weight:700;color:var(--ink3);margin-bottom:14px'},
+        coins > 0 ? ('+' + coins + ' 💰 from Brain Break') : 'Daily coin cap reached — quiz played for fun!'),
+      h('div',{class:'aq-result-buttons'},[
+        h('button',{class:'btn btn-primary',onclick:()=>go('game-alien')}, '🔁 Take it again'),
+        h('button',{class:'btn',onclick:()=>go('mini-hub')}, '🏠 Brain Break hub'),
+      ]),
+    ]);
+    area.appendChild(result);
+
+    // Nova celebrates the result. Pitch + tone tuned per archetype would be
+    // cute but adds maintenance — keep it simple, single warm tone for now.
+    try{ if(typeof speakAsNova === 'function') speakAsNova('Cosmic! You\u2019re a ' + a.name + '.'); }catch(e){}
   }
 }
 
