@@ -1274,6 +1274,80 @@ async function handleAdminResetTeacherPasswordRoute(request, env, corsOrigin) {
 }
 
 // =====================================================================
+// GLOBAL MAINTENANCE GATE
+// =====================================================================
+// Single KV key (`global:maintenance`) controls a site-wide gate that
+// the client checks via /health on every page load and every cloud
+// poll. When active, every tenant + the demo tenants AND any users
+// who haven't yet entered a tenant code see the same hold screen.
+//
+// Why global vs per-tenant: per-tenant maintenance (lives in
+// allData.maintenance inside each tenant's data blob) requires the
+// teacher to log into each tenant separately to flip the gate. That's
+// fine for a single classroom doing local cleanup, but useless for the
+// operator pre-deploy: there's no way to gate every tenant at once
+// without flipping each one by hand. The global gate is the operator's
+// "deploying now, hold tight" lever — one toggle, every user holds.
+//
+// Storage shape (JSON in `global:maintenance`):
+//   { active: boolean, message: string, updatedAt: number }
+// Default (no key set) = inactive.
+//
+// Resolution order on the client:
+//   1. Per-tenant maintenance (kid-mid-activity exception, etc.)
+//   2. Global maintenance (no exceptions — operator-driven)
+// Either one being active shows the hold screen.
+
+async function getGlobalMaintenance(env) {
+  if (!env.KV) return { active: false, message: '', updatedAt: 0 };
+  const raw = await env.KV.get('global:maintenance');
+  if (!raw) return { active: false, message: '', updatedAt: 0 };
+  try {
+    const v = JSON.parse(raw);
+    return {
+      active: !!v.active,
+      message: typeof v.message === 'string' ? v.message : '',
+      updatedAt: typeof v.updatedAt === 'number' ? v.updatedAt : 0,
+    };
+  } catch {
+    return { active: false, message: '', updatedAt: 0 };
+  }
+}
+
+// POST /admin/global-maintenance — admin only. Body: { active, message? }.
+// Flips the global gate and updates the message shown on the hold screen.
+// Effect is immediate: every /health response from this point reports
+// the new state, and clients pick it up on their next poll (~25s).
+async function handleAdminGlobalMaintenanceRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-globalmaint:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const active = !!body.active;
+  // Cap message length so a typo can't write 100KB into KV. Default
+  // empty so the client falls back to its built-in friendly copy.
+  const message = (body.message || '').toString().slice(0, 500);
+  const next = { active, message, updatedAt: Date.now() };
+  await env.KV.put('global:maintenance', JSON.stringify(next));
+  return json({ ok: true, maintenance: next }, 200, corsOrigin);
+}
+
+// GET /admin/global-maintenance — admin only. Read-only state inspection.
+async function handleAdminGetGlobalMaintenanceRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-globalmaint:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+  const m = await getGlobalMaintenance(env);
+  return json({ ok: true, maintenance: m }, 200, corsOrigin);
+}
+
+// =====================================================================
 // ADMIN DASHBOARD ROUTES
 // =====================================================================
 // All admin routes share three guarantees:
@@ -3116,7 +3190,7 @@ export default {
     // here is what lets us ship UI that auto-hides when features are
     // off, without the frontend having to know the wrangler config.
     if (url.pathname === '/health' && request.method === 'GET') {
-      return json(buildHealthPayload(env), 200, corsOrigin);
+      return json(await buildHealthPayload(env), 200, corsOrigin);
     }
 
     // Origin gate. An empty corsOrigin means the Origin header didn't
@@ -3145,6 +3219,9 @@ export default {
       // Admin dashboard endpoints — all ADMIN_TOKEN-gated, all rate-limited.
       if (routeKey === 'GET /admin/tenants') return await handleAdminListTenantsRoute(request, env, corsOrigin);
       if (routeKey === 'GET /admin/stats')   return await handleAdminStatsRoute(request, env, corsOrigin);
+      // Global maintenance gate — operator-controlled site-wide hold screen.
+      if (routeKey === 'GET /admin/global-maintenance')  return await handleAdminGetGlobalMaintenanceRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /admin/global-maintenance') return await handleAdminGlobalMaintenanceRoute(request, env, corsOrigin);
       // Demo PIN admin routes (list active, manually generate). The
       // /admin/demo-pins prefix is matched before the generic
       // /admin/tenant/ block below so the order matters — keep these
@@ -4000,11 +4077,18 @@ function disabledResponse(code, reason, corsOrigin) {
   }, 503, corsOrigin);
 }
 
-function buildHealthPayload(env) {
+async function buildHealthPayload(env) {
   const features = {};
   for (const flag of FEATURE_FLAGS) {
     features[flag] = isFlagOn(env, flag);
   }
+  // Global maintenance is intentionally surfaced here (an unauthenticated
+  // endpoint) so clients can check the gate state BEFORE they have a
+  // tenant code. Anyone — visitor on the marketing page, kid loading
+  // the app shell, parent typing a code — can see whether the gate is
+  // up. The flag is non-sensitive (just a "site is being updated" bool +
+  // a short user-facing message); the actual flip requires ADMIN_TOKEN.
+  const gm = await getGlobalMaintenance(env);
   return {
     ok: true,
     service: 'kidquest-ai-proxy',
@@ -4028,6 +4112,7 @@ function buildHealthPayload(env) {
       max_input_chars: intEnv(env.MAX_INPUT_CHARS, DEFAULT_MAX_INPUT_CHARS),
       daily_cap_per_student: intEnv(env.DAILY_CAP_PER_STUDENT, DEFAULT_DAILY_CAP_PER_STUDENT),
     },
+    global_maintenance: gm,
   };
 }
 

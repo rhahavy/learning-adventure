@@ -8580,6 +8580,47 @@ const EMAIL_CONFIG = {
 const DEFAULT_MAINTENANCE_MESSAGE = "We're adding new lessons and polish! Come back in a few minutes — your stars and coins are safe. 🌟";
 const MAINTENANCE_BYPASS_KEY = 'kidquest-maint-bypass';
 
+/* ========== GLOBAL MAINTENANCE GATE ==========
+   The per-tenant gate above (allData.maintenance) only flips one tenant
+   at a time — useless for the operator pre-deploy when EVERY tenant
+   needs to be held. The global gate, controlled by the admin dashboard,
+   solves that: one toggle, every user holds, including visitors who
+   haven't entered a tenant code yet.
+
+   Source of truth: the worker's KV under `global:maintenance`, read
+   back via the unauthenticated /health endpoint so devices with no
+   tenant session can still see the gate. We cache the last known
+   value in localStorage so the synchronous boot IIFE can render the
+   hold screen immediately on subsequent visits — without the cache,
+   every user would see a flash of the app between page load and the
+   first /health response.
+
+   The two gates compose: ANY active gate (per-tenant OR global) shows
+   the hold screen. The teacher-bypass + parent-link rules apply to
+   both. Global flips off → un-gate (only if per-tenant is also off). */
+const GLOBAL_MAINT_CACHE_KEY = 'kidquest-global-maint-v1';
+function getCachedGlobalMaintenance(){
+  try{
+    const raw = localStorage.getItem(GLOBAL_MAINT_CACHE_KEY);
+    if(!raw) return { active:false, message:'', updatedAt:0 };
+    const v = JSON.parse(raw);
+    return {
+      active: !!v.active,
+      message: typeof v.message === 'string' ? v.message : '',
+      updatedAt: typeof v.updatedAt === 'number' ? v.updatedAt : 0,
+    };
+  }catch(e){ return { active:false, message:'', updatedAt:0 }; }
+}
+function setCachedGlobalMaintenance(m){
+  try{
+    localStorage.setItem(GLOBAL_MAINT_CACHE_KEY, JSON.stringify({
+      active: !!(m && m.active),
+      message: (m && typeof m.message === 'string') ? m.message : '',
+      updatedAt: (m && typeof m.updatedAt === 'number') ? m.updatedAt : 0,
+    }));
+  }catch(e){}
+}
+
 /* ========== STATE & PERSISTENCE ========== */
 /* APP_VERSION is stored with the data; if a user has OLD incompatible data
    from a previous version, we auto-clear it to avoid the app breaking. */
@@ -9785,9 +9826,21 @@ function snapshotIfWipeImminent(reason, victims){
 }
 
 function initCloud(){
+  // Global maint runs alongside pullCloud — no auth needed, fires even
+  // for users with no tenant code yet. Catch every error so a /health
+  // hiccup never blocks the per-tenant pull (and vice versa).
+  checkGlobalMaintenance().catch(()=>{});
   pullCloud(true).then(()=>{cloudReady=true}).catch(()=>{});
-  setInterval(()=>pullCloud(false),POLL_MS);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)pullCloud(false)});
+  setInterval(()=>{
+    pullCloud(false);
+    checkGlobalMaintenance().catch(()=>{});
+  }, POLL_MS);
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden){
+      pullCloud(false);
+      checkGlobalMaintenance().catch(()=>{});
+    }
+  });
 }
 async function pullCloud(init){
   // Teacher "view as student" preview mode — skip cloud pulls entirely.
@@ -9831,10 +9884,14 @@ async function pullCloud(init){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(allData)); }catch(e){}
     // If cloud says OFF but the DOM is still gated, un-gate now.
     // Runs on EVERY pull (init + polls) so a mid-session flip-off clears.
+    // The global gate composes with this — only un-gate if BOTH are off
+    // (otherwise an operator-paused site would briefly show the app to
+    // any tenant whose per-tenant flag also flipped off).
     {
       const _gatedDom = !!document.querySelector('.maintenance-screen');
       const _maintOn  = !!(allData.maintenance && allData.maintenance.active);
-      if(_gatedDom && !_maintOn && !isTeacher){
+      const _globalOn = (function(){ const g = getCachedGlobalMaintenance(); return !!(g && g.active); })();
+      if(_gatedDom && !_maintOn && !_globalOn && !isTeacher){
         try{
           currentUser = null; state = null;
           try{ localStorage.removeItem(LOCAL_USER_KEY); }catch(e){}
@@ -9852,7 +9909,7 @@ async function pullCloud(init){
       }
       // If cloud flipped maintenance ON and we're NOT showing the gate, render it.
       // Skip teachers (they're the ones toggling) and kids mid-activity (let them finish).
-      if(!init && _maintOn && !isMaintenanceBypassed() && !isTeacher && currentScreen!=='activity' && !_gatedDom){
+      if(!init && (_maintOn || _globalOn) && !isMaintenanceBypassed() && !isTeacher && currentScreen!=='activity' && !_gatedDom){
         renderMaintenanceScreen();
         return;
       }
@@ -9968,6 +10025,65 @@ function clearMeaningfulHighWater(sid){
 // Seed from current state so a freshly-booted tab that loaded real data
 // doesn't immediately get tripped if pendingWrite races.
 try { refreshMeaningfulHighWater(); } catch(e){}
+
+/* Global maintenance check — runs in parallel with pullCloud on boot
+   and on every poll. Independent of pullCloud because:
+     • /health is unauthenticated, so this works for visitors who
+       haven't entered a tenant code yet (whom pullCloud can't help).
+     • If pullCloud is broken for any reason (tenant removed, code
+       rotated, KV outage), the global gate must STILL be readable —
+       otherwise the operator can't put the site into maintenance to
+       fix it.
+   Updates the localStorage cache (so the next synchronous boot reads
+   the fresh value) and reconciles the DOM:
+     • Global ON + not gated → render the hold screen.
+     • Global OFF + currently gated + per-tenant also OFF → reload
+       (cleanest un-gate path; lets the boot IIFE re-route to the
+       right screen — home, parent view, etc.). */
+async function checkGlobalMaintenance(){
+  let gm = null;
+  try {
+    const r = await fetch(DATA_BACKEND_URL + '/health?_=' + Date.now(), { cache:'no-store' });
+    if(!r.ok) return;
+    const j = await r.json();
+    gm = j && j.global_maintenance;
+  } catch(e){
+    // Network blip — keep cached state. The boot IIFE on next reload
+    // (or the next poll's /health) will reconcile.
+    return;
+  }
+  if(!gm || typeof gm !== 'object') return;
+  const prev = getCachedGlobalMaintenance();
+  setCachedGlobalMaintenance(gm);
+
+  // Don't disturb teachers who already unlocked, parent read-only links,
+  // or kids mid-quiz (let them finish — they'll hit the gate on next
+  // navigation if it's still up).
+  const _bypass     = isMaintenanceBypassed();
+  const _parentLink = (typeof __parentParamPresent !== 'undefined' && __parentParamPresent);
+  const _midActiv   = (typeof currentScreen !== 'undefined' && currentScreen === 'activity');
+  const _gatedDom   = !!document.querySelector('.maintenance-screen');
+
+  if(gm.active && !_bypass && !_parentLink && !_midActiv && !_gatedDom){
+    try { renderMaintenanceScreen(); } catch(e){
+      // If the render itself fails (very early boot, screen DOM not
+      // ready), fall back to a hard reload — the next boot's IIFE
+      // will read the cache and gate synchronously.
+      console.warn('[Solvix] global maint render failed, reloading:', e);
+      try{ location.reload(); }catch(e2){}
+    }
+    return;
+  }
+
+  if(prev.active && !gm.active && _gatedDom){
+    // Just flipped OFF. Only un-gate if the per-tenant gate is also off
+    // — otherwise we'd reveal a tenant-paused site to its kids.
+    const _tenantOn = !!(allData && allData.maintenance && allData.maintenance.active);
+    if(!_tenantOn){
+      try{ location.reload(); }catch(e){}
+    }
+  }
+}
 
 async function syncToCloud(){
   if(cloudBusy){pendingWrite=true;return}cloudBusy=true;
@@ -25074,7 +25190,14 @@ catch(e) { console.warn('[Solvix] chat init failed:', e); }
 // Teacher unlock persists in sessionStorage for the current tab session only
 // — closing the tab re-gates; a fresh open requires password again.
 function renderMaintenanceScreen(){
-  const msg = (allData.maintenance && allData.maintenance.message) || DEFAULT_MAINTENANCE_MESSAGE;
+  // Message resolution: global gate's message wins when global is active
+  // (operators usually want a deploy-specific note like "back at 7pm");
+  // otherwise fall back to the per-tenant message, then the built-in
+  // friendly default.
+  const _gm = getCachedGlobalMaintenance();
+  const _gMsg = _gm && _gm.active && _gm.message ? _gm.message : '';
+  const _tMsg = (allData.maintenance && allData.maintenance.message) || '';
+  const msg = _gMsg || _tMsg || DEFAULT_MAINTENANCE_MESSAGE;
   const root = document.getElementById('screen') || document.body;
   // Escape HTML in the user-editable message so it can't break the DOM
   const safeMsg = String(msg).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -25111,8 +25234,25 @@ function renderMaintenanceScreen(){
      bad networks) and back it up with a visible manual button at 8s.
      Before: only a 15s manual button, which kids wouldn't find. */
   const __maintCheckCloudIsOff = async function(){
+    // BOTH gates must be off for "really off". Check global first because
+    // it works without a tenant code — if global is up, no point asking
+    // about per-tenant.
     try {
-      if(!isWorkerBackendActive()) return false;
+      const r = await fetch(DATA_BACKEND_URL + '/health?_=' + Date.now(), { cache:'no-store' });
+      if(r.ok){
+        const j = await r.json();
+        const gm = j && j.global_maintenance;
+        if(gm && typeof gm === 'object'){
+          // Refresh the cache while we're here — keeps the boot IIFE
+          // honest on the next reload.
+          setCachedGlobalMaintenance(gm);
+          if(gm.active) return false; // global is ON → still gated
+        }
+      }
+    } catch(e){ /* network blip — fall through to per-tenant check */ }
+    // Per-tenant check: only meaningful if a tenant is bound.
+    try {
+      if(!isWorkerBackendActive()) return true; // no tenant → no per-tenant gate
       const r = await fetch(dataBackendUrl('data')+'?_='+Date.now(), { cache:'no-store', headers:dataBackendHeaders() });
       if(!r.ok) return false;
       const tx = await r.text();
@@ -25124,11 +25264,14 @@ function renderMaintenanceScreen(){
   const __maintScrubLocalAndReload = function(){
     // Clear the local flag so the next boot's IIFE doesn't render the
     // gate a SECOND time. pullCloud on that boot will re-sync the real
-    // state (which is OFF — we just confirmed it above).
+    // state (which is OFF — we just confirmed it above). Also scrub the
+    // global cache for the same reason — boot IIFE reads it synchronously
+    // and would re-gate if stale.
     try{
       allData.maintenance = { active:false, message:DEFAULT_MAINTENANCE_MESSAGE, updatedAt:0 };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
     }catch(e){}
+    try{ setCachedGlobalMaintenance({ active:false, message:'', updatedAt:Date.now() }); }catch(e){}
     location.reload();
   };
 
@@ -25211,21 +25354,36 @@ try{
 }catch(e){}
 
 const __maintenanceActive = (function(){
-  const m = allData && allData.maintenance;
-  if(!m || !m.active) return false;
+  // Two gates compose: per-tenant (allData.maintenance, set by teachers
+  // for their classroom) and global (KV `global:maintenance`, set by
+  // the operator pre-deploy). Either one being on shows the hold screen.
   if(isMaintenanceBypassed()) return false;
   // Parent links (valid OR stale) bypass maintenance — they're read-only
   // and don't mutate. Stale links still need to render the error card so
   // the parent gets a clear "ask for a fresh link" message.
   if(__parentParamPresent) return false;
-  // Orphan guard: maintenance is tenant-scoped (lives inside each tenant's
-  // KV state blob). If there's NO active tenant session on this device,
-  // the localStorage maintenance flag is an orphan left behind by a
-  // previous tenant logout/switch. Ignore it AND scrub it so the next
-  // session starts clean — the user will land on the code-entry screen
-  // anyway, where maintenance doesn't apply. Without this guard, a user
-  // who signed out while maintenance was ON would be permanently stuck,
-  // because there's no tenant to pullCloud from to un-gate.
+
+  // GLOBAL gate first — applies to everyone, no tenant required. We read
+  // from the localStorage cache so this synchronous IIFE doesn't have to
+  // wait on /health. The async checkGlobalMaintenance() that fires from
+  // initCloud will reconcile if the cache is stale (gate-on flash on
+  // first visit only; subsequent visits gate immediately).
+  const _gm = getCachedGlobalMaintenance();
+  if(_gm && _gm.active){
+    renderMaintenanceScreen();
+    return true;
+  }
+
+  // PER-TENANT gate.
+  const m = allData && allData.maintenance;
+  if(!m || !m.active) return false;
+  // Orphan guard: per-tenant maintenance is tenant-scoped (lives inside
+  // each tenant's KV state blob). If there's NO active tenant session on
+  // this device, the localStorage maintenance flag is an orphan left
+  // behind by a previous tenant logout/switch. Ignore it AND scrub it so
+  // the next session starts clean — the user will land on the code-entry
+  // screen anyway, where per-tenant maintenance doesn't apply. (Global
+  // still applies — but that's already been checked above.)
   if(!isWorkerBackendActive()){
     try{
       allData.maintenance = { active:false, message:DEFAULT_MAINTENANCE_MESSAGE, updatedAt:0 };

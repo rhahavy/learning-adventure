@@ -255,6 +255,28 @@ tbody tr:last-child td{border-bottom:none}
     <span id="warn-text"></span>
   </div>
 
+  <!-- Global maintenance gate. One toggle, every tenant + every visitor
+       sees the hold screen instantly (next /health poll, ~25s). The
+       state of the toggle reflects what the worker thinks; clicking
+       "Turn on/off" POSTs to /admin/global-maintenance and re-reads. -->
+  <div class="panel" id="gmaint-panel">
+    <div class="panel-head">
+      <h2>🛠️ Global maintenance gate <span class="count" id="gmaint-state">—</span></h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="gmaint-refresh-btn" title="Re-read state from worker">🔄</button>
+        <button class="btn btn-primary btn-sm" id="gmaint-toggle-btn" disabled>Loading…</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <p style="margin:0 0 10px;font-size:13px;color:#64748b">
+        Holds every tenant + every visitor on the maintenance screen. Use this <strong>before deploying</strong>; flip back off when the deploy is verified live. Per-tenant maintenance (set by teachers) is unaffected.
+      </p>
+      <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:6px">Message shown to users (optional)</label>
+      <input type="text" id="gmaint-message" maxlength="500" placeholder="We're shipping an update — back in ~5 minutes. ✨" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box">
+      <div id="gmaint-meta" style="margin-top:8px;font-size:12px;color:#94a3b8"></div>
+    </div>
+  </div>
+
   <!-- Stats strip -->
   <div class="stats" id="stats">
     <!-- populated by JS -->
@@ -1076,9 +1098,87 @@ tbody tr:last-child td{border-bottom:none}
       renderTenants();
       loadStats();
       loadDemoPins();
+      loadGlobalMaintenance();
     } catch(e){
       if(e.message === 'unauthorized') return; // gate already shown
       $body.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="emoji">⚠️</div><h3>Failed to load</h3><p>'+escapeHtml(e.message)+'</p></div></td></tr>';
+    }
+  }
+
+  // Global maintenance — read current state, render label/colors, wire
+  // toggle button. Shape returned by /admin/global-maintenance:
+  //   { ok:true, maintenance:{ active, message, updatedAt } }
+  // The toggle does the OPPOSITE of the current state: button label
+  // reads "Turn ON" when active=false, "Turn OFF" when active=true.
+  // Operator-typed message is included in the POST body so they can
+  // customize the gate copy without a code change.
+  var gmaintState = { active:false, message:'', updatedAt:0 };
+  function renderGlobalMaintenance(){
+    var $state  = document.getElementById('gmaint-state');
+    var $toggle = document.getElementById('gmaint-toggle-btn');
+    var $msg    = document.getElementById('gmaint-message');
+    var $meta2  = document.getElementById('gmaint-meta');
+    if(!$state || !$toggle) return;
+    if(gmaintState.active){
+      $state.textContent = 'ON';
+      $state.style.background = '#dc2626'; // red
+      $toggle.textContent = 'Turn OFF';
+      $toggle.classList.remove('btn-primary');
+      $toggle.classList.add('btn-ghost');
+    } else {
+      $state.textContent = 'OFF';
+      $state.style.background = '#16a34a'; // green
+      $toggle.textContent = 'Turn ON';
+      $toggle.classList.add('btn-primary');
+      $toggle.classList.remove('btn-ghost');
+    }
+    $toggle.disabled = false;
+    if($msg && document.activeElement !== $msg){
+      // Don't clobber what the operator is typing.
+      $msg.value = gmaintState.message || '';
+    }
+    if($meta2){
+      $meta2.textContent = gmaintState.updatedAt
+        ? 'Last changed: ' + new Date(gmaintState.updatedAt).toLocaleString()
+        : 'Never set — currently using built-in defaults.';
+    }
+  }
+  async function loadGlobalMaintenance(){
+    try {
+      var r = await api('/admin/global-maintenance');
+      if(r && r.maintenance) gmaintState = r.maintenance;
+      renderGlobalMaintenance();
+    } catch(e){
+      if(e.message === 'unauthorized') return;
+      // Soft-fail: panel stays at "—" but admin can still use the rest.
+      var $state = document.getElementById('gmaint-state');
+      if($state){ $state.textContent = 'ERR'; $state.style.background = '#94a3b8'; }
+      var $toggle = document.getElementById('gmaint-toggle-btn');
+      if($toggle){ $toggle.textContent = 'Retry'; $toggle.disabled = false; }
+    }
+  }
+  async function toggleGlobalMaintenance(){
+    var $toggle = document.getElementById('gmaint-toggle-btn');
+    var $msg    = document.getElementById('gmaint-message');
+    var nextActive = !gmaintState.active;
+    if(nextActive){
+      if(!confirm('Turn ON global maintenance?\n\nEvery tenant + every visitor will see the hold screen on their next poll (~25 seconds). Teacher unlock + parent links still bypass.')) return;
+    } else {
+      if(!confirm('Turn OFF global maintenance?\n\nEveryone returns to the live site on their next poll (~25 seconds).')) return;
+    }
+    $toggle.disabled = true;
+    var prevText = $toggle.textContent;
+    $toggle.textContent = 'Saving…';
+    try {
+      var body = { active: nextActive, message: ($msg && $msg.value) ? $msg.value.trim() : '' };
+      var r = await api('/admin/global-maintenance', {method:'POST', body: body});
+      if(r && r.maintenance) gmaintState = r.maintenance;
+      renderGlobalMaintenance();
+      toast(nextActive ? '✓ Maintenance ON — users will see the hold screen within 25s' : '✓ Maintenance OFF — site is live again', 'success');
+    } catch(e){
+      toast('Error: ' + e.message, 'error');
+      $toggle.textContent = prevText;
+      $toggle.disabled = false;
     }
   }
 
@@ -1089,6 +1189,10 @@ tbody tr:last-child td{border-bottom:none}
     clearToken();
     showGate();
   });
+
+  // -------- Global maintenance panel --------
+  document.getElementById('gmaint-toggle-btn').addEventListener('click', toggleGlobalMaintenance);
+  document.getElementById('gmaint-refresh-btn').addEventListener('click', loadGlobalMaintenance);
 
   // -------- Gate wiring --------
   document.getElementById('gate-submit').addEventListener('click', tryUnlock);
