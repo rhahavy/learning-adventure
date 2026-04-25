@@ -15196,14 +15196,14 @@ function renderProfiles(root){
   // PIN on the welcome gate instead of a separate in-app unlock.)
   root.appendChild(h('div',{class:'teacher-link'},[h('a',{href:'#',onclick:e=>{e.preventDefault();go('teacher-login')}},'🔑 Teacher Login')]));
 
-  // Recent activity panel — a collapsible "who logged in, from where, when"
-  // log. Visible to anyone with the tenant code so an unfamiliar device
-  // or city tips off the family that someone else is using their PIN.
-  // Only shown when the worker backend is wired up; on a no-cloud build
-  // there's nothing to display.
-  if(isWorkerBackendActive()){
-    renderActivityPanel(root);
-  }
+  // Recent activity panel intentionally NOT mounted here. Kids land on
+  // this picker before any auth, and the device list (city, browser,
+  // device class) is sensitive enough that we only want grown-ups
+  // seeing it. The same panel is rendered inside the teacher/parent
+  // dashboard accordion (search "🕘 Recent Logins" in renderTeacher's
+  // sections array) — that surface is gated on isTeacher === true,
+  // which both classroom teachers and family-plan parents reach via
+  // the Teacher / Parent Login flow.
 }
 
 // Mounts a "🕘 Recent activity" disclosure under the picker. Defers the
@@ -15289,6 +15289,11 @@ function ensureActivityStyles(){
     '.activity-toggle-caret{font-size:14px;color:#7c3aed}' +
     '.activity-body{margin-top:10px;padding:14px 16px;background:rgba(255,255,255,.85);' +
       'border:1px solid rgba(124,58,237,.18);border-radius:12px}' +
+    // .activity-body-flat is the variant used inside the teacher
+    // dashboard accordion. The .t-acc-body already has padding +
+    // background, so we strip the standalone panel's chrome to avoid
+    // the "card inside a card" look.
+    '.activity-body-flat{margin-top:0;padding:0;background:transparent;border:none;border-radius:0}' +
     '.activity-status,.activity-empty{font-size:14px;color:#6b7280;text-align:center;padding:8px 0}' +
     '.activity-list{list-style:none;margin:0;padding:0}' +
     '.activity-row{display:flex;align-items:center;gap:12px;padding:10px 4px;' +
@@ -15304,6 +15309,34 @@ function ensureActivityStyles(){
       'font-size:11px;color:#6b7280;text-align:center}' +
     '@media (max-width:480px){.activity-toggle-hint{display:none}}';
   document.head.appendChild(style);
+}
+
+// Builder for the "🕘 Recent Logins" accordion section in the teacher /
+// parent dashboard. Returns a node — the accordion's lazy-build wrapper
+// will append it the first time the section is opened, so the network
+// fetch only fires when an adult actually wants to see the list.
+//
+// Unlike renderActivityPanel (which adds a disclosure toggle on top of
+// the picker), this variant skips the toggle: the accordion section
+// itself IS the disclosure, so a second collapse inside it would be
+// redundant.
+function buildTeacherActivityPanel(){
+  ensureActivityStyles();
+  if(!isWorkerBackendActive()){
+    return h('div',{class:'activity-status'},
+      'Recent logins need the cloud backend. This build is running in offline mode.');
+  }
+  const body = h('div',{class:'activity-body activity-body-flat'});
+  body.appendChild(h('div',{class:'activity-status'},'Loading…'));
+  // Fire-and-forget — paintActivityBody clears + re-fills body on resolve.
+  fetchActivityLog()
+    .then(events => paintActivityBody(body, events))
+    .catch(()=>{
+      body.textContent = '';
+      body.appendChild(h('div',{class:'activity-empty'},
+        'Couldn\u2019t load recent logins. Check your connection and reopen this section.'));
+    });
+  return body;
 }
 
 /* ========== DEMO PIN GATE ==========
@@ -23283,6 +23316,12 @@ function renderTeacher(root){
     { id:'parents',      icon:'📧', title:'Parent Reports',        badge: unreviewedReportsTotal, badgeLabel:'reports awaiting review', build: renderParentReports, classroomOnly:true },
     { id:'store',        icon:'🛍️', title:'Rewards Shop',          badge: pendingOrdersTotal, badgeLabel:'pending orders',  build: renderTeacherStore },
     { id:'maintenance',  icon:'🔧', title:'Maintenance',           build: renderMaintenanceControls, classroomOnly:true },
+    // Recent logins for THIS tenant. Lives behind isTeacher so kids on
+    // the profile picker never see the device/city list. Builder is
+    // lazy — the accordion only calls build() the first time the
+    // section opens, so the /activity fetch doesn't fire on dashboard
+    // load.
+    { id:'activity',     icon:'🕘', title:'Recent Logins',         build: buildTeacherActivityPanel },
     { id:'backup',       icon:'💾', title:'Backup & Data',         build: buildBackupControls },
     { id:'data-export',  icon:'📊', title:'Data Export (CSV)',     build: buildDataExportPanel, classroomOnly:true },
     { id:'passwords',    icon:'🔑', title:'Passwords',             build: renderTeacherPasswords },
