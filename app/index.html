@@ -9908,6 +9908,15 @@ function saveState(){
   // contaminates real student data or gets shared to other devices.
   // A page refresh wipes the demo session clean.
   if(isDemoUser(currentUser)) return;
+  // Demo TENANT in teacher/parent mode — same rule. The 2228:parent and
+  // 2228:teacher demos share KV blobs across every visitor on the
+  // internet; without this gate, a demo visitor adding a "test student"
+  // or fiddling with the coin adjuster would persist that change for
+  // everyone. isTeacher is true here (this branch is reached when
+  // currentUser is null and they're poking the dashboard), so blocking
+  // the write entirely is safe — there's no kid mid-quiz losing
+  // progress on a demo tenant.
+  if(isTeacher && tenant_state && tenant_state.isDemo) return;
   try{
     localStorage.setItem(STORAGE_KEY,JSON.stringify(allData));
     localStorage.setItem(VERSION_KEY,String(APP_VERSION));
@@ -15441,6 +15450,33 @@ function renderDemoGradePicker(root){
     grid.appendChild(tile);
   });
   root.appendChild(grid);
+
+  // "Peek at the [Parent Hub | Teacher Dashboard]" CTA. The demo grade
+  // picker showcases the kid-side of Solvix; this button surfaces the
+  // grown-up side — the dashboard a real parent or teacher would use
+  // day-to-day. Plan-aware label so parent demos see "Parent Hub" and
+  // classroom demos see "Teacher Dashboard". loginTeacher() flips
+  // isTeacher=true and routes to renderTeacher, which itself reads
+  // isFamilyPlan() (driven by tenant_state.planType, set correctly per
+  // demo on the worker — see RESERVED_TENANTS in worker.js) to pick
+  // the right title + accordion sections.
+  if(tenant_state && tenant_state.isDemo){
+    const dashLabel = isParent ? '🏠 Peek at the Parent Hub' : '📊 Peek at the Teacher Dashboard';
+    const dashSub   = isParent
+      ? 'See what the parent side looks like — week reports, billing, settings.'
+      : 'See what the teacher side looks like — roster, weekly reports, content editor.';
+    const peekRow = h('div',{class:'demo-peek-wrap'},[
+      h('button',{
+        class:'demo-peek-btn',
+        type:'button',
+        onclick:()=>{ try{ loginTeacher(); }catch(e){ console.warn('[Solvix] demo peek failed:',e); } },
+      }, dashLabel),
+      h('div',{class:'demo-peek-sub'}, dashSub),
+    ]);
+    root.appendChild(peekRow);
+    ensureDemoPeekStyles();
+  }
+
   // Back action depends on context. When the whole tenant is a demo
   // classroom (isDemo), there's no profile screen to return to — offer
   // "Switch classroom" instead, which kicks the visitor back out to the
@@ -15458,6 +15494,22 @@ function renderDemoGradePicker(root){
   } else {
     root.appendChild(h('button',{class:'demo-gate-back',onclick:()=>go('profiles')},'← Back to profiles'));
   }
+}
+
+// Inline CSS for the demo "Peek at the dashboard" CTA. id-guarded so
+// repeated picker renders don't append duplicate <style> tags.
+function ensureDemoPeekStyles(){
+  if(document.getElementById('demoPeekStyles')) return;
+  const s = document.createElement('style');
+  s.id = 'demoPeekStyles';
+  s.textContent =
+    '.demo-peek-wrap{max-width:520px;margin:24px auto 8px;padding:0 12px;text-align:center}' +
+    '.demo-peek-btn{display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#6C5CE7,#A29BFE);' +
+      'color:#fff;border:none;border-radius:999px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;' +
+      'box-shadow:0 8px 20px rgba(108,92,231,.35);transition:transform .15s ease, box-shadow .15s ease}' +
+    '.demo-peek-btn:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(108,92,231,.45)}' +
+    '.demo-peek-sub{margin-top:8px;font-size:13px;color:#5B5580;opacity:.85}';
+  document.head.appendChild(s);
 }
 
 // Spin up a fresh demo session: create a new in-memory user for the
@@ -15653,6 +15705,17 @@ function renderPinLockout(root, sid, s){
 
 /* ========== TEACHER LOGIN ========== */
 function renderTeacherLogin(root){
+  // Demo tenants — bypass the password gate entirely. Demos ship with
+  // teacherPasswordHash:null, so without this branch visitors would hit
+  // the "Create Password" setup form (a confusing dead-end since they
+  // can't actually save credentials on a shared demo tenant). We just
+  // promote them straight into the dashboard — saveState's demo-tenant
+  // gate (added above) makes sure their poking around the accordion
+  // doesn't pollute the shared demo blob for the next visitor.
+  if(tenant_state && tenant_state.isDemo){
+    loginTeacher();
+    return;
+  }
   const wrap=h('div',{class:'teacher-form'});
   // Family plan = "Parent Login"; classroom = "Teacher Login". Same endpoint
   // behind both — the label is purely cosmetic so parents don't feel
@@ -21618,6 +21681,35 @@ function renderTeacher(root){
     onclick: ()=>{ try{ runTeacherTourNow(); }catch(e){ console.warn('[Solvix] replay teacher tour failed:',e); } },
   }, '🤖 Nova Tour'));
   dash.appendChild(titleRow);
+
+  // Demo banner — visible only when this is the shared 2228:parent /
+  // 2228:teacher demo tenant. Tells the visitor up-front that what they
+  // see is real-shaped but their changes won't save. Mutations are
+  // safely no-op'd by saveState's demo-tenant gate, but the banner
+  // sets the expectation visually so a parent doesn't tap "Add Student"
+  // and wonder why nothing happened on their next visit.
+  if(tenant_state && tenant_state.isDemo){
+    const isParentDemo = tenant_state.demoMode === 'parent';
+    const banner = h('div',{
+      class:'t-demo-banner',
+      style:'display:flex;align-items:flex-start;gap:12px;padding:14px 16px;margin:0 0 16px;'+
+        'background:linear-gradient(135deg,#fff7e6,#ffeec2);border:1px solid #fdcb6e;'+
+        'border-radius:14px;color:#7a4d00;font-size:14px;line-height:1.5'
+    },[
+      h('span',{'aria-hidden':'true',style:'font-size:20px;flex-shrink:0;line-height:1.2'}, '👋'),
+      h('div',{style:'flex:1;min-width:0'},[
+        h('div',{style:'font-weight:800;margin-bottom:2px'},
+          isParentDemo ? 'You\u2019re in the Parent Hub demo' : 'You\u2019re in the Teacher Dashboard demo'),
+        h('div',{},
+          'Click around as much as you like \u2014 nothing you change here will save. '+
+          'When you\u2019re ready for the real thing, head to ' ),
+        h('a',{href:'https://kidquest.fun/#pricing',style:'color:#7a4d00;font-weight:700;text-decoration:underline'},
+          'kidquest.fun/#pricing'),
+        h('span',{}, ' to spin up your own '+(isParentDemo?'family account':'classroom')+'.'),
+      ]),
+    ]);
+    dash.appendChild(banner);
+  }
 
   // Tenant chip — shows which family/classroom is active and offers a
   // "Switch" link that wipes the local code and reloads to the gate.
