@@ -678,6 +678,10 @@ tbody tr:last-child td{border-bottom:none}
       if(t.stripeCustomerId){
         actions.push('<button class="btn btn-ghost btn-sm" id="m-refund">💸 Refund…</button>');
       }
+      // Reset teacher password — the customer-facing recovery path. The
+      // worker endpoint takes the tenant *code* (not id) and rotates the
+      // PBKDF2 hash + clears any rate-limit lockout in one shot.
+      actions.push('<button class="btn btn-ghost btn-sm" id="m-reset-pw">🔑 Reset teacher password…</button>');
       if(t.suspended){
         actions.push('<button class="btn btn-primary btn-sm" id="m-unsuspend">Unsuspend</button>');
       } else {
@@ -708,6 +712,28 @@ tbody tr:last-child td{border-bottom:none}
       });
       var $rf = document.getElementById('m-refund');
       if($rf) $rf.addEventListener('click', function(){ openRefundDialog(t); });
+      // Teacher password reset. Two prompts so a typo can't lock anyone
+      // out, then POST to /admin/reset-teacher-password. The endpoint
+      // looks the tenant up by code (not id) and also clears any
+      // rate-limit lockout that was tripping the customer's logins.
+      var $rp = document.getElementById('m-reset-pw');
+      if($rp) $rp.addEventListener('click', async function(){
+        if(!t.code){ toast('No tenant code on file — cannot reset.', 'error'); return; }
+        var pw = prompt('New teacher password for tenant "'+t.code+'"\n(at least 4 characters; you will share this with the customer):');
+        if(pw === null) return;
+        pw = (pw || '').trim();
+        if(pw.length < 4){ toast('Password must be at least 4 characters.', 'error'); return; }
+        var pw2 = prompt('Confirm new password:');
+        if(pw2 === null) return;
+        if(pw2.trim() !== pw){ toast('Passwords did not match — nothing changed.', 'error'); return; }
+        try {
+          var x = await api('/admin/reset-teacher-password', {method:'POST', body:{code: t.code, password: pw}});
+          var cleared = (x && x.cleared && x.cleared.length) ? ' (cleared: '+x.cleared.join(', ')+')' : '';
+          toast('✓ Password reset for '+t.code+cleared, 'success');
+        } catch(e){
+          toast('Error: '+e.message, 'error');
+        }
+      });
     } catch(e){
       $modalB.innerHTML = '<div class="empty"><div class="emoji">⚠️</div><h3>Failed to load</h3><p>'+escapeHtml(e.message)+'</p></div>';
     }

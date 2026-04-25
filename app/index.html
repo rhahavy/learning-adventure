@@ -2818,8 +2818,16 @@ function icon(name,size){
    "📥 Import JSON" (paste a backup to restore). Use before big changes.
    ══════════════════════════════════════════════════════════════════════════ */
 
-const STUDENTS = [
-  /* Fields:
+/* LEGACY_SEED_STUDENTS — the original hardcoded roster. KEPT only as a
+   migration source: existing tenants whose KV blob predates allData.roster
+   AND has meaningful progress under one of these legacy ids get the
+   matching entries auto-added to their roster on next load. New tenants
+   start with an EMPTY roster and use the Teacher Dashboard's "Add
+   student" UI to populate it. Don't read this array anywhere except in
+   the migration helper below — every other code path reads `STUDENTS`,
+   which is the live per-tenant roster.
+
+   Fields (same shape new tenants build via the add-student UI):
    * id          — unique slug, lowercase, no spaces
    * name        — display name
    * grade       — shown on profile card + dashboard
@@ -2828,8 +2836,8 @@ const STUDENTS = [
    * pin         — the login emoji (secret, MUST differ from decoEmoji)
    * hint        — password hint text shown under name (e.g. "(d_g)")
    * colorLight  — lighter accent hex (top-left of gradient, ribbon highlight)
-   * colorDark   — darker accent hex (bottom-right of gradient, bold elements)
-   */
+   * colorDark   — darker accent hex (bottom-right of gradient, bold elements) */
+const LEGACY_SEED_STUDENTS = [
   { id:'isaiah',   name:'Isaiah',   grade:'Grade 5',               initial:'I', decoEmoji:'🚀', pin:'🦊', hint:'(f_x)',      colorLight:'#ffd793', colorDark:'#f39c12',
     // Isaiah has severe ADHD — IEP (Individual Education Plan). Works at
     // grade level cognitively, but needs ADHD-aware accommodations:
@@ -2899,9 +2907,128 @@ const STUDENTS = [
     plan:{ type:'esl', workingAt:'Grade 7 with Grade 4-5 English scaffolding', notes:'ESL — struggles with English grammar, vocabulary, and sentence structure. Write all instructions in short, simple sentences. Avoid idioms, phrasal verbs, and complex tense constructions. Always enable read-aloud for text-heavy questions. Model sentence patterns explicitly before asking for written production.' },
     supports: ['articulation'] },
 ];
-// Back-compat: keep `color` populated as the dark hex so legacy code paths
-// that read `student.color` (e.g. dashboard avatar gradient style) still work.
-STUDENTS.forEach(s=>{ if(!s.color) s.color = s.colorDark; });
+// Live per-tenant roster. Starts EMPTY at module init; populated from
+// allData.roster in the load IIFE below (or migrated from legacy user
+// data, see migrateRosterFromLegacy). The array IDENTITY is preserved
+// across syncs (we mutate in place via .length=0 + push) so closures
+// and other one-shot captures of `STUDENTS` keep seeing the live data.
+let STUDENTS = [];
+
+/* normalizeStudent — backfill optional fields so a roster entry written
+   by the add-student UI (or migrated in from legacy data) is shaped
+   identically to what the old hardcoded array provided. Idempotent. */
+function normalizeStudent(s){
+  if(!s || typeof s !== 'object') return null;
+  if(!s.id || !s.name) return null;
+  if(!s.color) s.color = s.colorDark || s.color || '#6c5ce7';
+  if(!s.colorLight) s.colorLight = '#b6adff';
+  if(!s.colorDark)  s.colorDark  = s.color;
+  if(!s.initial){
+    s.initial = (String(s.name).trim().charAt(0) || '?').toUpperCase();
+  }
+  if(typeof s.grade !== 'string') s.grade = '';
+  return s;
+}
+
+/* syncStudentsFromRoster — replace STUDENTS' contents (in place) with
+   allData.roster, normalizing each entry. Call after every load /
+   pullCloud / saveState path that touches the roster. Recomputes the
+   TTS-default-on Set so newly-imported plan/supports flags take effect
+   on the next seedTtsDefaults() pass. */
+function syncStudentsFromRoster(){
+  const roster = (allData && Array.isArray(allData.roster)) ? allData.roster : [];
+  const normalized = [];
+  for(const s of roster){
+    const n = normalizeStudent(s);
+    if(n) normalized.push(n);
+  }
+  STUDENTS.length = 0;
+  for(const s of normalized) STUDENTS.push(s);
+  // Keep allData.roster pointing at the SAME normalized data we just
+  // built (so saveState writes back the cleaned-up shape).
+  if(allData) allData.roster = STUDENTS.slice();
+  try { recomputeStudentsTtsDefaultOn(); } catch(e){}
+}
+
+/* addStudentToRoster — single entry point used by the Add Student UI
+   (Phase 2c). Seeds the user record + chat thread so the new student
+   shows up everywhere on the very next render, persists, and triggers
+   a save so other devices pick it up on their next poll. Returns the
+   normalized student record on success, throws on duplicate id. */
+function addStudentToRoster(rawStudent){
+  const s = normalizeStudent(JSON.parse(JSON.stringify(rawStudent || {})));
+  if(!s) throw new Error('invalid_student');
+  if(!allData.roster) allData.roster = [];
+  if(allData.roster.find(x => x.id === s.id)) throw new Error('duplicate_id');
+  allData.roster.push(s);
+  if(!allData.users) allData.users = {};
+  if(!allData.users[s.id]) allData.users[s.id] = defaultUser();
+  if(!allData.messages) allData.messages = {};
+  if(!allData.messages[s.id]) allData.messages[s.id] = [];
+  syncStudentsFromRoster();
+  try { if(typeof saveState === 'function') saveState(); } catch(e){ console.warn('[Solvix] addStudentToRoster saveState failed:', e); }
+  return s;
+}
+
+/* archiveStudentFromRoster — soft-delete: drops the entry from
+   allData.roster (so the kid disappears from pickers + dashboards) but
+   PRESERVES allData.users[sid] in an archive bucket for restore-or-
+   audit later. Per Rhahavy's directive (b2: archive, don't delete) we
+   never lose progress data, even if the parent reverses course. */
+function archiveStudentFromRoster(sid){
+  if(!allData.roster) return false;
+  const idx = allData.roster.findIndex(x => x.id === sid);
+  if(idx < 0) return false;
+  const archivedAt = Date.now();
+  const entry = allData.roster.splice(idx, 1)[0];
+  if(!allData.archivedStudents) allData.archivedStudents = [];
+  allData.archivedStudents.push({ student: entry, archivedAt });
+  // user record + chat thread stay where they are (under the same sid)
+  // so a future restore is loss-less. They're orphaned from STUDENTS
+  // for now, which is fine — every code path iterates STUDENTS, not
+  // Object.keys(allData.users).
+  syncStudentsFromRoster();
+  try { if(typeof saveState === 'function') saveState(); } catch(e){ console.warn('[Solvix] archiveStudentFromRoster saveState failed:', e); }
+  return true;
+}
+
+/* restoreArchivedStudent — inverse of archive. Pulls the entry back
+   into the live roster (id collision check first — restoring an old
+   archive after re-adding the same id is rejected). */
+function restoreArchivedStudent(sid){
+  if(!Array.isArray(allData.archivedStudents)) return false;
+  const idx = allData.archivedStudents.findIndex(a => a.student && a.student.id === sid);
+  if(idx < 0) return false;
+  if(allData.roster && allData.roster.find(x => x.id === sid)) return false; // collision
+  const a = allData.archivedStudents.splice(idx, 1)[0];
+  if(!allData.roster) allData.roster = [];
+  allData.roster.push(a.student);
+  syncStudentsFromRoster();
+  try { if(typeof saveState === 'function') saveState(); } catch(e){}
+  return true;
+}
+
+/* migrateRosterFromLegacy — one-time auto-seed for tenants whose KV
+   blob predates allData.roster but DOES have meaningful progress under
+   one of the LEGACY_SEED_STUDENTS ids. Without this, an existing tenant
+   would lose visibility of their kids on next page load (we'd render
+   the empty-state and they'd have to re-add manually, even though the
+   progress data is intact). Returns the migrated roster (may be empty). */
+function migrateRosterFromLegacy(parsed){
+  const out = [];
+  if(!parsed || !parsed.users || typeof parsed.users !== 'object') return out;
+  for(const seed of LEGACY_SEED_STUDENTS){
+    const u = parsed.users[seed.id];
+    if(userHasMeaningfulProgress(u)){
+      // Deep clone the seed entry so mutations to STUDENTS don't leak
+      // back into LEGACY_SEED_STUDENTS (which is shared module state).
+      const clone = JSON.parse(JSON.stringify(seed));
+      const n = normalizeStudent(clone);
+      if(n) out.push(n);
+    }
+  }
+  return out;
+}
 
 /* ---- DEMO PROFILES ----
    Prospect-facing: a parent or teacher types the demo PIN on the
@@ -3050,6 +3177,59 @@ async function verifyTeacherPasswordRemote(pw){
 }
 
 function _clearTeacherPwCache(){ _teacherPwCache = null; }
+
+/* setInitialTeacherPasswordRemote(pw) → { ok, error? }
+   ----------------------------------------------------
+   First-time password setup for a fresh tenant. The Stripe webhook
+   creates new tenants with no teacher password set; this is what the
+   parent/teacher calls the first time they open the app to lock down
+   their dashboard. Hits POST /teacher-set-initial-password on the
+   worker, which only succeeds while no password exists — afterwards
+   it returns { error: 'password_already_set' } and they must use the
+   regular login (or contact support for /admin/reset-teacher-password).
+
+   On success we cache the password locally (so the destructive-action
+   grace path treats them as already-verified) and flip
+   tenant_state.hasTeacherPassword so subsequent renders take the
+   normal login branch instead of the setup branch. */
+async function setInitialTeacherPasswordRemote(pw){
+  if(!pw) return { ok:false, error:'missing_password' };
+  if(typeof tenant_state === 'undefined' || !tenant_state || !tenant_state.code) return { ok:false, error:'no_tenant' };
+  if(typeof DATA_BACKEND_URL === 'undefined' || !DATA_BACKEND_URL) return { ok:false, error:'no_backend' };
+  let r;
+  try {
+    r = await fetch(DATA_BACKEND_URL + '/teacher-set-initial-password', {
+      method:'POST',
+      headers:{
+        'authorization': 'Bearer ' + tenant_state.code,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ password: pw }),
+    });
+  } catch(e){ return { ok:false, error:'network_error' }; }
+  if(r.status === 429) return { ok:false, error:'rate_limited' };
+  if(r.status === 409) return { ok:false, error:'password_already_set' };
+  if(r.status === 401) return { ok:false, error:'invalid_code' };
+  if(r.status === 400){
+    let j; try { j = await r.json(); } catch(e){}
+    return { ok:false, error: (j && j.error) || 'bad_request' };
+  }
+  if(!r.ok) return { ok:false, error:'http_'+r.status };
+  let j;
+  try { j = await r.json(); } catch(e){ return { ok:false, error:'bad_response' }; }
+  if(!j || !j.ok) return { ok:false, error:'bad_response' };
+  // Cache the freshly-set password the same way verifyTeacherPasswordRemote
+  // does after a successful login — keeps confirmTeacherPassword from
+  // re-prompting the user thirty seconds after they set it up.
+  _teacherPwCache = pw;
+  // Reflect the new state in tenant_state + storage so renderTeacherLogin
+  // takes the regular-login path on every subsequent visit.
+  try {
+    tenant_state.hasTeacherPassword = true;
+    saveTenantToStorage(tenant_state);
+  } catch(e){}
+  return { ok:true };
+}
 
 /* ========== SUBJECTS ==========
    Images are set per-LESSON using `heroImage: IMG.xxx`, not at the subject
@@ -9059,12 +9239,20 @@ function getPronouns(sidOrUd){
 // TTS off so they don't feel babied. The teacher can flip any student from
 // the dashboard, and the `ttsSeeded` gate means manual toggles stick —
 // the seed never overrides an explicit choice.
-const STUDENTS_TTS_DEFAULT_ON = new Set(
-  STUDENTS.filter(s =>
-    (Array.isArray(s.supports) && s.supports.includes('articulation')) ||
-    (s.plan && (s.plan.type === 'esl' || s.plan.type === 'gifted-esl'))
-  ).map(s => s.id)
-);
+// `let` (not `const`) because the live STUDENTS roster changes when the
+// teacher adds/archives a student, so the Set has to be rebuildable.
+// recomputeStudentsTtsDefaultOn() is invoked from syncStudentsFromRoster
+// — every roster change refreshes it. Empty at module init (STUDENTS
+// starts empty before the load IIFE runs).
+let STUDENTS_TTS_DEFAULT_ON = new Set();
+function recomputeStudentsTtsDefaultOn(){
+  STUDENTS_TTS_DEFAULT_ON = new Set(
+    STUDENTS.filter(s =>
+      (Array.isArray(s.supports) && s.supports.includes('articulation')) ||
+      (s.plan && (s.plan.type === 'esl' || s.plan.type === 'gifted-esl'))
+    ).map(s => s.id)
+  );
+}
 
 // ---- THEMES ----
 // A small palette picker kids can change from their dashboard. Each theme
@@ -9208,7 +9396,21 @@ const defaultUser = () => ({
   }
 });
 const defaultAll = () => ({
-  users: Object.fromEntries(STUDENTS.map(s=>[s.id, defaultUser()])),
+  // Per-tenant roster — the source of truth for which kids exist on this
+  // tenant. Starts EMPTY; the parent/teacher populates it via the Add
+  // Student UI in the dashboard (gated behind their teacher password).
+  // The runtime mirror is `STUDENTS`, kept in sync via syncStudentsFromRoster().
+  roster: [],
+  // Soft-delete bucket. archiveStudentFromRoster() moves entries here
+  // so the parent/teacher can restore on regret. Each entry:
+  //   { student: <normalized roster row>, archivedAt: <ms> }
+  // The student's allData.users[sid] record is intentionally left in
+  // place so a restore is loss-less.
+  archivedStudents: [],
+  // Users keyed by student id. Empty for fresh tenants — entries get
+  // created when the teacher adds a student (or by migration for existing
+  // tenants whose blob predates roster).
+  users: {},
   teacher:{lastLogin:0},
   // Store: reward-request ledger + editable catalog overrides.
   // orders[] accumulates across all students; teacher manages status.
@@ -9225,7 +9427,7 @@ const defaultAll = () => ({
   // array of messages: {from:'student'|'teacher', text, ts, read}.
   // Synced via cloud so the teacher sees student messages within one poll
   // (~25s) on their own device and vice-versa.
-  messages: Object.fromEntries(STUDENTS.map(s=>[s.id, []])),
+  messages: {},
   // Curriculum overrides — teacher edits to WEEKS[...] activities made
   // from the Course Editor. Keyed by activity.id (e.g.
   // 'w1-isaiah-m1'). Value is a PATCH: any field present replaces the
@@ -9306,15 +9508,46 @@ let allData = (function(){
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return defaultAll();
     const p = JSON.parse(raw);
-    // Validate structure — must have users object with our 4 known ids
-    if(!p || typeof p !== 'object' || !p.users || typeof p.users !== 'object'){
+    // Validate the broad shape — we no longer require a non-empty users
+    // object (new tenants have an empty roster + empty users until they
+    // add students), but we DO require it to be an object if present.
+    if(!p || typeof p !== 'object'){
       nukeBadData('invalid stored shape'); return defaultAll();
     }
+    if(p.users && typeof p.users !== 'object'){
+      nukeBadData('invalid stored shape (users not an object)'); return defaultAll();
+    }
     const d = defaultAll();
-    STUDENTS.forEach(s=>{
-      const u = p.users[s.id];
-      if(u && typeof u === 'object') d.users[s.id] = Object.assign(defaultUser(), u);
-    });
+
+    // Roster resolution:
+    //   1. Stored roster present + non-empty → trust it.
+    //   2. Otherwise, scan stored users for legacy ids w/ progress and
+    //      auto-seed (one-time migration for tenants who had Rhahavy's
+    //      kids' progress under the hardcoded ids before the refactor).
+    //   3. Otherwise empty roster — new tenant, will populate via UI.
+    if(Array.isArray(p.roster) && p.roster.length){
+      d.roster = p.roster.map(s => normalizeStudent(JSON.parse(JSON.stringify(s)))).filter(Boolean);
+    } else {
+      d.roster = migrateRosterFromLegacy(p);
+    }
+    // Carry over the archived bucket if present. Tolerate the old shape
+    // (missing field) — defaultAll() seeded it as [].
+    if(Array.isArray(p.archivedStudents)){
+      d.archivedStudents = p.archivedStudents
+        .filter(a => a && a.student && a.student.id)
+        .map(a => ({ student: normalizeStudent(JSON.parse(JSON.stringify(a.student))), archivedAt: Number(a.archivedAt) || 0 }))
+        .filter(a => a.student);
+    }
+
+    // Carry over any user records whose id is in the resolved roster.
+    // Drops orphan records (e.g. a student who was archived elsewhere).
+    if(p.users && typeof p.users === 'object'){
+      d.users = {};
+      for(const s of d.roster){
+        const u = p.users[s.id];
+        if(u && typeof u === 'object') d.users[s.id] = Object.assign(defaultUser(), u);
+      }
+    }
     d.teacher = (p.teacher && typeof p.teacher === 'object') ? p.teacher : {lastLogin:0};
     d.orders = Array.isArray(p.orders) ? p.orders : [];
     d.catalogOverrides = (p.catalogOverrides && typeof p.catalogOverrides==='object') ? p.catalogOverrides : {};
@@ -9326,12 +9559,13 @@ let allData = (function(){
           updatedAt: typeof p.curriculum.updatedAt === 'number' ? p.curriculum.updatedAt : 0,
         }
       : { overrides: {}, updatedAt: 0 };
-    // Chat messages — per-student thread arrays. Tolerate missing/legacy
-    // stored shapes (pre-chat backups won't have the field).
+    // Chat messages — per-student thread arrays, only carried for
+    // current roster ids (drops orphan threads from removed kids).
     if(p.messages && typeof p.messages === 'object'){
-      STUDENTS.forEach(s => {
+      d.messages = {};
+      for(const s of d.roster){
         d.messages[s.id] = Array.isArray(p.messages[s.id]) ? p.messages[s.id] : [];
-      });
+      }
     }
     if(p.maintenance && typeof p.maintenance==='object'){
       d.maintenance = {
@@ -9347,6 +9581,11 @@ let allData = (function(){
     return defaultAll();
   }
 })();
+// Mirror the loaded roster into the in-memory STUDENTS array so every
+// downstream reference (renderProfiles, pullCloud's anti-wipe scan,
+// dashboards, etc.) sees the right kids on this tenant. Must run BEFORE
+// any code path reads STUDENTS.
+try { syncStudentsFromRoster(); } catch(e){ console.warn('[Solvix] syncStudentsFromRoster failed:', e); }
 
 // Overlay the device-local videoOverrides key onto allData. This runs BEFORE
 // any render path reads videoOverrides, so a missing/outdated cloud field
@@ -9859,7 +10098,11 @@ async function pullCloud(init){
       : await fetch(CLOUD_URL+'?_='+Date.now(),{cache:'no-store'});
     if(!r.ok)throw 0;
     const t=await r.text();if(!t)return;
-    const d=JSON.parse(t);if(!d||!d.users)return;
+    // Don't require d.users to be present — fresh tenants legitimately
+    // have an empty users{} until the teacher adds their first student.
+    // Just need a parseable object.
+    const d=JSON.parse(t);if(!d||typeof d!=='object')return;
+    if(!d.users || typeof d.users !== 'object') d.users = {};
 
     // ========== MAINTENANCE SYNC — ALWAYS, BEFORE updatedAt GUARD ==========
     // Maintenance is a GLOBAL admin flag, not per-student data. It must
@@ -9916,6 +10159,20 @@ async function pullCloud(init){
     }
 
     if((d.updatedAt||0)<=(allData.updatedAt||0))return;
+
+    // ROSTER SYNC — pick up add/archive student changes made on other
+    // devices. Trust the cloud roster as canonical (the updatedAt guard
+    // above already protected us from a stale cloud blowing away a
+    // freshly-added student on this device). syncStudentsFromRoster()
+    // refreshes STUDENTS so the anti-wipe scan below uses the current
+    // post-merge roster.
+    if(Array.isArray(d.roster)){
+      allData.roster = d.roster
+        .map(s => normalizeStudent(JSON.parse(JSON.stringify(s))))
+        .filter(Boolean);
+      try { syncStudentsFromRoster(); } catch(e){ console.warn('[Solvix] post-pull syncStudentsFromRoster failed:', e); }
+    }
+
     // Anti-wipe guard: if cloud is missing a student or has them as an
     // empty/wiped record, but local has real progress, REFUSE to overwrite.
     // Take an auto-snapshot first so the teacher can recover if the local
@@ -14738,6 +14995,48 @@ function renderHome(root){
 
 /* ========== PROFILES ========== */
 function renderProfiles(root){
+  // Empty-roster state — first-run for a fresh tenant. The parent/
+  // teacher hasn't added their kids yet, so we suppress "Who's learning
+  // today?" (which would land on an empty grid) and instead explain
+  // what to do next + funnel them straight to the teacher-login screen.
+  // After they log in, the Teacher Dashboard shows the Add Student UI
+  // (Phase 2c) and they're off to the races.
+  if(!STUDENTS || !STUDENTS.length){
+    // First-time-setup case (Stripe just provisioned this tenant, no
+    // teacher password yet): land them directly on the password-setup
+    // form with copy that explains the very first step. Otherwise it's
+    // an existing tenant who simply hasn't added a kid yet — point
+    // them at the regular teacher-login flow.
+    const isFirstRun = !!(tenant_state && tenant_state.hasTeacherPassword === false);
+    const headlineLabel = isFamilyPlan() ? 'Welcome to Solvix!' : 'Welcome to Solvix!';
+    const bodyText = isFirstRun
+      ? (isFamilyPlan()
+          ? 'Let\'s get you set up. First, pick a parent password — you\'ll use it to add your kids and access the parent dashboard.'
+          : 'Let\'s get you set up. First, pick a teacher password — you\'ll use it to add students and access the teacher dashboard.')
+      : 'Your classroom doesn\'t have any students yet. Sign in as the parent or teacher to add the first one — it takes about a minute per kid.';
+    const ctaLabel = isFirstRun ? '🌱 Get started' : '🔑 Sign in to add students';
+    const card = h('div', { class:'empty-roster-card' }, [
+      h('div', { class:'empty-roster-emoji' }, '🌱'),
+      h('h2', { style:'margin:0 0 6px;font-size:24px' }, headlineLabel),
+      h('p',  { style:'margin:0 0 18px;color:#64748b;line-height:1.55' }, bodyText),
+      h('button', {
+        class:'btn btn-primary',
+        style:'padding:14px 22px;font-weight:800;font-size:15px',
+        onclick:()=>go('teacher-login')
+      }, ctaLabel)
+    ]);
+    const wrap = h('div', { style:'max-width:560px;margin:48px auto;padding:0 20px' }, [card]);
+    // Inline styling so we don't need a CSS round-trip for this one card.
+    const style = document.createElement('style');
+    style.textContent = '.empty-roster-card{background:#fff;border-radius:24px;border:1px solid #e2e8f0;padding:36px 28px;text-align:center;box-shadow:0 8px 24px -12px rgba(15,23,42,.18)}.empty-roster-emoji{font-size:54px;line-height:1;margin-bottom:14px}';
+    if(!document.getElementById('empty-roster-style')){
+      style.id = 'empty-roster-style';
+      document.head.appendChild(style);
+    }
+    root.appendChild(wrap);
+    return;
+  }
+
   root.appendChild(h('h2',{style:'text-align:center;margin-top:28px;font-size:24px'},'Who\'s learning today?'));
   const grid=h('div',{class:'profiles stagger'});
   STUDENTS.forEach(s=>{
@@ -15080,6 +15379,68 @@ function renderTeacherLogin(root){
   // out-of-place typing a "teacher" password at their own kitchen table.
   const loginTitle = isFamilyPlan() ? '🔑 Parent Login' : '🔑 Teacher Login';
   const welcomeMsg = isFamilyPlan() ? 'Welcome!' : 'Welcome, Teacher!';
+  // First-time-setup branch. A brand-new tenant (Stripe checkout just
+  // created the record) has hasTeacherPassword === false. Instead of
+  // showing a login form they CAN'T use, we render a "create your
+  // password" form that hits /teacher-set-initial-password. The server
+  // will refuse to overwrite an existing password, so this branch is
+  // safe even if the field is wrong somehow — worst case the user
+  // sees password_already_set and we bounce them to the login form.
+  // Defensive default: if the field is missing on legacy tenant_state
+  // records, assume a password DOES exist (login flow) — never the
+  // setup flow, which would be a security regression.
+  const needsInitialSetup = !!(tenant_state && tenant_state.hasTeacherPassword === false);
+  if(needsInitialSetup){
+    const setupTitle = isFamilyPlan() ? '🌱 Create Parent Password' : '🌱 Create Teacher Password';
+    const setupSub = isFamilyPlan()
+      ? 'Welcome to Solvix! Pick a password — you\'ll use it to add your kids and access the parent dashboard. Keep it somewhere safe; if you lose it, contact support to reset.'
+      : 'Welcome to Solvix! Pick a password — you\'ll use it to add students and access the teacher dashboard. Keep it somewhere safe; if you lose it, contact support to reset.';
+    wrap.appendChild(h('h2',{},setupTitle));
+    wrap.appendChild(h('div',{style:'color:#475569;font-size:14px;line-height:1.55;margin:-4px 0 14px;max-width:420px'},setupSub));
+    const pw1 = h('input',{class:'t-field',type:'password',placeholder:'New password (4+ chars)',autocomplete:'new-password'});
+    const pw2 = h('input',{class:'t-field',type:'password',placeholder:'Confirm password',autocomplete:'new-password',
+      onkeydown:(e)=>{if(e.key==='Enter') doSetup(); }});
+    const setupMsg = h('div',{class:'t-msg'},'');
+    async function doSetup(){
+      const a = (pw1.value||'').trim();
+      const b = (pw2.value||'').trim();
+      if(!a){ setupMsg.textContent='Type a password first.'; setupMsg.style.color='var(--coral)'; return; }
+      if(a.length < 4){ setupMsg.textContent='Pick something at least 4 characters long.'; setupMsg.style.color='var(--coral)'; return; }
+      if(a !== b){ setupMsg.textContent='Passwords don\'t match — try again.'; setupMsg.style.color='var(--coral)'; pw2.value=''; pw2.focus(); return; }
+      setupMsg.textContent='Saving…'; setupMsg.style.color='';
+      const res = await setInitialTeacherPasswordRemote(a);
+      if(res.ok){
+        setupMsg.textContent='✓ Password saved. Signing you in…';
+        setupMsg.style.color='#00b894';
+        setTimeout(loginTeacher, 500);
+        return;
+      }
+      if(res.error === 'password_already_set'){
+        // Race: someone else (or a previous tab) already set it. Fall
+        // back to the regular login flow rather than getting stuck.
+        setupMsg.textContent='A password is already set on this account. Use it to sign in.';
+        setupMsg.style.color='var(--coral)';
+        if(tenant_state) { tenant_state.hasTeacherPassword = true; saveTenantToStorage(tenant_state); }
+        setTimeout(()=>go('teacher-login'), 1200);
+        return;
+      }
+      if(res.error === 'rate_limited'){ setupMsg.textContent='Too many attempts. Please wait a bit and try again.'; setupMsg.style.color='var(--coral)'; return; }
+      if(res.error === 'network_error'){ setupMsg.textContent='Network error. Check your connection and retry.'; setupMsg.style.color='var(--coral)'; return; }
+      if(res.error === 'password_too_short'){ setupMsg.textContent='Password is too short (need 4+ characters).'; setupMsg.style.color='var(--coral)'; return; }
+      if(res.error === 'password_too_long'){ setupMsg.textContent='Password is too long (max 64 characters).'; setupMsg.style.color='var(--coral)'; return; }
+      setupMsg.textContent='Setup failed ('+(res.error||'unknown')+'). Try again or contact support.';
+      setupMsg.style.color='var(--coral)';
+    }
+    const setupBtn = h('button',{class:'t-submit',onclick:doSetup},'Create Password');
+    wrap.appendChild(pw1);
+    wrap.appendChild(pw2);
+    wrap.appendChild(setupBtn);
+    wrap.appendChild(setupMsg);
+    wrap.appendChild(h('button',{class:'pin-back',onclick:()=>go('profiles')},'← Back'));
+    setTimeout(()=>{ try { pw1.focus(); }catch(e){} }, 30);
+    root.appendChild(wrap);
+    return;
+  }
   wrap.appendChild(h('h2',{},loginTitle));
   const pw=h('input',{class:'t-field',type:'password',placeholder:'Password',onkeydown:(e)=>{if(e.key==='Enter')submit()}});
   const msg=h('div',{class:'t-msg',id:'tMsg'},'');
@@ -21004,6 +21365,191 @@ function renderTeacher(root){
   // contexts (PDF export, email embed). The report-card list is inlined
   // here — it's a simple map over renderReportCard() — rather than going
   // through another wrapper that would just duplicate the same loop.
+  // Roster Management panel — Add Student / Archive / Restore. Lives at
+  // the top of the dashboard so a fresh tenant can populate their kids
+  // before scrolling further. Auto-opened when the roster is empty.
+  // Color palette assigns by roster index so adjacent kids look distinct
+  // without the parent having to think about hex codes.
+  const ROSTER_COLOR_PALETTE = [
+    { light:'#b6adff', dark:'#6c5ce7' }, // purple
+    { light:'#ffd793', dark:'#f39c12' }, // amber
+    { light:'#81ecec', dark:'#00b894' }, // teal
+    { light:'#ff9f9f', dark:'#d63031' }, // coral
+    { light:'#b8e994', dark:'#388e3c' }, // green
+    { light:'#91c4f5', dark:'#0984e3' }, // sky
+    { light:'#ffb3d9', dark:'#e84393' }, // pink
+    { light:'#d9b3ff', dark:'#8e44ad' }, // violet
+  ];
+  const ROSTER_GRADES = [
+    'Pre-Kindergarten','Junior Kindergarten','Senior Kindergarten',
+    'Grade 1','Grade 2','Grade 3','Grade 4','Grade 5',
+    'Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Other'
+  ];
+  // Slug a name into a unique student id. Strips non-alphanumerics, lower-
+  // cases, and de-dupes against the live + archived rosters by appending
+  // -2, -3, etc. Keeps existing id collision checks (in addStudentToRoster)
+  // honest even when two siblings have similar names.
+  const slugifyStudentId = (name) => {
+    let base = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24) || 'kid';
+    const used = new Set();
+    (allData.roster || []).forEach(s => used.add(s.id));
+    (allData.archivedStudents || []).forEach(a => a && a.student && used.add(a.student.id));
+    if(!used.has(base)) return base;
+    for(let i = 2; i < 100; i++) if(!used.has(base + i)) return base + i;
+    return base + Date.now().toString(36).slice(-4);
+  };
+  const buildRosterPanel = () => {
+    const wrap = h('div', { style:'display:flex;flex-direction:column;gap:18px' });
+
+    // ---- Add a new student ----
+    const addCard = h('div', { style:'border:1px solid var(--line);border-radius:14px;padding:16px;background:#fafbff' });
+    addCard.appendChild(h('div', { style:'font-weight:800;font-size:15px;margin-bottom:10px' }, '➕ Add a student'));
+
+    const nameInput = h('input', {
+      type:'text', placeholder:'First name (e.g. Mia)', maxlength:'30',
+      style:'width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px'
+    });
+    const gradeSelect = h('select', {
+      style:'width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:10px;background:#fff'
+    }, ROSTER_GRADES.map(g => h('option', { value:g }, g)));
+    gradeSelect.value = 'Grade 3'; // sensible default for elementary tutoring
+    const errLabel = h('div', { style:'color:#dc2626;font-size:13px;font-weight:600;margin-bottom:8px;display:none' });
+    const addBtn = h('button', {
+      class:'btn btn-primary', style:'width:100%;padding:11px;font-weight:800',
+      onclick: () => {
+        const name = nameInput.value.trim();
+        if(!name){ errLabel.textContent = 'Please enter a name.'; errLabel.style.display = 'block'; return; }
+        const palette = ROSTER_COLOR_PALETTE[(allData.roster || []).length % ROSTER_COLOR_PALETTE.length];
+        const newStudent = {
+          id: slugifyStudentId(name),
+          name,
+          grade: gradeSelect.value,
+          initial: name.charAt(0).toUpperCase(),
+          colorLight: palette.light,
+          colorDark: palette.dark,
+          // No pin/hint set — the student picks their own emoji password
+          // on first login (renderPinSetup triggers when customPin is null).
+        };
+        try {
+          addStudentToRoster(newStudent);
+          // Re-render the dashboard so the new kid shows up everywhere.
+          try {
+            const scr = document.getElementById('screen');
+            if(scr){
+              try { teacherTabOpen = teacherTabOpen || {}; teacherTabOpen.roster = true; } catch(e){}
+              scr.innerHTML = ''; renderTeacher(scr);
+            }
+          } catch(e){}
+        } catch(e){
+          errLabel.textContent = e.message === 'duplicate_id'
+            ? 'A student with that name already exists. Try adding a middle initial.'
+            : 'Couldn\'t add the student: ' + (e.message || 'unknown error');
+          errLabel.style.display = 'block';
+        }
+      }
+    }, 'Add to roster');
+    addCard.appendChild(nameInput);
+    addCard.appendChild(gradeSelect);
+    addCard.appendChild(errLabel);
+    addCard.appendChild(addBtn);
+    wrap.appendChild(addCard);
+
+    // ---- Current students ----
+    const listCard = h('div', { style:'border:1px solid var(--line);border-radius:14px;padding:16px' });
+    listCard.appendChild(h('div', { style:'font-weight:800;font-size:15px;margin-bottom:10px' },
+      '👥 Current students (' + STUDENTS.length + ')'));
+    if(!STUDENTS.length){
+      listCard.appendChild(h('p', { style:'color:#94a3b8;font-size:13px;margin:0' },
+        'No students yet. Add your first one above to get started.'));
+    } else {
+      const list = h('div', { style:'display:flex;flex-direction:column;gap:8px' });
+      STUDENTS.forEach(s => {
+        const ud = (allData.users && allData.users[s.id]) || {};
+        const row = h('div', {
+          style:'display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff'
+        });
+        row.appendChild(h('div', {
+          style:'width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,'+s.colorLight+','+s.colorDark+');color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0'
+        }, s.initial || '?'));
+        row.appendChild(h('div', { style:'flex:1;min-width:0' }, [
+          h('div', { style:'font-weight:700;font-size:14px;color:#1f2937' }, s.name),
+          h('div', { style:'font-size:12px;color:#64748b' }, s.grade + ' · 💰 ' + (ud.coins || 0) + ' coins'),
+        ]));
+        row.appendChild(h('button', {
+          class:'btn btn-ghost btn-sm',
+          style:'padding:6px 12px;font-size:12px;color:#dc2626;border-color:#fecaca',
+          onclick: () => {
+            const msg = userHasMeaningfulProgress(ud)
+              ? 'Archive ' + s.name + '?\n\nThey\'ll disappear from the profile picker, but their progress (coins, badges, completed activities) is preserved. You can restore them later from this screen.'
+              : 'Remove ' + s.name + ' from the roster?\n\nThey haven\'t made any progress yet, but you can still restore them later if needed.';
+            if(!confirm(msg)) return;
+            try {
+              archiveStudentFromRoster(s.id);
+              try {
+                const scr = document.getElementById('screen');
+                if(scr){
+                  try { teacherTabOpen = teacherTabOpen || {}; teacherTabOpen.roster = true; } catch(e){}
+                  scr.innerHTML = ''; renderTeacher(scr);
+                }
+              } catch(e){}
+            } catch(e){
+              alert('Archive failed: ' + e.message);
+            }
+          }
+        }, '🗄️ Archive'));
+        list.appendChild(row);
+      });
+      listCard.appendChild(list);
+    }
+    wrap.appendChild(listCard);
+
+    // ---- Archived (only if any) ----
+    const archived = Array.isArray(allData.archivedStudents) ? allData.archivedStudents : [];
+    if(archived.length){
+      const archCard = h('div', { style:'border:1px dashed var(--line);border-radius:14px;padding:16px;background:#fafafa' });
+      archCard.appendChild(h('div', { style:'font-weight:800;font-size:15px;margin-bottom:6px' },
+        '🗄️ Archived students (' + archived.length + ')'));
+      archCard.appendChild(h('p', { style:'font-size:12px;color:#64748b;margin:0 0 10px' },
+        'Their progress is preserved. Restore brings them back to the roster.'));
+      const list = h('div', { style:'display:flex;flex-direction:column;gap:6px' });
+      archived.slice().sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0)).forEach(a => {
+        const s = a.student || {};
+        const when = a.archivedAt ? new Date(a.archivedAt).toLocaleDateString() : 'recently';
+        const row = h('div', {
+          style:'display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff'
+        });
+        row.appendChild(h('div', { style:'flex:1;min-width:0' }, [
+          h('div', { style:'font-weight:600;font-size:13px;color:#374151' }, s.name || s.id),
+          h('div', { style:'font-size:11px;color:#94a3b8' }, (s.grade || '') + ' · archived ' + when),
+        ]));
+        row.appendChild(h('button', {
+          class:'btn btn-ghost btn-sm',
+          style:'padding:5px 10px;font-size:12px',
+          onclick: () => {
+            if(!confirm('Restore ' + (s.name || s.id) + ' to the roster?')) return;
+            const ok = restoreArchivedStudent(s.id);
+            if(!ok){
+              alert('Could not restore — a student with the same id may already exist on the roster.');
+              return;
+            }
+            try {
+              const scr = document.getElementById('screen');
+              if(scr){
+                try { teacherTabOpen = teacherTabOpen || {}; teacherTabOpen.roster = true; } catch(e){}
+                scr.innerHTML = ''; renderTeacher(scr);
+              }
+            } catch(e){}
+          }
+        }, '↩ Restore'));
+        list.appendChild(row);
+      });
+      archCard.appendChild(list);
+      wrap.appendChild(archCard);
+    }
+
+    return wrap;
+  };
+
   const buildStudentInsightsPanel = () => {
     const wrap = h('div',{style:'display:flex;flex-direction:column;gap:22px'});
 
@@ -22049,7 +22595,14 @@ function renderTeacher(root){
   // Flags: `familyOnly` → only shown to family; `classroomOnly` → only
   // shown to classroom; no flag → both.
   const familyMode = isFamilyPlan();
+  // Auto-open the Roster panel for fresh tenants (empty STUDENTS) so the
+  // parent/teacher lands on Add Student without having to discover it.
+  // Existing rosters keep their sticky open-state.
+  if(!STUDENTS.length){
+    try { teacherTabOpen = teacherTabOpen || {}; teacherTabOpen.roster = true; } catch(e){}
+  }
   const sections = [
+    { id:'roster',       icon:'👤', title:'Roster (Add / Archive)', build: buildRosterPanel },
     { id:'students',     icon:'👥', title:'Students & Reports',    build: buildStudentInsightsPanel },
     { id:'plans',        icon:'📋', title:'Student Education Plans', build: buildStudentPlansPanel },
     { id:'about-child',  icon:'🧒', title:'About My Child',        build: renderAboutMyChild, familyOnly:true },

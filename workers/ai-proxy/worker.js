@@ -1273,6 +1273,70 @@ async function handleAdminResetTeacherPasswordRoute(request, env, corsOrigin) {
   return json({ ok: true, tenantId, code, cleared: ['teacher-auth-rate-limit-code', ip ? 'teacher-auth-rate-limit-admin-ip' : null].filter(Boolean) }, 200, corsOrigin);
 }
 
+// POST /teacher-set-initial-password — Bearer = code. Body: { password }.
+// Lets a brand-new tenant (Stripe checkout just created their record with
+// teacherPasswordHash:null) set the parent/teacher password themselves
+// the first time they sign in, without an admin round-trip.
+//
+// This is NOT a "change password" endpoint — it is intentionally a
+// one-shot. If a password (hashed OR legacy plaintext) is already on
+// file, we refuse with `password_already_set` and the caller is told
+// to use the regular login form (or contact support for a reset).
+// That's what makes it safe to expose without an existing-password
+// challenge: the only window in which it can write is when there is
+// no password to challenge against in the first place.
+//
+// Same per-IP + per-code rate limits as /teacher-auth so an attacker
+// can't farm fresh tenants at scale even if they somehow knew a code
+// before the legitimate customer did.
+async function handleTeacherSetInitialPasswordRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const code = (extractBearer(request) || '').toLowerCase();
+  if (!code) return json({ error: 'missing_bearer' }, 401, corsOrigin);
+
+  const ipKey   = `ratelimit:tauth:ip:${ip}`;
+  const codeKey = `ratelimit:tauth:code:${code}`;
+  const ipPre   = await rateLimitPeek(env, ipKey,   RL.TAUTH_IP.max);
+  const codePre = await rateLimitPeek(env, codeKey, RL.TAUTH_CODE.max);
+  if (!ipPre.ok || !codePre.ok) {
+    return json({ error: 'rate_limited', resetAt: ipPre.resetAt || codePre.resetAt }, 429, corsOrigin);
+  }
+
+  let body = {};
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const password = (body.password || '').toString();
+  if (!password) return json({ error: 'missing_password' }, 400, corsOrigin);
+  if (password.length < 4) return json({ error: 'password_too_short', detail: 'min 4 characters' }, 400, corsOrigin);
+  if (password.length > 64) return json({ error: 'password_too_long', detail: 'max 64 characters' }, 400, corsOrigin);
+
+  const tenantId = (await env.KV.get(`code:${code}`)) || '';
+  if (!tenantId) {
+    // Burn a rate-limit hit on bad codes so this can't be used to
+    // probe valid codes any faster than /teacher-auth itself can.
+    await rateLimitHit(env, ipKey,   RL.TAUTH_IP.max,   RL.TAUTH_IP.window);
+    await rateLimitHit(env, codeKey, RL.TAUTH_CODE.max, RL.TAUTH_CODE.window);
+    return json({ error: 'invalid_code' }, 401, corsOrigin);
+  }
+  const raw = await env.KV.get(`tenant:${tenantId}`);
+  if (!raw) return json({ error: 'tenant_record_missing' }, 404, corsOrigin);
+  let tenant; try { tenant = JSON.parse(raw); } catch { return json({ error: 'tenant_malformed' }, 500, corsOrigin); }
+
+  // The whole point of the endpoint is that it ONLY works when no
+  // password is set yet. If somebody already configured one, we refuse
+  // — they can use /teacher-auth to log in, or ask the admin for a
+  // reset via /admin/reset-teacher-password.
+  if (tenant.teacherPasswordHash || tenant.teacherPassword) {
+    return json({ error: 'password_already_set' }, 409, corsOrigin);
+  }
+
+  tenant.teacherPasswordHash = await hashPassword(password);
+  tenant.updatedAt = Date.now();
+  await env.KV.put(`tenant:${tenantId}`, JSON.stringify(tenant));
+
+  return json({ ok: true, tenantId, code }, 200, corsOrigin);
+}
+
 // =====================================================================
 // GLOBAL MAINTENANCE GATE
 // =====================================================================
@@ -3255,6 +3319,7 @@ export default {
       if (routeKey === 'POST /auth')         return await handleAuthRoute(request, env, corsOrigin);
       if (routeKey === 'GET /tenant')        return await handleTenantInfoRoute(request, env, corsOrigin);
       if (routeKey === 'POST /teacher-auth') return await handleTeacherAuthRoute(request, env, corsOrigin);
+      if (routeKey === 'POST /teacher-set-initial-password') return await handleTeacherSetInitialPasswordRoute(request, env, corsOrigin);
       if (routeKey === 'POST /tenant-settings') return await handleTenantSettingsRoute(request, env, corsOrigin);
       // Stripe billing routes. Webhook is unauthenticated by design —
       // signature is what we trust. Checkout is public. Portal is
