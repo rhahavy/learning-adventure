@@ -21440,7 +21440,113 @@ function renderTeacher(root){
       style:'width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:10px;background:#fff'
     }, ROSTER_GRADES.map(g => h('option', { value:g }, g)));
     gradeSelect.value = 'Grade 3'; // sensible default for elementary tutoring
-    const errLabel = h('div', { style:'color:#dc2626;font-size:13px;font-weight:600;margin-bottom:8px;display:none' });
+
+    // ---- Education plan (optional, collapsed by default) ----
+    // Lets parents/teachers flag IEP/Gifted/ESL AT add-time so lesson #1
+    // already runs with the right accommodations. Without this, kids would
+    // do an unaccommodated first lesson, then the operator finds the Plans
+    // tab. Saved straight into allData.studentPlans[sid] alongside the
+    // roster write — same shape as buildStudentPlansPanel produces, so the
+    // full editor picks up the same state without translation.
+    const ADD_PLAN_OPTIONS = [
+      { value:'none',       label:'None — on grade level' },
+      { value:'iep',        label:'🧩 IEP (accommodations)' },
+      { value:'gifted',     label:'🌟 Gifted (working above grade)' },
+      { value:'gifted-esl', label:'🌟🌐 Gifted + ESL' },
+      { value:'esl',        label:'🌐 ESL (English Language Learner)' },
+      { value:'custom',     label:'📋 Custom plan' },
+    ];
+    const planTypeSelect = h('select', {
+      style:'width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;background:#fff'
+    }, ADD_PLAN_OPTIONS.map(p => h('option', { value:p.value }, p.label)));
+
+    // Working-at grade — only meaningful when the plan != 'none'. Empty
+    // string = "same as grade" which getStudentPlan() treats as a wipe.
+    const workingAtSelect = h('select', {
+      style:'width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;box-sizing:border-box;background:#fff;margin-top:8px'
+    }, [h('option', { value:'' }, 'Working at: same as grade')]
+       .concat(ROSTER_GRADES.map(g => h('option', { value:g }, 'Working at: ' + g))));
+
+    // Accommodation toggles — collapsed by default. Most parents won't expand
+    // this; PLAN_TYPE_DEFAULTS already has smart values for IEP/Gifted/ESL.
+    // If they DO expand and tweak, the addBtn handler diffs against defaults
+    // and only persists overrides — same compaction pattern as the full editor.
+    const ADD_ADJ_LABELS = [
+      ['shortSessions',  'Short sessions (15–20 min cap)'],
+      ['earlyBridge',    'Earlier hint after 1 wrong (vs 2)'],
+      ['extendedTime',   'Extra time per question (~1.3×)'],
+      ['noTimer',        'No per-question timer'],
+      ['alwaysTTS',      'Always-on read-aloud (TTS)'],
+      ['avoidPassages',  'Skip long reading passages'],
+      ['autoStretch',    'Auto-enter stretch mode'],
+      ['simpleLanguage', 'Simpler UI language'],
+    ];
+    const addAdjToggles = {};
+    const adjBody = h('div', { style:'padding:0 12px 10px 12px;display:none;border-top:1px solid #e2e8f0' });
+    ADD_ADJ_LABELS.forEach(([key, label]) => {
+      const cb = h('input', { type:'checkbox', id:'add-adj-'+key, style:'margin-right:8px;flex-shrink:0' });
+      addAdjToggles[key] = cb;
+      const row = h('label', {
+        for:'add-adj-'+key,
+        style:'display:flex;align-items:center;padding:6px 0;font-size:13px;color:#475569;cursor:pointer'
+      }, [cb, h('span', {}, label)]);
+      adjBody.appendChild(row);
+    });
+    let adjOpen = false;
+    const adjToggleBtn = h('button', {
+      type:'button',
+      style:'width:100%;padding:9px 12px;border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:700;color:#475569;text-align:left;cursor:pointer;border-radius:10px',
+      onclick: () => {
+        adjOpen = !adjOpen;
+        adjBody.style.display = adjOpen ? 'block' : 'none';
+        adjToggleBtn.textContent = (adjOpen ? '▾ ' : '▸ ') + 'Adjust accommodations'
+          + (adjOpen ? '' : ' (defaults look smart)');
+      }
+    }, '▸ Adjust accommodations (defaults look smart)');
+    const adjPanel = h('div', { style:'border:1px solid #e2e8f0;border-radius:10px;background:#fff;margin-top:8px' });
+    adjPanel.appendChild(adjToggleBtn);
+    adjPanel.appendChild(adjBody);
+
+    // Reseed toggles whenever plan type changes — so "IEP" pre-checks the
+    // IEP defaults, "Gifted" pre-checks autoStretch, etc. If the parent
+    // never expands the panel they get pure PLAN_TYPE_DEFAULTS at save time.
+    const applyAddPlanDefaults = () => {
+      const t = planTypeSelect.value || 'none';
+      const defaults = PLAN_TYPE_DEFAULTS[t] || PLAN_TYPE_DEFAULTS['none'];
+      Object.keys(addAdjToggles).forEach(k => {
+        if(k === 'extendedTime'){
+          // Surface as a binary toggle in this compact form: 1.0 = off, >1.0 = on.
+          // Power users can pick exact 1.2× / 1.3× / 1.5× in the full Plans editor.
+          addAdjToggles[k].checked = (defaults[k] || 1.0) > 1.0;
+        } else {
+          addAdjToggles[k].checked = !!defaults[k];
+        }
+      });
+    };
+    const planDetails = h('div', { style:'display:none;margin-top:8px' });
+    planDetails.appendChild(workingAtSelect);
+    planDetails.appendChild(adjPanel);
+    const refreshPlanDetailsVisibility = () => {
+      planDetails.style.display = (planTypeSelect.value !== 'none') ? 'block' : 'none';
+    };
+    planTypeSelect.addEventListener('change', () => {
+      applyAddPlanDefaults();
+      refreshPlanDetailsVisibility();
+    });
+    applyAddPlanDefaults();           // seed toggles to 'none' defaults
+    refreshPlanDetailsVisibility();   // start collapsed
+
+    const planSection = h('div', { style:'margin-bottom:10px' });
+    planSection.appendChild(h('div', {
+      style:'font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px'
+    }, '📋 Education plan'));
+    planSection.appendChild(planTypeSelect);
+    planSection.appendChild(planDetails);
+    planSection.appendChild(h('div', {
+      style:'font-size:11px;color:#94a3b8;margin-top:6px;line-height:1.4'
+    }, 'Lesson #1 will already match this plan. Fine-tune anytime in the Education Plans tab below.'));
+
+    const errLabel = h('div', { style:'color:#dc2626;font-size:13px;font-weight:600;margin:8px 0;display:none' });
     const addBtn = h('button', {
       class:'btn btn-primary', style:'width:100%;padding:11px;font-weight:800',
       onclick: () => {
@@ -21459,6 +21565,41 @@ function renderTeacher(root){
         };
         try {
           addStudentToRoster(newStudent);
+          // If the parent picked a non-'none' plan, persist it immediately so
+          // lesson #1 already runs with the right accommodations. Same defaults-
+          // diff pattern as buildStudentPlansPanel — only fields that DIFFER
+          // from PLAN_TYPE_DEFAULTS get stored, so changing plan type later
+          // cleanly re-applies fresh defaults without stale overrides leaking.
+          const planType = planTypeSelect.value || 'none';
+          if(planType !== 'none'){
+            if(!allData.studentPlans) allData.studentPlans = {};
+            const defaults = PLAN_TYPE_DEFAULTS[planType] || PLAN_TYPE_DEFAULTS['none'];
+            const wantAdj = {
+              shortSessions:  !!addAdjToggles.shortSessions.checked,
+              earlyBridge:    !!addAdjToggles.earlyBridge.checked,
+              extendedTime:   addAdjToggles.extendedTime.checked ? 1.3 : 1.0,
+              noTimer:        !!addAdjToggles.noTimer.checked,
+              alwaysTTS:      !!addAdjToggles.alwaysTTS.checked,
+              avoidPassages:  !!addAdjToggles.avoidPassages.checked,
+              autoStretch:    !!addAdjToggles.autoStretch.checked,
+              simpleLanguage: !!addAdjToggles.simpleLanguage.checked,
+            };
+            const adjustmentsOverride = {};
+            Object.keys(wantAdj).forEach(k => {
+              if(wantAdj[k] !== defaults[k]) adjustmentsOverride[k] = wantAdj[k];
+            });
+            const rec = { type: planType, workingAt: workingAtSelect.value || '', notes: '' };
+            if(Object.keys(adjustmentsOverride).length) rec.adjustments = adjustmentsOverride;
+            allData.studentPlans[newStudent.id] = rec;
+            try { if(typeof saveState === 'function') saveState(); } catch(e){
+              console.warn('[Solvix] add-student plan saveState failed:', e);
+            }
+          }
+          // Stash a one-shot nudge so the post-add re-render highlights where
+          // the full Plans editor lives. Cleared after consumption.
+          try {
+            window.__solvixLastAdded = { name: newStudent.name, sid: newStudent.id, planType, at: Date.now() };
+          } catch(e){}
           // Re-render the dashboard so the new kid shows up everywhere.
           try {
             const scr = document.getElementById('screen');
@@ -21477,9 +21618,31 @@ function renderTeacher(root){
     }, 'Add to roster');
     addCard.appendChild(nameInput);
     addCard.appendChild(gradeSelect);
+    addCard.appendChild(planSection);
     addCard.appendChild(errLabel);
     addCard.appendChild(addBtn);
     wrap.appendChild(addCard);
+
+    // ---- Post-add nudge ----
+    // After a successful add we set window.__solvixLastAdded; on the next
+    // re-render we surface a one-shot tip pointing at the full Plans editor,
+    // then clear the stash so the message doesn't loop forever.
+    try {
+      const lastAdded = window.__solvixLastAdded;
+      // Only show within 10s of the add — so navigating back to the Roster
+      // tab a day later doesn't pop a stale "just added" message.
+      if(lastAdded && (Date.now() - (lastAdded.at || 0) < 10_000)){
+        const planLine = (lastAdded.planType && lastAdded.planType !== 'none')
+          ? ' Their ' + (PLAN_META[lastAdded.planType] ? PLAN_META[lastAdded.planType].label : lastAdded.planType)
+            + ' plan is saved — fine-tune accommodations anytime in 📋 Education Plans below.'
+          : ' Need IEP / Gifted / ESL accommodations? Open 📋 Education Plans below to configure.';
+        const nudge = h('div', {
+          style:'border:1px solid #bbf7d0;background:#f0fdf4;color:#166534;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.5;font-weight:600'
+        }, '✅ Added ' + lastAdded.name + '.' + planLine);
+        wrap.insertBefore(nudge, wrap.firstChild);
+        try { delete window.__solvixLastAdded; } catch(e){ window.__solvixLastAdded = null; }
+      }
+    } catch(e){}
 
     // ---- Current students ----
     const listCard = h('div', { style:'border:1px solid var(--line);border-radius:14px;padding:16px' });
