@@ -300,16 +300,21 @@ tbody tr:last-child td{border-bottom:none}
 
   <!-- Prize Catalog. Solvix is the single source of truth for the prize
        wall every kid sees. Teachers/parents only toggle items on/off
-       per-tenant; they don't input their own prizes. Editing here is a
-       full-replace POST — operator pastes (or edits) the JSON array and
-       saves. Phase 1 is JSON-textarea editing; a richer form lives on
-       the roadmap. The list view above the editor is read-only and
-       just gives a glance at what's currently live. -->
+       per-tenant; they don't input their own prizes. Editing flow:
+         • One-click Available/Hidden toggle on each card → flips that
+           item's isAvailable and re-saves the whole catalog (full
+           replace is the wire protocol — keeps the worker simple).
+         • ✏️ Edit JSON for bulk changes (rename, retire, add new items).
+         • 🌱 Seed defaults appears only when KV is empty so a first-time
+           operator can populate the catalog with one click.
+       The grid view is the primary surface; the JSON editor is a
+       power-user tool. A richer per-item form is on the roadmap. -->
   <div class="panel" id="catalog-panel">
     <div class="panel-head">
       <h2>🎁 Prize Catalog <span class="count" id="catalog-count">—</span></h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" id="catalog-refresh-btn" title="Re-read catalog from KV">🔄</button>
+        <button class="btn btn-primary btn-sm" id="catalog-seed-btn" style="display:none">🌱 Seed defaults</button>
         <button class="btn btn-ghost btn-sm" id="catalog-edit-btn" disabled>✏️ Edit JSON</button>
       </div>
     </div>
@@ -318,7 +323,7 @@ tbody tr:last-child td{border-bottom:none}
         The single, operator-managed prize wall every tenant sees. Teachers and parents can toggle items off for their classroom but can't add their own — that keeps fulfillment + pricing decisions in one place.
       </p>
       <div id="catalog-meta" style="font-size:12px;color:#94a3b8;margin-bottom:10px">Loading…</div>
-      <div id="catalog-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px"></div>
+      <div id="catalog-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px"></div>
     </div>
   </div>
 
@@ -1289,25 +1294,53 @@ tbody tr:last-child td{border-bottom:none}
   // PRIZE CATALOG (operator-administered, single source of truth)
   // ===================================================================
   // Read flow: GET /admin/store/catalog → render the list grid + meta.
-  // Write flow: operator clicks ✏️ Edit JSON → modal with the catalog
-  // pre-filled as a pretty-printed textarea → on Save, POST the parsed
-  // array back. Server sanitizes, dedupes by id, and replaces in full.
-  // Phase 1 keeps the editor as raw JSON so we don't get blocked on a
-  // richer per-item form. The list view above the editor is read-only.
+  // Write flow:
+  //   • Inline Available/Hidden toggle on each card → flip isAvailable
+  //     for that item, then POST the whole catalog back. Optimistic UI
+  //     so the click feels instant; we revert if the save fails.
+  //   • ✏️ Edit JSON → modal with the catalog as a pretty-printed
+  //     textarea, full-replace POST. Phase 1 keeps the editor as raw
+  //     JSON so we don't get blocked on a richer per-item form.
+  //   • 🌱 Seed defaults (only visible when KV is empty) → fetches
+  //     the bundled default-catalog.json from the marketing site and
+  //     POSTs it. One-click setup for a fresh deploy.
 
   var catalogState = { items: [], updatedAt: 0, updatedBy: '', empty: false };
+
+  // Fetched lazily so a first-time admin user pays the cost only when
+  // they hit the empty state. Cached afterwards so the JSON editor's
+  // "seed empty catalog" path doesn't refetch on every open.
+  var defaultCatalogCache = null;
+  async function fetchDefaultCatalog(){
+    if(defaultCatalogCache) return defaultCatalogCache;
+    // The JSON file ships in the repo at workers/ai-proxy/default-catalog.json
+    // and is served by GitHub Pages from the same origin as /admin/.
+    // Relative path keeps this working in dev (file:// won't work but
+    // localhost previews of the marketing site will).
+    try {
+      var r = await fetch('/workers/ai-proxy/default-catalog.json', { cache:'no-store' });
+      if(!r.ok) throw new Error('http_' + r.status);
+      var data = await r.json();
+      if(!Array.isArray(data)) throw new Error('not_an_array');
+      defaultCatalogCache = data;
+      return data;
+    } catch(e){
+      throw new Error('Could not load default-catalog.json: ' + e.message);
+    }
+  }
 
   function renderCatalogList(){
     var $list = document.getElementById('catalog-list');
     var $count = document.getElementById('catalog-count');
     var $meta = document.getElementById('catalog-meta');
     var $editBtn = document.getElementById('catalog-edit-btn');
+    var $seedBtn = document.getElementById('catalog-seed-btn');
     if(!$list) return;
     var items = catalogState.items || [];
     if($count) $count.textContent = items.length ? String(items.length) : '0';
     if($meta){
       if(catalogState.empty){
-        $meta.textContent = 'No catalog seeded yet — click ✏️ Edit JSON to paste one. (The app falls back to its built-in default until you do.)';
+        $meta.textContent = 'No catalog seeded yet. Click 🌱 Seed defaults for the bundled prize wall, or ✏️ Edit JSON to paste your own. (Until you save, the app falls back to its built-in seed so kids still see prizes.)';
       } else if(catalogState.updatedAt){
         $meta.textContent = 'Last edited ' + new Date(catalogState.updatedAt).toLocaleString() +
           (catalogState.updatedBy ? ' by ' + catalogState.updatedBy : '');
@@ -1316,33 +1349,76 @@ tbody tr:last-child td{border-bottom:none}
       }
     }
     if($editBtn) $editBtn.disabled = false;
+    if($seedBtn) $seedBtn.style.display = catalogState.empty ? '' : 'none';
     if(!items.length){
-      $list.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:#94a3b8;background:#f8fafc;border-radius:10px">No items yet — click ✏️ Edit JSON to seed the catalog.</div>';
+      $list.innerHTML = '<div style="grid-column:1/-1;padding:18px;text-align:center;color:#94a3b8;background:#f8fafc;border-radius:10px">No items yet — click 🌱 Seed defaults to populate with the bundled prize wall.</div>';
       return;
     }
-    // Compact grid card per item. Read-only; click ✏️ Edit JSON to change.
-    var html = '';
+    // Card per item. The Available toggle saves immediately; the rest
+    // (rename, price, requirements) requires the JSON editor.
+    $list.innerHTML = '';
     for(var i=0;i<items.length;i++){
       var it = items[i] || {};
+      var card = document.createElement('div');
+      card.style.cssText = 'background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start';
       var emoji = escapeHtml(it.emoji || '🎁');
       var name = escapeHtml(it.name || '(no name)');
       var price = (typeof it.approxPrice === 'number' && isFinite(it.approxPrice)) ? '$'+it.approxPrice.toFixed(2) : '—';
       var coins = (typeof it.coinCost === 'number' && isFinite(it.coinCost)) ? it.coinCost.toLocaleString()+' coins' : '—';
       var cat = escapeHtml(it.category || 'misc');
-      var available = (it.isAvailable === false)
-        ? '<span style="color:#dc2626;font-weight:700">OFF</span>'
-        : '<span style="color:#16a34a;font-weight:700">ON</span>';
       var spec = it.special ? '<span style="display:inline-block;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:700;margin-left:4px">✨ SPECIAL</span>' : '';
-      html += '<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start">' +
+      var on = it.isAvailable !== false;
+      card.innerHTML =
         '<div style="font-size:24px;line-height:1">'+emoji+'</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-weight:700;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis">'+name+spec+'</div>' +
           '<div style="font-size:11px;color:#64748b;margin-top:2px">'+cat+' · '+price+' · '+coins+'</div>' +
-          '<div style="font-size:11px;color:#64748b;margin-top:2px">Default: '+available+'</div>' +
+          '<div style="font-size:11px;color:#94a3b8;margin-top:2px">id: <code>'+escapeHtml(it.id||'')+'</code></div>' +
         '</div>' +
-      '</div>';
+        '<button class="btn btn-sm '+(on?'btn-ghost':'btn-danger')+'" data-toggle-id="'+escapeHtml(it.id||'')+'" style="flex-shrink:0">'+
+          (on ? '✓ Available' : '✕ Hidden') +
+        '</button>';
+      $list.appendChild(card);
     }
-    $list.innerHTML = html;
+    // Wire the per-card toggles. Single delegated listener avoids
+    // re-attaching on every render.
+  }
+
+  // Optimistic toggle: flip isAvailable, repaint immediately, POST in
+  // the background. Revert on failure. The whole catalog is sent back
+  // — that's the wire protocol. Cheap because the catalog is small.
+  async function toggleCatalogAvailability(itemId, btn){
+    var items = catalogState.items || [];
+    var idx = -1;
+    for(var i=0;i<items.length;i++){ if(items[i] && items[i].id===itemId){ idx=i; break; } }
+    if(idx < 0) return;
+    var prev = items[idx].isAvailable !== false;
+    var next = !prev;
+    items[idx] = Object.assign({}, items[idx], { isAvailable: next });
+    if(btn){
+      btn.textContent = next ? '✓ Available' : '✕ Hidden';
+      btn.classList.toggle('btn-ghost', next);
+      btn.classList.toggle('btn-danger', !next);
+      btn.disabled = true;
+    }
+    try {
+      var r = await api('/admin/store/catalog', { method:'POST', body:{ catalog: items } });
+      catalogState.items = items;
+      catalogState.updatedAt = (r && r.updatedAt) || Date.now();
+      catalogState.empty = false;
+      renderCatalogList();
+      toast(next ? '✓ Item available' : '✕ Item hidden from kids', 'success');
+    } catch(e){
+      // Revert on failure.
+      items[idx] = Object.assign({}, items[idx], { isAvailable: prev });
+      if(btn){
+        btn.textContent = prev ? '✓ Available' : '✕ Hidden';
+        btn.classList.toggle('btn-ghost', prev);
+        btn.classList.toggle('btn-danger', !prev);
+        btn.disabled = false;
+      }
+      toast('Toggle failed: ' + e.message, 'error');
+    }
   }
 
   async function loadCatalog(){
@@ -1365,18 +1441,55 @@ tbody tr:last-child td{border-bottom:none}
     }
   }
 
-  function openCatalogEdit(){
+  // One-click "seed the catalog with the bundled defaults". Only ever
+  // shown when KV is empty. Confirms first because it's a write that
+  // affects every tenant's Shop tab. The full replacement happens
+  // server-side; we just rerun loadCatalog() afterwards to repaint.
+  async function seedDefaultCatalog(){
+    var $btn = document.getElementById('catalog-seed-btn');
+    if($btn) { $btn.disabled = true; $btn.textContent = 'Loading defaults…'; }
+    var defaults;
+    try {
+      defaults = await fetchDefaultCatalog();
+    } catch(e){
+      toast('Could not load defaults: ' + e.message, 'error');
+      if($btn) { $btn.disabled = false; $btn.textContent = '🌱 Seed defaults'; }
+      return;
+    }
+    if(!confirm('Seed the prize catalog with the bundled defaults (' + defaults.length + ' items)? Kids see the new wall on their next /store/catalog poll (~2 min).')) {
+      if($btn) { $btn.disabled = false; $btn.textContent = '🌱 Seed defaults'; }
+      return;
+    }
+    if($btn) $btn.textContent = 'Saving…';
+    try {
+      var r = await api('/admin/store/catalog', { method:'POST', body:{ catalog: defaults } });
+      toast('✓ Catalog seeded — ' + (r.count||defaults.length) + ' items live', 'success');
+      await loadCatalog();
+    } catch(e){
+      toast('Seed failed: ' + e.message, 'error');
+      if($btn) { $btn.disabled = false; $btn.textContent = '🌱 Seed defaults'; }
+    }
+  }
+
+  async function openCatalogEdit(){
     var $bg = document.getElementById('catalog-bg');
     var $ta = document.getElementById('catalog-json');
     var $err = document.getElementById('catalog-edit-error');
     if(!$bg || !$ta) return;
     $err.style.display = 'none';
     // Pretty-print so operators can edit the JSON without a formatter.
-    // Empty catalog → seed a single example so they have something to
-    // paste over instead of staring at "[]".
+    // Empty catalog → try the bundled defaults so the operator has a
+    // real starter to edit instead of a single example. If the fetch
+    // fails (offline, file missing), fall back to a one-item seed
+    // so the editor at least opens.
     var seed = catalogState.items && catalogState.items.length
       ? catalogState.items
-      : [{
+      : null;
+    if(!seed){
+      try {
+        seed = await fetchDefaultCatalog();
+      } catch(e){
+        seed = [{
           id: 'sticker-pack', name: 'Mega Sticker Pack', category: 'stickers',
           emoji: '🌟',
           description: 'A huge pack of shiny, sparkly stickers.',
@@ -1384,6 +1497,8 @@ tbody tr:last-child td{border-bottom:none}
           isAvailable: true, special: false,
           requirements: { minLevels: 1, minSubjects: 1, challenge: 'easy' },
         }];
+      }
+    }
     $ta.value = JSON.stringify(seed, null, 2);
     $bg.classList.add('show');
   }
@@ -1458,6 +1573,7 @@ tbody tr:last-child td{border-bottom:none}
   // -------- Prize catalog panel --------
   document.getElementById('catalog-refresh-btn').addEventListener('click', loadCatalog);
   document.getElementById('catalog-edit-btn').addEventListener('click', openCatalogEdit);
+  document.getElementById('catalog-seed-btn').addEventListener('click', seedDefaultCatalog);
   document.getElementById('catalog-close').addEventListener('click', closeCatalogEdit);
   document.getElementById('catalog-cancel').addEventListener('click', closeCatalogEdit);
   document.getElementById('catalog-format').addEventListener('click', formatCatalogJson);
@@ -1465,6 +1581,15 @@ tbody tr:last-child td{border-bottom:none}
   // Click-outside-to-close on the catalog modal background.
   document.getElementById('catalog-bg').addEventListener('click', function(e){
     if(e.target && e.target.id === 'catalog-bg') closeCatalogEdit();
+  });
+  // Delegated click handler for per-card Available/Hidden toggles. The
+  // grid is re-rendered on every save, so binding individual listeners
+  // would leak; this single delegation survives every repaint.
+  document.getElementById('catalog-list').addEventListener('click', function(e){
+    var btn = e.target.closest && e.target.closest('[data-toggle-id]');
+    if(!btn) return;
+    var id = btn.getAttribute('data-toggle-id');
+    if(id) toggleCatalogAvailability(id, btn);
   });
 
   // -------- Gate wiring --------

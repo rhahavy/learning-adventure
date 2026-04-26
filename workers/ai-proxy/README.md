@@ -67,6 +67,40 @@ bound (returns 500 `kv_not_bound` otherwise). 5 MB ceiling per blob.
 
 **Activation:** see "Phase 0a — Data backend" below.
 
+### Prize catalog (operator-administered)
+
+Single source of truth for the rewards Shop every kid sees. Lives in KV
+under `global:store:catalog`. Teachers/parents can't add prizes — they
+only flip per-tenant `storeEnabled` and toggle per-item availability via
+`catalogOverrides` in their dashboard.
+
+| Method | Path | Auth | What it does |
+|---|---|---|---|
+| `GET`  | `/store/catalog`        | public | Returns the live catalog (404 = unseeded → app falls back to bundled seed) |
+| `GET`  | `/admin/store/catalog`  | admin  | Returns full catalog for editing; includes `empty:true` flag when KV is unseeded |
+| `POST` | `/admin/store/catalog`  | admin  | Body: `{ catalog: [...item] }`. Replaces the entire catalog. Items sanitized + deduped server-side |
+
+**Operator workflows:**
+
+```bash
+# After first deploy, seed KV with the bundled defaults (27 items).
+bash workers/ai-proxy/seed-catalog.sh
+
+# Or use the /admin/ Prize Catalog panel: 🌱 Seed defaults button
+# appears automatically when KV is empty.
+
+# Bulk re-seed from a custom JSON file (full replace).
+bash workers/ai-proxy/seed-catalog.sh path/to/catalog.json
+
+# Inspect the current catalog without writing anything.
+bash workers/ai-proxy/seed-catalog.sh status
+```
+
+The default catalog ships in `workers/ai-proxy/default-catalog.json` and
+is also served from the marketing site at
+`/workers/ai-proxy/default-catalog.json` so the admin panel can fetch
+it for the JSON editor's empty-state pre-fill.
+
 ## First-time deploy (zero-cost)
 
 This gets the Worker live without turning on any paid features.
