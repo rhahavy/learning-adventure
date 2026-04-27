@@ -277,7 +277,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
    getting clipped by the frame's overflow:hidden. */
 .mock-curriculum{flex-direction:column;gap:0;justify-content:flex-start;align-items:center}
 .mock-curriculum .mc-card{margin-top:8px}
-.mc-card{position:relative;background:#fff;color:#2D2356;border-radius:14px;padding:12px 14px 14px;width:90%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:mc-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px}
+.mc-card{position:relative;background:#fff;color:#2D2356;border-radius:14px;padding:12px 14px 14px;width:90%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:mc-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px;will-change:transform,opacity}
 .mc-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .mc-qt{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;line-height:1.1;min-width:0}
 .mc-qt-emoji{font-size:16px;line-height:1}
@@ -293,7 +293,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
    overflow:hidden, so the popover is free to extend beyond. The
    arrow on top points UP into the curriculum chip the cursor just
    clicked, mirroring the real <details> drop-down. */
-.mc-popover{position:absolute;right:0;top:calc(100% + 8px);background:#fff;color:#2D2356;border:1px solid rgba(108,92,231,.22);border-radius:10px;padding:9px 12px;box-shadow:0 12px 28px rgba(45,35,86,.22);font-size:10.5px;line-height:1.4;width:236px;opacity:0;transform:translateY(-6px) scale(.94);transform-origin:top right;pointer-events:none;animation:mc-popover-show 14s ease-out infinite;z-index:3}
+.mc-popover{position:absolute;right:0;top:calc(100% + 8px);background:#fff;color:#2D2356;border:1px solid rgba(108,92,231,.22);border-radius:10px;padding:9px 12px;box-shadow:0 12px 28px rgba(45,35,86,.22);font-size:10.5px;line-height:1.4;width:236px;opacity:0;transform:translateY(-6px) scale(.94);transform-origin:top right;pointer-events:none;animation:mc-popover-show 14s ease-out infinite;z-index:3;will-change:transform,opacity}
 .mc-popover::before{content:'';position:absolute;right:84px;top:-5px;width:9px;height:9px;background:#fff;border-left:1px solid rgba(108,92,231,.22);border-top:1px solid rgba(108,92,231,.22);transform:rotate(45deg)}
 .mc-popover-row{margin-bottom:4px}
 .mc-popover-row:last-of-type{margin-bottom:6px}
@@ -303,7 +303,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
    real layout: chip center sits ~97px from the card's right edge,
    ~22px down from the top). The SVG click-tip is at (1.5,1) inside
    the 16x20 viewBox, so right:98/top:20 puts the tip on the chip. */
-.mc-cursor{position:absolute;right:98px;top:20px;width:16px;height:20px;pointer-events:none;opacity:0;animation:mc-cursor-move 14s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.mc-cursor{position:absolute;right:98px;top:20px;width:16px;height:20px;pointer-events:none;opacity:0;animation:mc-cursor-move 14s ease-in-out infinite;z-index:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));will-change:transform,opacity}
 .mc-question{font-size:13px;font-weight:700;line-height:1.3;margin-top:2px;opacity:0;animation:mc-fade-in 14s ease-out infinite}
 .mc-line{position:relative;height:4px;background:#EAE6FF;border-radius:2px;margin-top:8px;margin-bottom:18px}
 .mc-line .tick{position:absolute;top:-3px;width:2px;height:10px;background:#B5ACE0;border-radius:1px}
@@ -314,7 +314,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 .mc-line .label.l0{left:-2px}
 .mc-line .label.lhalf{left:50%;transform:translateX(-50%)}
 .mc-line .label.l1{right:-2px}
-.mc-line .marker{position:absolute;top:-7px;width:14px;height:14px;border-radius:50%;background:#FD79A8;border:3px solid #fff;box-shadow:0 2px 6px rgba(253,121,168,.5);left:0;animation:mc-marker-slide 14s ease-in-out infinite}
+.mc-line .marker{position:absolute;top:-7px;width:14px;height:14px;border-radius:50%;background:#FD79A8;border:3px solid #fff;box-shadow:0 2px 6px rgba(253,121,168,.5);left:0;animation:mc-marker-slide 14s ease-in-out infinite;will-change:left}
 @keyframes mc-card-in{
   0%,2%   {transform:translateY(20px);opacity:0}
   7%,100% {transform:translateY(0);opacity:1}
@@ -330,8 +330,16 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   18%,100%{opacity:1;transform:translateY(0)}
 }
 @keyframes mc-marker-slide{
-  0%,12%  {left:0%}
-  26%,100%{left:50%}
+  /* Slide the pink dot from "0" to "1/2" on the number line. The dot
+     is 14px wide, so to land its CENTER on the 1/2 tick (which sits
+     at 50% of the line) the dot's left edge has to be at 50% - 7px.
+     Previous code stopped at left:50% which placed the dot's left
+     edge on the tick → looked offset to the right.
+     We hold the end state for most of the loop, then ease back to 0
+     so the loop restart doesn't snap. */
+  0%,12%  {left:0}
+  26%,90% {left:calc(50% - 7px)}
+  98%,100%{left:0}
 }
 /* Cursor enters from below-right, lands on the curriculum chip in the
    top-right of the card, presses (scale .78), then exits. The chip
@@ -348,9 +356,12 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   92%,100% {opacity:0;transform:translate(80px,80px) scale(1)}
 }
 @keyframes mc-popover-show{
+  /* End state must match start state (translateY(-6px) scale(.94)) so
+     the loop boundary doesn't snap. Previous values diverged by 2px /
+     .02 scale — small but visible on a static screenshot. */
   0%,53%  {opacity:0;transform:translateY(-6px) scale(.94)}
   58%,82% {opacity:1;transform:translateY(0)    scale(1)}
-  88%,100%{opacity:0;transform:translateY(-4px) scale(.96)}
+  92%,100%{opacity:0;transform:translateY(-6px) scale(.94)}
 }
 
 /* ===== Mock 2: interactive lesson with quiz =====
@@ -362,7 +373,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
    correct option locks in with the real palette (#e6fff5 bg, #00b894
    border, #00855a text, pop animation). 14s total. */
 .mock-lessons{align-items:flex-start;justify-content:center;padding-top:12px}
-.ml-card{background:#fff;color:#2D2356;border-radius:14px;padding:11px 14px 12px;width:92%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:ml-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px}
+.ml-card{background:#fff;color:#2D2356;border-radius:14px;padding:11px 14px 12px;width:92%;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:ml-card-in 14s ease-out infinite;display:flex;flex-direction:column;gap:7px;will-change:transform,opacity}
 .ml-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .ml-qt{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800;line-height:1.1;min-width:0}
 .ml-qt-emoji{font-size:16px;line-height:1}
@@ -380,7 +391,10 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 .ml-opt:nth-child(1){animation:ml-opt-in 14s ease-out 0s    infinite}
 .ml-opt:nth-child(2){animation:ml-opt-in 14s ease-out .15s  infinite}
 .ml-opt:nth-child(4){animation:ml-opt-in 14s ease-out .45s  infinite}
-.ml-opt-correct{animation:ml-opt-correct-full 14s ease-out infinite}
+/* Correct option (3rd child) gets a .30s delay so it fades in INTO the
+   stagger pattern (1=0s, 2=.15s, 3=.30s, 4=.45s) instead of popping in
+   instantly with #1. Otherwise the answer flashes in early — looks bug-like. */
+.ml-opt-correct{animation:ml-opt-correct-full 14s ease-out .30s infinite}
 @keyframes ml-card-in{
   0%,2%   {transform:translateY(18px);opacity:0}
   7%,100% {transform:translateY(0);opacity:1}
@@ -399,8 +413,12 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   54%,100%{opacity:1;transform:scale(1);       background:#e6fff5;border-color:#00b894;color:#00855a}
 }
 @keyframes ml-progress-fill{
-  0%,52%  {width:25%}
-  68%,100%{width:50%}
+  /* Sits at 25% (one of four answered) → fills to 50% when the kid
+     answers correctly → eases BACK to 25% before the loop restarts so
+     there's no visible "snap" jump from 50% → 25% at iteration boundary. */
+  0%,52%   {width:25%}
+  68%,88%  {width:50%}
+  98%,100% {width:25%}
 }
 
 /* ===== Mock 3: learning quests + brain-break games =====
@@ -508,8 +526,10 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   .mc-cursor{opacity:0}
   .ml-opt{opacity:1;transform:none}
   .ml-opt-correct{background:#e6fff5;border-color:#00b894;color:#00855a}
-  .ml-progress::after{transform:scaleX(.50)}
-  .mc-line .marker{left:50%}
+  /* The progress bar is .ml-progress > i (a child <i> with width:25%);
+     there is no ::after pseudo-element. Previous selector was a no-op. */
+  .ml-progress > i{width:50%}
+  .mc-line .marker{left:calc(50% - 7px)}
   /* Both Mock-3 cards are always visible now — no opacity overrides
      needed. Memory-match tiles hold a flipped + matched pair as the
      end-state so the example reads as a successful match. */
