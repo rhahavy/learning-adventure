@@ -1633,6 +1633,125 @@ async function handleAdminListTenantsRoute(request, env, corsOrigin) {
   }, 200, corsOrigin);
 }
 
+// POST /admin/backfill-email-index — one-shot maintenance endpoint.
+// Walks every tenant:* key, reads the customerEmail field, and writes
+// the corresponding email:{lowercase} → tenantId index entry. Safe to
+// run multiple times — overwrites are idempotent.
+//
+// Body (JSON, optional):
+//   { dryRun: true }  → enumerate without writing (returns what WOULD be done)
+//   { force: true }   → re-write entries even if already present (default skips)
+//
+// Returns: { ok, scanned, written, skipped, conflicts: [...], emails: [...] }
+//
+// Used to retro-cover the existing 6 tenants (provisioned before the
+// email index existed) so the duplicate-signup guard catches them
+// going forward. After the first successful run + verification you
+// can leave this endpoint deployed (it's gated by ADMIN_TOKEN) for
+// future repair scenarios.
+async function handleAdminBackfillEmailIndexRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const ip = request.headers.get('cf-connecting-ip') || '';
+  const rl = await rateLimitHit(env, `ratelimit:admin-backfill:ip:${ip}`, RL.ADMIN_IP.max, RL.ADMIN_IP.window);
+  if (!rl.ok) return json({ error: 'rate_limited', resetAt: rl.resetAt }, 429, corsOrigin);
+
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const dryRun = !!body.dryRun;
+  const force  = !!body.force;
+
+  // Pass 1: enumerate every tenant, group by email, pick the OLDEST
+  // (earliest createdAt) per email as the canonical mapping. Subsequent
+  // signups under the same email are reported as duplicates so the
+  // operator can clean them up — we never silently overwrite an older
+  // tenant with a newer one (older tenants have accumulated data;
+  // newer duplicates are the accidental signups we're guarding against).
+  const byEmail = new Map(); // email → { canonical: {id, createdAt}, others: [{id, createdAt}] }
+  const noEmail = [];
+  let scanned = 0;
+  let cursor = undefined;
+  while (true) {
+    const result = await env.KV.list({ prefix: 'tenant:', cursor, limit: 1000 });
+    for (const k of result.keys) {
+      // Skip sub-keys like tenant:<id>:data
+      if (k.name.split(':').length !== 2) continue;
+      scanned++;
+      const raw = await env.KV.get(k.name);
+      if (!raw) continue;
+      let t; try { t = JSON.parse(raw); } catch { continue; }
+      const email = String(t.customerEmail || '').toLowerCase().trim();
+      if (!email || !email.includes('@')) { noEmail.push(t.id); continue; }
+      const entry = byEmail.get(email);
+      const rec = { id: t.id, createdAt: t.createdAt || '', stripeCustomerId: t.stripeCustomerId || null, code: t.code };
+      if (!entry) {
+        byEmail.set(email, { canonical: rec, others: [] });
+      } else {
+        // Older createdAt wins as canonical; the displaced one drops
+        // into `others`.
+        if (String(rec.createdAt).localeCompare(String(entry.canonical.createdAt)) < 0) {
+          entry.others.push(entry.canonical);
+          entry.canonical = rec;
+        } else {
+          entry.others.push(rec);
+        }
+      }
+    }
+    if (result.list_complete) break;
+    cursor = result.cursor;
+    if (!cursor) break;
+  }
+
+  // Pass 2: write the canonical mapping for each email. Skip entries
+  // whose KV index already matches; with `force`, overwrite anything
+  // that points elsewhere.
+  let written = 0, skipped = 0;
+  const emails = [];        // canonical writes
+  const conflicts = [];     // emails with >1 tenant — needs operator attention
+
+  for (const [email, entry] of byEmail.entries()) {
+    if (entry.others.length > 0) {
+      conflicts.push({
+        email,
+        canonical: entry.canonical,
+        duplicates: entry.others,
+      });
+    }
+    const indexKey = tenantEmailKey(email);
+    const existing = await env.KV.get(indexKey);
+    if (existing === entry.canonical.id) { skipped++; continue; }
+    if (existing && existing !== entry.canonical.id && !force) {
+      // Index already points to something else (probably a previous
+      // run). Don't overwrite without explicit force — surface it.
+      conflicts.push({
+        email,
+        kvPointsTo: existing,
+        wantsToWrite: entry.canonical.id,
+        reason: 'kv_index_mismatch_use_force_to_overwrite',
+      });
+      skipped++;
+      continue;
+    }
+    if (!dryRun) await env.KV.put(indexKey, entry.canonical.id);
+    written++;
+    emails.push({ email, tenantId: entry.canonical.id, overwrote: existing || null });
+  }
+
+  return json({
+    ok: true,
+    dryRun,
+    force,
+    scanned,
+    written,
+    skipped,
+    conflictCount: conflicts.length,
+    conflicts,
+    noEmailCount: noEmail.length,
+    noEmail,
+    emails,
+  }, 200, corsOrigin);
+}
+
 // GET /admin/tenant/:id — full record for one tenant. Mostly the same
 // fields as the list endpoint, but includes things we hide from the
 // list view to keep the JSON small (and one-shot lookups can afford
@@ -3007,9 +3126,150 @@ async function sendOwnerSignupNotification(env, tenant, customerEmail) {
   }
 }
 
+// ---------------------------------------------------------------
+// Email→tenant index. Stripe does NOT auto-dedupe customers by
+// email — two checkouts with the same email mint two distinct
+// `cus_…` ids — so the `customer:stripe:{customerId}` index alone
+// can't catch duplicate signups. We additionally maintain an
+// `email:{lowercase}` → tenantId mapping that is written on every
+// successful provisioning and consulted before we mint a new
+// tenant. The index is best-effort: a missing entry never blocks
+// new signups, only the presence of one (with a different Stripe
+// customer) cancels a duplicate.
+function tenantEmailKey(email) {
+  return `email:${String(email || '').toLowerCase().trim()}`;
+}
+async function writeTenantEmailIndex(env, email, tenantId) {
+  if (!email || !tenantId || !env.KV) return;
+  try { await env.KV.put(tenantEmailKey(email), tenantId); } catch (e) {}
+}
+async function findTenantByEmail(env, email) {
+  if (!email || !env.KV) return null;
+  let id = null;
+  try { id = await env.KV.get(tenantEmailKey(email)); } catch { return null; }
+  if (!id) return null;
+  let raw = null;
+  try { raw = await env.KV.get(`tenant:${id}`); } catch { return null; }
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+// Cancel a Stripe subscription IMMEDIATELY (not at period end). Used
+// when a duplicate signup is detected — we don't want to leave the
+// orphan customer on a 7-day trial that will eventually charge them
+// for an account they can't access. Best-effort; returns whatever
+// stripeApi returns. Caller should log but not fatal-error on failure
+// (the dedup branch already prevents the duplicate tenant from being
+// created, so the worst case is a leaked Stripe customer with a
+// dangling subscription that the operator can clean up manually).
+async function cancelStripeSubscriptionImmediate(env, subscriptionId) {
+  if (!subscriptionId) return { ok: false, error: 'no_subscription_id' };
+  try {
+    return await stripeApi(env, 'DELETE', `/subscriptions/${subscriptionId}`, null);
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
+// Email the customer when we detect a duplicate signup. They tried to
+// sign up again (probably forgot they had an account) — point them at
+// their existing code and confirm we cancelled the duplicate trial so
+// they don't get double-charged. Best-effort; never throws.
+async function sendDuplicateSignupNoticeEmail(env, toEmail, existingTenant) {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false, error: 'email_not_configured' };
+  if (!toEmail || !String(toEmail).includes('@')) return { ok: false, error: 'no_recipient' };
+  if (!existingTenant) return { ok: false, error: 'no_existing_tenant' };
+
+  const codeUpper = String(existingTenant.code || '').toUpperCase();
+  const labelClean = escapeHtml(existingTenant.label || 'your Solvix account');
+  const appUrl = env.APP_URL || '/app/';
+
+  const subject = `You already have a Solvix account — duplicate signup cancelled`;
+  const text = [
+    `Hi! It looks like you already have a Solvix account under this email,`,
+    `so we cancelled the new trial you just started — no charge will happen`,
+    `from that second signup.`,
+    ``,
+    `Your existing account: ${existingTenant.label || ''}`,
+    `Your login code:       ${codeUpper}`,
+    ``,
+    `Open the app: ${appUrl}`,
+    ``,
+    `If you forgot your code, this email is your reminder — save it!`,
+    `If you actually wanted a SECOND account (e.g. a separate classroom),`,
+    `reply to this email and we'll set you up manually.`,
+    ``,
+    `— Solvix`,
+  ].join('\n');
+
+  const html = `<!DOCTYPE html>
+<html><body style="margin:0;padding:0;background:#F0EEFF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1A1035;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0EEFF;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:24px;padding:36px;box-shadow:0 12px 32px rgba(108,92,231,0.15);">
+        <tr><td>
+          <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#1A1035;">You already have a Solvix account 👋</h1>
+          <p style="margin:0 0 18px;font-size:15px;line-height:1.55;color:#5B5580;">It looks like you signed up again under the same email, so we cancelled the second trial automatically — you won't get double-charged.</p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#6C5CE7,#A29BFE);border-radius:18px;padding:22px;text-align:center;margin:0 0 22px;">
+            <tr><td align="center">
+              <div style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:#fff;opacity:0.85;text-transform:uppercase;margin-bottom:8px;">Your Existing Login Code</div>
+              <div style="font-size:36px;font-weight:800;letter-spacing:0.08em;color:#fff;font-family:'SF Mono',Menlo,monospace;">${escapeHtml(codeUpper)}</div>
+              <div style="font-size:13px;color:#fff;opacity:0.85;margin-top:10px;">${labelClean}</div>
+            </td></tr>
+          </table>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;">
+            <tr><td align="center">
+              <a href="${escapeHtml(appUrl)}" style="display:inline-block;background:#6C5CE7;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:999px;">Open Solvix →</a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0;font-size:13px;color:#9B95B0;line-height:1.55;">
+            If you actually wanted a <strong>second</strong> account (e.g. a separate classroom),
+            just reply to this email and we'll set you up manually.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const payload = {
+    from: env.EMAIL_FROM,
+    to: [toEmail],
+    subject, text, html,
+  };
+  if (env.EMAIL_REPLY_TO) payload.reply_to = env.EMAIL_REPLY_TO;
+
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.RESEND_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      let detail = '';
+      try { detail = (await r.text()).slice(0, 200); } catch {}
+      console.warn('duplicate-signup notice failed:', r.status, detail);
+      return { ok: false, status: r.status, error: detail };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.warn('duplicate-signup notice threw:', String(e && e.message || e));
+    return { ok: false, error: String(e && e.message || e) };
+  }
+}
+
 // Provision a tenant from a completed checkout session. Idempotent —
 // if we already provisioned for this customer, just update the
-// stored record instead of creating a duplicate.
+// stored record instead of creating a duplicate. Also dedupes on
+// customer email: if the same address signs up twice (via two
+// different Stripe customer ids), we cancel the duplicate trial
+// and email the user their existing code instead.
 async function handleStripeCheckoutCompleted(session, env) {
   if (!env.KV) return;
   const customerId = session.customer || '';
@@ -3034,8 +3294,62 @@ async function handleStripeCheckoutCompleted(session, env) {
       existing.updatedAt = Date.now();
       if (customerEmail && !existing.customerEmail) existing.customerEmail = customerEmail;
       await env.KV.put(`tenant:${existingId}`, JSON.stringify(existing));
+      // Backfill the email index on replay if it's missing — older
+      // tenants pre-date the index, so the first webhook replay is a
+      // good opportunity to populate it.
+      if (customerEmail) await writeTenantEmailIndex(env, customerEmail, existingId);
     }
     return;
+  }
+
+  // EMAIL DEDUP: Stripe makes a NEW customer for every checkout that
+  // doesn't pre-supply a customer id, so two signups from the same
+  // email become two distinct `cus_…` ids and the customer-id index
+  // above will miss them. Look up by email before minting a fresh
+  // tenant. If we find one with a DIFFERENT Stripe customer, cancel
+  // the duplicate trial immediately, email the user their existing
+  // code, and bail without creating a second tenant.
+  if (customerEmail) {
+    const dupTenant = await findTenantByEmail(env, customerEmail);
+    if (dupTenant && dupTenant.stripeCustomerId && dupTenant.stripeCustomerId !== customerId) {
+      console.warn('duplicate signup detected', {
+        email: customerEmail,
+        existingTenantId: dupTenant.id,
+        existingCustomer: dupTenant.stripeCustomerId,
+        duplicateCustomer: customerId,
+        duplicateSubscription: subscriptionId,
+      });
+      // Cancel the duplicate subscription IMMEDIATELY — fire-and-log,
+      // never throw. Even if cancellation fails (network blip, Stripe
+      // down), the important guarantee — no duplicate tenant in our
+      // KV — is already preserved by returning below.
+      if (subscriptionId) {
+        const cancelRes = await cancelStripeSubscriptionImmediate(env, subscriptionId);
+        if (!cancelRes.ok) {
+          console.warn('duplicate sub cancel failed:', cancelRes.status, cancelRes.error || cancelRes.data);
+        }
+      }
+      // Best-effort email pointing them at their existing code.
+      try {
+        await sendDuplicateSignupNoticeEmail(env, customerEmail, dupTenant);
+      } catch (e) {
+        console.warn('duplicate-signup notice threw:', String(e && e.message || e));
+      }
+      // Tell the operator a duplicate happened so it shows up in
+      // their inbox alongside legit signups (different subject line
+      // would help; for now we annotate via tenant.label-style text).
+      try {
+        await sendOwnerSignupNotification(env, {
+          ...dupTenant,
+          label: `[DUPLICATE — cancelled] ${dupTenant.label || ''}`,
+          stripeCustomerId: customerId,           // the new (cancelled) one
+          stripeSubscriptionId: subscriptionId,   // the new (cancelled) one
+        }, customerEmail);
+      } catch (e) {
+        console.warn('owner notification (dup) threw:', String(e && e.message || e));
+      }
+      return;
+    }
   }
 
   // New customer → fresh tenant. planType comes from metadata;
@@ -3072,6 +3386,12 @@ async function handleStripeCheckoutCompleted(session, env) {
   await env.KV.put(`tenant:${id}`, JSON.stringify(tenant));
   await env.KV.put(`code:${code}`, id);
   await env.KV.put(`customer:stripe:${customerId}`, id);
+  // Email→tenant index: the dedup guard above relies on this being
+  // written for every tenant with an email on file. Best-effort —
+  // a failure here just means the next duplicate from this email
+  // won't be auto-cancelled (it falls back to manual cleanup), but
+  // the tenant itself is already provisioned successfully.
+  if (customerEmail) await writeTenantEmailIndex(env, customerEmail, id);
 
   // Email the customer their login code. Best-effort — failure is
   // logged but does NOT throw, because the tenant is already
@@ -3562,6 +3882,9 @@ export default {
       // Admin dashboard endpoints — all ADMIN_TOKEN-gated, all rate-limited.
       if (routeKey === 'GET /admin/tenants') return await handleAdminListTenantsRoute(request, env, corsOrigin);
       if (routeKey === 'GET /admin/stats')   return await handleAdminStatsRoute(request, env, corsOrigin);
+      // One-shot maintenance — backfill the email→tenant index that
+      // the duplicate-signup guard reads. Idempotent; safe to re-run.
+      if (routeKey === 'POST /admin/backfill-email-index') return await handleAdminBackfillEmailIndexRoute(request, env, corsOrigin);
       // Global maintenance gate — operator-controlled site-wide hold screen.
       if (routeKey === 'GET /admin/global-maintenance')  return await handleAdminGetGlobalMaintenanceRoute(request, env, corsOrigin);
       if (routeKey === 'POST /admin/global-maintenance') return await handleAdminGlobalMaintenanceRoute(request, env, corsOrigin);
