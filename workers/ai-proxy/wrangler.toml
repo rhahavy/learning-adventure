@@ -48,7 +48,7 @@ AI_ENABLED = "false"
 #      (search for "Signup-paused banner") and revert the plan
 #      buttons from mailto-waitlist back to startTrial(...) onclicks.
 #   6. Bump SW_VERSION in sw.js so cached marketing pages refresh.
-SIGNUPS_ENABLED = "false"
+SIGNUPS_ENABLED = "true"
 
 # ----- PER-FEATURE FLAGS ----------------------------------------
 # Flip to "true" one at a time as you activate each phase.

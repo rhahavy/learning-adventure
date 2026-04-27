@@ -897,23 +897,6 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
       <p>Every plan includes a 7-day free trial. Cancel anytime — no questions, no guilt.</p>
     </div>
 
-    <!-- Signup-paused banner. We're temporarily blocking new tenant
-         creation while we ship a per-tenant student roster (so paying
-         customers can add their own kids' names instead of inheriting
-         the operator's hard-coded family). The /stripe/checkout
-         endpoint is also gated on the Worker side via SIGNUPS_ENABLED,
-         so even if a stale page is cached the checkout will still 503.
-         Remove this block AND set SIGNUPS_ENABLED="true" in
-         workers/ai-proxy/wrangler.toml to re-open signups. -->
-    <div style="max-width:720px;margin:0 auto 36px;padding:22px 26px;background:linear-gradient(135deg,#fff8e1,#ffe0b2);border:1.5px solid #ffb74d;border-radius:18px;text-align:left;display:flex;gap:16px;align-items:flex-start;">
-      <div style="font-size:32px;flex-shrink:0;line-height:1;">👋</div>
-      <div>
-        <div style="font-weight:800;font-size:17px;margin-bottom:6px;color:#7c5a00;">Signups are paused while we polish onboarding</div>
-        <div style="font-size:14px;line-height:1.55;color:#7c5a00;">We're shipping a per-family student-setup flow this week so you can name your own kids' profiles instead of inheriting placeholders. Pricing below is final — drop me a note and I'll let you know the moment it reopens.</div>
-        <a href="mailto:admin@kidquest.fun?subject=Solvix%20waitlist" style="display:inline-block;margin-top:12px;padding:9px 18px;background:#fff;color:#7c5a00;border:1.5px solid #ffb74d;border-radius:999px;font-weight:700;font-size:14px;text-decoration:none;">Join the waitlist →</a>
-      </div>
-    </div>
-
     <div style="text-align:center">
       <div class="pricing-tabs" role="tablist">
         <button id="tabMonthly" class="on" onclick="switchBilling('monthly')">Monthly</button>
@@ -938,7 +921,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
           <li>Works offline on phones, tablets, Chromebooks</li>
           <li>Cancel anytime</li>
         </ul>
-        <a class="btn btn-primary" href="mailto:admin@kidquest.fun?subject=Solvix%20waitlist%20-%20Family%20plan&amp;body=Hi%20-%20please%20add%20me%20to%20the%20waitlist%20for%20the%20Family%20plan.%20Thanks!" style="text-decoration:none;display:block;text-align:center;">Join the waitlist</a>
+        <button type="button" class="btn btn-primary" data-trial-btn onclick="startTrial('family')" style="display:block;width:100%;text-align:center;">Start free trial</button>
       </div>
 
       <!-- CLASSROOM -->
@@ -959,7 +942,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
           <li>"View as student" for quick previews</li>
           <li>Cancel anytime</li>
         </ul>
-        <a class="btn btn-primary" href="mailto:admin@kidquest.fun?subject=Solvix%20waitlist%20-%20Classroom%20plan&amp;body=Hi%20-%20please%20add%20me%20to%20the%20waitlist%20for%20the%20Classroom%20plan.%20Thanks!" style="text-decoration:none;display:block;text-align:center;">Join the waitlist</a>
+        <button type="button" class="btn btn-primary" data-trial-btn onclick="startTrial('classroom')" style="display:block;width:100%;text-align:center;">Start free trial</button>
       </div>
     </div>
   </div>
