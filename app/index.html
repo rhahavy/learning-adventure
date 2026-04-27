@@ -2672,7 +2672,7 @@ body.has-dev-banner{padding-top:26px}
 </div>
 <button id="fab" class="fab hidden" title="Home" aria-label="Go home"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-7v6h-4A1.5 1.5 0 0 1 3 20Z"/></svg></button>
 <!-- Chat FAB — always visible when logged in as a student. Tap to open a
-     chat panel with Rhahavy (the teacher). Positioned above the Home FAB
+     chat panel with the teacher. Positioned above the Home FAB
      so both live in the bottom-right without colliding. Badge shows the
      unread count of teacher-authored messages. -->
 <button id="chatFab" class="chat-fab hidden" title="Message your teacher" aria-label="Open chat with teacher">
@@ -2688,12 +2688,12 @@ body.has-dev-banner{padding-top:26px}
      and parent views (see updateNovaMuteVisibility in go()). -->
 <button id="novaMute" class="nova-mute" title="Mute Nova's voice" aria-label="Mute Nova's voice" aria-pressed="false"><span class="nm-icon" aria-hidden="true">🔊</span><span class="nm-label">Nova</span></button>
 <!-- Chat panel — slide-up card in the bottom-right corner. Hidden until
-     the student taps the FAB. Shows thread with Rhahavy plus input row. -->
+     the student taps the FAB. Shows thread with the teacher plus input row. -->
 <div id="chatPanel" class="chat-panel" aria-hidden="true" role="dialog" aria-label="Chat with teacher">
   <div class="chat-panel-head">
     <div class="cp-title">
       <span class="cp-avatar" aria-hidden="true">👩🏽‍🏫</span>
-      <span>Chat with Rhahavy</span>
+      <span>Chat with your teacher</span>
     </div>
     <button class="cp-close" id="chatPanelClose" aria-label="Close chat">✕</button>
   </div>
@@ -8858,7 +8858,7 @@ const CHALLENGE_BANK = {
    ========================================================================== */
 const EMAIL_CONFIG = {
   teacherEmail: 'admin@kidquest.fun',
-  teacherName:  'Rhahavy',
+  teacherName:  'Your teacher',
   emailjs: {
     publicKey:  '',   // e.g. 'user_AbCd1234' — from EmailJS dashboard
     serviceId:  '',   // e.g. 'service_gmail_xyz'
@@ -10923,7 +10923,7 @@ function renderChatPanel(){
   msgEl.innerHTML = '';
   if(!thread.length){
     msgEl.appendChild(h('div',{class:'cp-empty'},
-      'Say hi to Rhahavy! 👋\nAsk for help with any lesson — she\'ll see it and reply.'));
+      'Say hi to your teacher! 👋\nAsk for help with any lesson — they\'ll see it and reply.'));
     return;
   }
   thread.forEach(m=>{
@@ -12831,7 +12831,7 @@ const NOVA_TOUR_STEPS = [
     target: '.tts-dash-toggle',
     tone: 'cheerful' },
   { title: 'The Solvix Store',
-    text: "Spend your coins on REAL rewards Ms. Rhahavy set up for you! Keep earning the big ones.",
+    text: "Spend your coins on REAL rewards your teacher set up for you! Keep earning the big ones.",
     target: '.dash-store-btn.store',
     tone: 'cheerful' },
   { title: 'Tap me anytime!',
@@ -13115,7 +13115,7 @@ function getNovaActivityTourSteps(){
 
   steps.push({
     title: 'Earn coins 🪙',
-    text: "Right answers earn 🪙 coins. Save them up to buy real rewards Ms. Rhahavy picked out for you!",
+    text: "Right answers earn 🪙 coins. Save them up to buy real rewards your teacher picked out for you!",
     tone: 'cheerful',
   });
 
@@ -14471,26 +14471,73 @@ function openAiRewriteReviewModal(sid, activityId, feature){
   document.body.appendChild(overlay);
 }
 
+// Grade → template curriculum id. Used by getWeekActivities() as a fallback
+// for students whose own sid isn't a key in WEEKS — i.e. every student
+// added by a NEW tenant via the Add Student UI. The legacy seed kids
+// (nishan, akaran, rushan, akshayan, isaiah, evan) own the full WEEKS
+// dataset; new tenants' kids borrow it grade-by-grade so a paying customer
+// who adds "Sarah, Grade 3" sees Akshayan's Grade 3 lessons immediately.
+// Each new student's progress (completedActivities, coins, etc.) still
+// lives under THEIR sid, so siblings never share completion state.
+//
+// Grade 4 / Grade 6 borrow the next-grade-down curriculum (matches the
+// demo roster's curriculumSid choice for parity). Anything we don't
+// recognize falls back to G1/akaran so the kid still sees content.
+const GRADE_TO_TEMPLATE_SID = {
+  'Pre-Kindergarten':     'nishan',   // (no native pre-K set; SK is closest)
+  'Junior Kindergarten':  'nishan',   // (no native JK set; SK is closest)
+  'Senior Kindergarten':  'nishan',
+  'Grade 1':              'akaran',
+  'Grade 2':              'rushan',
+  'Grade 3':              'akshayan',
+  'Grade 4':              'isaiah',   // (no native G4 set; G5 is closest)
+  'Grade 5':              'isaiah',
+  'Grade 6':              'isaiah',   // (no native G6 set; G5 is closest)
+  'Grade 7':              'evan',
+  'Grade 8':              'evan',     // (no native G8 set; G7 is closest)
+  'Grade 9':              'evan',     // (no native G9 set; G7 is closest)
+  'Grade 10':             'evan',     // (no native G10 set; G7 is closest)
+  'Other':                'akshayan', // default to mid-elementary
+};
+function templateSidForGrade(grade){
+  return GRADE_TO_TEMPLATE_SID[grade] || 'akaran';
+}
+
 function getWeekActivities(sid,subj){
   // Demo profiles reuse an existing student's curriculum via curriculumSid
   // so we don't duplicate the big WEEKS data structure. Real students hit
-  // the fast path unchanged.
+  // the fast path unchanged. New-tenant students fall through to a
+  // grade-template lookup so they don't see an empty curriculum.
   const demo = DEMO_GRADES.find(d=>d.id===sid);
-  const resolved = demo ? demo.curriculumSid : sid;
+  let resolved = demo ? demo.curriculumSid : sid;
+  if(!demo && (!WEEKS[currentWeek] || !WEEKS[currentWeek][resolved])){
+    // Real student whose id isn't in WEEKS — tenant-added kid. Resolve via
+    // their grade. STUDENTS is the live roster; getStudentInfo() looks here.
+    try {
+      const studentRec = (typeof STUDENTS !== 'undefined' && Array.isArray(STUDENTS))
+        ? STUDENTS.find(s => s.id === sid)
+        : null;
+      if(studentRec && studentRec.grade){
+        resolved = templateSidForGrade(studentRec.grade);
+      }
+    } catch(e){ /* fall through to original resolved */ }
+  }
   const acts = (WEEKS[currentWeek] && WEEKS[currentWeek][resolved] && WEEKS[currentWeek][resolved][subj]) || [];
   // Layered merge at read time:
   //   base WEEKS → tutor override (Course Editor) → student simpleLanguage
   //              → student autoStretch questions
   // Tutor overrides apply to every student. Student AI overrides (from
   // simpleLanguage / autoStretch) are keyed by sid — demos use the resolved
-  // id so the preview reflects what the target student actually sees. Each
-  // overlay is gated independently by its own `_status` / `_stretchStatus`
-  // so a tutor can approve one feature and leave the other pending.
+  // id so the preview reflects what the target student actually sees, but
+  // tenant-added kids who borrowed a template curriculum should still see
+  // THEIR OWN plan + stretch overrides (not the template kid's), so we pass
+  // their original sid here.
+  const planSid = demo ? resolved : sid;
   const merged = acts
     .map(applyCurriculumOverride)
     .filter(Boolean)
-    .map(a => applyStudentPlanOverride(a, resolved))
-    .map(a => applyStudentStretchOverride(a, resolved));
+    .map(a => applyStudentPlanOverride(a, planSid))
+    .map(a => applyStudentStretchOverride(a, planSid));
   // Activities marked demoOnly are previews of upcoming content — parents
   // browsing a demo profile see them so they can gauge depth/progression,
   // but real students don't, because they haven't earned their way there yet.
@@ -15791,7 +15838,7 @@ function renderPinLockout(root, sid, s){
   const card = h('div',{class:'pin-lockout'});
   card.appendChild(h('div',{class:'pl-ico'}, '🔒'));
   card.appendChild(h('h2',{}, 'Account locked'));
-  card.appendChild(h('p',{class:'pl-msg'}, 'Ask your parent to ask Ms. Rhahavy for your password.'));
+  card.appendChild(h('p',{class:'pl-msg'}, 'Ask a grown-up to reset it from the Teacher Dashboard.'));
   card.appendChild(h('button',{class:'pl-back',type:'button',onclick:()=>go('profiles')}, '← Back to profiles'));
   root.appendChild(card);
 }
@@ -19397,7 +19444,7 @@ function openSuccess(item, order){
   panel.appendChild(h('button',{class:'sm-close',onclick:()=>{closeStoreModal();go('store');}},'✕'));
   const sb = h('div',{class:'success-burst'},[
     h('div',{class:'sb-emoji'}, item.emoji||'🎁'),
-    h('div',{class:'sb-title'},'Your order was sent to Rhahavy! 🎉'),
+    h('div',{class:'sb-title'},'Your order was sent to your teacher! 🎉'),
     h('div',{class:'sb-line'},'Keep earning coins while you wait 👀'),
     h('div',{class:'sb-line-soft'},'You\'ll see it in "My Orders" with its status.'),
   ]);
@@ -25449,7 +25496,7 @@ function buildProgressReport(sid){
     lines.push(`  ${s.emoji} ${s.name}: ${s.done}/${s.total} done · ${s.perfect} perfect${effort}${tag}`);
   });
   lines.push('');
-  lines.push('— Rhahavy, Solvix Tutoring');
+  lines.push('— Solvix Tutoring');
   lines.push('(Reply to this email to reach me directly.)');
 
   const subject = `${name}'s Solvix progress — ${today}`;
@@ -26665,7 +26712,7 @@ function renderMaintenanceScreen(){
     +     '<h1 class="maintenance-title">Solvix is getting an upgrade!</h1>'
     +     '<p class="maintenance-msg">' + safeMsg + '</p>'
     +     '<div class="maintenance-dots"><span></span><span></span><span></span></div>'
-    +     '<div class="maintenance-footer">Rhahavy is working on something new. 🛠️</div>'
+    +     '<div class="maintenance-footer">We\'re working on something new. 🛠️</div>'
     +     '<button class="maint-unlock" id="maintUnlockBtn">🔑 Teacher unlock</button>'
     +     '<div id="maintEscapeHatch" style="margin-top:18px;display:none;opacity:.85">'
     +       '<p style="font-size:13px;margin:0 0 8px">Been stuck here for a while?</p>'
