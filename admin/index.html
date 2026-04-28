@@ -370,8 +370,12 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div class="panel-body">
       <p style="margin:0 0 10px;font-size:13px;color:#64748b">
-        Fix bugs in the bundled lessons (e.g. a missing reading passage) without redeploying. Saved overrides apply to <strong>every tenant</strong> on next page load. Per-tenant teacher edits still win on top, so a tutor's local customizations aren't undone.
+        Edit the <strong>grade-level master curriculum</strong> — one canonical lesson set per grade (JK – G8). Saved overrides apply to <strong>every tenant</strong> on next page load, and the runtime fallback in the app makes them flow to every same-grade student automatically (so editing Grade 3 here ships to every G3 kid in every tenant). Per-tenant teacher edits still win on top, so a tutor's local customizations aren't undone.
       </p>
+      <div style="margin:0 0 12px;padding:10px 12px;background:#f3f7ff;border:1px solid rgba(108,92,231,.18);border-radius:8px;font-size:12.5px;color:#475569;line-height:1.5">
+        <strong style="color:#1e293b">🎯 Editing the grade master.</strong>
+        Per-student edits (IEP scaffolds, ESL simplifications, hiding a lesson for one kid) belong on the <strong>per-tenant Teacher Dashboard</strong>, not here — those overrides layer on top of the grade master without affecting siblings or classmates.
+      </div>
       <div id="curriculum-meta" style="font-size:12px;color:#94a3b8;margin-bottom:10px">Loading the activity catalog…</div>
       <div id="curriculum-filters" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
         <select id="curr-week" class="curr-select" aria-label="Week"></select>
@@ -1711,13 +1715,25 @@ tbody tr:last-child td{border-bottom:none}
   }
 
   // ========== Curriculum Editor ==========
-  // Lets the operator (you) override or hide individual lessons across
-  // every tenant. The activity catalog itself isn't duplicated here —
-  // a hidden iframe loads /app/?adminEditor=1 and the app's bail-out
-  // hook postMessages the WEEKS object back, then halts boot. Saved
-  // overrides hit /admin/curriculum/global-override on the worker;
-  // kids pick them up on next /app/ load via the global override layer
-  // wired into getWeekActivities.
+  // Lets the operator (you) edit the GRADE-LEVEL canonical curriculum
+  // that every tenant pulls from. The editor scopes itself to the
+  // grade-master SIDs only — one canonical curriculum source per grade,
+  // matching the DEMO_GRADES_TEACHER mapping in app/index.html. Per-
+  // student edits (IEP scaffolds, ESL simplifications, hiding a single
+  // lesson for one kid) belong on the per-tenant Teacher Dashboard,
+  // NOT here — those overrides layer on top of the grade master at
+  // runtime so tenant-side customizations never get undone by an
+  // operator-side bug fix.
+  //
+  // The activity catalog itself isn't duplicated here — a hidden iframe
+  // loads /app/?adminEditor=1 and the app's bail-out hook postMessages
+  // the WEEKS object back, then halts boot. We filter the result to
+  // grade-master SIDs only when flattening so axel/mia/tenant-roster
+  // students never appear in the editor list. Saved overrides hit
+  // /admin/curriculum/global-override on the worker; the app's
+  // gradeMasterActivityIdFor() fallback in applyCurriculumOverride
+  // makes a single grade-master override apply to every same-grade
+  // student automatically.
   //
   // Merge order at runtime (in app/index.html):
   //   base (bundled WEEKS)  →  global override (this editor)
@@ -1725,6 +1741,29 @@ tbody tr:last-child td{border-bottom:none}
   //                         →  per-student AI simplify / stretch
   // So tutor customizations still win over operator fixes — that's
   // intentional: never undo a teacher's tweak when patching a bug.
+
+  // Grade-master mapping. Mirrors DEMO_GRADES_TEACHER in app/index.html
+  // — the single source of truth for "which student's WEEKS bucket owns
+  // the canonical curriculum for grade X". Keep these two lists in sync.
+  var GRADE_MASTERS = [
+    { grade: 'Junior Kindergarten', sid: 'theo' },
+    { grade: 'Senior Kindergarten', sid: 'nishan' },
+    { grade: 'Grade 1',             sid: 'akaran' },
+    { grade: 'Grade 2',             sid: 'rushan' },
+    { grade: 'Grade 3',             sid: 'akshayan' },
+    { grade: 'Grade 4',             sid: 'lily' },
+    { grade: 'Grade 5',             sid: 'isaiah' },
+    { grade: 'Grade 6',             sid: 'jasper' },
+    { grade: 'Grade 7',             sid: 'evan' },
+    { grade: 'Grade 8',             sid: 'nora' },
+  ];
+  var GRADE_MASTER_SIDS = {};
+  var GRADE_BY_SID = {};
+  GRADE_MASTERS.forEach(function(g){
+    GRADE_MASTER_SIDS[g.sid] = true;
+    GRADE_BY_SID[g.sid] = g.grade;
+  });
+
   var curriculumState = {
     weeks: null,                  // populated by iframe postMessage
     overrides: {},                // map of activityId → override blob
@@ -1732,7 +1771,9 @@ tbody tr:last-child td{border-bottom:none}
     iframeReady: false,
     iframeLoading: false,
     iframeTimer: null,
-    filters: { week:'', student:'', subject:'', status:'all', search:'' },
+    // `grade` filter holds the grade-master SID (e.g. 'akshayan' for
+    // Grade 3). Empty string = all grades.
+    filters: { week:'', grade:'', subject:'', status:'all', search:'' },
     currentEdit: null             // {id, base, row}
   };
 
@@ -1815,12 +1856,13 @@ tbody tr:last-child td{border-bottom:none}
     if(!curriculumState.weeks) return;
     var weeks = curriculumState.weeks;
     var weekKeys = Object.keys(weeks).sort(function(a,b){ return Number(a)-Number(b); });
-    var students = {};
+    // Subject set comes from grade-master rows only — same set the list
+    // is rendered against, so no orphan subjects.
     var subjects = {};
     weekKeys.forEach(function(wk){
       var byStu = weeks[wk] || {};
       Object.keys(byStu).forEach(function(sid){
-        students[sid] = true;
+        if(!GRADE_MASTER_SIDS[sid]) return;
         var bySub = byStu[sid] || {};
         Object.keys(bySub).forEach(function(sub){ subjects[sub] = true; });
       });
@@ -1828,15 +1870,20 @@ tbody tr:last-child td{border-bottom:none}
 
     $currWeek.innerHTML = '<option value="">All weeks</option>' +
       weekKeys.map(function(w){ return '<option value="'+escapeHtml(w)+'">Week '+escapeHtml(w)+'</option>'; }).join('');
-    var stuKeys = Object.keys(students).sort();
-    $currStudent.innerHTML = '<option value="">All students</option>' +
-      stuKeys.map(function(s){ return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; }).join('');
+    // Grade dropdown: one option per GRADE_MASTERS row. Value = the
+    // grade-master sid (so existing filter logic comparing against
+    // row.sid still works); label = the human-readable grade name.
+    $currStudent.innerHTML = '<option value="">All grades</option>' +
+      GRADE_MASTERS.map(function(g){
+        return '<option value="'+escapeHtml(g.sid)+'">'+escapeHtml(g.grade)+'</option>';
+      }).join('');
+    $currStudent.setAttribute('aria-label', 'Grade');
     var subKeys = Object.keys(subjects).sort();
     $currSubject.innerHTML = '<option value="">All subjects</option>' +
       subKeys.map(function(s){ return '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; }).join('');
 
     $currWeek.value     = curriculumState.filters.week;
-    $currStudent.value  = curriculumState.filters.student;
+    $currStudent.value  = curriculumState.filters.grade;
     $currSubject.value  = curriculumState.filters.subject;
     $currStatusSel.value = curriculumState.filters.status;
     $currSearch.value   = curriculumState.filters.search;
@@ -1845,20 +1892,31 @@ tbody tr:last-child td{border-bottom:none}
     $currMeta.textContent = '';
   }
 
-  // Flatten the WEEKS tree → [{week, sid, subject, activity}, …].
+  // Flatten the WEEKS tree → [{week, sid, subject, activity, grade}, …].
+  // Filtered to GRADE-MASTER SIDS ONLY. Rows for axel/mia (clones of
+  // akshayan), and any tenant-side custom students, are skipped — the
+  // operator should never see those here. To customize a single
+  // student, use the per-tenant Teacher Dashboard instead.
   function flattenActivities(){
     var rows = [];
     var weeks = curriculumState.weeks || {};
     Object.keys(weeks).forEach(function(wk){
       var byStu = weeks[wk] || {};
       Object.keys(byStu).forEach(function(sid){
+        if(!GRADE_MASTER_SIDS[sid]) return;
         var bySub = byStu[sid] || {};
         Object.keys(bySub).forEach(function(sub){
           var arr = bySub[sub];
           if(!Array.isArray(arr)) return;
           arr.forEach(function(a){
             if(!a || !a.id) return;
-            rows.push({ week:String(wk), sid:sid, subject:sub, activity:a });
+            rows.push({
+              week: String(wk),
+              sid: sid,
+              subject: sub,
+              activity: a,
+              grade: GRADE_BY_SID[sid] || sid,
+            });
           });
         });
       });
@@ -1885,7 +1943,9 @@ tbody tr:last-child td{border-bottom:none}
     var q = (f.search || '').trim().toLowerCase();
     return rows.filter(function(r){
       if(f.week && r.week !== f.week) return false;
-      if(f.student && r.sid !== f.student) return false;
+      // f.grade holds the grade-master sid, which equals r.sid for any
+      // row that survives flattenActivities (those are master-only).
+      if(f.grade && r.sid !== f.grade) return false;
       if(f.subject && r.subject !== f.subject) return false;
       var ov = curriculumState.overrides[r.activity.id];
       if(f.status === 'overridden' && !ov) return false;
@@ -1936,7 +1996,9 @@ tbody tr:last-child td{border-bottom:none}
       var title = (ov && ov.title) || a.title || '(untitled)';
       var chips = [];
       chips.push('<span class="chip">W'+escapeHtml(r.week)+'</span>');
-      chips.push('<span class="chip">'+escapeHtml(r.sid)+'</span>');
+      // Grade chip (uses the human-readable grade name from GRADE_BY_SID,
+      // not the raw SID, so the operator sees "Grade 3" not "akshayan").
+      chips.push('<span class="chip">'+escapeHtml(r.grade || r.sid)+'</span>');
       chips.push('<span class="chip">'+escapeHtml(r.subject)+'</span>');
       var isReading = /reading|^r$/i.test(r.subject);
       var ovHasPassageQ = false;
@@ -1994,7 +2056,7 @@ tbody tr:last-child td{border-bottom:none}
     curriculumState.currentEdit = { id: aid, base: row.activity, row: row };
     var ov = curriculumState.overrides[aid];
     $currEditTitle.textContent = (ov && ov.title) || row.activity.title || '(untitled)';
-    $currEditSub.textContent = 'Week ' + row.week + ' · ' + row.sid + ' · ' + row.subject + ' · id=' + aid;
+    $currEditSub.textContent = 'Week ' + row.week + ' · ' + (row.grade || row.sid) + ' · ' + row.subject + ' · id=' + aid;
     var statusHtml;
     if(ov && ov._hidden){
       statusHtml = '<span style="color:#991b1b;font-weight:700">Currently hidden from kids</span>';
@@ -2157,7 +2219,8 @@ tbody tr:last-child td{border-bottom:none}
     curriculumState.filters.week = this.value; renderCurriculum();
   });
   $currStudent.addEventListener('change', function(){
-    curriculumState.filters.student = this.value; renderCurriculum();
+    // Repurposed as the GRADE filter — value is a grade-master sid.
+    curriculumState.filters.grade = this.value; renderCurriculum();
   });
   $currSubject.addEventListener('change', function(){
     curriculumState.filters.subject = this.value; renderCurriculum();
