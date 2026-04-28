@@ -11109,11 +11109,35 @@ async function pullCloud(init){
     // freshly-added student on this device). syncStudentsFromRoster()
     // refreshes STUDENTS so the anti-wipe scan below uses the current
     // post-merge roster.
-    if(Array.isArray(d.roster)){
+    if(Array.isArray(d.roster) && d.roster.length){
       allData.roster = d.roster
         .map(s => normalizeStudent(JSON.parse(JSON.stringify(s))))
         .filter(Boolean);
       try { syncStudentsFromRoster(); } catch(e){ console.warn('[Solvix] post-pull syncStudentsFromRoster failed:', e); }
+    } else if(d.users && typeof d.users === 'object'){
+      // ROSTER RECOVERY: cloud came back with no roster but DOES have user
+      // progress. This is the "Rhahavy April 2026" wipe pattern — some
+      // earlier write zeroed the roster while leaving users intact.
+      // Reconstruct the roster from the user keys we know exist, using
+      // the same legacy-id matcher we use on first-boot localStorage
+      // recovery. Note: only acts on cloud-empty-roster + cloud-has-users
+      // (not on cloud-empty-roster + cloud-empty-users, which is a
+      // legitimate brand-new tenant).
+      const cloudUsersHaveProgress = Object.values(d.users).some(userHasMeaningfulProgress);
+      const localRosterEmpty = !Array.isArray(allData.roster) || !allData.roster.length;
+      if(cloudUsersHaveProgress && localRosterEmpty){
+        try {
+          const recovered = (typeof migrateRosterFromLegacy === 'function') ? migrateRosterFromLegacy(d) : [];
+          if(Array.isArray(recovered) && recovered.length){
+            allData.roster = recovered;
+            try { syncStudentsFromRoster(); } catch(e){}
+            try { console.warn('[Solvix] cloud roster missing — auto-rebuilt from user keys:', recovered.map(r=>r.id)); } catch(e){}
+            // Trip the anti-wipe trail so the operator sees this in the
+            // snapshot history (helps diagnose why it happened).
+            snapshotIfWipeImminent('cloud roster missing — auto-rebuilt from user keys', Object.keys(d.users));
+          }
+        } catch(e){ try{ console.warn('[Solvix] cloud roster auto-recover failed:', e); }catch(_){}; }
+      }
     }
 
     // Anti-wipe guard: if cloud is missing a student or has them as an
@@ -11304,6 +11328,37 @@ async function syncToCloud(){
     if(wipeVictims.length){
       snapshotIfWipeImminent('syncToCloud blocked — local progress disappeared', wipeVictims);
       try { console.error('[Solvix] syncToCloud REFUSED — would wipe:', wipeVictims, '. Restore from snapshot if needed.'); } catch(e){}
+      cloudBusy=false; pendingWrite=false;
+      return;
+    }
+    // ROSTER anti-wipe: refuse to publish a blob whose roster vanished
+    // while local users still hold meaningful progress. Same defense the
+    // _meaningfulHighWater check above provides for users — but applied
+    // to the roster array, which previously had ZERO write-side protection.
+    // Without this guard, any code path that nullifies allData.roster (a
+    // bad merge, a buggy reset, a partial restore) silently propagated up
+    // to the cloud, then back down to every other device on next pull,
+    // leaving the operator with an empty Mission Hub but intact users data
+    // — exactly the bug that wiped Rhahavy's hub on April 2026.
+    const rosterArr = Array.isArray(allData.roster) ? allData.roster : [];
+    const usersWithProgress = [];
+    for(const sid in (allData.users || {})){
+      if(userHasMeaningfulProgress(allData.users[sid])) usersWithProgress.push(sid);
+    }
+    if(!rosterArr.length && usersWithProgress.length){
+      snapshotIfWipeImminent('syncToCloud blocked — roster vanished but users have progress', usersWithProgress);
+      try { console.error('[Solvix] syncToCloud REFUSED — roster is empty/null but '+usersWithProgress.length+' users have progress. Roster will be reconstructed from local snapshot or LEGACY_SEED_STUDENTS on next reload.', usersWithProgress); } catch(e){}
+      // Try to self-heal locally so the next saveState publishes a sane
+      // roster instead of the empty one. migrateRosterFromLegacy synthesizes
+      // a roster from the user keys we DO have.
+      try {
+        const recovered = (typeof migrateRosterFromLegacy === 'function') ? migrateRosterFromLegacy(allData) : [];
+        if(Array.isArray(recovered) && recovered.length){
+          allData.roster = recovered;
+          try { syncStudentsFromRoster(); } catch(e){}
+          try { console.warn('[Solvix] roster auto-recovered from legacy seed:', recovered.map(r=>r.id)); } catch(e){}
+        }
+      } catch(e){ try{ console.warn('[Solvix] roster auto-recover failed:', e); }catch(_){}; }
       cloudBusy=false; pendingWrite=false;
       return;
     }
