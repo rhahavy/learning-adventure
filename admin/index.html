@@ -246,6 +246,12 @@ tbody tr:last-child td{border-bottom:none}
 .curr-card .meta .chip.hidden{background:#1a1035;color:#fff}
 .curr-card.overridden{border-color:rgba(108,92,231,.55);background:linear-gradient(180deg,#fff,#fbf9ff)}
 .curr-card.hidden{opacity:.55}
+/* Severity stripes — narrow left border in the chip's colour so a card
+   with issues reads at-a-glance even when chips are clipped on a small
+   viewport. .has-error wins over .has-warn so an errored lesson stays
+   red even if it also has warnings. */
+.curr-card.has-warn{border-left:4px solid #fbbf24}
+.curr-card.has-error{border-left:4px solid #ef4444;background:linear-gradient(180deg,#fff,#fef2f2)}
 .curr-empty{grid-column:1/-1;text-align:center;color:var(--ink3);padding:40px 20px;font-size:14px}
 @media (max-width:768px){
   .curr-search{min-width:0;width:100%}
@@ -377,12 +383,20 @@ tbody tr:last-child td{border-bottom:none}
         Per-student edits (IEP scaffolds, ESL simplifications, hiding a lesson for one kid) belong on the <strong>per-tenant Teacher Dashboard</strong>, not here — those overrides layer on top of the grade master without affecting siblings or classmates.
       </div>
       <div id="curriculum-meta" style="font-size:12px;color:#94a3b8;margin-bottom:10px">Loading the activity catalog…</div>
+      <!-- Always-on issues summary. Populated by renderIssuesSummary on
+           every renderCurriculum() so the operator sees the live state of
+           the catalog regardless of filter selection. Click any line to
+           jump-filter the list to just that issue category. -->
+      <div id="curriculum-issues" style="display:none;margin-bottom:12px"></div>
       <div id="curriculum-filters" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
         <select id="curr-week" class="curr-select" aria-label="Week"></select>
         <select id="curr-student" class="curr-select" aria-label="Student / template"></select>
         <select id="curr-subject" class="curr-select" aria-label="Subject"></select>
-        <select id="curr-status" class="curr-select" aria-label="Override status">
+        <select id="curr-status" class="curr-select" aria-label="Status / issues">
           <option value="all">All lessons</option>
+          <option value="issues">⚠ Has issues</option>
+          <option value="errors">⛔ Has errors</option>
+          <option value="warnings">⚠ Has warnings</option>
           <option value="overridden">Only overridden</option>
           <option value="hidden">Only hidden</option>
           <option value="missing-passage">Reading w/o passage</option>
@@ -1780,6 +1794,7 @@ tbody tr:last-child td{border-bottom:none}
   var $currMeta      = document.getElementById('curriculum-meta');
   var $currCount     = document.getElementById('curriculum-count');
   var $currFilters   = document.getElementById('curriculum-filters');
+  var $currIssues    = document.getElementById('curriculum-issues');
   var $currList      = document.getElementById('curriculum-list');
   var $currWeek      = document.getElementById('curr-week');
   var $currStudent   = document.getElementById('curr-student');
@@ -1892,11 +1907,12 @@ tbody tr:last-child td{border-bottom:none}
     $currMeta.textContent = '';
   }
 
-  // Flatten the WEEKS tree → [{week, sid, subject, activity, grade}, …].
-  // Filtered to GRADE-MASTER SIDS ONLY. Rows for axel/mia (clones of
-  // akshayan), and any tenant-side custom students, are skipped — the
-  // operator should never see those here. To customize a single
-  // student, use the per-tenant Teacher Dashboard instead.
+  // Flatten the WEEKS tree → [{week, sid, subject, activity, grade,
+  // issues}, …]. Filtered to GRADE-MASTER SIDS ONLY (axel/mia/tenant-side
+  // students never appear). Each row also carries the precomputed issue
+  // list from analyzeLesson so renderCurriculum and applyCurriculumFilters
+  // share a single analysis pass per render — cheap because the analyzer
+  // is pure JS over already-loaded data, no I/O.
   function flattenActivities(){
     var rows = [];
     var weeks = curriculumState.weeks || {};
@@ -1910,12 +1926,19 @@ tbody tr:last-child td{border-bottom:none}
           if(!Array.isArray(arr)) return;
           arr.forEach(function(a){
             if(!a || !a.id) return;
+            var ov = curriculumState.overrides[a.id];
+            var eff = effectiveActivity(a, ov);
+            // Hidden lessons skip the lint pass — kids never see them, so
+            // their issues don't matter operationally. Un-hide to re-scan.
+            var issues = eff ? analyzeLesson(eff, sub) : [];
             rows.push({
               week: String(wk),
               sid: sid,
               subject: sub,
               activity: a,
               grade: GRADE_BY_SID[sid] || sid,
+              issues: issues,
+              effective: eff,
             });
           });
         });
@@ -1938,6 +1961,188 @@ tbody tr:last-child td{border-bottom:none}
     return false;
   }
 
+  // ---- Always-on lesson-quality scanner ----------------------------------
+  // analyzeLesson runs against the EFFECTIVE merged activity (base + saved
+  // override) and returns an array of {severity, code, msg}. Severity is
+  // 'error' for things that break or confuse kids (wrong answer index,
+  // duplicate choices, missing question text), and 'warn' for soft issues
+  // (no curriculum codes, very short passage, missing intro/example/hint).
+  // Run on every renderCurriculum() so saved overrides clear or surface
+  // issues live without a manual rescan.
+  function analyzeLesson(activity, subject){
+    var issues = [];
+    if(!activity || typeof activity !== 'object'){
+      issues.push({severity:'error', code:'no-activity', msg:'Lesson object missing.'});
+      return issues;
+    }
+    // Top-level fields
+    if(!activity.title || !String(activity.title).trim()){
+      issues.push({severity:'error', code:'no-title', msg:'Title is empty.'});
+    }
+    if(!activity.emoji || !String(activity.emoji).trim()){
+      issues.push({severity:'warn', code:'no-emoji', msg:'No emoji set.'});
+    }
+    // Lesson block
+    if(!activity.lesson || typeof activity.lesson !== 'object'){
+      issues.push({severity:'error', code:'no-lesson', msg:'Missing lesson block (intro / example / hint).'});
+    } else {
+      if(!activity.lesson.intro)  issues.push({severity:'warn', code:'no-intro', msg:'Lesson intro missing.'});
+      if(!activity.lesson.example)issues.push({severity:'warn', code:'no-example', msg:'Lesson example missing.'});
+      if(!activity.lesson.hint)   issues.push({severity:'warn', code:'no-hint', msg:'Lesson hint missing.'});
+    }
+    // Curriculum tag
+    if(!activity.curriculum || typeof activity.curriculum !== 'object'){
+      issues.push({severity:'error', code:'no-curriculum', msg:'Missing Ontario curriculum tag.'});
+    } else {
+      if(!activity.curriculum.grade){
+        issues.push({severity:'error', code:'no-grade', msg:'Curriculum tag has no grade.'});
+      }
+      if(!Array.isArray(activity.curriculum.codes) || !activity.curriculum.codes.length){
+        issues.push({severity:'warn', code:'no-codes', msg:'Curriculum tag has no Ontario codes.'});
+      }
+    }
+    // Questions array
+    if(!Array.isArray(activity.questions)){
+      issues.push({severity:'error', code:'no-questions', msg:'Questions array missing.'});
+      return issues;
+    }
+    if(activity.questions.length === 0){
+      issues.push({severity:'error', code:'empty-questions', msg:'Questions array is empty.'});
+      return issues;
+    }
+    if(activity.questions.length !== 5){
+      issues.push({severity:'warn', code:'wrong-question-count',
+        msg:'Has ' + activity.questions.length + ' questions (Week-1 norm is 5).'});
+    }
+    // Reading lesson should have at least one passage block.
+    var isReading = /reading|^r$/i.test(subject || '');
+    if(isReading){
+      var hasPassage = activity.questions.some(function(q){
+        return q && q.type === 'passage' && q.passage && String(q.passage).trim().length > 0;
+      });
+      if(!hasPassage){
+        issues.push({severity:'warn', code:'reading-no-passage',
+          msg:'Reading lesson has no passage block — kids see questions with no story.'});
+      }
+    }
+    // Per-question checks
+    activity.questions.forEach(function(q, i){
+      var qNum = 'Q' + (i + 1);
+      if(!q || typeof q !== 'object'){
+        issues.push({severity:'error', code:'q-bad', msg:qNum+': not an object.'});
+        return;
+      }
+      if(!q.type){
+        issues.push({severity:'error', code:'q-no-type', msg:qNum+': missing type.'});
+        return;
+      }
+      var t = q.type;
+      if(t === 'mcq' || t === 'fill' || t === 'passage'){
+        if(!q.q || !String(q.q).trim()){
+          issues.push({severity:'error', code:'q-no-text', msg:qNum+': missing question text.'});
+        }
+        if(!Array.isArray(q.choices) || q.choices.length === 0){
+          issues.push({severity:'error', code:'q-no-choices', msg:qNum+': missing choices array.'});
+        } else {
+          if(q.choices.length < 2){
+            issues.push({severity:'error', code:'q-too-few-choices',
+              msg:qNum+': needs ≥2 choices, has '+q.choices.length+'.'});
+          }
+          if(q.choices.length > 6){
+            issues.push({severity:'warn', code:'q-too-many-choices',
+              msg:qNum+': has '+q.choices.length+' choices (4 is the norm).'});
+          }
+          for(var ci=0;ci<q.choices.length;ci++){
+            if(!q.choices[ci] || !String(q.choices[ci]).trim()){
+              issues.push({severity:'error', code:'q-empty-choice',
+                msg:qNum+': choice '+(ci+1)+' is empty.'});
+            }
+          }
+          // Duplicate-choice detection. Many choices use a leading emoji
+          // ("🐱 Cat" / "🐶 Cat") — we strip that prefix before comparing
+          // so an honest "🐱 Cat" appearing twice is still flagged.
+          var seen = {};
+          var dup = null;
+          for(var di=0;di<q.choices.length;di++){
+            var norm = String(q.choices[di] || '').trim().toLowerCase()
+              .replace(/^[\s\W_]+/, '').trim();
+            if(!norm) continue;
+            if(seen[norm] !== undefined){ dup = q.choices[di]; break; }
+            seen[norm] = di;
+          }
+          if(dup){
+            issues.push({severity:'error', code:'q-dup-choice',
+              msg:qNum+': duplicate choice text — "'+dup+'" appears twice (correct answer is ambiguous).'});
+          }
+          // answer index
+          if(typeof q.answer !== 'number' || !Number.isInteger(q.answer)){
+            issues.push({severity:'error', code:'q-bad-answer',
+              msg:qNum+': answer index missing or not an integer.'});
+          } else if(q.answer < 0 || q.answer >= q.choices.length){
+            issues.push({severity:'error', code:'q-answer-oor',
+              msg:qNum+': answer index '+q.answer+' is out of range (0..'+(q.choices.length-1)+').'});
+          }
+        }
+        if(t === 'passage'){
+          if(typeof q.passage !== 'string' || q.passage.trim().length < 20){
+            issues.push({severity:'warn', code:'passage-short',
+              msg:qNum+': passage missing or very short (<20 chars).'});
+          }
+        }
+      } else if(t === 'match'){
+        if(!Array.isArray(q.pairs) || q.pairs.length === 0){
+          issues.push({severity:'error', code:'q-no-pairs', msg:qNum+': match question missing pairs.'});
+        } else {
+          q.pairs.forEach(function(p, pi){
+            if(!Array.isArray(p) || p.length !== 2 || !p[0] || !p[1]){
+              issues.push({severity:'error', code:'q-bad-pair',
+                msg:qNum+' pair '+(pi+1)+': malformed (must be a [left, right] array).'});
+            }
+          });
+        }
+      } else if(t === 'order'){
+        if(!Array.isArray(q.items) || q.items.length === 0){
+          issues.push({severity:'error', code:'q-no-items', msg:qNum+': order question missing items.'});
+        }
+        if(!Array.isArray(q.correctOrder)){
+          issues.push({severity:'error', code:'q-no-order', msg:qNum+': missing correctOrder.'});
+        } else if(Array.isArray(q.items) && q.correctOrder.length !== q.items.length){
+          issues.push({severity:'error', code:'q-order-mismatch',
+            msg:qNum+': correctOrder length ('+q.correctOrder.length+') ≠ items length ('+q.items.length+').'});
+        }
+      } else if(t === 'compare'){
+        if(!q.a || !q.b){
+          issues.push({severity:'error', code:'q-no-ab', msg:qNum+': compare question needs a and b.'});
+        }
+        if(q.answer !== 'a' && q.answer !== 'b'){
+          issues.push({severity:'error', code:'q-bad-ab-answer',
+            msg:qNum+': compare answer must be "a" or "b" (got '+JSON.stringify(q.answer)+').'});
+        }
+      } else if(t === 'write'){
+        if(!q.prompt) issues.push({severity:'warn', code:'q-no-prompt', msg:qNum+': write question missing prompt.'});
+      }
+      // Unknown / future types — skip silently rather than flag.
+    });
+    return issues;
+  }
+
+  // Build the EFFECTIVE merged activity (base + override) the same way the
+  // app's applyCurriculumOverride does: shallow merge, id preserved. Used
+  // by analyzeLesson so we lint what kids actually see.
+  function effectiveActivity(base, override){
+    if(!base) return null;
+    if(!override) return base;
+    if(override._hidden) return null; // hidden from kids — skip lint
+    var merged = {};
+    Object.keys(base).forEach(function(k){ merged[k] = base[k]; });
+    Object.keys(override).forEach(function(k){
+      if(k === '_hidden') return;
+      merged[k] = override[k];
+    });
+    merged.id = base.id;
+    return merged;
+  }
+
   function applyCurriculumFilters(rows){
     var f = curriculumState.filters;
     var q = (f.search || '').trim().toLowerCase();
@@ -1951,11 +2156,11 @@ tbody tr:last-child td{border-bottom:none}
       if(f.status === 'overridden' && !ov) return false;
       if(f.status === 'hidden' && !(ov && ov._hidden)) return false;
       if(f.status === 'missing-passage'){
-        // The whole reason this editor exists: find reading lessons
-        // that look broken because they have no passage block.
+        // Kept as a separate filter for the original "find broken reading
+        // lessons" workflow. The general "with-issues" filter below also
+        // catches these as part of the broader scan.
         var isReading = /reading|^r$/i.test(r.subject);
         if(!isReading) return false;
-        // If override already adds questions w/ a passage, treat as fixed.
         if(ov && ov.questions && Array.isArray(ov.questions)){
           for(var i=0;i<ov.questions.length;i++){
             if(ov.questions[i] && ov.questions[i].type === 'passage') return false;
@@ -1963,6 +2168,11 @@ tbody tr:last-child td{border-bottom:none}
         }
         if(activityHasPassage(r.activity)) return false;
       }
+      // Issue-based filters drive off the precomputed r.issues list (built
+      // by flattenActivities so every render reuses one analysis pass).
+      if(f.status === 'issues' && (!r.issues || !r.issues.length)) return false;
+      if(f.status === 'errors'   && !(r.issues && r.issues.some(function(x){ return x.severity === 'error'; }))) return false;
+      if(f.status === 'warnings' && !(r.issues && r.issues.some(function(x){ return x.severity === 'warn'; }))) return false;
       if(q){
         var hay = ((r.activity.title||'') + ' ' + r.activity.id).toLowerCase();
         if(hay.indexOf(q) < 0) return false;
@@ -1971,15 +2181,110 @@ tbody tr:last-child td{border-bottom:none}
     });
   }
 
+  // Always-on issues summary banner. Tallies errors / warnings / lessons
+  // with any issue across the FULL catalog (not the filtered subset) and
+  // surfaces a top-of-panel banner so a freshly-opened editor immediately
+  // shows whether the catalog is clean or has work to do. Each line is
+  // clickable and jump-filters the list below to just that category.
+  function renderIssuesSummary(allRows){
+    if(!$currIssues) return;
+    var totalErrors = 0;
+    var totalWarnings = 0;
+    var lessonsWithErrors = 0;
+    var lessonsWithWarns  = 0;
+    var lessonsWithAny    = 0;
+    allRows.forEach(function(r){
+      if(!r.issues || !r.issues.length) return;
+      lessonsWithAny++;
+      var hadE = false, hadW = false;
+      r.issues.forEach(function(x){
+        if(x.severity === 'error'){ totalErrors++; hadE = true; }
+        else if(x.severity === 'warn'){ totalWarnings++; hadW = true; }
+      });
+      if(hadE) lessonsWithErrors++;
+      if(hadW) lessonsWithWarns++;
+    });
+
+    if(lessonsWithAny === 0){
+      $currIssues.style.display = 'block';
+      $currIssues.innerHTML = (
+        '<div style="padding:10px 14px;background:#dcfce7;border:1px solid #86efac;'+
+        'border-radius:10px;font-size:13px;color:#166534;font-weight:600">'+
+        '✅ All ' + allRows.length + ' lessons pass the live quality scan.'+
+        '</div>'
+      );
+      return;
+    }
+
+    var pluralL = lessonsWithAny === 1 ? '' : 's';
+    var setStatus = function(v){
+      curriculumState.filters.status = v;
+      if($currStatusSel) $currStatusSel.value = v;
+      renderCurriculum();
+    };
+
+    $currIssues.style.display = 'block';
+    $currIssues.innerHTML = (
+      '<div style="padding:12px 14px;background:#fef3c7;border:1px solid #fbbf24;'+
+      'border-radius:10px;font-size:13px;color:#78350f;line-height:1.55">'+
+        '<div style="font-weight:800;margin-bottom:4px;color:#451a03">'+
+          '⚠ ' + lessonsWithAny + ' lesson' + pluralL + ' flagged · live scan'+
+        '</div>'+
+        '<div style="display:flex;gap:14px;flex-wrap:wrap">'+
+          (totalErrors > 0
+            ? '<a href="#" data-issue-filter="errors" style="color:#991b1b;font-weight:700;text-decoration:none;border-bottom:1px dashed currentColor">'+
+                '⛔ ' + totalErrors + ' error' + (totalErrors===1?'':'s') +
+                ' across ' + lessonsWithErrors + ' lesson' + (lessonsWithErrors===1?'':'s') +
+              '</a>'
+            : '')+
+          (totalWarnings > 0
+            ? '<a href="#" data-issue-filter="warnings" style="color:#92400e;font-weight:700;text-decoration:none;border-bottom:1px dashed currentColor">'+
+                '⚠ ' + totalWarnings + ' warning' + (totalWarnings===1?'':'s') +
+                ' across ' + lessonsWithWarns + ' lesson' + (lessonsWithWarns===1?'':'s') +
+              '</a>'
+            : '')+
+          '<a href="#" data-issue-filter="issues" style="color:#78350f;text-decoration:none;border-bottom:1px dashed currentColor">'+
+            'Show all flagged →'+
+          '</a>'+
+        '</div>'+
+      '</div>'
+    );
+    // Click handlers — jump the status filter to the matching value.
+    var links = $currIssues.querySelectorAll('a[data-issue-filter]');
+    for(var li = 0; li < links.length; li++){
+      links[li].addEventListener('click', function(ev){
+        ev.preventDefault();
+        setStatus(this.getAttribute('data-issue-filter'));
+      });
+    }
+  }
+
   function renderCurriculum(){
     if(!curriculumState.weeks){ return; }
-    var rows = applyCurriculumFilters(flattenActivities());
+    // Build the FULL row set (unfiltered) for the issues banner so the
+    // count reflects the entire catalog, not just whatever the operator
+    // is currently looking at. Then apply filters separately for the list.
+    var allRows = flattenActivities();
+    var rows = applyCurriculumFilters(allRows);
     $currCount.textContent = String(rows.length);
+
+    // Always-on issues summary. Tally errors / warnings / lessons-with-
+    // any-issue across the WHOLE catalog. Rendered above the filters so
+    // it's visible even when the current filter hides every flagged row.
+    renderIssuesSummary(allRows);
+
     if(!rows.length){
       $currList.innerHTML = '<div class="curr-empty">No lessons match these filters.</div>';
       return;
     }
     rows.sort(function(a,b){
+      // Lessons WITH issues sort to the top so they're impossible to miss
+      // when the operator is browsing the unfiltered list. Within that,
+      // errors-first, then warnings, then clean lessons. Then the original
+      // week / sid / subject / id order for stable display.
+      var aSev = (a.issues && a.issues.length) ? (a.issues.some(function(x){return x.severity==='error';}) ? 0 : 1) : 2;
+      var bSev = (b.issues && b.issues.length) ? (b.issues.some(function(x){return x.severity==='error';}) ? 0 : 1) : 2;
+      if(aSev !== bSev) return aSev - bSev;
       var w = Number(a.week)-Number(b.week);
       if(w) return w;
       if(a.sid !== b.sid) return a.sid.localeCompare(b.sid);
@@ -1992,6 +2297,11 @@ tbody tr:last-child td{border-bottom:none}
       var classes = ['curr-card'];
       if(ov) classes.push('overridden');
       if(ov && ov._hidden) classes.push('hidden');
+      // Tag the card with severity so the CSS can colour-stripe it.
+      var hasError = r.issues && r.issues.some(function(x){ return x.severity === 'error'; });
+      var hasWarn  = r.issues && r.issues.some(function(x){ return x.severity === 'warn'; });
+      if(hasError)      classes.push('has-error');
+      else if(hasWarn)  classes.push('has-warn');
       var emoji = (ov && ov.emoji) || a.emoji || '📘';
       var title = (ov && ov.title) || a.title || '(untitled)';
       var chips = [];
@@ -2000,15 +2310,18 @@ tbody tr:last-child td{border-bottom:none}
       // not the raw SID, so the operator sees "Grade 3" not "akshayan").
       chips.push('<span class="chip">'+escapeHtml(r.grade || r.sid)+'</span>');
       chips.push('<span class="chip">'+escapeHtml(r.subject)+'</span>');
-      var isReading = /reading|^r$/i.test(r.subject);
-      var ovHasPassageQ = false;
-      if(ov && Array.isArray(ov.questions)){
-        for(var qi=0;qi<ov.questions.length;qi++){
-          if(ov.questions[qi] && ov.questions[qi].type === 'passage'){ ovHasPassageQ = true; break; }
-        }
+      // Issue chips — grouped by severity, with the full message list in
+      // the title attribute so hovering surfaces the detail. Click on the
+      // card still opens the editor (event handler attached below).
+      if(hasError){
+        var errs = r.issues.filter(function(x){return x.severity==='error';});
+        var errTitle = errs.map(function(x){return '• '+x.msg;}).join('\n');
+        chips.push('<span class="chip err" title="'+escapeHtml(errTitle)+'">⛔ '+errs.length+' error'+(errs.length>1?'s':'')+'</span>');
       }
-      if(isReading && !activityHasPassage(a) && !ovHasPassageQ){
-        chips.push('<span class="chip err" title="Reading lesson without a passage block — kids see questions but no story">⚠ no passage</span>');
+      if(hasWarn){
+        var warns = r.issues.filter(function(x){return x.severity==='warn';});
+        var warnTitle = warns.map(function(x){return '• '+x.msg;}).join('\n');
+        chips.push('<span class="chip warn" title="'+escapeHtml(warnTitle)+'">⚠ '+warns.length+' warning'+(warns.length>1?'s':'')+'</span>');
       }
       if(ov && ov._hidden) chips.push('<span class="chip hidden">hidden</span>');
       else if(ov) chips.push('<span class="chip ok">overridden</span>');
