@@ -252,6 +252,86 @@ tbody tr:last-child td{border-bottom:none}
    red even if it also has warnings. */
 .curr-card.has-warn{border-left:4px solid #fbbf24}
 .curr-card.has-error{border-left:4px solid #ef4444;background:linear-gradient(180deg,#fff,#fef2f2)}
+
+/* ===== No-code lesson form (Form tab inside the edit modal) ===== */
+.cf-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.cf-tab{background:transparent;border:none;padding:8px 14px;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s ease,border-color .15s ease}
+.cf-tab:hover{color:var(--ink)}
+.cf-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.cf-fs{border:1px solid var(--line);border-radius:10px;padding:14px 16px 16px;margin:0 0 14px;background:#fff}
+.cf-fs > legend{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#64748b;padding:0 8px;background:#fff}
+.cf-row{margin-bottom:10px}
+.cf-row:last-child{margin-bottom:0}
+.cf-row-pair{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.cf-half{flex:1;min-width:140px}
+.cf-label{display:block;font-size:11.5px;font-weight:700;color:#475569;margin-bottom:4px;letter-spacing:.02em;text-transform:uppercase}
+.cf-input{width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:13.5px;font-family:inherit;color:var(--ink);background:#fff;box-sizing:border-box;transition:border-color .15s ease}
+.cf-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(108,92,231,.15)}
+.cf-textarea{min-height:60px;resize:vertical;line-height:1.5}
+.cf-textarea-sm{min-height:36px;resize:vertical;line-height:1.5}
+.cf-emoji-input{font-size:18px;text-align:center;width:80px}
+.cf-checkbox{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;padding:8px 0}
+.cf-checkbox input{width:16px;height:16px;cursor:pointer}
+.cf-help{font-size:11.5px;color:#94a3b8;margin-top:8px;line-height:1.5}
+.cf-help strong{color:#475569}
+
+/* Video rows */
+.cf-videos{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.cf-video{display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fafafa}
+.cf-video img{width:90px;height:50px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#1a1035}
+.cf-video img.cf-video-empty{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;background:linear-gradient(135deg,#475569,#1e293b)}
+.cf-video-input{flex:1;min-width:0;font-family:var(--mono);font-size:12px;padding:6px 8px;border:1.5px solid var(--line);border-radius:6px;background:#fff}
+.cf-video-rm{background:#fee2e2;color:#991b1b;border:none;padding:6px 10px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px;flex-shrink:0}
+.cf-video-rm:hover{background:#fecaca}
+
+/* Question editors */
+.cf-questions{display:flex;flex-direction:column;gap:14px;margin-bottom:12px}
+.cf-q{border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;background:#fafafa}
+.cf-q-head{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.cf-q-num{background:var(--primary);color:#fff;font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
+.cf-q-type{flex:1;padding:5px 8px;border:1.5px solid var(--line);border-radius:6px;font-size:12px;font-weight:600;background:#fff;cursor:pointer;max-width:160px}
+.cf-q-up,.cf-q-down,.cf-q-rm{background:#fff;border:1.5px solid var(--line);padding:5px 9px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--ink2);font-weight:700}
+.cf-q-up:hover,.cf-q-down:hover{background:#f3f4f6}
+.cf-q-rm{color:#991b1b;border-color:#fecaca;background:#fff5f5}
+.cf-q-rm:hover{background:#fee2e2}
+.cf-q-passage{margin-bottom:10px}
+.cf-q-text-row{margin-bottom:10px}
+.cf-choices{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.cf-choice{display:flex;gap:8px;align-items:center}
+.cf-choice input[type="radio"]{width:18px;height:18px;cursor:pointer;flex-shrink:0;accent-color:#16a34a}
+.cf-choice input[type="text"]{flex:1;padding:6px 9px;border:1.5px solid var(--line);border-radius:6px;font-size:13px;font-family:inherit}
+.cf-choice input[type="text"]:focus{outline:none;border-color:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,.2)}
+.cf-choice-rm{background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:0 4px;flex-shrink:0}
+.cf-choice-rm:hover{color:#991b1b}
+.cf-q-add-choice{background:#fff;border:1px dashed var(--line);padding:5px 12px;border-radius:6px;font-size:12px;color:var(--ink2);cursor:pointer;margin-top:6px;font-weight:600}
+.cf-q-add-choice:hover{background:#f9fafb;border-color:var(--primary);color:var(--primary)}
+.cf-q-advanced-note{padding:10px 12px;background:#fef3c7;border-radius:6px;font-size:12.5px;color:#78350f;line-height:1.5}
+.cf-q-advanced-note strong{display:block;margin-bottom:4px}
+
+/* ===== Curriculum panel: Lessons ↔ Videos view-mode toggle ===== */
+.cv-mode-toggle{display:inline-flex;background:#f3f4f6;border-radius:10px;padding:3px;gap:2px;margin-right:8px}
+.cv-mode-btn{background:transparent;border:none;padding:6px 12px;font-size:12.5px;font-weight:700;color:var(--ink2);cursor:pointer;border-radius:7px;transition:all .15s ease}
+.cv-mode-btn.active{background:#fff;color:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.cv-mode-btn:not(.active):hover{color:var(--ink)}
+
+/* Videos manager (centralized) */
+.cv-video-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cv-video-table th,.cv-video-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+.cv-video-table th{background:#f9fafb;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700}
+.cv-video-table tr:last-child td{border-bottom:none}
+.cv-video-table tr:hover td{background:#fafafa}
+.cv-vt-thumb{width:120px;height:67px;object-fit:cover;border-radius:6px;background:linear-gradient(135deg,#475569,#1e293b);display:block}
+.cv-vt-thumb-empty{width:120px;height:67px;border-radius:6px;background:linear-gradient(135deg,#cbd5e1,#94a3b8);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700}
+.cv-vt-id{font-family:var(--mono);font-size:12px;color:var(--ink2);padding:4px 8px;background:#f3f4f6;border-radius:4px;display:inline-block}
+.cv-vt-input{font-family:var(--mono);font-size:12.5px;padding:7px 10px;border:1.5px solid var(--line);border-radius:6px;background:#fff;width:100%;box-sizing:border-box}
+.cv-vt-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(108,92,231,.15)}
+.cv-vt-actions{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end}
+.cv-vt-save{background:var(--primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;cursor:pointer;font-size:12px}
+.cv-vt-save:hover{filter:brightness(1.06)}
+.cv-vt-save:disabled{opacity:.5;cursor:not-allowed}
+.cv-vt-meta{font-size:11.5px;color:#64748b;line-height:1.4}
+.cv-vt-meta strong{color:var(--ink);font-size:13px;display:block}
+.cv-videos-empty{padding:40px 20px;text-align:center;color:#64748b;font-size:14px;background:#fff;border:1px solid var(--line);border-radius:10px}
 .curr-empty{grid-column:1/-1;text-align:center;color:var(--ink3);padding:40px 20px;font-size:14px}
 @media (max-width:768px){
   .curr-search{min-width:0;width:100%}
@@ -370,7 +450,15 @@ tbody tr:last-child td{border-bottom:none}
   <div class="panel" id="curriculum-panel">
     <div class="panel-head">
       <h2>📚 Curriculum Editor <span class="count" id="curriculum-count">—</span></h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <!-- View-mode toggle: Lessons (default) vs Videos. Videos opens a
+             centralised YouTube manager listing every lesson that has a
+             videoIds entry, so the operator can swap clips in one place
+             without hunting through the lesson list one by one. -->
+        <div class="cv-mode-toggle" role="tablist" aria-label="Curriculum view mode">
+          <button class="cv-mode-btn active" id="cv-mode-lessons" type="button" role="tab" aria-selected="true">📚 Lessons</button>
+          <button class="cv-mode-btn" id="cv-mode-videos" type="button" role="tab" aria-selected="false">🎬 Videos</button>
+        </div>
         <button class="btn btn-ghost btn-sm" id="curriculum-refresh-btn" title="Reload the activity list + overrides">🔄</button>
       </div>
     </div>
@@ -609,18 +697,92 @@ tbody tr:last-child td{border-bottom:none}
     <div class="sub" id="curr-edit-sub">—</div>
     <div id="curr-edit-status" style="margin-top:6px;font-size:13px"></div>
     <div style="margin-top:12px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-        <button class="btn btn-ghost btn-sm" id="curr-edit-load-base" title="Pre-fill the editor with the bundled lesson JSON">📋 Copy base into editor</button>
-        <button class="btn btn-ghost btn-sm" id="curr-edit-load-override" title="Pre-fill with the current saved override (or empty if none)">🔁 Load saved override</button>
-        <button class="btn btn-ghost btn-sm" id="curr-edit-format" title="Pretty-print the JSON">{ } Format</button>
-        <button class="btn btn-ghost btn-sm" id="curr-edit-add-passage" title="Insert an empty passage question into the questions array (helps you fix a missing-passage lesson fast)">＋ Insert passage question</button>
+      <!-- Tabbed editor: the Form view is the default no-code path; Raw
+           JSON stays as a power-user fallback for advanced fields the
+           form doesn't cover (stretch questions, custom curriculum
+           tags, exotic question types). Both tabs share the same save
+           pipeline — the active tab decides where the override blob
+           comes from. -->
+      <div class="cf-tabs" role="tablist" style="display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line)">
+        <button class="cf-tab active" id="cf-tab-form" data-tab="form" role="tab" type="button">📝 Form</button>
+        <button class="cf-tab" id="cf-tab-json" data-tab="json" role="tab" type="button">{ } Raw JSON</button>
       </div>
-      <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:6px">Override JSON</label>
-      <textarea id="curr-edit-json" spellcheck="false" placeholder='{"title":"…","emoji":"📚","lesson":{"intro":"…"},"questions":[…]}' style="width:100%;min-height:380px;padding:12px;border:1.5px solid var(--line);border-radius:10px;font-family:var(--mono);font-size:12px;line-height:1.5;box-sizing:border-box;background:#fafafa"></textarea>
-      <div style="margin-top:6px;font-size:12px;color:#64748b;line-height:1.5">
-        <strong>Allowed top-level keys:</strong> <code>title</code>, <code>emoji</code>, <code>videoIds</code>, <code>curriculum</code>, <code>lesson</code>, <code>questions</code>, <code>stretchQuestions</code>, <code>demoOnly</code>, <code>_hidden</code>.<br>
-        Set <code>_hidden:true</code> to remove this lesson from kids. The activity <code>id</code> is preserved automatically.
+
+      <!-- ============== FORM VIEW (default) ============== -->
+      <div id="cf-view-form" class="cf-view">
+        <!-- Lesson basics -->
+        <fieldset class="cf-fs">
+          <legend>Lesson basics</legend>
+          <div class="cf-row">
+            <label class="cf-label">Title</label>
+            <input id="cf-title" class="cf-input" type="text" placeholder="The Lighthouse Keeper">
+          </div>
+          <div class="cf-row cf-row-pair">
+            <div class="cf-half">
+              <label class="cf-label">Emoji</label>
+              <input id="cf-emoji" class="cf-input cf-emoji-input" type="text" placeholder="📚" maxlength="6">
+            </div>
+            <label class="cf-checkbox">
+              <input id="cf-hidden" type="checkbox">
+              <span>Hide this lesson from kids</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- YouTube videos -->
+        <fieldset class="cf-fs">
+          <legend>🎬 YouTube videos</legend>
+          <div id="cf-videos" class="cf-videos"></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="cf-add-video">+ Add video</button>
+          <div class="cf-help">Paste either a full YouTube URL or just the 11-character video ID. Thumbnails preview from i.ytimg.com once a valid ID is entered.</div>
+        </fieldset>
+
+        <!-- Lesson intro / pedagogy -->
+        <fieldset class="cf-fs">
+          <legend>Lesson intro</legend>
+          <div class="cf-row">
+            <label class="cf-label">Lesson title</label>
+            <input id="cf-lesson-title" class="cf-input" type="text" placeholder="Finding Main Ideas">
+          </div>
+          <div class="cf-row">
+            <label class="cf-label">Intro (1-2 sentences)</label>
+            <textarea id="cf-lesson-intro" class="cf-input cf-textarea" placeholder="A passage has one big idea and smaller details that support it."></textarea>
+          </div>
+          <div class="cf-row">
+            <label class="cf-label">Example</label>
+            <textarea id="cf-lesson-example" class="cf-input cf-textarea" placeholder="Ask: What is this mostly about? Then look for clues that prove it."></textarea>
+          </div>
+          <div class="cf-row">
+            <label class="cf-label">Hint</label>
+            <textarea id="cf-lesson-hint" class="cf-input cf-textarea-sm" placeholder="Watch for repeated words and the first or last sentence."></textarea>
+          </div>
+        </fieldset>
+
+        <!-- Questions list — rendered dynamically by JS -->
+        <fieldset class="cf-fs">
+          <legend>Questions</legend>
+          <div id="cf-questions" class="cf-questions"></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="cf-add-question">+ Add question</button>
+          <div class="cf-help">For advanced question types (match, order, compare, write) and curriculum-tag tweaks, switch to the <strong>Raw JSON</strong> tab.</div>
+        </fieldset>
       </div>
+
+      <!-- ============== RAW JSON VIEW (power-user fallback) ============== -->
+      <div id="cf-view-json" class="cf-view" style="display:none">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn btn-ghost btn-sm" id="curr-edit-load-base" title="Pre-fill the editor with the bundled lesson JSON">📋 Copy base into editor</button>
+          <button class="btn btn-ghost btn-sm" id="curr-edit-load-override" title="Pre-fill with the current saved override (or empty if none)">🔁 Load saved override</button>
+          <button class="btn btn-ghost btn-sm" id="curr-edit-format" title="Pretty-print the JSON">{ } Format</button>
+          <button class="btn btn-ghost btn-sm" id="curr-edit-add-passage" title="Insert an empty passage question into the questions array (helps you fix a missing-passage lesson fast)">＋ Insert passage question</button>
+        </div>
+        <label style="display:block;font-size:13px;font-weight:600;color:#334155;margin-bottom:6px">Override JSON</label>
+        <textarea id="curr-edit-json" spellcheck="false" placeholder='{"title":"…","emoji":"📚","lesson":{"intro":"…"},"questions":[…]}' style="width:100%;min-height:380px;padding:12px;border:1.5px solid var(--line);border-radius:10px;font-family:var(--mono);font-size:12px;line-height:1.5;box-sizing:border-box;background:#fafafa"></textarea>
+        <div style="margin-top:6px;font-size:12px;color:#64748b;line-height:1.5">
+          <strong>Allowed top-level keys:</strong> <code>title</code>, <code>emoji</code>, <code>videoIds</code>, <code>curriculum</code>, <code>lesson</code>, <code>questions</code>, <code>stretchQuestions</code>, <code>demoOnly</code>, <code>_hidden</code>.<br>
+          Set <code>_hidden:true</code> to remove this lesson from kids. The activity <code>id</code> is preserved automatically.
+        </div>
+      </div>
+
       <div id="curr-edit-error" style="display:none;margin-top:10px;padding:10px;background:#fee2e2;border-radius:8px;color:#991b1b;font-size:13px;font-weight:600"></div>
     </div>
     <div class="modal-actions">
@@ -1788,6 +1950,10 @@ tbody tr:last-child td{border-bottom:none}
     // `grade` filter holds the grade-master SID (e.g. 'akshayan' for
     // Grade 3). Empty string = all grades.
     filters: { week:'', grade:'', subject:'', status:'all', search:'' },
+    // viewMode toggles between the lessons grid (default) and the
+    // centralised YouTube manager. Controlled by the Lessons / Videos
+    // pill switch in the panel head.
+    viewMode: 'lessons',
     currentEdit: null             // {id, base, row}
   };
 
@@ -2259,19 +2425,140 @@ tbody tr:last-child td{border-bottom:none}
     }
   }
 
+  // Centralised YouTube video manager. Lists every grade-master lesson
+  // that has at least one videoIds entry (effective merged) and lets the
+  // operator swap clips one-line-at-a-time. Each save sends a videoIds-
+  // only override through the same /admin/curriculum/global-override
+  // endpoint — no need to open the full lesson editor for a routine
+  // YouTube refresh. Hidden lessons are skipped (not shown to kids).
+  function renderVideosMode(allRows){
+    var videoRows = [];
+    allRows.forEach(function(r){
+      if(!r.effective) return; // hidden lesson
+      var ids = r.effective.videoIds;
+      if(!Array.isArray(ids) || !ids.length) return;
+      videoRows.push(r);
+    });
+    if(!videoRows.length){
+      $currList.innerHTML = '<div class="cv-videos-empty">No lessons currently have YouTube videos attached. Open a lesson and add a videoIds entry to ship one.</div>';
+      $currCount.textContent = '0';
+      return;
+    }
+    $currCount.textContent = String(videoRows.length);
+    // Sort by week, grade, subject for predictable browsing.
+    videoRows.sort(function(a,b){
+      var w = Number(a.week)-Number(b.week);
+      if(w) return w;
+      if(a.sid !== b.sid) return a.sid.localeCompare(b.sid);
+      if(a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+      return (a.activity.id || '').localeCompare(b.activity.id || '');
+    });
+    var rowsHtml = videoRows.map(function(r){
+      var a = r.effective;
+      var ids = a.videoIds || [];
+      // One sub-row per video ID on this lesson (a few lessons have 2+).
+      return ids.map(function(vid, idx){
+        var safe = String(vid || '').trim();
+        var hasId = /^[A-Za-z0-9_-]{11}$/.test(safe);
+        var thumb = hasId
+          ? '<a href="https://www.youtube.com/watch?v='+escapeHtml(safe)+'" target="_blank" rel="noopener"><img class="cv-vt-thumb" src="'+ytThumb(safe)+'" alt=""></a>'
+          : '<div class="cv-vt-thumb-empty">No ID</div>';
+        var meta = (
+          '<div class="cv-vt-meta">'+
+            '<strong>'+escapeHtml(a.title || a.id || '(untitled)')+'</strong>'+
+            'W'+escapeHtml(r.week)+' &middot; '+escapeHtml(r.grade || r.sid)+' &middot; '+escapeHtml(r.subject)+
+            (ids.length > 1 ? ' &middot; <span style="color:#94a3b8">video '+(idx+1)+' of '+ids.length+'</span>' : '')+
+            '<div style="margin-top:4px"><span class="cv-vt-id">'+escapeHtml(safe || '(empty)')+'</span></div>'+
+          '</div>'
+        );
+        return (
+          '<tr data-aid="'+escapeHtml(a.id)+'" data-idx="'+idx+'">'+
+            '<td>'+thumb+'</td>'+
+            '<td>'+meta+'</td>'+
+            '<td><input class="cv-vt-input" type="text" value="'+escapeHtml(safe)+'" placeholder="YouTube URL or 11-char ID" spellcheck="false"></td>'+
+            '<td><div class="cv-vt-actions">'+
+              '<button type="button" class="cv-vt-save" data-aid="'+escapeHtml(a.id)+'" data-idx="'+idx+'">💾 Save</button>'+
+            '</div></td>'+
+          '</tr>'
+        );
+      }).join('');
+    }).join('');
+    $currList.innerHTML = (
+      '<table class="cv-video-table">'+
+        '<thead><tr><th style="width:130px">Thumbnail</th><th>Lesson</th><th>YouTube ID / URL</th><th style="width:120px;text-align:right">Action</th></tr></thead>'+
+        '<tbody>'+rowsHtml+'</tbody>'+
+      '</table>'+
+      '<div class="cf-help" style="margin-top:10px">Each save updates only the <code>videoIds</code> field for that lesson — none of the lesson body, questions, or other overrides are touched. Kids see the new clip on next /app/ load.</div>'
+    );
+    // Wire save buttons
+    $currList.querySelectorAll('.cv-vt-save').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        var aid = this.getAttribute('data-aid');
+        var idx = Number(this.getAttribute('data-idx'));
+        var row = $currList.querySelector('tr[data-aid="'+aid+'"][data-idx="'+idx+'"]');
+        if(!row) return;
+        var inp = row.querySelector('.cv-vt-input');
+        var raw = (inp.value || '').trim();
+        var parsedId = parseYouTubeId(raw);
+        if(!parsedId && raw){
+          toast('Could not parse a valid YouTube ID from that input.', 'err');
+          return;
+        }
+        // Find the row in our flatten so we know base + current effective.
+        var liveRow = allRows.find(function(x){ return x.activity && x.activity.id === aid; });
+        if(!liveRow){ toast('Lesson not found in catalog.', 'err'); return; }
+        var existingOv = curriculumState.overrides[aid] || {};
+        // Take the current effective videoIds (so we don't lose any other
+        // ids the operator wasn't editing in this row), then swap idx.
+        var newIds = (liveRow.effective.videoIds || []).slice();
+        if(parsedId) newIds[idx] = parsedId;
+        else newIds.splice(idx, 1); // empty input = remove this slot
+        // Build the override: copy all existing override keys + replace videoIds.
+        var override = {};
+        Object.keys(existingOv).forEach(function(k){ override[k] = existingOv[k]; });
+        override.videoIds = newIds;
+        this.disabled = true;
+        var origLabel = this.textContent;
+        this.textContent = 'Saving…';
+        try {
+          var resp = await api('/admin/curriculum/global-override', {
+            method:'PUT', body:{ id: aid, override: override }
+          });
+          curriculumState.overrides[aid] = (resp && resp.override) || override;
+          curriculumState.overridesUpdatedAt = (resp && resp.updatedAt) || Date.now();
+          toast('Video updated for "'+(liveRow.activity.title||aid)+'".', 'ok');
+          renderCurriculum();
+        } catch(e){
+          this.disabled = false;
+          this.textContent = origLabel;
+          toast('Save failed: ' + (e && e.message), 'err');
+        }
+      });
+    });
+  }
+
   function renderCurriculum(){
     if(!curriculumState.weeks){ return; }
     // Build the FULL row set (unfiltered) for the issues banner so the
     // count reflects the entire catalog, not just whatever the operator
     // is currently looking at. Then apply filters separately for the list.
     var allRows = flattenActivities();
+
+    // Always-on issues summary runs in BOTH view modes — operator should
+    // see catalog health regardless of whether they're browsing lessons
+    // or videos.
+    renderIssuesSummary(allRows);
+
+    // Videos view replaces the lesson grid. Still uses the same allRows
+    // so sub-rows hop straight from a thumbnail click to a lesson edit
+    // if needed in a future iteration.
+    if(curriculumState.viewMode === 'videos'){
+      renderVideosMode(allRows);
+      return;
+    }
+
     var rows = applyCurriculumFilters(allRows);
     $currCount.textContent = String(rows.length);
-
-    // Always-on issues summary. Tally errors / warnings / lessons-with-
-    // any-issue across the WHOLE catalog. Rendered above the filters so
-    // it's visible even when the current filter hides every flagged row.
-    renderIssuesSummary(allRows);
 
     if(!rows.length){
       $currList.innerHTML = '<div class="curr-empty">No lessons match these filters.</div>';
@@ -2363,6 +2650,364 @@ tbody tr:last-child td{border-bottom:none}
     return null;
   }
 
+  // ===== No-code lesson form =====
+  // Working draft for the form view. Holds the EFFECTIVE merged lesson
+  // (base + saved override) so the operator edits the version kids see,
+  // not just the patch fields. On save, we diff the draft against the
+  // base and submit only the changed top-level keys as an override —
+  // that matches the existing shallow-merge contract on the server side.
+  var formDraft = null;
+
+  // Common Ontario grades for the curriculum dropdown (matches GRADE_MASTERS
+  // labels at the top of this file; if you add a grade there, mirror it here).
+  var FORM_GRADES = [
+    'Junior Kindergarten','Senior Kindergarten',
+    'Grade 1','Grade 2','Grade 3','Grade 4',
+    'Grade 5','Grade 6','Grade 7','Grade 8'
+  ];
+
+  // Pull the YouTube ID out of either a raw 11-char id or any common
+  // YouTube URL form. Returns null if nothing useful is in the string.
+  function parseYouTubeId(s){
+    if(!s) return null;
+    s = String(s).trim();
+    if(/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+    var m = s.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+  function ytThumb(id){ return id ? 'https://i.ytimg.com/vi/' + id + '/mqdefault.jpg' : ''; }
+
+  // Deep clone — JSON round-trip is fine here, lessons are pure data.
+  function cloneJson(x){ try { return JSON.parse(JSON.stringify(x)); } catch(_){ return null; } }
+
+  // Build the EFFECTIVE merged lesson the operator should see in the form
+  // (base ∘ saved override). _hidden flag is broken out separately so the
+  // form's "Hide" checkbox controls it instead of leaking into the body.
+  function buildFormDraft(base, override){
+    var draft = cloneJson(base) || {};
+    var hidden = false;
+    if(override){
+      Object.keys(override).forEach(function(k){
+        if(k === '_hidden'){ hidden = !!override[k]; return; }
+        draft[k] = cloneJson(override[k]);
+      });
+    }
+    if(!draft.lesson || typeof draft.lesson !== 'object') draft.lesson = {};
+    if(!Array.isArray(draft.questions)) draft.questions = [];
+    if(!Array.isArray(draft.videoIds))  draft.videoIds = [];
+    if(!draft.curriculum || typeof draft.curriculum !== 'object') draft.curriculum = {};
+    return { activity: draft, hidden: hidden };
+  }
+
+  // Render the videoIds list into the #cf-videos container.
+  function renderFormVideos(){
+    var box = document.getElementById('cf-videos');
+    if(!box || !formDraft) return;
+    var ids = formDraft.activity.videoIds || [];
+    if(!ids.length){
+      box.innerHTML = '<div class="cf-help" style="margin:0 0 6px">No videos. Add one to ship a YouTube intro on this lesson.</div>';
+      return;
+    }
+    box.innerHTML = ids.map(function(id, i){
+      var safe = String(id).replace(/[^A-Za-z0-9_-]/g, '');
+      var hasId = /^[A-Za-z0-9_-]{11}$/.test(safe);
+      var thumb = hasId
+        ? '<img src="'+ytThumb(safe)+'" alt="">'
+        : '<div class="cf-video-empty" style="width:90px;height:50px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;background:linear-gradient(135deg,#475569,#1e293b);border-radius:6px">No ID</div>';
+      return (
+        '<div class="cf-video" data-i="'+i+'">'+
+          thumb+
+          '<input class="cf-video-input" type="text" data-i="'+i+'" value="'+escapeHtml(id)+'" placeholder="YouTube URL or 11-char ID">'+
+          '<button type="button" class="cf-video-rm" data-i="'+i+'" aria-label="Remove video">×</button>'+
+        '</div>'
+      );
+    }).join('');
+    // Wire change/remove events
+    box.querySelectorAll('.cf-video-input').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        var i = Number(this.getAttribute('data-i'));
+        var parsed = parseYouTubeId(this.value);
+        formDraft.activity.videoIds[i] = parsed || this.value.trim();
+        renderFormVideos();
+      });
+    });
+    box.querySelectorAll('.cf-video-rm').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var i = Number(this.getAttribute('data-i'));
+        formDraft.activity.videoIds.splice(i, 1);
+        renderFormVideos();
+      });
+    });
+  }
+
+  // Render one question editor card. Type-aware: mcq/passage/fill get
+  // the full no-code form (text + choices + correct-answer radio); other
+  // types render an "advanced" notice that points to Raw JSON.
+  function renderFormQuestions(){
+    var box = document.getElementById('cf-questions');
+    if(!box || !formDraft) return;
+    var qs = formDraft.activity.questions || [];
+    if(!qs.length){
+      box.innerHTML = '<div class="cf-help" style="margin:0">No questions yet. Add one below.</div>';
+      return;
+    }
+    box.innerHTML = qs.map(function(q, qi){
+      var t = (q && q.type) || 'mcq';
+      var typeOpts = ['mcq','passage','fill','match','order','compare','write'].map(function(tt){
+        return '<option value="'+tt+'"'+(tt===t?' selected':'')+'>'+tt+'</option>';
+      }).join('');
+      var head = (
+        '<div class="cf-q-head">'+
+          '<span class="cf-q-num">Q'+(qi+1)+'</span>'+
+          '<select class="cf-q-type" data-qi="'+qi+'">'+typeOpts+'</select>'+
+          '<button type="button" class="cf-q-up"   data-qi="'+qi+'" '+(qi===0?'disabled style="opacity:.4"':'')+' title="Move up">↑</button>'+
+          '<button type="button" class="cf-q-down" data-qi="'+qi+'" '+(qi===qs.length-1?'disabled style="opacity:.4"':'')+' title="Move down">↓</button>'+
+          '<button type="button" class="cf-q-rm"   data-qi="'+qi+'" title="Remove this question">Remove</button>'+
+        '</div>'
+      );
+      var body = '';
+      if(t === 'mcq' || t === 'passage' || t === 'fill'){
+        var passageBlock = '';
+        if(t === 'passage'){
+          passageBlock = (
+            '<div class="cf-q-passage">'+
+              '<label class="cf-label">Passage (story / informational text)</label>'+
+              '<textarea class="cf-input cf-textarea" data-field="passage" data-qi="'+qi+'" rows="4">'+escapeHtml(q.passage||'')+'</textarea>'+
+            '</div>'
+          );
+        }
+        var choices = Array.isArray(q.choices) ? q.choices : [];
+        var ans = (typeof q.answer === 'number') ? q.answer : 0;
+        var choicesHtml = choices.map(function(c, ci){
+          return (
+            '<div class="cf-choice" data-ci="'+ci+'">'+
+              '<input type="radio" name="cf-q-'+qi+'-ans" data-qi="'+qi+'" data-ci="'+ci+'" '+(ci===ans?'checked':'')+'>'+
+              '<input type="text" data-field="choice" data-qi="'+qi+'" data-ci="'+ci+'" value="'+escapeHtml(c||'')+'" placeholder="Choice '+(ci+1)+'">'+
+              '<button type="button" class="cf-choice-rm" data-qi="'+qi+'" data-ci="'+ci+'" aria-label="Remove this choice">×</button>'+
+            '</div>'
+          );
+        }).join('');
+        body = (
+          passageBlock +
+          '<div class="cf-q-text-row">'+
+            '<label class="cf-label">Question text</label>'+
+            '<textarea class="cf-input cf-textarea-sm" data-field="q" data-qi="'+qi+'" rows="2">'+escapeHtml(q.q||'')+'</textarea>'+
+          '</div>'+
+          '<div>'+
+            '<label class="cf-label">Choices &mdash; tick the correct one</label>'+
+            '<div class="cf-choices">'+choicesHtml+'</div>'+
+            '<button type="button" class="cf-q-add-choice" data-qi="'+qi+'">+ Add choice</button>'+
+          '</div>'
+        );
+      } else {
+        // Advanced types — kept editable in Raw JSON, summarized here.
+        var summary;
+        try { summary = JSON.stringify(q, null, 2); } catch(_){ summary = String(q); }
+        body = (
+          '<div class="cf-q-advanced-note">'+
+            '<strong>Advanced question type: '+escapeHtml(t)+'</strong>'+
+            'This type (match / order / compare / write) is editable on the Raw JSON tab. The form preserves it exactly &mdash; nothing is lost when you save.'+
+          '</div>'+
+          '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:#64748b">View this question\'s JSON</summary>'+
+          '<pre style="margin:6px 0 0;padding:8px;background:#fff;border:1px solid var(--line);border-radius:6px;font-size:11.5px;overflow:auto">'+escapeHtml(summary)+'</pre></details>'
+        );
+      }
+      return '<div class="cf-q" data-qi="'+qi+'">'+head+body+'</div>';
+    }).join('');
+    wireQuestionEvents();
+  }
+
+  // Attach delegated change/click handlers for every interactive element
+  // in the questions list. Re-runs on every renderFormQuestions().
+  function wireQuestionEvents(){
+    var box = document.getElementById('cf-questions');
+    if(!box || !formDraft) return;
+    // Type change
+    box.querySelectorAll('.cf-q-type').forEach(function(sel){
+      sel.addEventListener('change', function(){
+        var qi = Number(this.getAttribute('data-qi'));
+        var newType = this.value;
+        var q = formDraft.activity.questions[qi];
+        q.type = newType;
+        // When converting INTO an mcq-shape, ensure choices/answer exist.
+        if((newType === 'mcq' || newType === 'passage' || newType === 'fill') && !Array.isArray(q.choices)){
+          q.choices = ['', '', '', ''];
+          q.answer = 0;
+        }
+        if(newType === 'passage' && typeof q.passage !== 'string') q.passage = '';
+        renderFormQuestions();
+      });
+    });
+    // Move up / down / remove
+    box.querySelectorAll('.cf-q-up').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(this.disabled) return;
+        var qi = Number(this.getAttribute('data-qi'));
+        var qs = formDraft.activity.questions;
+        if(qi <= 0) return;
+        var t = qs[qi-1]; qs[qi-1] = qs[qi]; qs[qi] = t;
+        renderFormQuestions();
+      });
+    });
+    box.querySelectorAll('.cf-q-down').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(this.disabled) return;
+        var qi = Number(this.getAttribute('data-qi'));
+        var qs = formDraft.activity.questions;
+        if(qi >= qs.length-1) return;
+        var t = qs[qi+1]; qs[qi+1] = qs[qi]; qs[qi] = t;
+        renderFormQuestions();
+      });
+    });
+    box.querySelectorAll('.cf-q-rm').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var qi = Number(this.getAttribute('data-qi'));
+        if(!confirm('Remove question Q'+(qi+1)+'?')) return;
+        formDraft.activity.questions.splice(qi, 1);
+        renderFormQuestions();
+      });
+    });
+    // Field edits
+    box.querySelectorAll('[data-field]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var qi = Number(this.getAttribute('data-qi'));
+        var field = this.getAttribute('data-field');
+        var q = formDraft.activity.questions[qi];
+        if(!q) return;
+        if(field === 'q')        q.q = this.value;
+        else if(field === 'passage') q.passage = this.value;
+        else if(field === 'choice'){
+          var ci = Number(this.getAttribute('data-ci'));
+          if(!Array.isArray(q.choices)) q.choices = [];
+          q.choices[ci] = this.value;
+        }
+      });
+    });
+    // Correct-answer radios
+    box.querySelectorAll('input[type="radio"][data-qi]').forEach(function(rad){
+      rad.addEventListener('change', function(){
+        if(!this.checked) return;
+        var qi = Number(this.getAttribute('data-qi'));
+        var ci = Number(this.getAttribute('data-ci'));
+        formDraft.activity.questions[qi].answer = ci;
+      });
+    });
+    // Choice add / remove
+    box.querySelectorAll('.cf-q-add-choice').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var qi = Number(this.getAttribute('data-qi'));
+        var q = formDraft.activity.questions[qi];
+        if(!Array.isArray(q.choices)) q.choices = [];
+        if(q.choices.length >= 6){ toast('Max 6 choices per question.', 'err'); return; }
+        q.choices.push('');
+        renderFormQuestions();
+      });
+    });
+    box.querySelectorAll('.cf-choice-rm').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var qi = Number(this.getAttribute('data-qi'));
+        var ci = Number(this.getAttribute('data-ci'));
+        var q = formDraft.activity.questions[qi];
+        if(!Array.isArray(q.choices)) return;
+        if(q.choices.length <= 2){ toast('Need at least 2 choices.', 'err'); return; }
+        q.choices.splice(ci, 1);
+        // Adjust answer index if it now points past the array.
+        if(typeof q.answer === 'number' && q.answer >= q.choices.length) q.answer = q.choices.length - 1;
+        if(typeof q.answer === 'number' && q.answer >= ci && q.answer > 0) q.answer -= 1;
+        renderFormQuestions();
+      });
+    });
+  }
+
+  // Populate every form field from formDraft.activity. Called once when
+  // the modal opens; thereafter individual sections re-render in place
+  // as the operator interacts (videos list, questions list).
+  function populateFormFromDraft(){
+    if(!formDraft) return;
+    var a = formDraft.activity;
+    document.getElementById('cf-title').value         = a.title || '';
+    document.getElementById('cf-emoji').value         = a.emoji || '';
+    document.getElementById('cf-hidden').checked      = !!formDraft.hidden;
+    var ll = (a.lesson || {});
+    document.getElementById('cf-lesson-title').value   = ll.title   || '';
+    document.getElementById('cf-lesson-intro').value   = ll.intro   || '';
+    document.getElementById('cf-lesson-example').value = ll.example || '';
+    document.getElementById('cf-lesson-hint').value    = ll.hint    || '';
+    renderFormVideos();
+    renderFormQuestions();
+  }
+
+  // Read the form back into a partial override blob. Strategy: snapshot
+  // current draft top-level keys and DROP keys whose value is identical
+  // (deep-equal) to the base — that way we save the smallest possible
+  // override (matches the original "patch" intent of the system, and
+  // lets the bundled lesson update freely on fields that aren't being
+  // overridden).
+  function readFormToOverride(){
+    if(!formDraft) throw new Error('Form not initialized.');
+    var a = formDraft.activity;
+    // Capture top-level edits from inputs that aren't auto-tracked
+    a.title = document.getElementById('cf-title').value.trim();
+    a.emoji = document.getElementById('cf-emoji').value.trim();
+    if(!a.lesson || typeof a.lesson !== 'object') a.lesson = {};
+    a.lesson.title   = document.getElementById('cf-lesson-title').value;
+    a.lesson.intro   = document.getElementById('cf-lesson-intro').value;
+    a.lesson.example = document.getElementById('cf-lesson-example').value;
+    a.lesson.hint    = document.getElementById('cf-lesson-hint').value;
+    var hidden = document.getElementById('cf-hidden').checked;
+    // Validate before serializing
+    if(!a.title) throw new Error('Title is empty.');
+    var base = curriculumState.currentEdit && curriculumState.currentEdit.base;
+    var override = {};
+    var compareKeys = ['title','emoji','videoIds','curriculum','lesson','questions','stretchQuestions'];
+    compareKeys.forEach(function(k){
+      var av = a[k];
+      var bv = base ? base[k] : undefined;
+      // A value of '' is meaningful for title/emoji because the user might
+      // have intentionally cleared them — but we let the analyzer flag
+      // those rather than auto-correcting. Skip emit when deep-equal.
+      if(JSON.stringify(av) !== JSON.stringify(bv)){
+        override[k] = av;
+      }
+    });
+    if(hidden) override._hidden = true;
+    return override;
+  }
+
+  // Tab switching — Form ↔ Raw JSON. When switching to Raw JSON, fill the
+  // textarea with the current form state so power users can keep editing
+  // without losing their in-progress changes.
+  function switchEditorTab(tab){
+    var formActive = (tab !== 'json');
+    document.getElementById('cf-tab-form').classList.toggle('active', formActive);
+    document.getElementById('cf-tab-json').classList.toggle('active', !formActive);
+    document.getElementById('cf-view-form').style.display = formActive ? '' : 'none';
+    document.getElementById('cf-view-json').style.display = formActive ? 'none' : '';
+    if(!formActive){
+      // Sync: form → JSON
+      try {
+        var ov = readFormToOverride();
+        $currEditJson.value = JSON.stringify(ov, null, 2);
+      } catch(_){
+        // If form validation fails, leave whatever was there.
+      }
+    } else {
+      // Sync: JSON → form (best-effort — invalid JSON keeps form state)
+      try {
+        var raw = ($currEditJson.value || '').trim();
+        if(raw){
+          var parsed = JSON.parse(raw);
+          if(parsed && typeof parsed === 'object'){
+            // Re-build the draft by merging parsed onto the BASE.
+            var base = curriculumState.currentEdit && curriculumState.currentEdit.base;
+            formDraft = buildFormDraft(base, parsed);
+            populateFormFromDraft();
+          }
+        }
+      } catch(_){}
+    }
+  }
+
   function openCurriculumEditor(aid){
     var row = findActivityById(aid);
     if(!row){ toast('Lesson not found in catalog', 'err'); return; }
@@ -2379,10 +3024,14 @@ tbody tr:last-child td{border-bottom:none}
       statusHtml = '<span style="color:#64748b">No override — kids see the bundled lesson</span>';
     }
     $currEditState.innerHTML = statusHtml;
-    // Default contents: the saved override if any, else an empty {}.
-    // The operator clicks "Copy base" to start from the bundled lesson.
+    // Build the form draft from base + saved override; populate the form.
+    formDraft = buildFormDraft(row.activity, ov);
+    populateFormFromDraft();
+    // Keep JSON tab content in sync as a fallback initial value.
     var initialJson = ov ? ov : {};
     $currEditJson.value = JSON.stringify(initialJson, null, 2);
+    // Default to Form tab.
+    switchEditorTab('form');
     $currEditError.style.display = 'none';
     $currEditError.textContent = '';
     $currEditBg.classList.add('show');
@@ -2480,15 +3129,50 @@ tbody tr:last-child td{border-bottom:none}
     toast('Passage block inserted at the top — fill in the story.', 'ok');
   });
 
-  // Save override
+  // Tab toggle wiring (Form ↔ Raw JSON)
+  document.getElementById('cf-tab-form').addEventListener('click', function(){ switchEditorTab('form'); });
+  document.getElementById('cf-tab-json').addEventListener('click', function(){ switchEditorTab('json'); });
+
+  // + Add video — append a new empty videoIds slot the operator can fill.
+  document.getElementById('cf-add-video').addEventListener('click', function(){
+    if(!formDraft) return;
+    if(!Array.isArray(formDraft.activity.videoIds)) formDraft.activity.videoIds = [];
+    formDraft.activity.videoIds.push('');
+    renderFormVideos();
+    // Focus the new row's input so the operator can paste right away.
+    setTimeout(function(){
+      var inputs = document.querySelectorAll('#cf-videos .cf-video-input');
+      if(inputs.length) inputs[inputs.length-1].focus();
+    }, 30);
+  });
+
+  // + Add question — append a blank mcq scaffold.
+  document.getElementById('cf-add-question').addEventListener('click', function(){
+    if(!formDraft) return;
+    if(!Array.isArray(formDraft.activity.questions)) formDraft.activity.questions = [];
+    formDraft.activity.questions.push({
+      type:'mcq', q:'', choices:['','','',''], answer:0
+    });
+    renderFormQuestions();
+    // Scroll the new card into view so it's clear something happened.
+    setTimeout(function(){
+      var qs = document.querySelectorAll('#cf-questions .cf-q');
+      if(qs.length) qs[qs.length-1].scrollIntoView({behavior:'smooth', block:'nearest'});
+    }, 30);
+  });
+
+  // Save override — pulls from whichever tab is active.
   document.getElementById('curr-edit-save').addEventListener('click', async function(){
     if(!curriculumState.currentEdit) return;
     var aid = curriculumState.currentEdit.id;
     var blob;
-    try { blob = readEditorJson(); }
+    var formActive = document.getElementById('cf-tab-form').classList.contains('active');
+    try {
+      blob = formActive ? readFormToOverride() : readEditorJson();
+    }
     catch(e){ showEditorError(e.message); return; }
     if(Object.keys(blob).length === 0){
-      showEditorError('Empty object would have no effect. Click "Remove override" to clear instead.');
+      showEditorError('No changes detected — the form matches the bundled lesson exactly. Click "Remove override" to clear an existing override.');
       return;
     }
     hideEditorError();
@@ -2541,6 +3225,24 @@ tbody tr:last-child td{border-bottom:none}
   $currStatusSel.addEventListener('change', function(){
     curriculumState.filters.status = this.value; renderCurriculum();
   });
+
+  // Lessons ↔ Videos view mode toggle. Switches the panel body between
+  // the lessons grid (default) and the centralised YouTube manager.
+  // Stays scoped to renderCurriculum so issue chips, count, etc. all
+  // update in step.
+  function setCurriculumViewMode(mode){
+    curriculumState.viewMode = (mode === 'videos' ? 'videos' : 'lessons');
+    var lessonsBtn = document.getElementById('cv-mode-lessons');
+    var videosBtn  = document.getElementById('cv-mode-videos');
+    var isVideos = (curriculumState.viewMode === 'videos');
+    lessonsBtn.classList.toggle('active', !isVideos);
+    videosBtn.classList.toggle('active',  isVideos);
+    lessonsBtn.setAttribute('aria-selected', String(!isVideos));
+    videosBtn.setAttribute('aria-selected',  String(isVideos));
+    renderCurriculum();
+  }
+  document.getElementById('cv-mode-lessons').addEventListener('click', function(){ setCurriculumViewMode('lessons'); });
+  document.getElementById('cv-mode-videos' ).addEventListener('click', function(){ setCurriculumViewMode('videos');  });
   var currSearchTimer = null;
   $currSearch.addEventListener('input', function(){
     var v = this.value;
