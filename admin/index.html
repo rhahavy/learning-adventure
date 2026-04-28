@@ -2243,9 +2243,21 @@ tbody tr:last-child td{border-bottom:none}
     if(!activity.lesson || typeof activity.lesson !== 'object'){
       issues.push({severity:'error', code:'no-lesson', msg:'Missing lesson block (intro / example / hint).'});
     } else {
-      if(!activity.lesson.intro)  issues.push({severity:'warn', code:'no-intro', msg:'Lesson intro missing.'});
-      if(!activity.lesson.example)issues.push({severity:'warn', code:'no-example', msg:'Lesson example missing.'});
-      if(!activity.lesson.hint)   issues.push({severity:'warn', code:'no-hint', msg:'Lesson hint missing.'});
+      if(!activity.lesson.intro) issues.push({severity:'warn', code:'no-intro', msg:'Lesson intro missing.'});
+      // "Example" can be a plain text string OR one of the visual
+      // alternatives the kid app supports: a `stack` (vertical math
+      // layout), a `pictures` array (French / vocab cards), or a
+      // `steps` array (multi-step explanation). Any of those satisfies
+      // the pedagogical role of "show, don't tell" — only flag when
+      // none are present.
+      var hasExample = !!(
+        activity.lesson.example ||
+        (activity.lesson.stack && typeof activity.lesson.stack === 'object') ||
+        (Array.isArray(activity.lesson.pictures) && activity.lesson.pictures.length) ||
+        (Array.isArray(activity.lesson.steps)    && activity.lesson.steps.length)
+      );
+      if(!hasExample) issues.push({severity:'warn', code:'no-example', msg:'Lesson example missing.'});
+      if(!activity.lesson.hint) issues.push({severity:'warn', code:'no-hint', msg:'Lesson hint missing.'});
     }
     // Curriculum tag
     if(!activity.curriculum || typeof activity.curriculum !== 'object'){
@@ -2320,19 +2332,16 @@ tbody tr:last-child td{border-bottom:none}
           }
           // Duplicate-choice detection — case-SENSITIVE so capitalization-
           // teaching lessons don't false-positive (the whole point of those
-          // is "spot the right capital", and choices look intentionally
-          // alike when lowercased). We DO strip a leading "emoji + space"
-          // prefix so "🐱 Cat" / "🐶 Cat" still flag as duplicates, but
-          // we leave meaningful symbols (-1 / +1 / $5) alone — those
-          // signs are part of the value, not decoration.
+          // is "spot the right capital"). We strip a leading run of
+          // NON-ASCII characters followed by whitespace, which catches
+          // emoji prefixes ("🐱 Cat" → "Cat", "👨‍👩‍👧 Family" → "Family")
+          // but leaves ASCII punctuation alone — so "(+, +)" / "(-, +)"
+          // stay distinct, and "-1" / "+1" / "$5" keep their meaning.
           var seen = {};
           var dup = null;
           for(var di=0;di<q.choices.length;di++){
             var norm = String(q.choices[di] || '').trim()
-              // Strip a leading run of non-word/non-space chars THAT IS
-              // followed by whitespace. That's the emoji-prefix shape.
-              // "-1" has no space after the -, so it stays "-1".
-              .replace(/^[^\w\s]+\s+/, '').trim();
+              .replace(/^[^\x20-\x7E]+\s+/, '').trim();
             if(!norm) continue;
             if(seen[norm] !== undefined){ dup = q.choices[di]; break; }
             seen[norm] = di;
