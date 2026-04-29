@@ -17,7 +17,7 @@ compatibility_date = "2025-01-01"
 # ElevenLabs voice + model to use when the frontend doesn't specify.
 # Swap DEFAULT_VOICE_ID to your cloned voice once it's ready on
 # ElevenLabs (Voice Library → click voice → "Voice ID").
-DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel — stock English voice
+DEFAULT_VOICE_ID = "G5l3TqaLfwZ63P7RpUuL"  # Solvix narrator (cloned)
 # Model options (as of Apr 2026):
 #   eleven_flash_v2_5      — ~1x cost. Lowest latency (<200ms). Great for
 #                            button presses & short word reads. Slight
