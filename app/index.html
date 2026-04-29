@@ -19140,15 +19140,32 @@ function renderActivity(root,actId,subId){
   // - Coins still flow on correct answers so effort is rewarded.
   // - A banner on the first question tells the kid why the quiz looks different.
   //
-  // `autoStretch` plans (gifted, gifted-esl) lower the retry bar: instead
-  // of needing a PERFECT score on the base pool, merely COMPLETING it once
-  // triggers stretch on re-entry. This matches Akaran's plan ("Ready for
-  // Grade 2 stretch once the Grade 1 activity is solid") — solid ≠ perfect.
-  // On-grade / IEP / ESL kids still need the perfect score to unlock stretch.
+  // Two layers of individualization:
+  //
+  //  1. UNLOCK GATE: `autoStretch` plans (gifted, gifted-esl) lower the bar
+  //     to "completed once". Default plans require a PERFECT score on the
+  //     base pool. Matches Akaran's plan ("Ready for Grade 2 stretch once
+  //     the Grade 1 activity is solid") — solid ≠ perfect.
+  //
+  //  2. BACKOFF GATE: even if unlocked, we look at the kid's MOST RECENT
+  //     stretch attempt at this activity. If they bombed it (<60%), the
+  //     next replay reverts to the base pool — they need to refresh on the
+  //     fundamentals before climbing again. Once they recover (good base
+  //     attempt OR good stretch attempt), stretch unlocks again.
+  //
+  //  Net effect: stretch fires when the kid is genuinely ready for it —
+  //  not just because they aced this lesson once six months ago.
   const hasStretchPool = Array.isArray(activity.stretchQuestions) && activity.stretchQuestions.length > 0;
   const isRetryOfPerfect   = !!(state.perfectActivities  && state.perfectActivities[actId]);
   const isRetryOfCompleted = !!(state.completedActivities && state.completedActivities[actId]);
-  const stretchEligible = (adj && adj.autoStretch) ? isRetryOfCompleted : isRetryOfPerfect;
+  const unlocked = (adj && adj.autoStretch) ? isRetryOfCompleted : isRetryOfPerfect;
+  const lastStretch = (state.stretchStats && state.stretchStats[actId]) || null;
+  // If their last stretch attempt was poor, demote for one replay. >= .6
+  // means "kid got 60%+ correct on the harder pool" → keep them in stretch.
+  // null lastRatio means "first stretch attempt" → no backoff applied yet.
+  const STRETCH_BACKOFF_THRESHOLD = 0.6;
+  const recentStretchOK = !lastStretch || typeof lastStretch.lastRatio !== 'number' || lastStretch.lastRatio >= STRETCH_BACKOFF_THRESHOLD;
+  const stretchEligible = unlocked && recentStretchOK;
   const useStretch = hasStretchPool && stretchEligible;
   const baseQuestions = useStretch ? activity.stretchQuestions : activity.questions;
   // avoidPassages (IEP accommodation): filter out passage + write types
@@ -20478,11 +20495,20 @@ function gradeWriting(text,q){
 const PRAISE=['Awesome! 🌟','You got it!','Great thinking!','High five! ✋','Fantastic!','Well done!'];
 const ENCOUR=['Good try!','Try again next time!','Almost!','Nice effort!'];
 function setFB(ok){
-  // Adaptive-down hook: a correct answer resets the wrong-streak so we
-  // only drop to the easier pool when the kid is genuinely stuck, not
-  // after one stumble on an unrelated question. Wrong-side tracking lives
-  // in logWrongAnswer so timeouts (which never call setFB) also count.
+  // Adaptive-down hook: a correct answer resets the consecutive-wrong
+  // streak. The streak is no longer the primary bridge trigger (we use
+  // a rolling-accuracy window instead — see maybeInjectEasier), but
+  // we keep it for logging completeness and as a fallback signal.
   if(ok && quiz){ quiz.wrongStreak = 0; }
+  // Rolling-accuracy buffer for the bridge trigger. Tracks the last
+  // ~10 answers (we only ever look at the last 3-5, but we keep a
+  // bigger window so future analytics can read it). Append true on
+  // correct, false on wrong. Capped so it doesn't grow unbounded.
+  if(quiz){
+    if(!Array.isArray(quiz.recentAnswers)) quiz.recentAnswers = [];
+    quiz.recentAnswers.push(!!ok);
+    if(quiz.recentAnswers.length > 10) quiz.recentAnswers.shift();
+  }
   const fb=$('#fb');if(!fb)return;
   fb.className='feedback '+(ok?'ok':'no');
   fb.textContent=ok?PRAISE[Math.floor(Math.random()*PRAISE.length)]:ENCOUR[Math.floor(Math.random()*ENCOUR.length)];
@@ -20778,12 +20804,48 @@ function getEasierQuestion(currentQ){
   } catch(e){ console.warn('[Solvix] getEasierQuestion failed:', e); return null; }
 }
 
+/**
+ * Decide whether THIS kid actually needs an easier-bridge question right
+ * now. Uses ROLLING ACCURACY (last N answers in this quiz session) instead
+ * of strict consecutive-wrong streaks — that catches genuine struggle
+ * patterns (alternating right/wrong with overall low accuracy) while
+ * ignoring momentary slips by strong kids (one wrong after four rights).
+ *
+ * Two thresholds:
+ *   - earlyBridge plan ON  → look at LAST 3 answers; bridge if 2+ wrong
+ *     (≤33% accuracy in the last 3). More sensitive, fires sooner —
+ *     the IEP / "I want extra support" preset.
+ *   - earlyBridge plan OFF → look at LAST 5 answers; bridge if 3+ wrong
+ *     (≤40% accuracy in the last 5). The default — fires only when the
+ *     kid is genuinely struggling, not on a couple of bad guesses.
+ *
+ * Both modes require a minimum sample size (3 / 4 answers respectively)
+ * before bridging — we don't want to bridge after question 1 just because
+ * the kid had a confused first attempt.
+ */
+function shouldBridgeNow(){
+  if(!quiz) return false;
+  if(quiz.stretchMode) return false;          // never bridge during stretch retry
+  if(quiz.easyBridgeUsed) return false;       // one bridge per activity
+  if(quiz.idx + 1 >= quiz.questions.length) return false; // nothing left to swap
+  const adj = planAdjustments(currentUser);
+  const aggressive = !!(adj && adj.earlyBridge);
+  const recent = Array.isArray(quiz.recentAnswers) ? quiz.recentAnswers : [];
+  if(aggressive){
+    if(recent.length < 3) return false;       // need at least 3 samples
+    const tail = recent.slice(-3);
+    const wrong = tail.filter(c => !c).length;
+    return wrong >= 2;                         // 2+ wrong in last 3
+  }
+  // Default kids: longer window, higher tolerance.
+  if(recent.length < 4) return false;
+  const tail = recent.slice(-5);
+  const wrong = tail.filter(c => !c).length;
+  return wrong >= 3;                           // 3+ wrong in last 5
+}
+
 function maybeInjectEasier(){
-  if(!quiz) return;
-  if(quiz.stretchMode) return;                  // don't bridge during stretch retry
-  if(quiz.easyBridgeUsed) return;               // one bridge per activity
-  if((quiz.wrongStreak || 0) < getWrongStreakTrigger()) return;
-  if(quiz.idx + 1 >= quiz.questions.length) return; // no next question to swap
+  if(!shouldBridgeNow()) return;
   const currentQ = quiz.questions[quiz.idx];
   const easier = getEasierQuestion(currentQ);
   if(!easier) return;
@@ -20865,10 +20927,17 @@ function finishActivity(){
   if(isStretch){
     if(!state.stretchStats) state.stretchStats = {};
     const prev = state.stretchStats[a.id] || { best:0, attempts:0, perfect:false };
+    // lastRatio is what the next-replay gate reads to decide whether
+    // this kid should KEEP getting the stretch pool or drop back to
+    // base for now. If they bombed (<60%) the next replay reverts to
+    // base; once they recover, stretch unlocks again.
+    const lastRatio = scorable > 0 ? (correct / scorable) : 0;
     state.stretchStats[a.id] = {
       best: Math.max(prev.best, correct),
       attempts: (prev.attempts||0) + 1,
       perfect: prev.perfect || (correct===scorable),
+      lastRatio: lastRatio,
+      lastAt: Date.now(),
     };
     // Don't touch perfectActivities / completedActivities / progress.
     // The kid stays "perfect" on the normal pool forever.
