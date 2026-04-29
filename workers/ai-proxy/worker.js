@@ -1990,12 +1990,26 @@ async function handleAdminGetTenantRoute(request, env, corsOrigin) {
 }
 
 // POST /admin/tenant/:id/suspend  body: {} — manually suspend (e.g.
-// fraud, policy violation). Independent of Stripe webhook flow.
+// fraud, policy violation, account dispute).
 // POST /admin/tenant/:id/unsuspend body: {} — clear the manual flag.
 //
-// Note: if the Stripe subscription is also in past_due/canceled, an
-// unsuspend here will get re-suspended on the next webhook. That's
-// the right behavior — Stripe is the source of truth for billing.
+// Stripe billing is paused/resumed alongside the local flag so suspended
+// accounts don't keep getting auto-charged on renewal:
+//
+//   • Suspend  → POST /subscriptions/:id { cancel_at_period_end: true }
+//                Customer keeps service through what they already paid
+//                for, then it lapses cleanly. No surprise renewal charge.
+//   • Unsuspend → if the sub is still active+cancel_scheduled, clear the
+//                cancel flag (resume billing). If it has already lapsed
+//                (canceled / unpaid / incomplete_expired), we can't
+//                reactivate from the API — the customer has to re-checkout.
+//                We surface { stripe.needsCheckout: true } so the admin
+//                UI can warn the operator.
+//
+// We also stamp adminSuspendedAt so handleStripeSubscriptionChange knows
+// to keep the local flag set even if Stripe says "active" (the cancel
+// is scheduled but not yet applied — Stripe still considers the sub
+// active during the grace period).
 async function handleAdminTenantSuspendRoute(request, env, corsOrigin, mode) {
   if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
   if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
@@ -2012,11 +2026,114 @@ async function handleAdminTenantSuspendRoute(request, env, corsOrigin, mode) {
   if (!raw) return json({ error: 'not_found' }, 404, corsOrigin);
   let t; try { t = JSON.parse(raw); } catch { return json({ error: 'malformed' }, 500, corsOrigin); }
 
-  t.suspended = (mode === 'suspend');
-  t.adminSuspendedAt = (mode === 'suspend') ? new Date().toISOString() : null;
+  const subId = t.stripeSubscriptionId ? String(t.stripeSubscriptionId) : '';
+  const stripeResult = {
+    attempted: false,
+    success: false,
+    mode: null,            // 'cancel_at_period_end' | 'reactivate' | 'noop' | null
+    subscriptionId: subId || null,
+    status: null,
+    cancelAtPeriodEnd: null,
+    needsCheckout: false,  // unsuspend can't reactivate — customer must re-checkout
+    error: null,
+  };
+
+  if (mode === 'suspend') {
+    t.suspended = true;
+    t.adminSuspendedAt = new Date().toISOString();
+
+    if (subId) {
+      stripeResult.attempted = true;
+      stripeResult.mode = 'cancel_at_period_end';
+      try {
+        const r = await stripeApi(env, 'POST', `/subscriptions/${encodeURIComponent(subId)}`, { cancel_at_period_end: true });
+        if (r && r.ok) {
+          stripeResult.success = true;
+          stripeResult.status = (r.data && r.data.status) || null;
+          stripeResult.cancelAtPeriodEnd = !!(r.data && r.data.cancel_at_period_end);
+          if (r.data && r.data.status) t.stripeSubscriptionStatus = r.data.status;
+        } else if (r && r.status === 404) {
+          // Already gone in Stripe — local suspend still takes effect.
+          stripeResult.success = true;
+          stripeResult.status = 'already_gone';
+        } else {
+          stripeResult.error = (r && r.data && r.data.error && r.data.error.message) || `stripe_${r ? r.status : 'unknown'}`;
+        }
+      } catch (e) {
+        stripeResult.error = (e && e.message) || 'stripe_call_threw';
+      }
+    }
+  } else {
+    // mode === 'unsuspend'
+    t.adminSuspendedAt = null;
+
+    if (subId) {
+      stripeResult.attempted = true;
+      try {
+        // Read current Stripe state first so we know what's possible.
+        const cur = await stripeApi(env, 'GET', `/subscriptions/${encodeURIComponent(subId)}`);
+        if (cur && cur.ok && cur.data) {
+          const status = cur.data.status;
+          const cancelFlag = !!cur.data.cancel_at_period_end;
+          stripeResult.status = status;
+          stripeResult.cancelAtPeriodEnd = cancelFlag;
+          t.stripeSubscriptionStatus = status;
+
+          if ((status === 'active' || status === 'trialing') && cancelFlag) {
+            // Reactivatable — clear the cancel flag.
+            stripeResult.mode = 'reactivate';
+            const r = await stripeApi(env, 'POST', `/subscriptions/${encodeURIComponent(subId)}`, { cancel_at_period_end: false });
+            if (r && r.ok) {
+              stripeResult.success = true;
+              stripeResult.cancelAtPeriodEnd = !!(r.data && r.data.cancel_at_period_end);
+              if (r.data && r.data.status) {
+                stripeResult.status = r.data.status;
+                t.stripeSubscriptionStatus = r.data.status;
+              }
+              t.suspended = false;
+            } else {
+              stripeResult.error = (r && r.data && r.data.error && r.data.error.message) || `stripe_${r ? r.status : 'unknown'}`;
+              // Stripe call failed — leave the local flag as-is so the
+              // operator sees the failure and can retry.
+              t.suspended = !!t.suspended;
+            }
+          } else if (status === 'active' || status === 'trialing') {
+            // Already healthy with no cancel scheduled — nothing to do.
+            stripeResult.mode = 'noop';
+            stripeResult.success = true;
+            t.suspended = false;
+          } else {
+            // canceled / unpaid / incomplete_expired / past_due —
+            // can't reactivate without a fresh checkout. The webhook
+            // will keep tenant.suspended=true on the next sync anyway,
+            // so we set it now to reflect reality in the admin list.
+            stripeResult.mode = 'noop';
+            stripeResult.success = false;
+            stripeResult.needsCheckout = true;
+            t.suspended = true;
+          }
+        } else if (cur && cur.status === 404) {
+          // Subscription gone entirely — needs new checkout.
+          stripeResult.needsCheckout = true;
+          t.suspended = true;
+        } else {
+          stripeResult.error = (cur && cur.data && cur.data.error && cur.data.error.message) || `stripe_${cur ? cur.status : 'unknown'}`;
+          // Don't flip the local flag if we couldn't read Stripe — leave
+          // it for the operator to retry once the error is understood.
+        }
+      } catch (e) {
+        stripeResult.error = (e && e.message) || 'stripe_call_threw';
+      }
+    } else {
+      // No Stripe subscription on file (e.g. manual / demo tenant).
+      // Just clear the local flag.
+      t.suspended = false;
+    }
+  }
+
   t.updatedAt = Date.now();
   await env.KV.put(`tenant:${tenantId}`, JSON.stringify(t));
-  return json({ ok: true, tenantId, suspended: t.suspended }, 200, corsOrigin);
+  return json({ ok: true, tenantId, suspended: t.suspended, stripe: stripeResult }, 200, corsOrigin);
 }
 
 // POST /admin/tenant/:id/resend-code — re-sends the welcome email
@@ -3609,6 +3726,13 @@ async function handleStripeCheckoutCompleted(session, env) {
 
 // Sync tenant.suspended with Stripe subscription status.
 // Active + trialing = not suspended. Anything else = suspended.
+//
+// Admin override: if tenant.adminSuspendedAt is set, the operator has
+// manually suspended the account. We keep tenant.suspended=true even if
+// Stripe still reports the sub as active (which it does during the
+// cancel-at-period-end grace window we open in the suspend handler).
+// The override is cleared only by /admin/tenant/:id/unsuspend, never
+// by a webhook.
 async function handleStripeSubscriptionChange(subscription, env) {
   if (!env.KV) return;
   const customerId = subscription.customer || '';
@@ -3621,7 +3745,11 @@ async function handleStripeSubscriptionChange(subscription, env) {
   try { tenant = JSON.parse(raw); } catch { return; }
 
   const active = subscription.status === 'active' || subscription.status === 'trialing';
-  tenant.suspended = !active;
+  if (tenant.adminSuspendedAt) {
+    tenant.suspended = true;
+  } else {
+    tenant.suspended = !active;
+  }
   tenant.stripeSubscriptionStatus = subscription.status;
   tenant.stripeSubscriptionId = subscription.id;
   tenant.updatedAt = Date.now();

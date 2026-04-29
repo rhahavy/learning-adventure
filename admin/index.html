@@ -1087,8 +1087,8 @@ tbody tr:last-child td{border-bottom:none}
     var id = btn.getAttribute('data-id');
     var act = btn.getAttribute('data-act');
     if(act === 'view') return openTenantModal(id);
-    if(act === 'suspend') return confirmAndCall(btn, 'suspend this tenant', '/admin/tenant/'+id+'/suspend', 'POST', {}, 'Suspended');
-    if(act === 'unsuspend') return confirmAndCall(btn, 'unsuspend this tenant', '/admin/tenant/'+id+'/unsuspend', 'POST', {}, 'Unsuspended');
+    if(act === 'suspend') return suspendTenant(btn, id, 'suspend');
+    if(act === 'unsuspend') return suspendTenant(btn, id, 'unsuspend');
   });
 
   async function confirmAndCall(btn, verb, path, method, body, successMsg){
@@ -1105,6 +1105,68 @@ tbody tr:last-child td{border-bottom:none}
       btn.disabled = false;
       btn.textContent = orig;
     }
+  }
+
+  // Suspend / unsuspend with Stripe billing pause/resume baked in. We use
+  // a dedicated helper (not confirmAndCall) because the response carries
+  // a `stripe` block we want to surface in the toast — operator needs to
+  // know whether billing actually paused/resumed or whether the customer
+  // has to re-checkout.
+  async function suspendTenant(btn, id, mode){
+    var msg;
+    if(mode === 'suspend'){
+      msg = 'Suspend this tenant?\n\n' +
+            '• They lose access until you unsuspend.\n' +
+            '• Their Stripe subscription is set to cancel at the end of the current period — no auto-renewal charge.\n' +
+            '• If you unsuspend before the period ends, billing resumes automatically.';
+    } else {
+      msg = 'Unsuspend this tenant?\n\n' +
+            '• Access is restored immediately.\n' +
+            '• If their subscription was scheduled to cancel, billing resumes automatically.\n' +
+            '• If their subscription has already lapsed, you’ll see a warning — they’ll need to re-subscribe via checkout.';
+    }
+    if(!confirm(msg)) return;
+    var orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      var res = await api('/admin/tenant/'+id+'/'+mode, {method:'POST', body:{}});
+      toast(buildSuspendToast(mode, res), suspendToastKind(mode, res));
+      await loadTenants();
+    } catch(e){
+      toast('Error: '+e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
+
+  // Translate the worker's { stripe: {...} } block into operator-friendly
+  // copy. Three classes of outcome:
+  //   • Clean success → ✓ Suspended (billing paused) / ✓ Unsuspended (billing resumed)
+  //   • Soft warning  → unsuspend succeeded locally but Stripe needs new checkout
+  //   • Stripe error  → local flag flipped but Stripe call failed — operator must retry
+  function buildSuspendToast(mode, res){
+    var s = res && res.stripe;
+    if(mode === 'suspend'){
+      if(!s || !s.attempted)        return '✓ Suspended (no Stripe sub on file)';
+      if(s.success && s.status === 'already_gone') return '✓ Suspended (Stripe sub already gone)';
+      if(s.success)                 return '✓ Suspended — billing set to cancel at period end';
+      return '⚠ Suspended locally, but Stripe call failed: ' + (s.error || 'unknown');
+    }
+    // unsuspend
+    if(!s || !s.attempted)         return '✓ Unsuspended (no Stripe sub on file)';
+    if(s.mode === 'reactivate' && s.success) return '✓ Unsuspended — Stripe billing resumed';
+    if(s.mode === 'noop' && s.success)       return '✓ Unsuspended — Stripe sub is already active';
+    if(s.needsCheckout)            return '⚠ Stripe sub has lapsed (' + (s.status || 'unknown') + ') — customer must re-subscribe via checkout';
+    if(s.error)                    return '⚠ Local flag cleared, but Stripe call failed: ' + s.error;
+    return '✓ Unsuspended';
+  }
+  function suspendToastKind(mode, res){
+    var s = res && res.stripe;
+    if(!s) return 'success';
+    if(s.error) return 'error';
+    if(mode === 'unsuspend' && s.needsCheckout) return 'error';
+    return 'success';
   }
 
   async function openTenantModal(id){
@@ -1171,12 +1233,11 @@ tbody tr:last-child td{border-bottom:none}
       });
       var $s2 = document.getElementById('m-suspend');
       if($s2) $s2.addEventListener('click', function(){
-        if(!confirm('Suspend this tenant? They will be locked out until you unsuspend.')) return;
-        api('/admin/tenant/'+id+'/suspend', {method:'POST', body:{}}).then(function(){ toast('✓ Suspended', 'success'); $modalBg.classList.remove('show'); loadTenants(); }).catch(function(e){ toast('Error: '+e.message, 'error'); });
+        suspendTenant($s2, id, 'suspend').then(function(){ $modalBg.classList.remove('show'); });
       });
       var $u = document.getElementById('m-unsuspend');
       if($u) $u.addEventListener('click', function(){
-        api('/admin/tenant/'+id+'/unsuspend', {method:'POST', body:{}}).then(function(){ toast('✓ Unsuspended', 'success'); $modalBg.classList.remove('show'); loadTenants(); }).catch(function(e){ toast('Error: '+e.message, 'error'); });
+        suspendTenant($u, id, 'unsuspend').then(function(){ $modalBg.classList.remove('show'); });
       });
       var $rf = document.getElementById('m-refund');
       if($rf) $rf.addEventListener('click', function(){ openRefundDialog(t); });
