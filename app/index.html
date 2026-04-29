@@ -11885,7 +11885,7 @@ function saveState(){
   // Demo TENANT in teacher/parent mode — same rule. The 2228:parent and
   // 2228:teacher demos share KV blobs across every visitor on the
   // internet; without this gate, a demo visitor adding a "test student"
-  // or fiddling with the coin adjuster would persist that change for
+  // or fiddling with reset/passwords controls would persist that change for
   // everyone. isTeacher is true here (this branch is reached when
   // currentUser is null and they're poking the dashboard), so blocking
   // the write entirely is safe — there's no kid mid-quiz losing
@@ -23573,7 +23573,7 @@ function renderBadges(root){
 /* ========== TEACHER DASHBOARD ========== */
 // Which teacher-dashboard accordion sections are currently open. Lives at
 // module scope so the open/closed state survives re-renders — sub-actions
-// like the coin adjuster and reset buttons call renderTeacher() to refresh
+// like the reset and password-change buttons call renderTeacher() to refresh
 // after each save, and the tutor would lose their place on every click if
 // we stored this locally. Keys are section ids; `true` means open.
 // Students Overview defaults to open so the page still has a useful first
@@ -25869,7 +25869,11 @@ function renderTeacher(root){
     { id:'data-export',  icon:'📊', title:'Data Export (CSV)',     build: buildDataExportPanel, classroomOnly:true },
     { id:'passwords',    icon:'🔑', title:'Passwords',             build: renderTeacherPasswords },
     { id:'billing',      icon:'💳', title:'Subscription & Billing', build: renderBillingPortal },
-    { id:'coins',        icon:'💰', title:'Coin Adjuster',         build: renderCoinAdjuster },
+    // Coin Adjuster removed Apr 2026 — operator-only feature now. Parents
+    // and teachers shouldn't be able to mint/burn coins from the dashboard;
+    // if a kid has an inflated balance from old farming bugs, fix the bug
+    // upstream rather than hand-correcting balances. The renderCoinAdjuster
+    // function was deleted from the file at the same time.
     { id:'resets',       icon:'🔄', title:'Resets',                build: renderResetControls },
   ].filter(s => {
     if(s.familyOnly)    return familyMode;
@@ -27308,100 +27312,6 @@ function renderAboutMyChild(){
   return wrap;
 }
 
-/* Coin adjuster — per-student +/- coin control for the teacher dashboard.
-   We added this after a kid (Axel) ended up with an inflated balance from
-   the old challenge-coin rule (flat bonus on Finish). The tutor needed a
-   way to correct balances without editing JSON by hand. Every write goes
-   through confirmTeacherPassword so nobody browsing the dashboard can
-   silently mint or burn coins. */
-function renderCoinAdjuster(){
-  const wrap = h('div',{class:'t-pw-block'});
-  wrap.appendChild(h('div',{class:'t-pw-head'},[
-    h('h3',{},'💰 Coin Balance Adjuster'),
-    h('p',{class:'t-pw-sub'}, 'Set or nudge any student\'s coin total. Use this to correct inflated balances (e.g. from Finish-button farming) or to grant bonus coins for off-app work. Every change is password-gated.'),
-  ]));
-  const rowsWrap = h('div',{style:'display:flex;flex-direction:column;gap:10px;margin-top:12px'});
-  STUDENTS.forEach(s=>{
-    const ud = allData.users[s.id] || defaultUser();
-    const current = Number(ud.coins||0);
-    const row = h('div',{style:'display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fafaff;border:1px solid var(--line);border-radius:12px;flex-wrap:wrap'});
-    const token = getStudentAvatarDisplay(s.id).value;
-    row.appendChild(h('div',{style:'font-size:20px'}, token));
-    row.appendChild(h('div',{style:'flex:1;min-width:120px'},[
-      h('div',{style:'font-weight:800;font-size:14px'}, s.name),
-      h('div',{style:'font-size:12px;color:var(--ink3)'}, s.grade+' · '+current+' coins now'),
-    ]));
-    // Delta input — positive adds, negative subtracts
-    const deltaInput = h('input',{
-      type:'number', step:'1', placeholder:'±coins',
-      'aria-label':'Delta coins for '+s.name,
-      style:'width:100px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-weight:700;font-size:14px',
-    });
-    row.appendChild(deltaInput);
-    row.appendChild(h('button',{
-      class:'btn btn-ghost',
-      style:'padding:8px 12px;font-size:13px',
-      onclick:async ()=>{
-        const delta = parseInt(deltaInput.value, 10);
-        if(!Number.isFinite(delta) || delta === 0){
-          alert('Enter a positive or negative number to add or subtract.');
-          return;
-        }
-        const after = Math.max(0, current + delta);
-        if(!confirm(s.name+': '+current+' → '+after+' coins ('+(delta>0?'+':'')+delta+')?\n\nApply change?')) return;
-        if(!(await confirmTeacherPassword('adjust '+s.name+'\'s coins by '+(delta>0?'+':'')+delta))) return;
-        const u = allData.users[s.id];
-        if(!u) return;
-        u.coins = after;
-        saveState();
-        alert(s.name+'\'s coins set to '+after+'.');
-        try { renderTeacher(document.getElementById('screen')); } catch(e){}
-      },
-    }, 'Apply Δ'));
-    // Exact-value input — sits next to the Set exact button. We used to use
-    // window.prompt() here, but browsers silently block prompt() in many
-    // embedded / WebView contexts (iOS Safari, some kiosk modes, content
-    // blockers), so the button did nothing for some teachers. Keeping the
-    // input inline means the click path never depends on a modal prompt
-    // that may not open.
-    const exactInput = h('input',{
-      type:'number', step:'1', min:'0', placeholder:'= exact',
-      'aria-label':'Set exact coin balance for '+s.name,
-      style:'width:100px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);font-weight:700;font-size:14px',
-    });
-    row.appendChild(exactInput);
-    row.appendChild(h('button',{
-      class:'btn btn-ghost',
-      style:'padding:8px 12px;font-size:13px',
-      onclick:async ()=>{
-        const raw = (exactInput.value||'').trim();
-        if(!raw){
-          alert('Enter the exact coin balance you want to set for '+s.name+' in the "= exact" box.');
-          exactInput.focus();
-          return;
-        }
-        const next = parseInt(raw, 10);
-        if(!Number.isFinite(next) || next < 0){
-          alert('Please enter a non-negative whole number.');
-          exactInput.focus();
-          return;
-        }
-        if(next === current){ alert('Already at '+current+' — no change.'); return; }
-        if(!confirm(s.name+': '+current+' → '+next+' coins?\n\nApply change?')) return;
-        if(!(await confirmTeacherPassword('set '+s.name+'\'s coins to '+next))) return;
-        const u = allData.users[s.id];
-        if(!u) return;
-        u.coins = next;
-        saveState();
-        alert(s.name+'\'s coins set to '+next+'.');
-        try { renderTeacher(document.getElementById('screen')); } catch(e){}
-      },
-    }, 'Set exact'));
-    rowsWrap.appendChild(row);
-  });
-  wrap.appendChild(rowsWrap);
-  return wrap;
-}
 
 /* Student password manager — lets the teacher see every student's
    self-chosen emoji password + hint and reset any of them when a kid
