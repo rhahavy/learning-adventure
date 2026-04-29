@@ -147,6 +147,15 @@ async function handleTts(request, env, corsOrigin) {
     `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}` +
     `?output_format=${encodeURIComponent(outputFormat)}`;
 
+  // ElevenLabs voice_settings.speed accepts 0.7 to 1.2 (1.0 = normal).
+  // We use this for the kid-facing "🐢 Slow" button so phonics practice
+  // reads use the SAME cloned voice the kid is used to, just slower
+  // — instead of falling through to the browser's robotic system voice
+  // (which was the previous "weird" behavior the user flagged).
+  // Out-of-range or missing values fall back to 1.0.
+  const speedRaw = Number(body.speed);
+  const speed = (Number.isFinite(speedRaw) && speedRaw >= 0.7 && speedRaw <= 1.2) ? speedRaw : 1.0;
+
   // Stability/similarity defaults chosen for a calm, consistent
   // read-aloud voice. Adjusting these means re-uploading a custom
   // voice on ElevenLabs — we keep them fixed so the kid hears the
@@ -159,6 +168,7 @@ async function handleTts(request, env, corsOrigin) {
       similarity_boost: 0.75,
       style: 0.0,
       use_speaker_boost: true,
+      speed: speed,
     },
   };
 

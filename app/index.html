@@ -14701,7 +14701,18 @@ async function _speakViaProxy(text, lang, opts){
   if(Date.now() < _ttsProxyCooldownUntil) return false;
 
   const o = opts || {};
-  const cacheKey = `${lang||''}|${o.voiceId||''}|${text}`;
+  // Slow mode routes through ElevenLabs at voice_settings.speed=0.75
+  // (clear pedagogical pace; ElevenLabs accepts 0.7–1.2). This replaces
+  // the old behavior of bouncing slow mode to the browser's robotic
+  // system voice — kids now hear the SAME cloned voice slowed down
+  // for phonics practice. opts.speed (number 0.7–1.2) lets callers
+  // override; defaults to 0.75 when slow=true, 1.0 otherwise.
+  const speed = (typeof o.speed === 'number')
+    ? Math.max(0.7, Math.min(1.2, o.speed))
+    : (o.slow ? 0.75 : 1.0);
+  // Cache key includes speed so a normal-speed read doesn't get
+  // served when slow is requested (and vice versa).
+  const cacheKey = `${lang||''}|${o.voiceId||''}|${speed}|${text}`;
   let blob = _ttsBlobCache.get(cacheKey);
 
   if(!blob){
@@ -14715,6 +14726,7 @@ async function _speakViaProxy(text, lang, opts){
           text: _normalizeForTts(text),
           voiceId: o.voiceId,
           lang: lang,
+          speed: speed,
         }),
         signal: ctl.signal,
       });
@@ -14903,9 +14915,13 @@ function speak(text, lang, opts){
   text = _stripEmojisForTTS(text);
   if(!text) return;
 
-  // Slow mode stays on the browser voice — syllable-pace phonics is a
-  // speechSynthesis strength. Slowing MP3 client-side sounds muddy.
-  if(o.slow){ _speakViaBrowser(text, lang, o); return; }
+  // Slow mode previously bypassed the proxy entirely and used browser
+  // speechSynthesis — that gave kids a "syllable-pace" read but in a
+  // robotic system voice that didn't match the cloned ElevenLabs voice
+  // they hear everywhere else. Now we route slow mode through the same
+  // proxy with voice_settings.speed=0.75 so it's the SAME voice, just
+  // slower. The browser fallback still kicks in when the proxy fails
+  // (cooldown, offline, missing key), so the kid always hears something.
 
   // Stop any currently-playing audio immediately. This matches the old
   // speak() behavior (which called speechSynthesis.cancel() up front)
