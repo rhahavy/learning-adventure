@@ -19741,9 +19741,27 @@ function renderActivity(root,actId,subId){
   }
   // Build questions with lesson prepended (only for the FIRST pass — on a
   // stretch retry, skip re-showing the lesson since the kid already knows it).
-  const qs = (activity.lesson && !useStretch)
+  let qs = (activity.lesson && !useStretch)
     ? [{type:'lesson',lesson:activity.lesson}, ...filtered]
     : [...filtered];
+  // RETRY VARIATION (Apr 2026). If the kid has already attempted this
+  // activity, shuffle MCQ choices + (when no passage) shuffle question
+  // order so they're not just memorizing positions. Triggered by the
+  // existing per-activity attempts counter — first try stays in the
+  // authored order, every subsequent try is reshuffled.
+  // Stretch mode also gets variation since stretchStats[a.id].attempts
+  // tracks its own retries — we apply variation when EITHER counter is
+  // > 0, so a kid who's already aced the base AND tried stretch once
+  // gets fresh choices on the next stretch run.
+  try {
+    const baseAttempts    = (state.progress[a.id]      || {}).attempts || 0;
+    const stretchAttempts = (state.stretchStats && state.stretchStats[a.id] || {}).attempts || 0;
+    const isRetry = useStretch ? (stretchAttempts > 0) : (baseAttempts > 0);
+    if(isRetry){
+      const hasPassage = qs.some(q => q && q.type === 'passage');
+      qs = applyRetryVariation(qs, hasPassage);
+    }
+  } catch(e){ console.warn('[Solvix] retry variation skipped:', e); }
   // `timerEnabled` starts false and is set by askTimerChoice below.
   // Keeping the default off is important because the first renderQ() may
   // look at the flag before the kid answers — off means "no timer shown",
@@ -20907,6 +20925,54 @@ function logWrongAnswer(q, choseIdx, correctIdx, opts){
       maybeInjectEasier();
     }
   } catch(e){ console.warn('[Solvix] adaptive-down hook failed:', e); }
+}
+
+/* Fisher-Yates shuffle, returns a shuffled COPY of the input array. */
+function _shuffleArray(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+/* shuffleMCQChoices(q) — return a copy of q with its choices reordered
+   and the answer index remapped so correctness is preserved.
+   No-op for non-MCQ shapes (anything that doesn't have a numeric
+   `answer` index into a `choices` array). Safe to call on every q. */
+function shuffleMCQChoices(q){
+  if(!q || !Array.isArray(q.choices) || q.choices.length < 2) return q;
+  if(typeof q.answer !== 'number') return q;
+  const items = q.choices.map((c, i) => ({ c, isCorrect: i === q.answer }));
+  const shuffled = _shuffleArray(items);
+  return Object.assign({}, q, {
+    choices: shuffled.map(x => x.c),
+    answer: shuffled.findIndex(x => x.isCorrect),
+  });
+}
+
+/* applyRetryVariation(qs, hasPassage) — anti-memorization layer. Called
+   only when the kid has done THIS activity at least once before. Two
+   moves so each replay feels different and they actually have to read:
+
+     1. Shuffle each MCQ's choices (with answer-index remap). Kills
+        position memory ("the answer was the second one").
+     2. Shuffle question ORDER, BUT only when there's no passage in
+        the activity. Reading lessons rely on passage→follow-up order
+        — shuffling those would break the carryover. Math/spelling/
+        logic activities reorder freely.
+
+   Lesson cards are pinned to position 0 (kids always see the lesson
+   card first regardless of shuffle). */
+function applyRetryVariation(qs, hasPassage){
+  const lessonCard = qs.find(q => q && q.type === 'lesson') || null;
+  let nonLesson = qs.filter(q => q && q.type !== 'lesson');
+  // Choice-level shuffle (preserves correctness via answer remap).
+  nonLesson = nonLesson.map(shuffleMCQChoices);
+  // Question-level shuffle — only when no passage anchors the order.
+  if(!hasPassage) nonLesson = _shuffleArray(nonLesson);
+  return lessonCard ? [lessonCard, ...nonLesson] : nonLesson;
 }
 
 /* trackCorrect() — central place that bumps the correct counter AND
