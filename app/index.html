@@ -490,7 +490,15 @@ img{max-width:100%}
    no layout shift on every Nova render. Mobile (<640px) drops the
    fixed sizing and lets Nova flow full-width below the info block. */
 .dash-hero .mascot-wrap{flex:0 0 320px;align-self:center;justify-content:flex-end;margin-left:auto}
-.dash-hero .mascot-wrap .speech-bubble{width:180px;min-height:60px;max-width:none;display:flex;align-items:center}
+/* Bubble pinned to a fixed footprint so it doesn't shift the row when
+   the quip changes length. Column flex with justify-content:center so
+   the main message + .sb-small sub-message STACK vertically (not in
+   two columns side-by-side, which is what plain row flex did) and
+   stay vertically centered for short single-line quips. */
+.dash-hero .mascot-wrap .speech-bubble{
+  width:180px;min-height:60px;max-width:none;
+  display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+}
 @media(max-width:640px){
   .dash-hero .mascot-wrap{flex:0 0 100%;margin-left:0;justify-content:flex-start}
   .dash-hero .mascot-wrap .speech-bubble{width:auto;max-width:none;min-height:0;display:block}
@@ -537,58 +545,49 @@ img{max-width:100%}
 /* Read-aloud toggle pill — a twin to .change-avatar-btn but with a
    tangible on/off state. The ON variant uses the same purple gradient as
    the primary TTS button so kids associate the two UIs. */
-/* Read-aloud toggle — designed to make ON vs OFF unambiguous at a
-   glance. Earlier version was a pill with subtle background change
-   plus 🔊/🔇 emojis; on Chromebooks the emoji rendered nearly
-   identical and the off-state bg blended into the hero card.
-   Now it's an iOS-style toggle: a track + a sliding dot that
-   physically moves left↔right plus a hard color change. Even at
-   thumbnail size you can read the state. */
+/* Read-aloud toggle — iOS-style switch with a sliding knob. Built from
+   real DOM elements (.tts-track holding .tts-knob) instead of pseudo-
+   elements: the v1 version put the knob via ::after AFTER the label
+   text in flex order, so it ended up rendered IN THE MIDDLE of the
+   text. With real inner DOM we have explicit visual order — track
+   (with knob inside) sits to the LEFT of the label, no overlap. */
 .dash-hero .tts-dash-toggle{
   margin-top:6px;margin-left:6px;
   display:inline-flex;align-items:center;gap:10px;
   background:#fff;color:#5B5580;
   border:2px solid #d8dbe0;
   border-radius:999px;
-  padding:5px 14px 5px 6px;
+  padding:6px 14px;
   font-size:12px;font-weight:800;
   cursor:pointer;
   transition:all .2s ease;
   font-family:inherit;
 }
 .dash-hero .tts-dash-toggle:hover{filter:brightness(.98);transform:translateY(-1px)}
-/* Built-in track + sliding knob via ::before. Always visible; no JS
-   needed to animate state changes. Off = knob left + gray; on =
-   knob right + white-on-purple. */
-.dash-hero .tts-dash-toggle::before{
-  content:"";
-  flex-shrink:0;
+.dash-hero .tts-dash-toggle .tts-track{
+  position:relative;flex-shrink:0;
   width:32px;height:18px;
   border-radius:999px;
   background:#cbd2d8;
-  position:relative;
   transition:background .2s ease;
 }
-.dash-hero .tts-dash-toggle::after{
-  content:"";
-  flex-shrink:0;
+.dash-hero .tts-dash-toggle .tts-knob{
+  position:absolute;top:2px;left:2px;
   width:14px;height:14px;
   border-radius:50%;
   background:#fff;
-  position:relative;
-  margin-left:-30px;
-  margin-right:16px;
-  box-shadow:0 1px 3px rgba(0,0,0,.18);
+  box-shadow:0 1px 3px rgba(0,0,0,.22);
   transition:transform .2s ease;
 }
+.dash-hero .tts-dash-toggle .tts-label{line-height:1}
 .dash-hero .tts-dash-toggle.on{
   background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);
   color:#fff;
   border-color:#6c5ce7;
   box-shadow:0 4px 14px rgba(108,92,231,.4);
 }
-.dash-hero .tts-dash-toggle.on::before{background:rgba(255,255,255,.32)}
-.dash-hero .tts-dash-toggle.on::after{transform:translateX(14px);box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.dash-hero .tts-dash-toggle.on .tts-track{background:rgba(255,255,255,.32)}
+.dash-hero .tts-dash-toggle.on .tts-knob{transform:translateX(14px);box-shadow:0 1px 4px rgba(0,0,0,.28)}
 .dash-hero .av{width:100px;height:100px;border-radius:28px;display:grid;place-items:center;font-size:52px;color:#fff;font-weight:700;font-family:var(--font-display);border:3px solid #fff;box-shadow:0 12px 26px rgba(26,16,53,.2),inset 0 -4px 0 rgba(0,0,0,.18);flex-shrink:0;transition:transform .4s var(--spring)}
 .dash-hero:hover .av{transform:rotate(-4deg) scale(1.04)}
 .dash-hero .info{flex:1;min-width:200px}
@@ -18840,12 +18839,15 @@ function renderDashboard(root){
       }
       renderDashboard(root);
     }
-  // The CSS draws the actual switch via ::before (track) + ::after
-  // (sliding knob). The label here is just the action name — state is
-  // unambiguous from the switch position + the purple-on-white color
-  // change. Plain text "Read aloud" is more reliable than 🔊/🔇
-  // emojis, which render almost identically on some Chromebooks.
-  }, 'Read aloud');
+  // Real inner DOM: .tts-track contains .tts-knob, label sits beside.
+  // (The pseudo-element version had the knob rendered AFTER the label
+  // in flex order — it ended up sitting in the middle of the text.)
+  }, [
+    h('span',{class:'tts-track','aria-hidden':'true'}, [
+      h('span',{class:'tts-knob'})
+    ]),
+    h('span',{class:'tts-label'},'Read aloud'),
+  ]);
   // NOTE: Plan type (IEP/gifted/ESL/custom) and support tags (articulation,
   // etc.) are intentionally NOT shown on the kid-facing dashboard. That info
   // lives on the teacher dashboard only — it's for the tutor's planning, not
