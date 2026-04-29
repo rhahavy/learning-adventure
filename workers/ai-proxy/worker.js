@@ -4694,8 +4694,15 @@ async function runStandardHandler({
   // means the cap applies globally for this call.
   const studentId = request.headers.get('X-Student-Id') || 'anon';
   // Cache lookup FIRST — a hit is free so it shouldn't count against
-  // the kid's daily budget.
-  const key = typeof cacheKey === 'function' ? cacheKey(inputs) : null;
+  // the kid's daily budget. NOTE: hashKey() is async (uses crypto.subtle
+  // .digest), so the cacheKey function returns a Promise<string>. We
+  // MUST await it — otherwise the template literal in cacheGet stringifies
+  // the Promise as "[object Promise]" and EVERY call across every
+  // endpoint reads/writes the same KV key, returning whatever any prior
+  // call happened to store there. (Bug surfaced when /generate-questions
+  // started returning /explain-shaped responses on cache hit.)
+  const keyResult = typeof cacheKey === 'function' ? cacheKey(inputs) : null;
+  const key = keyResult ? await keyResult : null;
   if (key) {
     const cached = await cacheGet(env, key);
     if (cached) {

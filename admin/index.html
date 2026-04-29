@@ -3185,12 +3185,39 @@ tbody tr:last-child td{border-bottom:none}
   // worker prompts Claude to produce ONE step harder variants on the
   // same Ontario expectation. Result lives in formDraft.activity
   // .stretchQuestions until the operator clicks Save.
+  //
+  // Errors get shown INLINE in the stretch-pool panel (toast easy to
+  // miss). Every failure also logs to the console with [stretch-gen]
+  // prefix so DevTools surfaces the full request/response.
+  function showStretchError(msg, detail){
+    console.error('[stretch-gen]', msg, detail || '');
+    var box = document.getElementById('cf-stretch-body');
+    if(!box) return;
+    var detailHtml = detail ? '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11.5px;color:#7f1d1d">Technical detail</summary><pre style="margin:6px 0 0;padding:8px;background:#fff;border:1px solid #fecaca;border-radius:6px;font-size:11px;overflow:auto;max-height:160px">'+escapeHtml(String(detail))+'</pre></details>' : '';
+    box.innerHTML = (
+      '<div style="padding:12px 14px;background:#fee2e2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-size:13px;line-height:1.5">'+
+        '<strong>Generate failed</strong> &mdash; '+escapeHtml(msg)+
+        detailHtml +
+      '</div>'+
+      '<button type="button" class="btn btn-ghost btn-sm" id="cf-stretch-retry" style="margin-top:10px">↩︎ Try again</button>'
+    );
+    var retry = document.getElementById('cf-stretch-retry');
+    if(retry) retry.addEventListener('click', renderStretchPool);
+  }
+
   async function generateStretchPool(isRegen){
-    if(!formDraft) return;
+    console.log('[stretch-gen] start', { isRegen });
+    if(!formDraft){
+      showStretchError('Form draft not loaded — close and reopen the lesson.');
+      return;
+    }
     var a = formDraft.activity;
     var curr = a.curriculum;
     if(!curr || !curr.grade){
-      toast('This lesson has no curriculum tag with a grade — fill that in first so the AI can stay on-grade.', 'err');
+      showStretchError(
+        'This lesson has no curriculum tag with a grade — the AI needs that to stay on-grade. Add a grade to the curriculum block on the Raw JSON tab, or open a different lesson that has one.',
+        'lesson id: ' + (a.id || '?') + '\ncurriculum: ' + JSON.stringify(curr || null, null, 2)
+      );
       return;
     }
     // Pull mcq-shaped existing questions for the prompt — those are the
@@ -3206,50 +3233,77 @@ tbody tr:last-child td{border-bottom:none}
         };
       });
     if(!mcqLike.length){
-      toast('No MCQ-shape questions on this lesson to base stretch variants on. Add some first.', 'err');
+      showStretchError(
+        'This lesson has no MCQ-shaped questions to base stretch variants on. The AI needs an example pool of multiple-choice questions to learn the topic and difficulty floor.',
+        'questions on this lesson:\n' + JSON.stringify((a.questions || []).map(function(q){ return q && q.type; }), null, 2)
+      );
       return;
     }
     var box = document.getElementById('cf-stretch-body');
-    var prevHtml = box ? box.innerHTML : '';
     if(box){
-      box.innerHTML = '<div style="padding:14px;font-size:13px;color:#64748b"><span class="spinner"></span> Asking the AI to draft 3 harder variants…</div>';
+      box.innerHTML = '<div style="padding:14px;font-size:13px;color:#64748b"><span class="spinner"></span> Asking the AI to draft 3 harder variants… (this usually takes 5-10 seconds)</div>';
     }
+    var url = BACKEND + '/generate-questions';
+    var payload = {
+      curriculum: curr,
+      existingQuestions: mcqLike,
+      count: 3,
+      lessonTitle: a.title || (a.lesson && a.lesson.title) || '',
+      lessonIntro: (a.lesson && a.lesson.intro) || '',
+      difficulty: 'stretch',
+    };
+    console.log('[stretch-gen] POST', url, payload);
+    var resp, rawText, data;
     try {
-      var resp = await fetch(BACKEND + '/generate-questions', {
+      resp = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Student-Id': 'admin-curriculum',
         },
-        body: JSON.stringify({
-          curriculum: curr,
-          existingQuestions: mcqLike,
-          count: 3,
-          lessonTitle: a.title || (a.lesson && a.lesson.title) || '',
-          lessonIntro: (a.lesson && a.lesson.intro) || '',
-          difficulty: 'stretch',
-        }),
+        body: JSON.stringify(payload),
       });
-      var data = await resp.json();
-      if(!resp.ok){
-        var err = (data && data.error) || ('http_' + resp.status);
-        if(err === 'feature_disabled') throw new Error('FEATURE_GENERATE_QUESTIONS is off in the worker config. Flip the flag in wrangler.toml and redeploy.');
-        if(err === 'ai_globally_disabled') throw new Error('AI is globally disabled (AI_ENABLED=false). Flip the master switch in the worker config.');
-        if(err === 'rate_limited') throw new Error('Daily generation cap reached for the admin user. Try again tomorrow or raise DAILY_CAP_PER_STUDENT.');
-        throw new Error(err + (data && data.detail ? ' — ' + data.detail : ''));
-      }
-      var newQs = (data && data.data && Array.isArray(data.data.questions)) ? data.data.questions : null;
-      if(!newQs || !newQs.length){
-        throw new Error('AI returned no usable questions. Try again, or click "Re-generate" for a different draft.');
-      }
-      formDraft.activity.stretchQuestions = newQs;
-      renderStretchPool();
-      var cached = !!(data && data.cached);
-      toast('Generated ' + newQs.length + ' stretch question' + (newQs.length===1?'':'s') + (cached ? ' (from cache)' : '') + '. Click Save to deploy.', 'ok');
-    } catch(e){
-      if(box && prevHtml) box.innerHTML = prevHtml;
-      toast('Generate failed: ' + (e && e.message), 'err');
+    } catch(netErr){
+      console.error('[stretch-gen] network error', netErr);
+      showStretchError(
+        'Network call failed — check that the AI proxy is reachable. Is the worker deployed and is your network online?',
+        'fetch error: ' + (netErr && netErr.message) + '\nurl: ' + url
+      );
+      return;
     }
+    try {
+      rawText = await resp.text();
+      data = rawText ? JSON.parse(rawText) : {};
+    } catch(parseErr){
+      console.error('[stretch-gen] parse error', parseErr, rawText);
+      showStretchError('Worker returned a non-JSON response.', 'status: '+resp.status+'\nbody:\n'+(rawText || '(empty)'));
+      return;
+    }
+    console.log('[stretch-gen] response', resp.status, data);
+    if(!resp.ok){
+      var err = (data && data.error) || ('http_' + resp.status);
+      var friendly = err;
+      if(err === 'feature_disabled')      friendly = 'FEATURE_GENERATE_QUESTIONS is off in the worker config. Flip it to "true" in wrangler.toml and redeploy the worker.';
+      else if(err === 'ai_globally_disabled') friendly = 'AI is globally disabled — AI_ENABLED is set to "false". Flip the master switch.';
+      else if(err === 'rate_limited')     friendly = 'Daily AI generation cap reached for the admin user. Try again tomorrow, or raise DAILY_CAP_PER_STUDENT in wrangler.toml.';
+      else if(err === 'origin_not_allowed') friendly = 'Worker rejected the request because the Origin header isn\'t in ALLOWED_ORIGINS. Add this admin domain to wrangler.toml.';
+      else if(err === 'missing_api_key')  friendly = 'The Anthropic API key isn\'t configured on the worker. Run `wrangler secret put ANTHROPIC_API_KEY`.';
+      else if(err === 'missing_curriculum') friendly = 'Worker rejected the request: missing curriculum tag.';
+      else if(err === 'missing_existing_questions') friendly = 'Worker rejected the request: no example questions sent.';
+      else if(err === 'parse_failed')     friendly = 'AI replied but the response didn\'t match the expected schema. Try again.';
+      else if(err === 'upstream_failed')  friendly = 'Anthropic API call failed (timeout or bad credentials).';
+      showStretchError(friendly, 'status: '+resp.status+'\nresponse:\n'+JSON.stringify(data, null, 2));
+      return;
+    }
+    var newQs = (data && data.data && Array.isArray(data.data.questions)) ? data.data.questions : null;
+    if(!newQs || !newQs.length){
+      showStretchError('AI returned no usable questions. Try again, or click Re-generate for a different draft.', JSON.stringify(data, null, 2));
+      return;
+    }
+    formDraft.activity.stretchQuestions = newQs;
+    renderStretchPool();
+    var cached = !!(data && data.cached);
+    toast('Generated ' + newQs.length + ' stretch question' + (newQs.length===1?'':'s') + (cached ? ' (from cache)' : '') + '. Click Save to deploy.', 'ok');
   }
 
   // Read the form back into a partial override blob. Strategy: snapshot
