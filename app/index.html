@@ -735,6 +735,31 @@ img{max-width:100%}
 .q-text{font-size:clamp(18px,2.5vw,24px);font-weight:700;line-height:1.3;max-width:640px;margin:0 auto}
 .q-visual{margin:16px 0 8px;font-size:clamp(48px,8vw,72px);letter-spacing:4px;line-height:1}
 .q-passage{margin:16px auto;max-width:640px;background:#fff;padding:22px 26px;border-radius:var(--r);font-size:clamp(18px,2.4vw,22px);color:var(--ink);line-height:1.55;text-align:left;border-left:4px solid var(--sky);box-shadow:var(--shadow);font-weight:500}
+
+/* Active reading mode — chunked passage UI. The kid sees ONE chunk at a
+   time with TTS auto-playing, taps "Got it →" to advance. Past chunks
+   stay visible above (gray, smaller) so by the final chunk the full
+   passage is on screen as a connected whole. */
+.q-passage-active{padding:18px 22px;background:linear-gradient(180deg,#fff 0%,#f8f7ff 100%);border-left-color:var(--primary)}
+.q-passage-active .qpa-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(108,92,231,.15)}
+.q-passage-active .qpa-mode{font-size:12.5px}
+.q-passage-active .qpa-chunk{margin:10px 0;padding:14px 16px;border-radius:14px;background:#fff;border:1.5px solid rgba(108,92,231,.18);transition:all .35s ease;font-size:clamp(16px,2.1vw,19px);line-height:1.6}
+.q-passage-active .qpa-chunk.is-hidden{display:none}
+.q-passage-active .qpa-chunk.is-current{border-color:var(--primary);box-shadow:0 4px 14px rgba(108,92,231,.18);animation:qpaSlideIn .4s var(--spring)}
+.q-passage-active .qpa-chunk.is-read{background:#f4f3fa;border-color:var(--line);opacity:.72;font-size:clamp(14px,1.8vw,16px);padding:10px 14px}
+@keyframes qpaSlideIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+.q-passage-active .qpa-chunk-num{font-size:11px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.q-passage-active .qpa-chunk.is-read .qpa-chunk-num{color:var(--ink3)}
+.q-passage-active .qpa-chunk-text{color:var(--ink);font-weight:500}
+.q-passage-active .qpa-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(108,92,231,.12)}
+.q-passage-active .qpa-actions-done{opacity:.55;border-top-color:rgba(108,92,231,.06)}
+.q-passage-active .qpa-replay,
+.q-passage-active .qpa-next{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border-radius:999px;font-family:inherit;font-size:14px;font-weight:800;border:none;cursor:pointer;transition:all .15s ease;line-height:1}
+.q-passage-active .qpa-replay{background:#fff;color:var(--primary);border:1.5px solid rgba(108,92,231,.3)}
+.q-passage-active .qpa-replay:hover{background:rgba(108,92,231,.08)}
+.q-passage-active .qpa-next{background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);color:#fff;box-shadow:0 4px 14px rgba(108,92,231,.35);min-height:42px}
+.q-passage-active .qpa-next:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.q-passage-active .qpa-next:disabled{background:#cbd2d8;color:#fff;cursor:default;box-shadow:none;transform:none}
 .choices{margin-top:18px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));max-width:640px;margin-left:auto;margin-right:auto}
 .choice{background:#fff;border:2px solid var(--line);border-radius:var(--r);padding:16px;font-size:16px;font-weight:700;transition:all .25s var(--spring);word-break:break-word;min-height:56px}
 .choice:hover:not(.locked){transform:translateY(-2px);border-color:var(--primary);box-shadow:0 6px 16px rgba(108,92,231,.2)}
@@ -15809,7 +15834,7 @@ const PLAN_TYPE_DEFAULTS = {
 // don't change.
 const PLAN_ADJ_DEFAULTS = {
   shortSessions: false, earlyBridge: false, extendedTime: 1.0,
-  noTimer: false, alwaysTTS: false, avoidPassages: false,
+  noTimer: false, alwaysTTS: false, activeReading: false,
   autoStretch: false, simpleLanguage: false,
 };
 
@@ -15817,12 +15842,24 @@ function planAdjustments(sid){
   // Single source of truth for every runtime hook. Returns the merged
   // adjustments for a student: defaults + explicit overrides on top.
   // Always returns a fully-populated object so callers never have to null-check.
-  // Apr 2026: dropped plan-type-based auto-fills. The tutor now picks each
-  // toggle explicitly in the editor — no more invisible "IEP enables short
-  // sessions and early bridge for you" surprises.
+  //
+  // Apr 2026 changes:
+  //   • Dropped plan-type-based auto-fills. Tutor now picks each toggle
+  //     explicitly — no invisible "IEP turns these on for you" magic.
+  //   • Replaced `avoidPassages` (the old "skip long reads" flag, which
+  //     filtered passages out entirely) with `activeReading`. Active
+  //     reading KEEPS the passage but presents it chunk-by-chunk with
+  //     auto-narration — kids who can't sit still still build comprehension
+  //     skill. Old saves with avoidPassages:true get migrated to
+  //     activeReading:true here so no plan loses its accommodation.
   try {
     const plan = getStudentPlan(sid);
     const overrides = (plan.adjustments && typeof plan.adjustments === 'object') ? plan.adjustments : {};
+    // Legacy migration: avoidPassages → activeReading. Keep both writeable
+    // so a tenant on a stale build doesn't stomp the new field.
+    if(overrides.avoidPassages === true && overrides.activeReading === undefined){
+      overrides.activeReading = true;
+    }
     return Object.assign({}, PLAN_ADJ_DEFAULTS, overrides);
   } catch(e){
     console.warn('[Solvix] planAdjustments failed:', e);
@@ -19406,13 +19443,19 @@ function renderActivity(root,actId,subId){
   const stretchEligible = unlocked && recentStretchOK;
   const useStretch = hasStretchPool && stretchEligible;
   const baseQuestions = useStretch ? activity.stretchQuestions : activity.questions;
-  // avoidPassages (IEP accommodation): filter out passage + write types
-  // before they even reach the question list. We never filter below 2
-  // questions — if the lesson is almost entirely text, the kid still
-  // gets a (smaller) set so the lesson isn't empty.
+  // activeReading (Apr 2026): replaced the old `avoidPassages` filter.
+  // The OLD behavior filtered passages out entirely — kids who struggled
+  // with long reads simply never built comprehension skill. The NEW
+  // behavior keeps passages in the question list but renders them in
+  // chunks with auto-narration (see buildActivePassageBox / renderQ).
+  // So this filter is now a no-op — the reshaping happens at render time.
+  // Long-write questions ARE still filtered when active reading is on,
+  // because writing prompts can't be chunked the same way and a
+  // can't-sit-still kid stalling on a 50-word essay is a frustration
+  // tax we'd rather skip.
   let filtered = baseQuestions;
-  if(adj && adj.avoidPassages){
-    const slim = baseQuestions.filter(q => q && q.type !== 'passage' && q.type !== 'write');
+  if(adj && adj.activeReading){
+    const slim = baseQuestions.filter(q => q && q.type !== 'write');
     if(slim.length >= 2) filtered = slim;
   }
   // ----------------------------------------------------------------
@@ -19547,6 +19590,133 @@ function askTimerChoice(quiz, onDone){
   try{ inner.querySelector('.btn-ghost').focus(); }catch(e){}
 }
 
+/* ==========================================================================
+   ACTIVE READING MODE — chunked passage rendering
+   --------------------------------------------------------------------------
+   For kids who can't sit and read a long block of text in one go (the
+   per-student `activeReading` plan toggle). Splits the passage into
+   ~50-word chunks at sentence boundaries, shows ONE chunk at a time,
+   auto-narrates it via TTS, and reveals the next chunk only after the
+   kid taps "Got it →". By the final chunk the full passage is visible
+   on screen as a connected whole — same comprehension Qs follow.
+
+   Why chunk-on-first-encounter only:
+     • The kid actively engages with each bite on Q1.
+     • On Q2-Q5 (follow-up MCQs that carry the passage forward) the
+       full passage shows as a static reference — they've already
+       chunk-read it, no need to gate again.
+   ========================================================================== */
+
+// Split a passage into chunks ~50 words long, breaking at sentence ends.
+// Falls back to a single chunk if the passage is short enough already.
+function chunkPassageText(text, maxWordsPerChunk){
+  const max = (typeof maxWordsPerChunk === 'number' && maxWordsPerChunk > 0) ? maxWordsPerChunk : 50;
+  const raw = String(text || '').trim();
+  if(!raw) return [];
+  // Sentence split that PRESERVES end punctuation (".", "!", "?") and
+  // any trailing quote/space. The /g + bracket trick captures sentences
+  // including punctuation so we don't lose periods. Falls back to the
+  // whole string if the regex finds nothing (passage with no sentence-
+  // ending punctuation).
+  const sentences = raw.match(/[^.!?]+[.!?]+["'”’)\]]?\s*|[^.!?]+$/g) || [raw];
+  const chunks = [];
+  let buf = '';
+  let bufWords = 0;
+  for(const s of sentences){
+    const piece = s.trim();
+    if(!piece) continue;
+    const wc = piece.split(/\s+/).filter(Boolean).length;
+    if(buf && (bufWords + wc) > max){
+      chunks.push(buf.trim());
+      buf = piece + ' ';
+      bufWords = wc;
+    } else {
+      buf += piece + ' ';
+      bufWords += wc;
+    }
+  }
+  if(buf.trim()) chunks.push(buf.trim());
+  return chunks;
+}
+
+// Build the chunked-passage UI. Returns a single root element ready to
+// append to the question card. Auto-plays TTS for the first chunk on
+// first paint; each "Got it →" advances + auto-plays the next chunk.
+function buildActivePassageBox(passageQ, lang){
+  const passage = String(passageQ.passage || '');
+  const chunks = chunkPassageText(passage, 50);
+  const root = h('div',{class:'q-passage q-passage-active'});
+
+  // Header row: mode label + manual replay button.
+  const head = h('div',{class:'qpa-head'},[
+    h('span',{class:'qpa-mode'}, '📖 Read along — Nova reads each part'),
+  ]);
+  root.appendChild(head);
+
+  // One container per chunk. Initially only chunk 0 is visible.
+  const chunkEls = chunks.map((text, i) => {
+    const chunkEl = h('div',{class:'qpa-chunk'+(i === 0 ? ' is-current' : ' is-hidden')},[
+      h('div',{class:'qpa-chunk-num'}, 'Part ' + (i+1) + ' of ' + chunks.length),
+      h('div',{class:'qpa-chunk-text'}, text),
+    ]);
+    return chunkEl;
+  });
+  chunkEls.forEach(el => root.appendChild(el));
+
+  // Action bar — "Got it →" advances; on the final chunk it morphs into
+  // "Now answer the question ↓" to point the kid at the MCQ choices below.
+  const actionBar = h('div',{class:'qpa-actions'});
+  const replayBtn = h('button',{
+    type:'button', class:'qpa-replay',
+    'aria-label':'Replay this part',
+    onclick:()=>{ try { speak(chunks[currentIdx] || '', lang); } catch(_){} },
+  },[h('span',{},'🔊'),h('span',{},'Replay')]);
+  const nextBtn = h('button',{
+    type:'button', class:'qpa-next',
+    onclick:()=>advance(),
+  }, chunks.length === 1 ? '✓ Got it' : '✓ Got it →');
+  actionBar.appendChild(replayBtn);
+  actionBar.appendChild(nextBtn);
+  root.appendChild(actionBar);
+
+  let currentIdx = 0;
+  function speakCurrent(){
+    try { speak(chunks[currentIdx] || '', lang); } catch(_){}
+  }
+  function advance(){
+    if(currentIdx >= chunks.length - 1){
+      // Final chunk already shown — collapse the action bar so the kid's
+      // attention shifts to the question/choices below.
+      actionBar.classList.add('qpa-actions-done');
+      nextBtn.disabled = true;
+      nextBtn.textContent = '✓ Done — answer below';
+      return;
+    }
+    // Reveal the next chunk + push the previous into "read" state.
+    chunkEls[currentIdx].classList.remove('is-current');
+    chunkEls[currentIdx].classList.add('is-read');
+    currentIdx += 1;
+    chunkEls[currentIdx].classList.remove('is-hidden');
+    chunkEls[currentIdx].classList.add('is-current');
+    if(currentIdx === chunks.length - 1){
+      nextBtn.textContent = '✓ Done — answer below';
+    }
+    // Auto-play the new chunk's audio.
+    speakCurrent();
+    // Scroll the new chunk into view on small screens.
+    try {
+      chunkEls[currentIdx].scrollIntoView({ behavior:'smooth', block:'center' });
+    } catch(_){}
+  }
+
+  // Auto-play the first chunk after a beat so the screen-change animation
+  // doesn't clip the audio start. A no-op if speak() can't fire (TTS off,
+  // proxy down, etc.) — kid can still tap "Replay" or read silently.
+  setTimeout(()=>speakCurrent(), 250);
+
+  return root;
+}
+
 function renderQ(wrap){
   wrap.innerHTML='';
   const a=quiz.activity, q=quiz.questions[quiz.idx], total=quiz.questions.length;
@@ -19641,21 +19811,32 @@ function renderQ(wrap){
       }
     }
     if(passageQ){
-      const pBox = h('div',{class:'q-passage'});
-      // Read-aloud button — French activities use fr-FR, everyone else en-US.
       const subj = quiz && quiz.subject;
       const actId = quiz && quiz.activityId || '';
       const lang = (subj==='french' || /-f\d/.test(actId)) ? 'fr-FR' : 'en-US';
-      const audioBtn = h('button',{class:'passage-audio',onclick:(e)=>{
-        const btn = e.currentTarget;
-        document.querySelectorAll('.passage-audio.speaking').forEach(x=>x.classList.remove('speaking'));
-        btn.classList.add('speaking');
-        speak(passageQ.passage, lang);
-        setTimeout(()=>btn.classList.remove('speaking'), Math.max(2000, passageQ.passage.length * 60));
-      }},[h('span',{class:'pa-ico'},'🔊'),h('span',{},'Listen to the passage')]);
-      pBox.appendChild(audioBtn);
-      pBox.appendChild(h('div',{}, passageQ.passage));
-      card.appendChild(pBox);
+      // Active reading mode (per-student plan toggle) — kids who can't sit
+      // and read a wall of text get the passage in chunks, with each chunk
+      // auto-narrated. Only fires on the FIRST encounter (q.type === 'passage');
+      // follow-up MCQs that carry the passage forward (Q2-Q5) get the
+      // standard static block as a reference, since the kid has already
+      // engaged with each chunk on Q1.
+      const adjForReading = planAdjustments(currentUser);
+      const isFirstPassage = (q.type === 'passage');
+      if(adjForReading.activeReading && isFirstPassage){
+        card.appendChild(buildActivePassageBox(passageQ, lang));
+      } else {
+        const pBox = h('div',{class:'q-passage'});
+        const audioBtn = h('button',{class:'passage-audio',onclick:(e)=>{
+          const btn = e.currentTarget;
+          document.querySelectorAll('.passage-audio.speaking').forEach(x=>x.classList.remove('speaking'));
+          btn.classList.add('speaking');
+          speak(passageQ.passage, lang);
+          setTimeout(()=>btn.classList.remove('speaking'), Math.max(2000, passageQ.passage.length * 60));
+        }},[h('span',{class:'pa-ico'},'🔊'),h('span',{},'Listen to the passage')]);
+        pBox.appendChild(audioBtn);
+        pBox.appendChild(h('div',{}, passageQ.passage));
+        card.appendChild(pBox);
+      }
     }
     card.appendChild(h('div',{class:'q-text'},q.q||''));
     // Prominent "🔊 Hear it" + "🐢 Slow" buttons for the question prompt.
@@ -25480,7 +25661,7 @@ function renderTeacher(root){
         mkAdjCell('earlyBridge',   '💙', 'Early bridge',    'Swap in an easier question after 1 wrong (instead of 2). Catches struggles sooner.'),
         mkAdjCell('noTimer',       '🕊️', 'No timer',        'Remove the per-question countdown entirely. Use when any clock raises anxiety.'),
         mkAdjCell('alwaysTTS',     '🔊', 'Always read aloud','Seed TTS on for this student. They can still toggle it off from the dashboard.'),
-        mkAdjCell('avoidPassages', '📵', 'Skip long reads', 'Filter out passage + long-write questions. Keeps the quiz quick + interactive.'),
+        mkAdjCell('activeReading', '📖', 'Active reading mode', 'Show passages one chunk at a time with auto read-aloud. For kids who can’t sit and read a wall of text — they still build comprehension, just in bites.'),
         mkAdjCell('autoStretch',   '🌟', 'Auto-stretch',    'Enter Stretch Mode after the first completion (not just perfect scores).'),
         mkAdjCell('simpleLanguage','🌐', 'Simple language', 'Hint to authors that this student benefits from simpler prompts. Reserved for future UI copy passes.'),
       ]);
@@ -25545,7 +25726,7 @@ function renderTeacher(root){
           extendedTime:   wantExt,
           noTimer:        !!adjCells.noTimer.input.checked,
           alwaysTTS:      !!adjCells.alwaysTTS.input.checked,
-          avoidPassages:  !!adjCells.avoidPassages.input.checked,
+          activeReading:  !!adjCells.activeReading.input.checked,
           autoStretch:    !!adjCells.autoStretch.input.checked,
           simpleLanguage: !!adjCells.simpleLanguage.input.checked,
         };
