@@ -1723,6 +1723,41 @@ body.nova-tour-active{scroll-padding-top:40px}
 .sp-adj-range .sar-val{font-family:var(--font-display);font-weight:800;font-size:14px;color:#16a085;min-width:44px;text-align:right}
 .sp-adj-explain{font-size:11.5px;color:var(--ink2);line-height:1.5;font-weight:500;padding:8px 12px;background:rgba(108,92,231,.04);border-left:3px solid rgba(108,92,231,.3);border-radius:6px;margin:6px 0 2px}
 .sp-adj-explain b{color:var(--primary);font-weight:800}
+/* Optional "Paste IEP / notes" collapsible above the structured editor.
+   Hidden when FEATURE_PLAN_PARSE is off (the section just doesn't render).
+   When open, shows a textarea + "Parse to settings" button that fills in
+   the structured controls below — tutor still has to tap Save. */
+.sp-notes-parse{margin:0 0 14px;border:1.5px dashed rgba(108,92,231,.35);border-radius:12px;background:rgba(108,92,231,.04);overflow:hidden}
+.sp-notes-parse summary{padding:10px 14px;cursor:pointer;font-weight:800;font-size:13px;color:var(--primary);list-style:none;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sp-notes-parse summary::-webkit-details-marker{display:none}
+.sp-notes-parse[open] summary{border-bottom:1px solid rgba(108,92,231,.18)}
+.sp-notes-parse-hint{font-weight:600;color:var(--ink2);font-size:12px}
+.sp-notes-parse-body{padding:12px 14px}
+.sp-notes-textarea{min-height:88px}
+.sp-notes-parse-actions{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.sp-notes-parse-msg{font-size:12.5px;color:var(--ink2);line-height:1.5;flex:1;min-width:0}
+.sp-notes-parse-msg.err{color:#c0392b}
+.sp-notes-parse-msg.ok{color:#0e6b5a;font-weight:600}
+
+/* Parent view — AI weekly report card. Sits above the per-subject
+   stats so it's the first thing parents see when they tap the link. */
+.pv-report-card{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:20px 22px;margin-bottom:20px;box-shadow:var(--shadow)}
+.pvr-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.pvr-emoji{font-size:32px;line-height:1;flex-shrink:0}
+.pvr-title{font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--ink)}
+.pvr-sub{font-size:13px;color:var(--ink3);font-weight:600;margin-top:2px;line-height:1.5}
+.pvr-body{display:flex;flex-direction:column;gap:12px}
+.pvr-generate{align-self:flex-start;display:inline-flex;align-items:center;gap:6px}
+.pvr-loading{display:flex;align-items:center;color:var(--primary);font-weight:700;font-size:14px}
+.pvr-soft{padding:14px 16px;background:#faf9ff;border:1px solid rgba(108,92,231,.18);border-radius:12px;color:var(--ink2);font-size:14px;font-weight:500;line-height:1.5}
+.pvr-opening{font-size:16px;font-weight:600;color:var(--ink);line-height:1.55;padding:14px 16px;background:linear-gradient(135deg,rgba(108,92,231,.06),rgba(162,155,254,.04));border-radius:12px;border-left:3px solid var(--primary)}
+.pvr-section-title{font-size:13px;font-weight:800;letter-spacing:.4px;color:var(--ink2);text-transform:uppercase;margin-top:6px}
+.pvr-list{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;color:var(--ink);font-size:14.5px;line-height:1.55}
+.pvr-list li{padding-left:2px}
+.pvr-list-areas li{color:var(--ink2)}
+.pvr-try{padding:14px 16px;background:rgba(0,184,148,.07);border:1px solid rgba(0,184,148,.22);border-radius:12px}
+.pvr-try-label{font-size:12px;font-weight:800;color:#0a8e6f;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.pvr-try-body{color:var(--ink);font-size:14.5px;line-height:1.6;font-weight:500}
 @media(max-width:480px){
   .t-acc-head{padding:12px 14px;font-size:14px;gap:10px}
   .t-acc-body{padding:14px 14px 16px}
@@ -18850,6 +18885,201 @@ function renderLegend(){
    a footer with the last-active timestamp. If the sid is bad we show an
    error card instead of silently routing home — the parent should know
    the link is broken so they can ask for a fresh one. */
+/* Build the AI parent-report card (used in renderParentView). Has two
+   states:
+     1. Initial: a friendly button "📊 Generate this week's report"
+     2. After tap: spinner → renders { opening, highlights[], areasToWatch[], thisWeekTry } in a card layout.
+   Payload sent to /parent-report is aggregated stats only — no raw
+   wrong-answer log shipped, no last names. The model gets first name +
+   grade + counts + topic strings, returns short prose. */
+function buildParentReportCard(stu, ud){
+  if(!stu || !ud) return null;
+  const card = h('div',{class:'pv-report-card'});
+  card.appendChild(h('div',{class:'pvr-head'},[
+    h('span',{class:'pvr-emoji','aria-hidden':'true'},'📊'),
+    h('div',{},[
+      h('div',{class:'pvr-title'}, "This week's parent report"),
+      h('div',{class:'pvr-sub'}, 'A short, parent-friendly summary written by Nova from ' + (stu.name || 'your kid') + "'s progress."),
+    ]),
+  ]));
+
+  const body = h('div',{class:'pvr-body'});
+  const genBtn = h('button',{
+    type:'button', class:'btn btn-primary pvr-generate',
+    title:'Build a fresh weekly report from this week\'s data.',
+  }, ['📊', ' Generate this week\'s report']);
+  body.appendChild(genBtn);
+  card.appendChild(body);
+
+  genBtn.addEventListener('click', async ()=>{
+    genBtn.disabled = true;
+    body.innerHTML = '';
+    body.appendChild(h('div',{class:'pvr-loading'}, [
+      h('span',{class:'ai-btn-spin'}),
+      h('span',{style:'margin-left:8px'},'Nova is reviewing the week…'),
+    ]));
+
+    // Build the stats payload. All time windows are LOCAL — we don't
+    // require the cloud to confirm "this week" because the kid's
+    // progress is already locally cached and the worker handler doesn't
+    // gate on dates.
+    const weekAgoMs = Date.now() - 7 * 24 * 3600 * 1000;
+    const wrongs = Array.isArray(ud.wrongAnswers) ? ud.wrongAnswers : [];
+    const recentWrongs = wrongs.filter(w => w && (w.at || 0) >= weekAgoMs);
+    // Top 3 most-frequent struggle topics this week (by lessonTitle).
+    const topicCounts = new Map();
+    for(const w of recentWrongs){
+      const key = (w && w.lessonTitle || '').trim();
+      if(!key) continue;
+      topicCounts.set(key, (topicCounts.get(key)||0) + 1);
+    }
+    const struggleTopics = [...topicCounts.entries()]
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(x => x[0]);
+
+    // Win topics: first-try-perfect activities completed (sample 3).
+    const progress = ud.progress || {};
+    const winTopics = [];
+    for(const aid of Object.keys(progress)){
+      if(winTopics.length >= 3) break;
+      const p = progress[aid];
+      if(p && p.firstTryPerfect){
+        // Resolve a friendly title via the curriculum cache.
+        const acts = (typeof getWeekActivities === 'function')
+          ? getWeekActivities(stu.id, aid.split('-').pop().replace(/\d+$/,''))
+          : null;
+        const match = (acts || []).find(a => a && a.id === aid);
+        if(match && match.title) winTopics.push(match.title);
+      }
+    }
+
+    // Per-subject summary using the existing computeSubjectStats helper.
+    let subjectSummary = [];
+    try {
+      const stats = (typeof computeSubjectStats === 'function') ? computeSubjectStats(stu.id) : null;
+      if(stats && Array.isArray(stats.subjects)){
+        subjectSummary = stats.subjects
+          .filter(s => s && s.completed > 0)
+          .slice(0, 8)
+          .map(s => ({
+            subject: s.name || s.subject || s.id,
+            completed: Number(s.completed) || 0,
+            accuracyPct: Number(s.accuracyPct) || Number(s.accuracy) || 0,
+          }));
+      }
+    } catch(_){}
+
+    // Active accommodations — surface labels, not internal keys, so the
+    // model can be sensitive in framing.
+    const adj = (typeof planAdjustments === 'function') ? planAdjustments(stu.id) : null;
+    const accomLabels = [];
+    if(adj){
+      if(adj.shortSessions) accomLabels.push('short sessions');
+      if(adj.earlyBridge) accomLabels.push('early bridge to easier questions');
+      if(adj.noTimer) accomLabels.push('no timer');
+      if(adj.alwaysTTS) accomLabels.push('read-aloud always on');
+      if(adj.activeReading) accomLabels.push('chunked reading mode');
+      if(adj.autoStretch) accomLabels.push('auto-stretch (advanced track)');
+      if(adj.simpleLanguage) accomLabels.push('simpler language');
+      if(typeof adj.extendedTime === 'number' && adj.extendedTime > 1.0) accomLabels.push('extended time ' + adj.extendedTime + '×');
+    }
+
+    // Coins this week — use the weeklyGoal snapshot as the baseline.
+    let coinsThisWeek = 0;
+    try {
+      const wg = allData.weeklyGoal || {};
+      const start = Number((wg.snapshot || {})[stu.id] || 0);
+      coinsThisWeek = Math.max(0, Number(ud.coins || 0) - start);
+    } catch(_){}
+
+    // Stretches attempted this week (count keys in stretchStats with a
+    // recent lastAt). Conservative — falls back to total count if dates
+    // missing.
+    let stretchesAttempted = 0;
+    try {
+      const ss = ud.stretchStats || {};
+      for(const k of Object.keys(ss)){
+        const v = ss[k];
+        if(v && (typeof v.lastAt !== 'number' || v.lastAt >= weekAgoMs)) stretchesAttempted++;
+      }
+    } catch(_){}
+
+    // Activities completed this week (count progress entries with a recent
+    // last attempt — using attempts > 0 as a soft proxy when no per-attempt
+    // timestamps exist).
+    let activitiesCompletedThisWeek = 0;
+    try {
+      for(const aid of Object.keys(progress)){
+        const p = progress[aid];
+        if(p && p.done) activitiesCompletedThisWeek++;
+      }
+    } catch(_){}
+
+    const payload = {
+      firstName: stu.name || 'Your kid',
+      grade: stu.grade || '',
+      weekLabel: 'this week',
+      coinsEarned: coinsThisWeek,
+      coinsTotal:  Number(ud.coins || 0),
+      streakDays:  Number(ud.streak || 0),
+      activitiesCompleted: activitiesCompletedThisWeek,
+      firstTryPerfect: Object.values(progress).filter(p => p && p.firstTryPerfect).length,
+      stretchesAttempted,
+      subjects: subjectSummary,
+      struggleTopics,
+      winTopics,
+      activeAccommodations: accomLabels,
+    };
+
+    const res = await callAI('/parent-report', payload, { studentId: stu.id, timeoutMs: 18000 });
+    body.innerHTML = '';
+
+    if(res.disabled){
+      body.appendChild(h('div',{class:'pvr-soft'}, 'Parent reports are off right now. Check back later.'));
+      return;
+    }
+    if(res.capped){
+      body.appendChild(h('div',{class:'pvr-soft'}, "You've used all your AI helps for today — try again tomorrow."));
+      return;
+    }
+    if(!res.ok || !res.data || !res.data.opening){
+      body.appendChild(h('div',{class:'pvr-soft'}, 'Could not generate the report this time. Try again in a moment.'));
+      const retryBtn = h('button',{type:'button', class:'btn btn-ghost btn-sm', onclick: ()=>{
+        body.innerHTML = '';
+        body.appendChild(genBtn);
+        genBtn.disabled = false;
+      }}, 'Try again');
+      body.appendChild(h('div',{style:'margin-top:8px'}, retryBtn));
+      return;
+    }
+
+    // Render the report.
+    const d = res.data;
+    body.appendChild(h('div',{class:'pvr-opening'}, d.opening));
+    if(Array.isArray(d.highlights) && d.highlights.length){
+      body.appendChild(h('div',{class:'pvr-section-title'}, '🌟 Highlights'));
+      const ul = h('ul',{class:'pvr-list'});
+      d.highlights.forEach(s => ul.appendChild(h('li',{}, s)));
+      body.appendChild(ul);
+    }
+    if(Array.isArray(d.areasToWatch) && d.areasToWatch.length){
+      body.appendChild(h('div',{class:'pvr-section-title'}, '🎯 Areas to watch'));
+      const ul = h('ul',{class:'pvr-list pvr-list-areas'});
+      d.areasToWatch.forEach(s => ul.appendChild(h('li',{}, s)));
+      body.appendChild(ul);
+    }
+    if(d.thisWeekTry){
+      body.appendChild(h('div',{class:'pvr-try'},[
+        h('div',{class:'pvr-try-label'}, '💡 Try this week'),
+        h('div',{class:'pvr-try-body'}, d.thisWeekTry),
+      ]));
+    }
+  });
+
+  return card;
+}
+
 function renderParentView(root){
   const sid = parentViewSid;
   const stu = sid && STUDENTS.find(s=>s.id===sid);
@@ -18908,6 +19138,20 @@ function renderParentView(root){
     ]),
   ]);
   wrap.appendChild(stats);
+
+  // AI Parent Report card — on-demand weekly summary. Hidden when
+  // FEATURE_PARENT_REPORT is off (graceful degradation; the rest of
+  // the parent view still works). The card starts collapsed: tap
+  // "Generate this week's report" to fetch a fresh narrative from
+  // /parent-report. Builds the payload from the student's local data
+  // so we never ship the raw activity log to the model — just
+  // aggregated counts + topic names.
+  if(typeof aiFeatureOn === 'function' && aiFeatureOn('FEATURE_PARENT_REPORT')){
+    try {
+      const reportCard = buildParentReportCard(stu, ud);
+      if(reportCard) wrap.appendChild(reportCard);
+    } catch(e){ console.warn('[Solvix] parent report card failed:', e); }
+  }
 
   // Per-subject progress — reuses computeSubjectStats so parent numbers
   // match whatever the tutor sees inside Detailed Report Cards.
@@ -26064,6 +26308,109 @@ function renderTeacher(root){
 
       const body = h('div',{class:'sp-body'});
       const msg = h('div',{class:'sp-msg'});
+
+      // ---- Paste notes → settings (optional, AI-assisted) ----
+      // Tutors with an IEP document, school report, or parent letter can
+      // paste the relevant prose here and let Nova extract the structured
+      // accommodations. The AI fills in the toggles + grade offsets +
+      // extended time; the tutor reviews and taps Save. Hidden behind
+      // FEATURE_PLAN_PARSE — when off, the section doesn't render at all
+      // (the structured editor below is fully functional on its own).
+      let notesParseSection = null;
+      let notesParseInput = null;
+      if(typeof aiFeatureOn === 'function' && aiFeatureOn('FEATURE_PLAN_PARSE')){
+        notesParseSection = h('details',{class:'sp-notes-parse'});
+        notesParseSection.appendChild(h('summary',{},[
+          h('span',{},'✨ Paste IEP / notes (optional)'),
+          h('span',{class:'sp-notes-parse-hint'}, ' — Nova will fill the settings below'),
+        ]));
+        const notesBody = h('div',{class:'sp-notes-parse-body'});
+        notesParseInput = h('textarea',{
+          class:'sp-input sp-textarea sp-notes-textarea',
+          placeholder:'Paste an IEP excerpt, parent letter, or your own notes about ' + s.name + '. Nova reads it and fills the toggles + per-subject grade levels below. You still tap Save.',
+          rows:'4',
+        }, '');
+        notesBody.appendChild(notesParseInput);
+        const parseBtn = h('button',{
+          type:'button', class:'btn btn-primary btn-sm sp-notes-parse-btn',
+        }, '✨ Parse to settings');
+        const parseMsg = h('div',{class:'sp-notes-parse-msg'});
+        notesBody.appendChild(h('div',{class:'sp-notes-parse-actions'}, [parseBtn, parseMsg]));
+        notesParseSection.appendChild(notesBody);
+        body.appendChild(notesParseSection);
+
+        parseBtn.addEventListener('click', async ()=>{
+          const prose = (notesParseInput.value || '').trim();
+          if(!prose){
+            parseMsg.className = 'sp-notes-parse-msg err';
+            parseMsg.textContent = 'Paste some notes first.';
+            return;
+          }
+          parseBtn.disabled = true;
+          parseMsg.className = 'sp-notes-parse-msg';
+          parseMsg.innerHTML = '';
+          parseMsg.appendChild(h('span',{class:'ai-btn-spin'}));
+          parseMsg.appendChild(h('span',{style:'margin-left:6px'},'Reading the notes…'));
+          const res = await callAI('/plan-parse', {
+            notes: prose,
+            gradeContext: s.grade || '',
+            availableKeys: Object.keys(PLAN_ADJ_DEFAULTS).filter(k => k !== 'extendedTime'),
+          }, { studentId: s.id, timeoutMs: 14000 });
+          parseBtn.disabled = false;
+          if(res.disabled){
+            parseMsg.className = 'sp-notes-parse-msg err';
+            parseMsg.textContent = 'Plan-parse is off right now.';
+            return;
+          }
+          if(res.capped){
+            parseMsg.className = 'sp-notes-parse-msg err';
+            parseMsg.textContent = 'Daily AI cap reached — try again tomorrow.';
+            return;
+          }
+          if(res.error || !res.ok || !res.data){
+            parseMsg.className = 'sp-notes-parse-msg err';
+            parseMsg.textContent = 'Could not parse notes. Try rephrasing.';
+            return;
+          }
+          let appliedToggles = 0, appliedOffsets = 0;
+          // Apply toggle suggestions to the editor's checkbox grid.
+          const t = (res.data.toggles && typeof res.data.toggles === 'object') ? res.data.toggles : {};
+          Object.keys(adjCells).forEach(k => {
+            if(typeof t[k] === 'boolean'){
+              adjCells[k].input.checked = t[k];
+              adjCells[k].root.classList.toggle('is-active', t[k]);
+              appliedToggles++;
+            }
+          });
+          // Apply extended-time slider.
+          if(typeof res.data.extendedTime === 'number'){
+            let best = 0, dist = Infinity;
+            EXT_STEPS.forEach((step, i) => {
+              const d = Math.abs(step - res.data.extendedTime);
+              if(d < dist){ dist = d; best = i; }
+            });
+            extRange.value = String(best);
+            extValEl.textContent = EXT_STEPS[best].toFixed(1)+'×';
+            appliedToggles++;
+          }
+          // Apply per-subject grade offsets.
+          const offsets = (res.data.gradeOffsets && typeof res.data.gradeOffsets === 'object') ? res.data.gradeOffsets : {};
+          Object.keys(offsets).forEach(subjId => {
+            const sel = offsetCells[subjId];
+            if(!sel) return;
+            const v = Number(offsets[subjId]);
+            if(!Number.isFinite(v)) return;
+            sel.value = String(Math.max(-3, Math.min(3, Math.round(v))));
+            const cell = sel.closest('.sp-offset-row');
+            if(cell) cell.classList.toggle('is-off-grade', parseInt(sel.value,10) !== 0);
+            appliedOffsets++;
+          });
+          parseMsg.className = 'sp-notes-parse-msg ok';
+          const reasoning = res.data.reasoning ? ' — ' + res.data.reasoning : '';
+          parseMsg.textContent = '✓ Filled ' + (appliedToggles + appliedOffsets) + ' setting' +
+            ((appliedToggles + appliedOffsets) === 1 ? '' : 's') + ' from your notes. Review and tap Save.' + reasoning;
+        });
+      }
 
       // ---- Per-subject grade level ----
       // Replaces the old plan-type dropdown + free-text "Working at" +

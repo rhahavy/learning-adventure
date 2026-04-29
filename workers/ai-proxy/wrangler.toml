@@ -55,7 +55,7 @@ SIGNUPS_ENABLED = "true"
 # Order matches the phasing plan in README.md.
 
 # Phase A (cheap, high-value, ship first)
-FEATURE_PLAN_PARSE         = "false"  # tutor notes → toggle JSON
+FEATURE_PLAN_PARSE         = "true"   # tutor notes → toggles + per-subject grade offsets
 FEATURE_EXPLAIN            = "true"   # "why was I wrong?" on quizzes
 FEATURE_FEEDBACK           = "true"   # rubric-based writing feedback
 FEATURE_SIMPLIFY           = "true"   # ESL / early-reader rewrites
@@ -66,7 +66,7 @@ FEATURE_WORKED_EXAMPLE     = "true"   # "Show me how" — Nova walks the kid thr
 
 # Phase C (parent/teacher facing)
 FEATURE_TEACHER_SUMMARY    = "false"  # weekly teacher dashboard card
-FEATURE_PARENT_REPORT      = "false"  # weekly parent email/PDF
+FEATURE_PARENT_REPORT      = "true"   # on-demand weekly parent report card
 FEATURE_VOICE_CLONE        = "false"  # ElevenLabs parent-voice clone
 
 # Phase D (high-effort, high-risk — do last)

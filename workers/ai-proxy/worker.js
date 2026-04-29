@@ -4291,9 +4291,9 @@ const ROUTES = {
   // Phase B — real handlers.
   'POST /generate-questions': { flag: 'FEATURE_GENERATE_QUESTIONS', fn: handleGenerateQuestions },
   'POST /worked-example':     { flag: 'FEATURE_WORKED_EXAMPLE',     fn: handleWorkedExample },
-  // Phase C — scaffolded.
+  // Phase C — partially scaffolded.
   'POST /teacher-summary':    { flag: 'FEATURE_TEACHER_SUMMARY',    fn: notYetImplemented('teacher-summary') },
-  'POST /parent-report':      { flag: 'FEATURE_PARENT_REPORT',      fn: notYetImplemented('parent-report') },
+  'POST /parent-report':      { flag: 'FEATURE_PARENT_REPORT',      fn: handleParentReport },
   'POST /voice-clone':        { flag: 'FEATURE_VOICE_CLONE',        fn: notYetImplemented('voice-clone') },
   // Phase D — scaffolded.
   'POST /sidekick':           { flag: 'FEATURE_SIDEKICK',           fn: notYetImplemented('sidekick') },
@@ -4527,35 +4527,52 @@ async function handlePlanParse(request, env, ctx, corsOrigin) {
     endpoint: '/plan-parse',
     readInputs: async (body) => ({
       notes: String(body.notes || '').trim().slice(0, 2000),
-      planType: String(body.planType || 'none'),
+      gradeContext: String(body.gradeContext || '').slice(0, 40),
       availableKeys: Array.isArray(body.availableKeys)
         ? body.availableKeys.filter(k => typeof k === 'string').slice(0, 20)
-        : ['shortSessions','earlyBridge','noTimer','alwaysTTS','avoidPassages','autoStretch','simpleLanguage'],
+        : ['shortSessions','earlyBridge','noTimer','alwaysTTS','activeReading','autoStretch','simpleLanguage'],
     }),
     validate: ({ notes }) => notes ? null : { error: 'missing_notes' },
-    cacheKey: ({ notes, planType }) => hashKey('plan-parse', notes, planType),
+    // v2 cache key — Apr 2026 the schema changed (avoidPassages →
+    // activeReading) AND we added gradeOffsets output. Old cached
+    // responses don't match the new shape; bumping invalidates them.
+    cacheKey: ({ notes, gradeContext }) => hashKey('plan-parse-v2', notes, gradeContext),
     cacheTtlSeconds: 7 * 24 * 3600, // 7 days — tutor notes rarely re-parse before a plan edit
-    maxTokens: 350,
+    maxTokens: 420,
     buildSystemPrompt: () => (
-      'You translate free-form tutor notes about a student into a small set of ' +
-      'structured accommodations for a kids\' learning app.\n\n' +
+      'You translate free-form tutor notes / IEP excerpts / parent letters about a student into a small set of structured accommodations for a kids\' learning app.\n\n' +
       'Output STRICT JSON ONLY, no prose, no markdown fences. Shape:\n' +
       '{\n' +
-      '  "toggles": { "shortSessions": boolean, "earlyBridge": boolean, ' +
-      '"noTimer": boolean, "alwaysTTS": boolean, "avoidPassages": boolean, ' +
-      '"autoStretch": boolean, "simpleLanguage": boolean },\n' +
-      '  "extendedTime": number,   // one of 1.0, 1.2, 1.3, 1.5, 2.0\n' +
-      '  "reasoning": string       // one short sentence, plain English\n' +
+      '  "toggles": {\n' +
+      '    "shortSessions": boolean,\n' +
+      '    "earlyBridge":   boolean,\n' +
+      '    "noTimer":       boolean,\n' +
+      '    "alwaysTTS":     boolean,\n' +
+      '    "activeReading": boolean,\n' +
+      '    "autoStretch":   boolean,\n' +
+      '    "simpleLanguage":boolean\n' +
+      '  },\n' +
+      '  "extendedTime": number,            // one of 1.0, 1.2, 1.3, 1.5, 2.0\n' +
+      '  "gradeOffsets": {                   // OPTIONAL. Per-subject grade offset relative to the student\'s home grade. Each value is an integer in [-3, +3]. Only include subjects the notes specifically mention.\n' +
+      '    "reading"?:  number, "writing"?: number, "spelling"?: number,\n' +
+      '    "math"?:     number, "logic"?:   number, "french"?:  number,\n' +
+      '    "science"?:  number, "social"?:  number, "coding"?:  number\n' +
+      '  },\n' +
+      '  "reasoning": string                 // one short sentence, plain English\n' +
       '}\n\n' +
       'Toggle meanings:\n' +
-      '- shortSessions: cap activities at 3 questions. Use for focus/stamina notes.\n' +
-      '- earlyBridge: drop to easier questions after 1 wrong. Use for fragile learners.\n' +
+      '- shortSessions: cap activities at 3 questions. Use for focus/stamina/ADHD notes.\n' +
+      '- earlyBridge: drop to easier questions after 1 wrong (instead of waiting for 2). Use for fragile learners or kids who spiral on misses.\n' +
       '- noTimer: remove the per-question countdown. Use for anxiety/timer-stress notes.\n' +
       '- alwaysTTS: auto-enable read-aloud. Use for ESL/early reader/decoding notes.\n' +
-      '- avoidPassages: skip long reading passages + long write prompts. Use for reading-fatigue notes.\n' +
-      '- autoStretch: unlock harder questions after any completion (not just perfect). Use for gifted/bored notes.\n' +
+      '- activeReading: present long passages in chunks with auto-narration (instead of as one block). Use for kids who can\'t sit and read long text.\n' +
+      '- autoStretch: unlock harder questions after any completion (not just perfect). Use for gifted/bored/advanced notes.\n' +
       '- simpleLanguage: rewrite prompts in simpler words (when FEATURE_SIMPLIFY is on). Use for ESL notes.\n\n' +
-      'extendedTime: 1.0 standard, 1.2 mild ESL, 1.3 typical IEP, 1.5 significant IEP, 2.0 severe.\n\n' +
+      'extendedTime values: 1.0 standard, 1.2 mild ESL/processing, 1.3 typical IEP, 1.5 significant IEP, 2.0 severe.\n\n' +
+      'gradeOffsets: only include a subject if the notes specifically describe the student working below or above grade in that area. Examples:\n' +
+      '  notes mention "reading at a Grade 1 level" and student is in Grade 3 → "reading": -2\n' +
+      '  notes mention "math is two grades ahead" → "math": +2\n' +
+      '  notes are silent on a subject → omit it (do NOT include 0s).\n\n' +
       'Omit any toggle you are not confident the notes support. Do not invent concerns.'
       // Kid-safety: these notes are written BY a tutor ABOUT a student, so the
       // output still reaches a shared dashboard. Same banned-topic rules apply
@@ -4563,10 +4580,10 @@ async function handlePlanParse(request, env, ctx, corsOrigin) {
       // here — this endpoint parses prose about a learner, not lesson content.
       + KID_SAFE_RULES
     ),
-    buildUserPrompt: ({ notes, planType, availableKeys }) => (
-      'Plan type: ' + planType + '\n' +
+    buildUserPrompt: ({ notes, gradeContext, availableKeys }) => (
+      'Student\'s home grade: ' + (gradeContext || '(not provided)') + '\n' +
       'Available toggle keys: ' + availableKeys.join(', ') + '\n\n' +
-      'Tutor notes:\n"""\n' + notes + '\n"""\n\n' +
+      'Tutor notes / parent letter / IEP excerpt:\n"""\n' + notes + '\n"""\n\n' +
       'Return the JSON now.'
     ),
     postProcess: (text) => {
@@ -4575,11 +4592,12 @@ async function handlePlanParse(request, env, ctx, corsOrigin) {
         return { error: 'parse_failed', raw: text.slice(0, 200) };
       }
       // Normalise: only allow known keys through, coerce to boolean.
-      const KNOWN = new Set(['shortSessions','earlyBridge','noTimer','alwaysTTS','avoidPassages','autoStretch','simpleLanguage']);
+      const KNOWN_TOGGLES = new Set(['shortSessions','earlyBridge','noTimer','alwaysTTS','activeReading','autoStretch','simpleLanguage']);
+      const KNOWN_SUBJECTS = new Set(['reading','writing','spelling','math','logic','french','science','social','coding']);
       const toggles = {};
       if (parsed.toggles && typeof parsed.toggles === 'object') {
         for (const k of Object.keys(parsed.toggles)) {
-          if (KNOWN.has(k)) toggles[k] = !!parsed.toggles[k];
+          if (KNOWN_TOGGLES.has(k)) toggles[k] = !!parsed.toggles[k];
         }
       }
       const out = { toggles };
@@ -4592,6 +4610,19 @@ async function handlePlanParse(request, env, ctx, corsOrigin) {
           if (d < dist) { dist = d; best = s; }
         }
         out.extendedTime = best;
+      }
+      // Grade offsets — clamp to [-3, +3] integers, drop unknown subjects
+      // and zero values (the editor treats absence-of-offset as "at grade",
+      // so we don't need to explicitly send 0s back).
+      if (parsed.gradeOffsets && typeof parsed.gradeOffsets === 'object') {
+        const offsets = {};
+        for (const k of Object.keys(parsed.gradeOffsets)) {
+          if (!KNOWN_SUBJECTS.has(k)) continue;
+          const v = Number(parsed.gradeOffsets[k]);
+          if (!Number.isFinite(v) || v === 0) continue;
+          offsets[k] = Math.max(-3, Math.min(3, Math.round(v)));
+        }
+        if (Object.keys(offsets).length) out.gradeOffsets = offsets;
       }
       if (typeof parsed.reasoning === 'string') {
         out.reasoning = parsed.reasoning.slice(0, 240);
@@ -4665,6 +4696,154 @@ async function handleExplain(request, env, ctx, corsOrigin) {
     },
     postProcess: (text) => ({ explanation: (text || '').trim().slice(0, 500) }),
     auditSummary: (inputs) => `explain → Q="${(inputs.prompt||'').slice(0, 60)}"`,
+  });
+}
+
+// ---- /parent-report ----------------------------------------------------
+// Generates a friendly, parent-facing weekly summary for ONE student
+// from a compact stats payload sent by the client. The frontend builds
+// the payload from the tenant-local progress blob (no PII beyond first
+// name + grade), so parents tapping "Generate this week's report" get
+// fresh prose without us ever shipping their kid's full activity log
+// to the model.
+//
+// Output is a structured JSON object the frontend renders into a card —
+// not raw markdown — so we can format consistently and pull individual
+// pieces (e.g. just the "this week try" suggestion) into other surfaces
+// later (email, SMS, calendar).
+async function handleParentReport(request, env, ctx, corsOrigin) {
+  return runStandardHandler({
+    request, env, ctx, corsOrigin,
+    endpoint: '/parent-report',
+    readInputs: async (body) => ({
+      // Compact stats payload from the frontend. Anonymised — no last
+      // name, no email, no exact ids — but first name is fine for a
+      // parent-facing report (it's their own kid).
+      firstName: String(body.firstName || 'Your kid').trim().slice(0, 40),
+      grade: String(body.grade || '').slice(0, 40),
+      weekLabel: String(body.weekLabel || 'this week').slice(0, 40),
+      coinsEarned: Number(body.coinsEarned) || 0,
+      coinsTotal:  Number(body.coinsTotal)  || 0,
+      streakDays:  Number(body.streakDays)  || 0,
+      activitiesCompleted: Number(body.activitiesCompleted) || 0,
+      firstTryPerfect:     Number(body.firstTryPerfect)     || 0,
+      stretchesAttempted:  Number(body.stretchesAttempted)  || 0,
+      // Per-subject summary array: [{ subject, completed, accuracyPct }, ...]
+      subjects: Array.isArray(body.subjects)
+        ? body.subjects.slice(0, 10).map(s => ({
+            subject: String((s && s.subject) || '').slice(0, 30),
+            completed: Number(s && s.completed) || 0,
+            accuracyPct: Number(s && s.accuracyPct) || 0,
+          }))
+        : [],
+      // Top struggle topics (lessonTitle strings) seen in wrongAnswers
+      // this week. Already truncated client-side.
+      struggleTopics: Array.isArray(body.struggleTopics)
+        ? body.struggleTopics.slice(0, 5).map(s => String(s).slice(0, 80))
+        : [],
+      // Wins — first-try-perfect or stretch-perfect lesson titles.
+      winTopics: Array.isArray(body.winTopics)
+        ? body.winTopics.slice(0, 5).map(s => String(s).slice(0, 80))
+        : [],
+      // Plan context so the report can be sensitive to accommodations.
+      // ("Maya is on Active Reading mode — she's chunking long passages
+      //  and that's actually why her reading time looks lower this week.")
+      activeAccommodations: Array.isArray(body.activeAccommodations)
+        ? body.activeAccommodations.slice(0, 8).map(s => String(s).slice(0, 40))
+        : [],
+    }),
+    validate: ({ firstName }) => firstName ? null : { error: 'missing_first_name' },
+    // 24h cache — same kid + same stats = same report. Stats change as
+    // soon as the kid finishes another activity, so the key naturally
+    // freshens. We don't include firstName in the cache key because the
+    // model behavior shouldn't depend on it (only the personalised
+    // string output does, and that's deterministic from the same prompt).
+    cacheKey: ({ firstName, grade, weekLabel, coinsEarned, activitiesCompleted, firstTryPerfect, struggleTopics, winTopics }) =>
+      hashKey('parent-report', firstName, grade, weekLabel, String(coinsEarned), String(activitiesCompleted), String(firstTryPerfect),
+        (struggleTopics || []).slice(0, 3).join('|'), (winTopics || []).slice(0, 3).join('|')),
+    cacheTtlSeconds: 24 * 3600,
+    maxTokens: 600,
+    buildSystemPrompt: () => (
+      'You write short, warm weekly progress reports for a parent about their child\'s learning on a tutoring app. Reply with STRICT JSON ONLY (no prose, no markdown fences):\n' +
+      '{\n' +
+      '  "opening":      string,    // one warm sentence summarising the week\n' +
+      '  "highlights":   [string]   // 2 to 3 specific WINS, one sentence each\n' +
+      '  "areasToWatch": [string]   // 1 to 3 honest growth areas, one sentence each\n' +
+      '  "thisWeekTry":  string     // one concrete thing the parent can do AT HOME this week (5-15 minutes), specific and gentle\n' +
+      '}\n\n' +
+      'Tone: warm, plain English, like a friendly tutor talking to a parent at pickup. NOT corporate. NOT alarmist. NOT cheerleader.\n' +
+      'Specificity: when you have data (a number of activities, a topic name, an accuracy %), use it. When you don\'t, write softer general copy — never invent a number.\n' +
+      'Use the kid\'s first name 1–2 times max (over-use feels artificial). Refer to them as "your child" or "they" otherwise.\n' +
+      'Highlights and areas should be CONCRETE — name a topic or skill, not "did well in math." If only generic data exists, focus on effort/streak/total activities.\n' +
+      'thisWeekTry: a real, doable suggestion the parent can act on. 5-15 minutes. Tied to one of the areas to watch when possible.\n' +
+      'NEVER use clinical or labelling language: don\'t say "ADHD," "behind," "struggling," "weak." Soft framing only: "still building," "wants more practice with," "could use a little extra support."\n' +
+      'NEVER mention specific medical conditions, diagnoses, or family situations even if the accommodations list hints at them.\n' +
+      'If a piece of data is missing, omit that piece — don\'t hallucinate.'
+      + KID_SAFE_RULES
+    ),
+    buildUserPrompt: (inp) => {
+      let p = 'Student first name: ' + inp.firstName + '\n';
+      p += 'Grade: ' + (inp.grade || '(unknown)') + '\n';
+      p += 'Week: ' + inp.weekLabel + '\n';
+      p += '\n— Numbers this week —\n';
+      p += 'Coins earned: ' + inp.coinsEarned + ' (total: ' + inp.coinsTotal + ')\n';
+      p += 'Streak: ' + inp.streakDays + ' day' + (inp.streakDays === 1 ? '' : 's') + '\n';
+      p += 'Activities completed: ' + inp.activitiesCompleted + '\n';
+      p += 'First-try perfect: ' + inp.firstTryPerfect + '\n';
+      p += 'Stretch challenges attempted: ' + inp.stretchesAttempted + '\n';
+      if (inp.subjects.length) {
+        p += '\n— Per subject —\n';
+        for (const s of inp.subjects) {
+          p += '  ' + s.subject + ': ' + s.completed + ' done, ' + s.accuracyPct + '% accuracy\n';
+        }
+      }
+      if (inp.winTopics.length) {
+        p += '\n— Wins (lessons aced first try or stretch-perfect) —\n';
+        for (const t of inp.winTopics) p += '  • ' + t + '\n';
+      }
+      if (inp.struggleTopics.length) {
+        p += '\n— Recurring miss topics —\n';
+        for (const t of inp.struggleTopics) p += '  • ' + t + '\n';
+      }
+      if (inp.activeAccommodations.length) {
+        p += '\n— Active accommodations (so you can be sensitive in framing) —\n';
+        for (const a of inp.activeAccommodations) p += '  • ' + a + '\n';
+      }
+      p += '\nReturn the JSON report now.';
+      return p;
+    },
+    postProcess: (text) => {
+      const parsed = parseJsonFromText(text);
+      if (!parsed || typeof parsed !== 'object') {
+        return { error: 'parse_failed', raw: (text || '').slice(0, 200) };
+      }
+      const out = {};
+      if (typeof parsed.opening === 'string') out.opening = parsed.opening.trim().slice(0, 400);
+      if (Array.isArray(parsed.highlights)) {
+        out.highlights = parsed.highlights
+          .filter(s => typeof s === 'string')
+          .map(s => s.trim().slice(0, 240))
+          .filter(Boolean)
+          .slice(0, 4);
+      }
+      if (Array.isArray(parsed.areasToWatch)) {
+        out.areasToWatch = parsed.areasToWatch
+          .filter(s => typeof s === 'string')
+          .map(s => s.trim().slice(0, 240))
+          .filter(Boolean)
+          .slice(0, 3);
+      }
+      if (typeof parsed.thisWeekTry === 'string') {
+        out.thisWeekTry = parsed.thisWeekTry.trim().slice(0, 320);
+      }
+      // Need at least an opening + one highlight to count as a usable
+      // report. Otherwise let the client fall back to generic stats card.
+      if (!out.opening || !out.highlights || !out.highlights.length) {
+        return { error: 'incomplete_report' };
+      }
+      return out;
+    },
+    auditSummary: (inputs) => `parent-report → ${inputs.firstName}, ${inputs.activitiesCompleted} activities`,
   });
 }
 
