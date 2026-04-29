@@ -2284,21 +2284,35 @@ tbody tr:last-child td{border-bottom:none}
     // wrong-question-count AND reading-no-passage warnings on them.
     // Both are accurate-for-real-lessons but pure noise on previews.
     var isDemo = !!activity.demoOnly;
-    // Question-count warning: tolerate 4-6 (the norm is 5 but adding
-    // a passage Q legitimately bumps a reading lesson to 6, and skill
-    // drills sometimes ship at 4 with embedded mini-stories).
-    if(!isDemo && (activity.questions.length < 4 || activity.questions.length > 6)){
+    // Question-count warning: tolerate 3-7. The norm is 5, but lots of
+    // legitimate variants exist: JK lightweight at 3, reading-with-passage
+    // at 6, content-heavy upper-grade spelling at 7. Calling those out
+    // as warnings just trains the operator to ignore the panel.
+    if(!isDemo && (activity.questions.length < 3 || activity.questions.length > 7)){
       issues.push({severity:'warn', code:'wrong-question-count',
-        msg:'Has ' + activity.questions.length + ' questions (Week-1 norm is 5; 4-6 is acceptable).'});
+        msg:'Has ' + activity.questions.length + ' questions (Week-1 norm is 5; 3-7 is acceptable).'});
     }
-    // Reading lesson should have at least one passage block — but
-    // demo previews are exempt (3-question marketing samples).
+    // Reading lesson should have at least one passage block — but skip
+    // the warning when the lesson is intentionally a skill drill, not a
+    // comprehension lesson. Heuristics:
+    //   1) demoOnly previews — already exempt above.
+    //   2) Pre-readers (JK / SK) — kids can't decode passages yet;
+    //      reading lessons at this grade are phonics, letter recognition,
+    //      and rhyming, not story comprehension.
+    //   3) Lessons that contain order/match/compare questions — those
+    //      are sequencing, vocabulary-match, or comparison drills with
+    //      mini-contexts embedded in the question, not passage-driven.
     var isReading = /reading|^r$/i.test(subject || '');
     if(isReading && !isDemo){
+      var grade = (activity.curriculum && activity.curriculum.grade) || '';
+      var isPreReader = /^(Junior|Senior)\s+Kindergarten$/i.test(grade);
+      var hasSkillDrillTypes = activity.questions.some(function(q){
+        return q && (q.type === 'order' || q.type === 'match' || q.type === 'compare');
+      });
       var hasPassage = activity.questions.some(function(q){
         return q && q.type === 'passage' && q.passage && String(q.passage).trim().length > 0;
       });
-      if(!hasPassage){
+      if(!hasPassage && !isPreReader && !hasSkillDrillTypes){
         issues.push({severity:'warn', code:'reading-no-passage',
           msg:'Reading lesson has no passage block — kids see questions with no story.'});
       }
