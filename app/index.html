@@ -17051,7 +17051,7 @@ function updateTopbar(screen){
       h('button',{
         type:'button',
         style:'background:none;border:none;color:#0984e3;font-weight:700;cursor:pointer;padding:0;font:inherit;text-decoration:underline;',
-        onclick: ()=>{ if(confirm('Switch classroom? This signs out of "'+tenant_state.label+'" on this device.')) clearTenantAndReload(); }
+        onclick: ()=>{ if(confirm('Switch account? This signs out of "'+tenant_state.label+'" on this device.')) clearTenantAndReload(); }
       }, 'Switch')
     ]);
     pills.appendChild(tenantPill);
@@ -17432,7 +17432,7 @@ function buildTeacherActivityPanel(){
   // instead of fetching the live log.
   if(typeof tenant_state !== 'undefined' && tenant_state && tenant_state.isDemo){
     return h('div',{class:'activity-status'},
-      'Recent logins are hidden in the demo. In a real tenant this section shows who logged in (device, city, time) so you can spot suspicious activity at a glance.');
+      'Recent logins are hidden in the demo. With your real account this section shows who logged in (device, city, time) so you can spot suspicious activity at a glance.');
   }
   if(!isWorkerBackendActive()){
     return h('div',{class:'activity-status'},
@@ -23927,7 +23927,7 @@ function renderTeacher(root){
           'When you\u2019re ready for the real thing, head to ' ),
         h('a',{href:'https://kidquest.fun/#pricing',style:'color:#7a4d00;font-weight:700;text-decoration:underline'},
           'kidquest.fun/#pricing'),
-        h('span',{}, ' to spin up your own '+(isParentDemo?'family account':'classroom')+'.'),
+        h('span',{}, ' to set up your own '+(isParentDemo?'family account':'classroom account')+'.'),
       ]),
     ]);
     dash.appendChild(banner);
@@ -23949,7 +23949,7 @@ function renderTeacher(root){
         class:'t-tenant-switch',
         style:'background:none;border:none;color:#0984e3;font-weight:600;cursor:pointer;padding:0;font:inherit;text-decoration:underline;',
         onclick: ()=>{
-          if(confirm('Switch to a different family/classroom? This signs out of "'+tenant_state.label+'" on this device.')) clearTenantAndReload();
+          if(confirm('Switch to a different account? This signs out of "'+tenant_state.label+'" on this device.')) clearTenantAndReload();
         }
       }, 'Switch')
     ]);
@@ -24256,9 +24256,15 @@ function renderTeacher(root){
   const buildRosterPanel = () => {
     const wrap = h('div', { style:'display:flex;flex-direction:column;gap:18px' });
 
-    // ---- Add a new student ----
+    // ---- Add a new student / child ----
+    // Label adapts to plan type: parents see "Add a child", classrooms
+    // keep the standard "Add a student" wording. Same field shape under
+    // the hood — only the copy changes.
+    const isFamily = isFamilyPlan();
+    const addLabel = isFamily ? '➕ Add a child' : '➕ Add a student';
+    const namePh   = isFamily ? 'First name (e.g. Mia)' : 'First name (e.g. Mia)';
     const addCard = h('div', { style:'border:1px solid var(--line);border-radius:14px;padding:16px;background:#fafbff' });
-    addCard.appendChild(h('div', { style:'font-weight:800;font-size:15px;margin-bottom:10px' }, '➕ Add a student'));
+    addCard.appendChild(h('div', { style:'font-weight:800;font-size:15px;margin-bottom:10px' }, addLabel));
 
     const nameInput = h('input', {
       type:'text', placeholder:'First name (e.g. Mia)', maxlength:'30',
@@ -25619,10 +25625,17 @@ function renderTeacher(root){
   if(!STUDENTS.length){
     try { teacherTabOpen = teacherTabOpen || {}; teacherTabOpen.roster = true; } catch(e){}
   }
+  // Section titles adapt to plan type so a parent doesn't see operator/
+  // classroom-flavoured copy ("Roster", "Students & Reports") and a
+  // teacher gets the standard pro-language. Same panel content under
+  // the hood — just the accordion label differs.
+  const rosterTitle    = familyMode ? 'My Children'              : 'Class Roster';
+  const studentsTitle  = familyMode ? 'My Children’s Progress' : 'Students & Reports';
+  const plansTitle     = familyMode ? 'Learning Plans'           : 'Student Education Plans';
   const sections = [
-    { id:'roster',       icon:'👤', title:'Roster (Add / Archive)', build: buildRosterPanel },
-    { id:'students',     icon:'👥', title:'Students & Reports',    build: buildStudentInsightsPanel },
-    { id:'plans',        icon:'📋', title:'Student Education Plans', build: buildStudentPlansPanel },
+    { id:'roster',       icon:'👤', title:rosterTitle,            build: buildRosterPanel },
+    { id:'students',     icon:'👥', title:studentsTitle,          build: buildStudentInsightsPanel },
+    { id:'plans',        icon:'📋', title:plansTitle,             build: buildStudentPlansPanel },
     { id:'about-child',  icon:'🧒', title:'About My Child',        build: renderAboutMyChild, familyOnly:true },
     // Lesson content (titles, questions, AI rewrites, curriculum tags)
     // is managed centrally by the Solvix admin/operator at /admin/. The
@@ -28150,7 +28163,7 @@ function renderBillingPortal(){
     }, '💳 Manage Subscription');
     wrap.appendChild(manageBtn);
     wrap.appendChild(h('div',{style:'margin-top:10px;font-size:12px;color:var(--ink3);line-height:1.5'},
-      'You\'ll be redirected to Stripe. When you\'re done, click "Return to '+(tenant_state.label||'your classroom')+'" on the Stripe page to come back here.'));
+      'You\'ll be redirected to Stripe. When you\'re done, click "Return to '+(tenant_state.label||'your account')+'" on the Stripe page to come back here.'));
   }
 
   return wrap;
