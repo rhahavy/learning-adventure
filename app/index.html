@@ -1599,6 +1599,22 @@ body.nova-tour-active{scroll-padding-top:40px}
    TTS). Rendered as two compact columns of checkboxes + one slider for
    extendedTime. Color-coded slightly teal so tutors can distinguish
    "these change gameplay" from "this is notes for me". */
+/* Per-subject grade offset grid — replaces the old plan-type dropdown
+   + free-text "Working at" input. One row per subject with a single
+   select that lists offsets from -3 ("3+ below") to +3 ("3+ above").
+   Default state is white; rows where the kid is OFF grade get a
+   subtle purple tint so the at-a-glance scan shows where adjustments
+   exist. */
+.sp-offset-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 14px}
+@media(max-width:520px){.sp-offset-grid{grid-template-columns:1fr}}
+.sp-offset-row{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fafafd;border:1px solid var(--line);border-radius:10px;transition:background .15s,border-color .15s}
+.sp-offset-row.is-off-grade{background:rgba(108,92,231,.08);border-color:rgba(108,92,231,.3)}
+.sp-offset-label{display:inline-flex;align-items:center;gap:8px;flex:1;font-weight:700;font-size:13.5px;color:var(--ink);min-width:0}
+.sp-offset-emoji{font-size:18px;line-height:1}
+.sp-offset-sel{padding:5px 8px;border:1.5px solid var(--line);border-radius:8px;font-family:var(--font);font-size:12.5px;font-weight:700;color:var(--ink);background:#fff;cursor:pointer;min-width:96px}
+.sp-offset-sel:focus{outline:none;border-color:var(--primary)}
+.sp-offset-row.is-off-grade .sp-offset-sel{border-color:rgba(108,92,231,.45);background:#fff}
+
 .sp-adj-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 @media(max-width:520px){.sp-adj-grid{grid-template-columns:1fr}}
 .sp-adj-cell{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:rgba(22,160,133,.05);border:1px solid rgba(22,160,133,.18);border-radius:10px;transition:background .15s}
@@ -15674,26 +15690,44 @@ function getStudentInfo(sid){
      - 'custom'     — tutor-defined (use notes to describe)                  */
 function getStudentPlan(sid){
   const info = getStudentInfo(sid);
-  const seed = (info && info.plan) || { type:'none', workingAt:'', notes:'' };
+  const seed = (info && info.plan) || {};
   const override = (allData && allData.studentPlans && allData.studentPlans[sid]) || null;
-  // Tutor override completely replaces seed. Default to 'none' shape if
-  // the override is a partial. `adjustments` is the structured, machine-
-  // readable accommodations block — see planAdjustments() below for how it
-  // drives actual lesson behaviour.
-  if(override){
-    return {
-      type: override.type || seed.type || 'none',
-      workingAt: override.workingAt || '',
-      notes: override.notes || '',
-      adjustments: (override.adjustments && typeof override.adjustments === 'object') ? override.adjustments : null,
-    };
-  }
+  // Tutor override completely replaces seed. Plan shape (Apr 2026):
+  //   - gradeOffsets: { [subjectId]: -3..+3 } — per-subject offset from
+  //     the student's home grade. 0 / missing = at grade.
+  //   - adjustments: structured accommodations (the toggle grid).
+  // Legacy fields (type / workingAt / notes) may exist on older saves
+  // but are no longer surfaced in the UI; we keep reading them so old
+  // KV blobs aren't lost, and we preserve them on save when they
+  // happen to still be set.
+  const src = override || seed;
   return {
-    type: seed.type || 'none',
-    workingAt: seed.workingAt || '',
-    notes: seed.notes || '',
-    adjustments: (seed.adjustments && typeof seed.adjustments === 'object') ? seed.adjustments : null,
+    gradeOffsets: (src.gradeOffsets && typeof src.gradeOffsets === 'object') ? src.gradeOffsets : {},
+    adjustments:  (src.adjustments  && typeof src.adjustments  === 'object') ? src.adjustments  : null,
+    // Legacy passthrough — we no longer edit these but preserve them
+    // on save if a tenant happens to still carry them.
+    type:      src.type      || seed.type      || 'none',
+    workingAt: src.workingAt || seed.workingAt || '',
+    notes:     src.notes     || seed.notes     || '',
   };
+}
+
+/* Per-subject grade offset accessor. Returns an integer in [-3, +3]:
+     -3 = 3+ grades below the student's home grade
+      0 = at grade (default)
+     +3 = 3+ grades above
+   Used by planAdjustments-aware code that wants to know "where is this
+   kid working in this specific subject?" without having to walk the
+   plan blob themselves. */
+function getStudentGradeOffset(sid, subjectId){
+  try {
+    const plan = getStudentPlan(sid);
+    const v = plan.gradeOffsets && plan.gradeOffsets[subjectId];
+    if(typeof v !== 'number') return 0;
+    if(v < -3) return -3;
+    if(v > 3) return 3;
+    return v|0;
+  } catch(e){ return 0; }
 }
 
 /* ==========================================================================
@@ -15768,18 +15802,31 @@ const PLAN_TYPE_DEFAULTS = {
   },
 };
 
+// Sane "everything off" defaults — used when the plan blob has no
+// adjustments object, OR for cells we add later. Was previously
+// PLAN_TYPE_DEFAULTS['none']; kept the same shape so all the runtime
+// callers (timer, quiz length, adaptive-down, stretch, TTS default)
+// don't change.
+const PLAN_ADJ_DEFAULTS = {
+  shortSessions: false, earlyBridge: false, extendedTime: 1.0,
+  noTimer: false, alwaysTTS: false, avoidPassages: false,
+  autoStretch: false, simpleLanguage: false,
+};
+
 function planAdjustments(sid){
   // Single source of truth for every runtime hook. Returns the merged
-  // adjustments for a student: type defaults + explicit overrides on top.
+  // adjustments for a student: defaults + explicit overrides on top.
   // Always returns a fully-populated object so callers never have to null-check.
+  // Apr 2026: dropped plan-type-based auto-fills. The tutor now picks each
+  // toggle explicitly in the editor — no more invisible "IEP enables short
+  // sessions and early bridge for you" surprises.
   try {
     const plan = getStudentPlan(sid);
-    const defaults = PLAN_TYPE_DEFAULTS[plan.type] || PLAN_TYPE_DEFAULTS['none'];
     const overrides = (plan.adjustments && typeof plan.adjustments === 'object') ? plan.adjustments : {};
-    return Object.assign({}, defaults, overrides);
+    return Object.assign({}, PLAN_ADJ_DEFAULTS, overrides);
   } catch(e){
     console.warn('[Solvix] planAdjustments failed:', e);
-    return PLAN_TYPE_DEFAULTS['none'];
+    return Object.assign({}, PLAN_ADJ_DEFAULTS);
   }
 }
 /* Plan metadata — label, emoji, accent color for badges. 'none' maps to
@@ -25310,14 +25357,31 @@ function renderTeacher(root){
   const buildStudentPlansPanel = () => {
     const wrap = h('div',{class:'sp-wrap'});
     wrap.appendChild(h('p',{class:'sp-intro'},
-      'Set an Individual Education Plan (IEP), gifted track, ESL adaptation, or custom plan for each student. The plan shapes the kid\'s experience in real time — quiz length, timer, adaptive-down, stretch mode, and read-aloud defaults all respect the adjustments you save below. Seeds for Isaiah, Evan, and Akaran are pre-filled; edit to match what the school or family has communicated.'));
+      'Set where each student is working — one offset per subject relative to their home grade — plus any specific accommodations they need (short sessions, no timer, extra read-aloud, etc.). Everything below takes effect immediately and shapes the kid\'s next lesson: pacing, timer, adaptive-down, stretch, read-aloud defaults.'));
     STUDENTS.forEach(s => {
       const plan = getStudentPlan(s.id);
       const supports = getStudentSupports(s.id);
       const row = h('details',{class:'sp-row'});
-      const meta = PLAN_META[plan.type];
-      const badgeText = meta ? meta.emoji+' '+meta.label : 'On-grade (no special plan)';
-      const badgeColor = meta ? meta.accent : 'var(--ink3)';
+      // Build a "where is this kid working" badge from the per-subject
+      // gradeOffsets. "On grade in everything" if all zeros; otherwise
+      // a compact summary like "Reading -1 · Math +2" (max 3 listed,
+      // overflow becomes "+N more").
+      const badgeFromOffsets = (offsets) => {
+        const entries = SUBJECTS
+          .map(s2 => ({ id:s2.id, name:s2.name, emoji:s2.emoji, off: (offsets && offsets[s2.id]) | 0 }))
+          .filter(e => e.off !== 0);
+        if(!entries.length) return { text:'On grade in every subject', color:'var(--ink3)' };
+        const fmt = (n) => (n > 0 ? '+' : '') + n;
+        const shown = entries.slice(0, 3).map(e => e.emoji + ' ' + fmt(e.off));
+        const more  = entries.length - shown.length;
+        return {
+          text: shown.join(' · ') + (more > 0 ? ' · +' + more + ' more' : ''),
+          color: 'var(--primary)',
+        };
+      };
+      const initialBadge = badgeFromOffsets(plan.gradeOffsets);
+      const badgeText  = initialBadge.text;
+      const badgeColor = initialBadge.color;
       // Mini support chips in the summary — articulation shows a 🗣️ pill
       // so the tutor sees speech needs without expanding.
       const supportChips = supports.map(sup => {
@@ -25340,162 +25404,51 @@ function renderTeacher(root){
       row.appendChild(summary);
 
       const body = h('div',{class:'sp-body'});
-      const typeSel = h('select',{class:'sp-input'},[
-        h('option',{value:'none'},   'On-grade (no special plan)'),
-        h('option',{value:'iep'},    '🧩 IEP (Individual Education Plan)'),
-        h('option',{value:'gifted'}, '🌟 Gifted'),
-        h('option',{value:'gifted-esl'}, '🌟 Gifted + ESL'),
-        h('option',{value:'esl'},    '🌐 ESL (English Language Learner)'),
-        h('option',{value:'custom'}, '📋 Custom Plan'),
-      ]);
-      typeSel.value = plan.type || 'none';
-      // "Working at" input — free text, but backed by (1) one-tap preset
-      // chips keyed off the student's home grade and (2) a <datalist> with
-      // every sensible "Grade N [track]" combo for type-ahead.
-      const datalistId = 'sp-workingat-list-'+s.id;
-      const workingAtInput = h('input',{
-        type:'text', class:'sp-input',
-        placeholder:'Tap a chip above, or type your own',
-        value: plan.workingAt || '',
-        list: datalistId,
-        autocomplete:'off',
-      });
-      const workingAtDatalist = h('datalist',{id:datalistId});
-      WORKING_AT_SUGGESTIONS.forEach(v => workingAtDatalist.appendChild(h('option',{value:v})));
-
-      // Preset chip row — tapping a chip fills the input and highlights
-      // the chip. Typing in the input clears the active highlight (so the
-      // chips don't claim ownership of a tutor's custom edit).
-      const presetChips = h('div',{class:'sp-chip-row'});
-      const presets = buildWorkingAtPresets(s.grade);
-      const chipEls = [];
-      const syncActiveChip = () => {
-        const cur = (workingAtInput.value || '').trim();
-        chipEls.forEach(ch => {
-          ch.classList.toggle('is-active', cur && ch.dataset.value === cur);
-        });
-      };
-      presets.forEach(p => {
-        const chip = h('button',{
-          type:'button', class:'sp-chip', title:p.value,
-          'data-value':p.value,
-          onclick:()=>{
-            workingAtInput.value = p.value;
-            syncActiveChip();
-            workingAtInput.focus();
-          },
-        }, p.label);
-        chipEls.push(chip);
-        presetChips.appendChild(chip);
-      });
-      // Typing dismisses the "active chip" styling unless what they typed
-      // happens to match a preset exactly.
-      workingAtInput.addEventListener('input', syncActiveChip);
-
-      const notesInput = h('textarea',{class:'sp-input sp-textarea', placeholder:'Accommodations, focus areas, goals, or specifics from the school\'s IEP document.'}, plan.notes || '');
       const msg = h('div',{class:'sp-msg'});
 
-      body.appendChild(h('label',{class:'sp-label'}, 'Plan type'));
-      body.appendChild(typeSel);
-      body.appendChild(h('label',{class:'sp-label'}, 'Working at (grade level / track)'));
-      body.appendChild(presetChips);
+      // ---- Per-subject grade level ----
+      // Replaces the old plan-type dropdown + free-text "Working at" +
+      // notes textarea. For each of the 9 core subjects the tutor picks
+      // a single offset from the kid's home grade: 3+ below to 3+ above.
+      // This is the structured replacement for "is Isaiah a Grade 5 kid
+      // working at Grade 3 in reading?"-type prose. Stored as
+      // gradeOffsets:{ subjectId: -3..3 } on the plan blob.
+      body.appendChild(h('label',{class:'sp-label'}, 'Per-subject grade level'));
       body.appendChild(h('div',{class:'sp-chip-hint'},
-        'Tap a preset to fill the field — or type freely. '+s.name+' is in '+s.grade+'.'));
-      body.appendChild(workingAtInput);
-      body.appendChild(workingAtDatalist);
-      // Paint initial active state (if the saved value already matches a preset).
-      syncActiveChip();
-      body.appendChild(h('label',{class:'sp-label'}, 'Notes / accommodations'));
-      body.appendChild(notesInput);
+        s.name+' is in '+s.grade+'. Pick a level for each subject — defaults to "At grade." Same offset toggles also drive what the kid sees in the level picker, so a kid working 2 below in Math goes through the easier track for that subject only.'));
 
-      /* ---- AI: Parse notes → toggles ----
-         Hidden until the ai-proxy Worker's FEATURE_PLAN_PARSE flag is
-         lit. When a tutor types prose into notesInput, tapping this
-         button sends the text to /plan-parse; the Worker replies with
-         a mapping of our adjustment keys to proposed on/off states,
-         which we apply to the checkboxes (the tutor still has to hit
-         Save). The manual toggles remain the source of truth — AI just
-         prefills. */
-      const aiParseRow = h('div',{class:'ai-parse-row ai-hidden'});
-      const aiParseBtn = h('button',{type:'button', class:'ai-btn', title:'Map these notes to the toggles below using AI.'},[
-        h('span',{},'✨'),
-        h('span',{},'Parse notes → toggles'),
-      ]);
-      const aiParseMsg = h('div',{class:'ai-parse-msg'});
-      const aiParseHint = h('div',{class:'ai-parse-hint'}, 'Fills the toggles below from your prose. You still Save.');
-      aiParseRow.appendChild(aiParseBtn);
-      aiParseRow.appendChild(aiParseMsg);
-      aiParseRow.appendChild(aiParseHint);
-      body.appendChild(aiParseRow);
-      // Only show the row when the server flag is lit. Checked on
-      // render + re-checked whenever /health refreshes (via the
-      // setInterval in initAiHealth). Worst case: tutor has to refresh
-      // the editor to pick up a just-flipped flag.
-      if(aiFeatureOn('FEATURE_PLAN_PARSE')) aiParseRow.classList.remove('ai-hidden');
-      aiParseBtn.addEventListener('click', async ()=>{
-        const prose = (notesInput.value||'').trim();
-        if(!prose){
-          aiParseMsg.className = 'ai-parse-msg err';
-          aiParseMsg.textContent = 'Add some notes first.';
-          return;
-        }
-        aiParseBtn.disabled = true;
-        aiParseMsg.className = 'ai-parse-msg';
-        aiParseMsg.innerHTML = '';
-        aiParseMsg.appendChild(h('span',{class:'ai-btn-spin'}));
-        aiParseMsg.appendChild(h('span',{style:'margin-left:6px'},'Parsing…'));
-        const res = await callAI('/plan-parse', {
-          notes: prose,
-          planType: typeSel.value || 'none',
-          // We don't send the student's name — anonymise at the edge.
-          // The Worker only needs the prose + the plan type to pick
-          // sensible defaults. See planAdjustments() for the key set.
-          availableKeys: Object.keys(PLAN_TYPE_DEFAULTS.custom),
-        }, { studentId: s.id, timeoutMs: 12000 });
-        aiParseBtn.disabled = false;
-        if(res.disabled){
-          aiParseMsg.className = 'ai-parse-msg err';
-          aiParseMsg.textContent = 'AI plan-parse is off right now.';
-          return;
-        }
-        if(res.capped){
-          aiParseMsg.className = 'ai-parse-msg err';
-          aiParseMsg.textContent = 'Daily AI cap reached — try again tomorrow.';
-          return;
-        }
-        if(res.error || !res.ok){
-          aiParseMsg.className = 'ai-parse-msg err';
-          aiParseMsg.textContent = 'Could not parse notes.';
-          return;
-        }
-        // Expected response shape (set by the real handler when it
-        // ships): { toggles: { shortSessions:true, noTimer:true, ... },
-        //           extendedTime: 1.3, reasoning: "short string" }.
-        // Defensive about missing fields — only apply what we recognise.
-        const t = (res.data && res.data.toggles) || {};
-        let applied = 0;
-        Object.keys(adjCells).forEach(k=>{
-          if(typeof t[k] === 'boolean'){
-            adjCells[k].input.checked = t[k];
-            adjCells[k].root.classList.toggle('is-active', t[k]);
-            applied++;
-          }
+      const OFFSET_OPTIONS = [
+        { v:-3, label:'3+ below' },
+        { v:-2, label:'2 below' },
+        { v:-1, label:'1 below' },
+        { v: 0, label:'At grade' },
+        { v: 1, label:'1 above' },
+        { v: 2, label:'2 above' },
+        { v: 3, label:'3+ above' },
+      ];
+      const offsetCells = {}; // subjectId → select element
+      const offsetGrid  = h('div',{class:'sp-offset-grid'});
+      SUBJECTS.forEach(subj => {
+        const cur = (plan.gradeOffsets && typeof plan.gradeOffsets[subj.id] === 'number') ? plan.gradeOffsets[subj.id] : 0;
+        const sel = h('select',{class:'sp-offset-sel', 'aria-label': subj.name+' grade level for '+s.name});
+        OFFSET_OPTIONS.forEach(o => {
+          sel.appendChild(h('option',{value:String(o.v)}, o.label));
         });
-        if(typeof (res.data && res.data.extendedTime) === 'number'){
-          let best = 0, dist = Infinity;
-          EXT_STEPS.forEach((step, i) => {
-            const d = Math.abs(step - res.data.extendedTime);
-            if(d < dist){ dist = d; best = i; }
-          });
-          extRange.value = String(best);
-          extValEl.textContent = EXT_STEPS[best].toFixed(1)+'×';
-          applied++;
-        }
-        aiParseMsg.className = 'ai-parse-msg ok';
-        aiParseMsg.textContent = applied > 0
-          ? '✓ Filled '+applied+' setting'+(applied===1?'':'s')+' — review + Save.'
-          : 'Nothing actionable found in these notes.';
+        sel.value = String(cur);
+        offsetCells[subj.id] = sel;
+        const cell = h('div',{class:'sp-offset-row'+(cur === 0 ? '' : ' is-off-grade')},[
+          h('span',{class:'sp-offset-label'},[
+            h('span',{class:'sp-offset-emoji'}, subj.emoji),
+            h('span',{}, subj.name),
+          ]),
+          sel,
+        ]);
+        sel.addEventListener('change', ()=>{
+          cell.classList.toggle('is-off-grade', parseInt(sel.value,10) !== 0);
+        });
+        offsetGrid.appendChild(cell);
       });
+      body.appendChild(offsetGrid);
 
       // ---- Lesson adjustments (the toggles that actually shape the quiz) ----
       // Each toggle reads + writes back to `plan.adjustments.<key>`. When a
@@ -25503,7 +25456,7 @@ function renderTeacher(root){
       // `planAdjustments(sid)` reads fresh from allData on every call.
       body.appendChild(h('label',{class:'sp-label'}, 'Lesson adjustments — these are followed in real time'));
       body.appendChild(h('div',{class:'sp-adj-explain',html:
-        'Picking a <b>plan type</b> above auto-fills sensible defaults. You can override any individual toggle here and your choice wins. These settings immediately change how <b>'+s.name+'\'s</b> lessons are paced, timed, and adapted.'}));
+        'Pick the accommodations <b>'+s.name+'</b> needs. Each toggle takes effect immediately — paces lessons, adjusts the timer, swaps in easier questions when they struggle, etc.'}));
 
       const liveAdj = planAdjustments(s.id);
       const adjCells = {};       // key → {input, root} so Save + type-change can read them
@@ -25556,22 +25509,10 @@ function renderTeacher(root){
       });
       body.appendChild(h('div',{class:'sp-adj-range'},[extLabelWrap, extRange, extValEl]));
 
-      // When the tutor picks a new plan TYPE, pre-fill the toggles with
-      // that type's defaults so they see what "IEP" actually means in
-      // terms of behaviour. They can still un-check anything afterward.
-      typeSel.addEventListener('change', ()=>{
-        const defaults = PLAN_TYPE_DEFAULTS[typeSel.value] || PLAN_TYPE_DEFAULTS['none'];
-        Object.keys(adjCells).forEach(k => {
-          adjCells[k].input.checked = !!defaults[k];
-          adjCells[k].root.classList.toggle('is-active', !!defaults[k]);
-        });
-        // Snap the range to the closest step for the new type default.
-        const want = typeof defaults.extendedTime === 'number' ? defaults.extendedTime : 1.0;
-        let best = 0, dist = Infinity;
-        EXT_STEPS.forEach((s, i) => { const d = Math.abs(s - want); if(d < dist){ dist = d; best = i; }});
-        extRange.value = String(best);
-        extValEl.textContent = EXT_STEPS[best].toFixed(1)+'×';
-      });
+      // (The old plan-type dropdown auto-filled toggle defaults on
+      // change. Apr 2026 we removed plan types in favor of a per-subject
+      // grade-offset model + explicit toggle picking, so this hook is
+      // gone. Tutors now hand-pick each accommodation that applies.)
 
       // Articulation checkbox — orthogonal to plan type. A kid can be
       // "Gifted + Articulation support" or just "Articulation support" on its
@@ -25592,14 +25533,10 @@ function renderTeacher(root){
       const saveBtn = h('button',{class:'btn btn-primary btn-sm', onclick: () => {
         if(!allData.studentPlans) allData.studentPlans = {};
         if(!allData.studentSupports) allData.studentSupports = {};
-        const t = typeSel.value || 'none';
-        const w = workingAtInput.value.trim();
-        const n = notesInput.value.trim();
-        // Read the current toggle + slider state into an adjustments object.
-        // We only persist the keys that DIFFER from the plan-type defaults —
-        // that way, changing plan type later re-applies fresh defaults
-        // cleanly and we don't store redundant state.
-        const defaults = PLAN_TYPE_DEFAULTS[t] || PLAN_TYPE_DEFAULTS['none'];
+        // Read the current toggle + slider state into an adjustments
+        // object. Only persist the keys that DIFFER from the (single,
+        // post-Apr-2026) defaults — that way the saved blob stays small
+        // and a future default change flows through cleanly.
         const extIdx = parseInt(extRange.value, 10);
         const wantExt = EXT_STEPS[isFinite(extIdx) ? extIdx : 0] || 1.0;
         const wantAdj = {
@@ -25614,16 +25551,36 @@ function renderTeacher(root){
         };
         const adjustmentsOverride = {};
         Object.keys(wantAdj).forEach(k => {
-          if(wantAdj[k] !== defaults[k]) adjustmentsOverride[k] = wantAdj[k];
+          if(wantAdj[k] !== PLAN_ADJ_DEFAULTS[k]) adjustmentsOverride[k] = wantAdj[k];
         });
         const hasAdjOverride = Object.keys(adjustmentsOverride).length > 0;
-        // If everything matches 'none' AND there's no text AND no adjustment
-        // overrides, treat as wipe so we fall back to the seed.
-        if(t === 'none' && !w && !n && !hasAdjOverride){
+        // Read the per-subject grade offsets. Only persist non-zero
+        // values so the blob stays compact + diff-friendly.
+        const gradeOffsets = {};
+        SUBJECTS.forEach(subj => {
+          const sel = offsetCells[subj.id];
+          if(!sel) return;
+          const v = parseInt(sel.value, 10);
+          if(isFinite(v) && v !== 0) gradeOffsets[subj.id] = Math.max(-3, Math.min(3, v));
+        });
+        const hasOffsets = Object.keys(gradeOffsets).length > 0;
+        // Wipe the override entirely when the tutor's pick matches the
+        // "everything at default" state — that way the seed (if any)
+        // shows through cleanly.
+        if(!hasAdjOverride && !hasOffsets){
           delete allData.studentPlans[s.id];
         } else {
-          const rec = { type: t, workingAt: w, notes: n };
-          if(hasAdjOverride) rec.adjustments = adjustmentsOverride;
+          const rec = {};
+          if(hasAdjOverride) rec.adjustments  = adjustmentsOverride;
+          if(hasOffsets)     rec.gradeOffsets = gradeOffsets;
+          // Preserve any legacy fields that happened to be on the
+          // existing record so we don't drop tenant-set data on save.
+          const prev = allData.studentPlans[s.id];
+          if(prev){
+            if(prev.type)      rec.type      = prev.type;
+            if(prev.workingAt) rec.workingAt = prev.workingAt;
+            if(prev.notes)     rec.notes     = prev.notes;
+          }
           allData.studentPlans[s.id] = rec;
         }
         // Supports — we only override the seed when the checkbox state differs
@@ -25634,14 +25591,11 @@ function renderTeacher(root){
         const seedHasArt = seedSupports.includes('articulation');
         const wantArt = !!articulationCb.checked;
         if(wantArt === seedHasArt){
-          // Match seed — drop any override.
           delete allData.studentSupports[s.id];
         } else if(wantArt){
-          // Seed doesn't have it, user wants it on — add it.
           const base = seedSupports.filter(x=>x!=='articulation');
           allData.studentSupports[s.id] = base.concat(['articulation']);
         } else {
-          // Seed has it, user wants it off — explicit empty override.
           allData.studentSupports[s.id] = seedSupports.filter(x=>x!=='articulation');
         }
         allData.updatedAt = Date.now();
@@ -25649,17 +25603,16 @@ function renderTeacher(root){
         try { syncToCloud(); } catch(e){ console.warn('[Solvix] plan sync failed:', e); }
         msg.textContent = '✓ Saved';
         msg.style.color = '#2b8a3e';
-        // Update the summary badge + support chips in place without a full re-render.
-        const newMeta = PLAN_META[t];
-        const newBadge = newMeta ? newMeta.emoji+' '+newMeta.label : 'On-grade (no special plan)';
+        // Update the summary badge from the new offsets + support chips
+        // in place without a full re-render.
+        const newBadge = badgeFromOffsets(gradeOffsets);
         const badgeEl = summary.querySelector('.sp-badge');
         if(badgeEl){
-          badgeEl.textContent = newBadge;
-          badgeEl.style.color = newMeta ? newMeta.accent : 'var(--ink3)';
+          badgeEl.textContent = newBadge.text;
+          badgeEl.style.color = newBadge.color;
         }
         const wrapEl = summary.querySelector('.sp-badge-wrap');
         if(wrapEl){
-          // Remove old chips, rebuild from new supports.
           Array.from(wrapEl.querySelectorAll('.sp-support-chip')).forEach(c=>c.remove());
           const newSupports = getStudentSupports(s.id);
           newSupports.forEach(sup => {
@@ -25687,12 +25640,20 @@ function renderTeacher(root){
         }
         const seed = getStudentPlan(s.id);
         const seedSupports = getStudentSupports(s.id);
-        typeSel.value = seed.type || 'none';
-        workingAtInput.value = seed.workingAt || '';
-        notesInput.value = seed.notes || '';
         articulationCb.checked = seedSupports.includes('articulation');
-        // Reset the adjustment toggles + range back to the plan-type defaults.
-        // `planAdjustments(s.id)` after the wipe above returns defaults only.
+        // Reset per-subject grade offsets to the seed (or all-zero if
+        // the seed has none).
+        SUBJECTS.forEach(subj => {
+          const sel = offsetCells[subj.id];
+          if(!sel) return;
+          const v = (seed.gradeOffsets && typeof seed.gradeOffsets[subj.id] === 'number') ? seed.gradeOffsets[subj.id] : 0;
+          sel.value = String(v);
+          // Sync the row's "is-off-grade" tint without firing the change handler.
+          const cell = sel.closest('.sp-offset-row');
+          if(cell) cell.classList.toggle('is-off-grade', v !== 0);
+        });
+        // Reset the adjustment toggles + range back to the (post-Apr-2026
+        // single-defaults) values.
         const seedAdj = planAdjustments(s.id);
         Object.keys(adjCells).forEach(k => {
           adjCells[k].input.checked = !!seedAdj[k];
@@ -25705,12 +25666,11 @@ function renderTeacher(root){
         extValEl.textContent = EXT_STEPS[bestIdx].toFixed(1)+'×';
         msg.textContent = '↺ Reset to default';
         msg.style.color = 'var(--ink3)';
-        const newMeta = PLAN_META[seed.type];
-        const newBadge = newMeta ? newMeta.emoji+' '+newMeta.label : 'On-grade (no special plan)';
+        const newBadge = badgeFromOffsets(seed.gradeOffsets);
         const badgeEl = summary.querySelector('.sp-badge');
         if(badgeEl){
-          badgeEl.textContent = newBadge;
-          badgeEl.style.color = newMeta ? newMeta.accent : 'var(--ink3)';
+          badgeEl.textContent = newBadge.text;
+          badgeEl.style.color = newBadge.color;
         }
         const wrapEl = summary.querySelector('.sp-badge-wrap');
         if(wrapEl){
