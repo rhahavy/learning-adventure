@@ -2552,6 +2552,11 @@ tbody tr:last-child td{border-bottom:none}
   // endpoint — no need to open the full lesson editor for a routine
   // YouTube refresh. Hidden lessons are skipped (not shown to kids).
   function renderVideosMode(allRows){
+    // Switch the list container to a stacking block layout — the lessons
+    // grid (display:grid, 300px min columns) would squash a wide table
+    // into narrow columns side-by-side with its help text. renderCurriculum
+    // restores the grid when we switch back to Lessons mode.
+    $currList.style.display = 'block';
     var videoRows = [];
     allRows.forEach(function(r){
       if(!r.effective) return; // hidden lesson
@@ -2678,6 +2683,8 @@ tbody tr:last-child td{border-bottom:none}
       return;
     }
 
+    // Restore the lesson grid layout (videos mode switches it to block).
+    $currList.style.display = 'grid';
     var rows = applyCurriculumFilters(allRows);
     $currCount.textContent = String(rows.length);
 
