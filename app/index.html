@@ -2994,6 +2994,27 @@ function normalizeStudent(s){
    TTS-default-on Set so newly-imported plan/supports flags take effect
    on the next seedTtsDefaults() pass. */
 function syncStudentsFromRoster(){
+  // Demo tenants ALWAYS show the canonical demo roster — never whatever
+  // happens to live in this demo tenant's KV blob. The 2228:parent and
+  // 2228:teacher tenants are shared across every visitor on the
+  // internet, so prior testing or stray edits could leak real-student
+  // names (Akshayan, Isaiah, etc.) into the dashboard. activeDemoRoster()
+  // returns DEMO_GRADES_PARENT (5 placeholder kids spanning grade
+  // levels) for the parent demo and DEMO_GRADES_TEACHER (10 grade
+  // demos JK-G8) for the teacher demo — neither references real names.
+  // We don't write back to allData.roster here because demo tenants
+  // are blocked from cloud sync (see saveState's isDemo guard).
+  if(typeof tenant_state !== 'undefined' && tenant_state && tenant_state.isDemo){
+    let demoList = [];
+    try { demoList = activeDemoRoster() || []; } catch(_){ demoList = []; }
+    STUDENTS.length = 0;
+    for(const s of demoList){
+      const n = normalizeStudent(JSON.parse(JSON.stringify(s)));
+      if(n) STUDENTS.push(n);
+    }
+    try { recomputeStudentsTtsDefaultOn(); } catch(e){}
+    return;
+  }
   const roster = (allData && Array.isArray(allData.roster)) ? allData.roster : [];
   const normalized = [];
   for(const s of roster){
@@ -17405,6 +17426,14 @@ function ensureActivityStyles(){
 // redundant.
 function buildTeacherActivityPanel(){
   ensureActivityStyles();
+  // Demo tenants are shared across every public visitor, so the
+  // activity log mixes traffic from prior demo visitors and could
+  // surface real-student names or stray edits. Show a placeholder
+  // instead of fetching the live log.
+  if(typeof tenant_state !== 'undefined' && tenant_state && tenant_state.isDemo){
+    return h('div',{class:'activity-status'},
+      'Recent logins are hidden in the demo. In a real tenant this section shows who logged in (device, city, time) so you can spot suspicious activity at a glance.');
+  }
   if(!isWorkerBackendActive()){
     return h('div',{class:'activity-status'},
       'Recent logins need the cloud backend. This build is running in offline mode.');
