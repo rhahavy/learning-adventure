@@ -1453,8 +1453,14 @@ body.nova-tour-active{scroll-padding-top:40px}
 .coop-goal.achieved{background:linear-gradient(135deg,#fff8e1 0%,#ffe082 45%,#ffd54f 100%);animation:coopCelebrate .6s var(--spring)}
 @keyframes coopCelebrate{0%{transform:scale(.97)}60%{transform:scale(1.03)}100%{transform:scale(1)}}
 .coop-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.coop-title{font-family:var(--font-display);font-size:18px;font-weight:800;display:flex;align-items:center;gap:6px}
+.coop-title{font-family:var(--font-display);font-size:18px;font-weight:800;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .coop-sub{font-size:12px;color:var(--ink3);font-weight:700;margin-left:auto}
+/* Level pill on the class-goal card. Subtle gradient that bumps to a
+   brighter accent at higher levels so the kids see the progression
+   (and so screenshots later in the week look visibly different from
+   Monday's L1 baseline). */
+.coop-level-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;box-shadow:0 2px 6px rgba(108,92,231,.3)}
+.coop-goal.achieved .coop-level-pill{background:linear-gradient(135deg,#16a085,#48c9b0)}
 .coop-progress-wrap{height:14px;border-radius:999px;background:rgba(108,92,231,.15);overflow:hidden;margin:8px 0 14px;position:relative;box-shadow:inset 0 2px 4px rgba(0,0,0,.08)}
 .coop-progress{height:100%;border-radius:999px;background:linear-gradient(90deg,#6C5CE7,#FD79A8,#FDCB6E);transition:width .8s var(--spring);box-shadow:0 0 14px rgba(253,121,168,.5)}
 .coop-goal.achieved .coop-progress{background:linear-gradient(90deg,#FFD700,#FF9500,#FF6B35)}
@@ -11601,10 +11607,19 @@ const defaultAll = () => ({
   // side of the dual-currency system was retired.)
   weeklyGoal: {
     weekId: '',           // ISO year-week id, e.g. '2026-W16'. Empty = unset, triggers first init
-    target: 0,            // coin target for the week (auto-scaled to # of students)
-    snapshot: {},          // {sid: coinsAtStartOfWeek}
-    achievedAt: 0,        // epoch ms when the goal was first hit this week; 0 = not yet
-    bonusPaidSids: [],    // sids that have already been paid the +coins bonus for THIS week
+    target: 0,            // coin target for the CURRENT level (scales with # of students AND level)
+    snapshot: {},         // {sid: coinsAtThisLevelStart} — baseline, resets each level
+    achievedAt: 0,        // epoch ms when the CURRENT level was hit; 0 = not yet
+    bonusPaidSids: [],    // sids paid the bonus for the CURRENT level (not the whole week)
+    // Apr 2026: progressive levels. Each time the family hits the current
+    // target AND every active kid has claimed their bonus, level auto-bumps:
+    //   • target grows: base × (1 + 0.5 × (level-1))
+    //   • bonus grows:  5 + 3 × (level-1)
+    //   • snapshot resets to current coins so the bar drops back to 0
+    // Level resets to 1 on the next ISO-week rollover so the family can't
+    // grind to level 10 in one Saturday and then have a month of impossible
+    // targets. Each Monday is a fresh start at base difficulty.
+    level: 1,
   },
   // Per-student education plan overrides (IEP / gifted / ESL / custom).
   // Keyed by sid. Each value is a full plan object { type, notes, workingAt }
@@ -11789,12 +11804,36 @@ function defaultWeeklyGoalTarget(){
   const n = Math.max(1, STUDENTS.length);
   return 60 * n;  // 7 students → 420 coins/week, 3 → 180 — comfortably stretchy
 }
+
+/* Level-scaling helpers. Level 1 is the base experience the kids saw
+   before progressive levels existed; each bump above it makes the
+   target harder + the bonus payout bigger so the curve feels rewarding
+   rather than punishing.
+   - Target: base × (1 + 0.5 × (level-1))
+       L1 = 1.0×, L2 = 1.5×, L3 = 2.0×, L4 = 2.5× ...
+   - Bonus per kid: 5 + 3 × (level-1)
+       L1 = 5,    L2 = 8,    L3 = 11,   L4 = 14   ...
+   Capped at level 6 so we don't generate impossible targets late in
+   the week — past that it just stays at the L6 difficulty + payout. */
+const WEEKLY_GOAL_MAX_LEVEL = 6;
+function weeklyGoalTargetForLevel(level){
+  const lv = Math.max(1, Math.min(WEEKLY_GOAL_MAX_LEVEL, Number(level||1)));
+  return Math.round(defaultWeeklyGoalTarget() * (1 + 0.5 * (lv - 1)));
+}
+function weeklyGoalBonusForLevel(level){
+  const lv = Math.max(1, Math.min(WEEKLY_GOAL_MAX_LEVEL, Number(level||1)));
+  return 5 + 3 * (lv - 1);
+}
+
 function weeklyGoalRollover(){
   try{
-    if(!allData.weeklyGoal) allData.weeklyGoal = { weekId:'', target:0, snapshot:{}, achievedAt:0, bonusPaidSids:[] };
+    if(!allData.weeklyGoal) allData.weeklyGoal = { weekId:'', target:0, snapshot:{}, achievedAt:0, bonusPaidSids:[], level:1 };
     const currentWeek = isoWeekId();
     if(allData.weeklyGoal.weekId === currentWeek) return;  // still the same week — nothing to do
-    // New week: snapshot everyone's current coins as the baseline.
+    // New week: full reset. Level back to 1, snapshot everyone's current
+    // coins as the baseline, target back to base. This is "fresh Monday"
+    // — no matter what level the family ground their way to last week,
+    // they start the new week at base difficulty.
     const snapshot = {};
     STUDENTS.forEach(s=>{
       const ud = allData.users[s.id];
@@ -11802,13 +11841,51 @@ function weeklyGoalRollover(){
     });
     allData.weeklyGoal = {
       weekId: currentWeek,
-      target: defaultWeeklyGoalTarget(),
+      target: weeklyGoalTargetForLevel(1),
       snapshot,
       achievedAt: 0,
       bonusPaidSids: [],
+      level: 1,
     };
     try{ saveState(); }catch(e){}
   }catch(e){ console.warn('[Solvix] weeklyGoalRollover failed:', e); }
+}
+
+/* maybeBumpWeeklyGoalLevel()
+   Call this after a bonus is paid. If the goal is achieved AND every
+   active student has been paid the bonus AND we're not already at the
+   max level — advance to the next level: snapshot resets to current
+   coins (bar drops to 0), target grows, bonus grows, achievedAt clears.
+   The kids see the bar reset visibly the moment the last claimer logs
+   in, then have a harder target to chase for the rest of the week. */
+function maybeBumpWeeklyGoalLevel(){
+  try{
+    weeklyGoalRollover();
+    const wg = allData.weeklyGoal;
+    if(!wg || !wg.achievedAt) return false;
+    const currentLevel = Number(wg.level||1);
+    if(currentLevel >= WEEKLY_GOAL_MAX_LEVEL) return false;
+    // Every ACTIVE student must have been paid before the level bumps,
+    // otherwise late-comers miss their bonus. STUDENTS is the live
+    // (non-archived) roster.
+    const paid = wg.bonusPaidSids || [];
+    const allPaid = STUDENTS.length > 0 && STUDENTS.every(s => paid.includes(s.id));
+    if(!allPaid) return false;
+    // Bump.
+    const nextLevel = currentLevel + 1;
+    const newSnapshot = {};
+    STUDENTS.forEach(s=>{
+      const ud = allData.users[s.id];
+      newSnapshot[s.id] = ud ? Number(ud.coins||0) : 0;
+    });
+    wg.level = nextLevel;
+    wg.target = weeklyGoalTargetForLevel(nextLevel);
+    wg.snapshot = newSnapshot;
+    wg.achievedAt = 0;
+    wg.bonusPaidSids = [];
+    saveState();
+    return true;
+  }catch(e){ console.warn('[Solvix] weekly goal level bump failed:', e); return false; }
 }
 // Return the live progress object: { current, target, pct, achieved }
 function weeklyGoalProgress(){
@@ -11834,20 +11911,33 @@ function weeklyGoalProgress(){
     return { sid:s.id, name:s.name, color:s.color||'#6C5CE7', earned: Math.max(0, now - start) };
   }).sort((a,b)=>b.earned-a.earned) };
 }
-// Award +5 coins to the currently-logged-in student ONCE per week when
-// the family hits the goal. We do it lazy — on next dashboard render — so
+// Award the level-scaled bonus to the currently-logged-in student ONCE
+// per LEVEL when the family hits the goal. Lazy on dashboard render so
 // every kid individually hears the "ding" when they log in post-victory.
+//
+// Returns the number of coins paid (0 if not eligible). Caller can use
+// the return value to render a "+N coins!" banner with the right amount.
+//
+// Side effect: if this kid was the LAST one who hadn't claimed yet,
+// maybeBumpWeeklyGoalLevel() fires and advances the family to the
+// next level (harder target, bigger bonus next time).
 function maybePayWeeklyGoalBonus(sid){
   try{
-    if(!sid) return false;
-    const wg = allData.weeklyGoal; if(!wg || !wg.achievedAt) return false;
-    if((wg.bonusPaidSids||[]).includes(sid)) return false;
-    const ud = allData.users[sid]; if(!ud) return false;
-    ud.coins = Number(ud.coins||0) + 5;
+    if(!sid) return 0;
+    const wg = allData.weeklyGoal; if(!wg || !wg.achievedAt) return 0;
+    if((wg.bonusPaidSids||[]).includes(sid)) return 0;
+    const ud = allData.users[sid]; if(!ud) return 0;
+    const bonus = weeklyGoalBonusForLevel(wg.level);
+    ud.coins = Number(ud.coins||0) + bonus;
     wg.bonusPaidSids = (wg.bonusPaidSids||[]).concat([sid]);
     saveState();
-    return true;
-  }catch(e){ console.warn('[Solvix] weekly goal bonus failed:', e); return false; }
+    // After the last claim, advance to the next level. We do this
+    // AFTER returning the bonus amount above so the kid still sees
+    // their celebration banner with the level-N number — the bump
+    // takes effect on the NEXT render.
+    try { maybeBumpWeeklyGoalLevel(); } catch(_){}
+    return bonus;
+  }catch(e){ console.warn('[Solvix] weekly goal bonus failed:', e); return 0; }
 }
 weeklyGoalRollover();
 
@@ -14078,15 +14168,22 @@ function buildClassScoreboard(opts){
 function buildCoopGoalCard(opts){
   const viewerSid = (opts && opts.viewerSid) || null;
   const p = weeklyGoalProgress();
-  // Auto-pay viewer's bonus if we just crossed / they just logged in post-victory.
-  const justPaidBonus = viewerSid ? maybePayWeeklyGoalBonus(viewerSid) : false;
+  // Auto-pay viewer's bonus if we just crossed / they just logged in
+  // post-victory. Returns the scaled coin amount (0 if not eligible).
+  const bonusPaid = viewerSid ? maybePayWeeklyGoalBonus(viewerSid) : 0;
+  const wg = allData.weeklyGoal || {};
+  const level = Number(wg.level||1);
+  const nextBonus = weeklyGoalBonusForLevel(level);
   const card = h('div',{class:'coop-goal'+(p.achieved?' achieved':'')});
   card.appendChild(h('div',{class:'coop-head'},[
     h('div',{class:'coop-title'},[
       h('span',{}, p.achieved ? '🎉' : '🌟'),
-      h('span',{}, p.achieved ? 'Class Goal — ACHIEVED!' : 'Class Goal This Week'),
+      h('span',{}, p.achieved ? 'Class Goal — ACHIEVED!' : 'Class Goal'),
+      // Level pill — visible at every level (including L1) so kids
+      // see the progression even before the first achievement.
+      h('span',{class:'coop-level-pill'}, 'Level '+level+(level >= WEEKLY_GOAL_MAX_LEVEL ? ' · MAX' : '')),
     ]),
-    h('span',{class:'coop-sub'}, allData.weeklyGoal.weekId || ''),
+    h('span',{class:'coop-sub'}, wg.weekId || ''),
   ]));
   card.appendChild(h('div',{class:'coop-stats'},[
     h('span',{},'Coins earned together'),
@@ -14095,18 +14192,22 @@ function buildCoopGoalCard(opts){
   const wrap = h('div',{class:'coop-progress-wrap'});
   wrap.appendChild(h('div',{class:'coop-progress', style:'width:'+p.pct+'%'}));
   card.appendChild(wrap);
-  // Cheer message — different copy by how close we are
+  // Cheer message — adapts to the current level + how close we are.
   let cheer;
   if(p.achieved){
-    cheer = '🏅 Amazing teamwork! Everyone earned +5 coins this week.';
+    cheer = level < WEEKLY_GOAL_MAX_LEVEL
+      ? '🏅 Teamwork! Everyone earned +' + nextBonus + ' coins. Once everyone claims, the goal levels up — bigger target, bigger bonus.'
+      : '🏅 MAX LEVEL teamwork! Everyone earned +' + nextBonus + ' coins. Reset on Monday.';
   } else if(p.pct >= 75){
-    cheer = 'Almost there — just '+(p.target - p.current)+' more stars to go!';
+    cheer = 'Almost there — just '+(p.target - p.current)+' more coins! Hit it for +' + nextBonus + ' coins each.';
   } else if(p.pct >= 40){
-    cheer = 'Keep going! You\'re over halfway as a class.';
+    cheer = 'Keep going! Over halfway as a class. +' + nextBonus + ' coins each when you finish.';
   } else if(p.pct >= 10){
-    cheer = 'Great start — every star counts toward the class goal.';
+    cheer = 'Great start — every coin counts toward Level '+level+'.';
+  } else if(level === 1){
+    cheer = 'New week, fresh goal. Hit '+p.target+' coins together for +' + nextBonus + ' coins each!';
   } else {
-    cheer = 'New week, fresh goal. Let\'s work together to hit '+p.target+'!';
+    cheer = 'Level '+level+' unlocked! New target: '+p.target+' coins. Bonus: +' + nextBonus + ' coins each.';
   }
   card.appendChild(h('div',{class:'coop-cheer'}, cheer));
   // Per-kid contribution chips — skip if zero so an inactive kid doesn't
@@ -14121,8 +14222,8 @@ function buildCoopGoalCard(opts){
     ]));
   });
   if(chips.childNodes.length) card.appendChild(chips);
-  if(justPaidBonus){
-    card.appendChild(h('div',{class:'coop-bonus-banner'}, '🎁 You helped us win! +5 coins added to your wallet.'));
+  if(bonusPaid > 0){
+    card.appendChild(h('div',{class:'coop-bonus-banner'}, '🎁 You helped us win Level ' + level + '! +' + bonusPaid + ' coins added to your wallet.'));
   }
   return card;
 }
