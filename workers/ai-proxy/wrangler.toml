@@ -62,7 +62,7 @@ FEATURE_SIMPLIFY           = "true"   # ESL / early-reader rewrites
 
 # Phase B (content depth, reuses Phase A infra)
 FEATURE_GENERATE_QUESTIONS = "true"   # stretch-mode harder variants
-FEATURE_WORKED_EXAMPLE     = "false"  # step-by-step walkthroughs
+FEATURE_WORKED_EXAMPLE     = "true"   # "Show me how" — Nova walks the kid through HOW (not the answer)
 
 # Phase C (parent/teacher facing)
 FEATURE_TEACHER_SUMMARY    = "false"  # weekly teacher dashboard card

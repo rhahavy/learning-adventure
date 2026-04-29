@@ -735,6 +735,68 @@ img{max-width:100%}
 .q-visual{margin:16px 0 8px;font-size:clamp(48px,8vw,72px);letter-spacing:4px;line-height:1}
 .q-passage{margin:16px auto;max-width:640px;background:#fff;padding:22px 26px;border-radius:var(--r);font-size:clamp(18px,2.4vw,22px);color:var(--ink);line-height:1.55;text-align:left;border-left:4px solid var(--sky);box-shadow:var(--shadow);font-weight:500}
 
+/* In-quiz Nova helper — small floating mascot with "Show me how"
+   button. Lives in the bottom-right of the quiz card so it's always
+   reachable without disturbing the question content. On tap, the
+   button morphs into a step bubble that walks through the strategy
+   one piece at a time (with auto-narration via speakAsNova).
+   Toggle: novaInQuizEnabled (per-device, controlled from the
+   dashboard). */
+.quiz-nova-helper{
+  margin-top:14px;
+  display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+  position:relative;
+}
+.quiz-nova-helper .qnh-mascot{transform:scale(.65);transform-origin:bottom right;margin-right:-10px;margin-bottom:-10px}
+.quiz-nova-helper .qnh-show-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;border:none;border-radius:999px;
+  background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);
+  color:#fff;font-family:inherit;font-size:14px;font-weight:800;
+  letter-spacing:.01em;cursor:pointer;
+  box-shadow:0 6px 16px rgba(108,92,231,.32);
+  transition:transform .15s ease,filter .15s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.quiz-nova-helper .qnh-show-btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.quiz-nova-helper .qnh-show-btn:disabled{opacity:.7;cursor:wait}
+.quiz-nova-helper .qnh-show-ico{font-size:16px;line-height:1}
+.quiz-nova-helper .qnh-bubble{
+  max-width:380px;width:100%;
+  background:#fff;border:2px solid rgba(108,92,231,.25);
+  border-radius:18px;padding:14px 16px;
+  box-shadow:0 8px 24px rgba(108,92,231,.18);
+  text-align:left;
+  animation:qnhBubbleIn .35s var(--spring);
+}
+.quiz-nova-helper .qnh-bubble.qnh-dismiss{animation:qnhBubbleOut .3s ease forwards}
+@keyframes qnhBubbleIn{0%{opacity:0;transform:translateY(8px) scale(.92)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes qnhBubbleOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.92)}}
+.quiz-nova-helper .qnh-bubble-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(108,92,231,.12)}
+.quiz-nova-helper .qnh-badge{background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;font-size:10px;font-weight:800;letter-spacing:.7px;padding:2px 8px;border-radius:999px}
+.quiz-nova-helper .qnh-step-counter{font-size:11px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.5px}
+.quiz-nova-helper .qnh-bubble-body{font-size:15px;font-weight:600;color:var(--ink);line-height:1.55;margin-bottom:10px}
+.quiz-nova-helper .qnh-bubble-actions{display:flex;justify-content:flex-end}
+.quiz-nova-helper .qnh-next{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border:none;border-radius:999px;
+  background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);
+  color:#fff;font-family:inherit;font-size:13px;font-weight:800;
+  cursor:pointer;box-shadow:0 4px 12px rgba(108,92,231,.3);
+  transition:transform .15s ease,filter .15s ease;
+}
+.quiz-nova-helper .qnh-next:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.quiz-nova-helper .qnh-bubble-soft{
+  background:#faf9ff;border-color:rgba(108,92,231,.18);
+  font-size:14px;font-weight:600;color:var(--ink2);
+  text-align:center;
+}
+@media (max-width:520px){
+  .quiz-nova-helper{align-items:stretch}
+  .quiz-nova-helper .qnh-mascot{align-self:flex-end}
+  .quiz-nova-helper .qnh-bubble{max-width:none}
+}
+
 /* Active reading mode — chunked passage UI. The kid sees ONE chunk at a
    time with TTS auto-playing, taps "Got it →" to advance. Past chunks
    stay visible above (gray, smaller) so by the final chunk the full
@@ -10813,6 +10875,27 @@ const NOVA_MUTE_KEY = 'kidquest-nova-muted';
 let novaMuted = (function(){
   try{ return localStorage.getItem(NOVA_MUTE_KEY) === '1'; }catch(e){ return false; }
 })();
+/* NOVA_QUIZ_KEY — DEVICE-level toggle for Nova-as-quiz-helper.
+   When ON (default), Nova appears as a small floating mascot during
+   quiz screens with a "Show me how" button so kids who are stuck have
+   a friendly first move that's not "give up." When OFF, the mascot
+   and the help button are both hidden — for kids who find the extra
+   character distracting or who already grasp the question and just
+   want to answer. Per-device (not per-student) so a parent can
+   suppress it on the kid's tablet without it affecting the teacher
+   demo on the same site. */
+const NOVA_QUIZ_KEY = 'kidquest-nova-in-quiz';
+let novaInQuizEnabled = (function(){
+  try{
+    const raw = localStorage.getItem(NOVA_QUIZ_KEY);
+    // Default ON — only OFF when explicitly set to '0'.
+    return raw !== '0';
+  }catch(e){ return true; }
+})();
+function setNovaInQuiz(enabled){
+  novaInQuizEnabled = !!enabled;
+  try{ localStorage.setItem(NOVA_QUIZ_KEY, novaInQuizEnabled ? '1' : '0'); }catch(e){}
+}
 // Per-DEVICE PIN lockout state. We used to store `locked` + `loginAttempts`
 // on the cloud-synced user record, which had two bad side effects:
 //   1. A sibling mashing the wrong emoji on the shared iPad locked the kid
@@ -18848,6 +18931,26 @@ function renderDashboard(root){
     ]),
     h('span',{class:'tts-label'},'Read aloud'),
   ]);
+  // Nova-in-quiz toggle — same iOS-switch pattern as Read aloud, but
+  // controls whether Nova appears as a small floating helper during
+  // quiz screens (with the "Show me how" button). Default ON; per-
+  // device, so muting on a kid's tablet doesn't propagate to a teacher
+  // demo on the same site.
+  const novaQuizOn = !!novaInQuizEnabled;
+  const novaQuizToggle = h('button',{
+    class:'tts-dash-toggle nova-quiz-toggle'+(novaQuizOn?' on':''),
+    'aria-pressed': novaQuizOn ? 'true' : 'false',
+    title: novaQuizOn ? 'Nova helps during quizzes — tap to turn off' : 'Nova is hidden during quizzes — tap to turn on',
+    onclick: ()=>{
+      setNovaInQuiz(!novaInQuizEnabled);
+      renderDashboard(root);
+    }
+  }, [
+    h('span',{class:'tts-track','aria-hidden':'true'}, [
+      h('span',{class:'tts-knob'})
+    ]),
+    h('span',{class:'tts-label'},'Nova in quizzes'),
+  ]);
   // NOTE: Plan type (IEP/gifted/ESL/custom) and support tags (articulation,
   // etc.) are intentionally NOT shown on the kid-facing dashboard. That info
   // lives on the teacher dashboard only — it's for the tutor's planning, not
@@ -18862,6 +18965,7 @@ function renderDashboard(root){
     h('button',{class:'change-avatar-btn',onclick:()=>go('avatars')}, '🎨 Change avatar'),
     h('button',{class:'change-theme-btn',onclick:()=>go('themes')}, '🌈 Change theme'),
     ttsToggle,
+    novaQuizToggle,
     // Replay Tutorial — bypasses the onboardingCompleted flag so a curious
     // kid (or a parent showing a new sibling) can re-launch Nova's walkthrough
     // anytime. Hidden on demo accounts to keep the preview uncluttered.
@@ -19885,6 +19989,14 @@ function renderQ(wrap){
     else if(q.type==='compare') renderCompare(card,q);
     else if(q.type==='match') renderMatch(card,q);
     else if(q.type==='order') renderOrder(card,q);
+    // Nova-as-helper — small floating mascot + "Show me how" button that
+    // launches a step-by-step walkthrough via /worked-example. Gated on
+    // the per-device toggle (novaInQuizEnabled). When the AI feature is
+    // off Nova still shows up as a silent friendly presence.
+    try {
+      const novaHelper = buildQuizNovaHelper(q);
+      if(novaHelper) card.appendChild(novaHelper);
+    } catch(e){ console.warn('[Solvix] quiz-nova helper failed:', e); }
   }
   const fb=h('div',{class:'feedback',id:'fb'},'');
   wrap.appendChild(card); wrap.appendChild(fb);
@@ -21023,6 +21135,128 @@ function attachAiExplainButton(fb){
     }
     wrap.appendChild(out);
   });
+}
+
+/* Build the in-quiz Nova helper. A small floating mascot with a
+   "Show me how" button — when tapped, calls /worked-example to get
+   a step-by-step strategy walkthrough (NOT the answer) and reveals
+   the steps one at a time inside a Nova-themed bubble.
+   Returns null when:
+     • novaInQuizEnabled is off (kid disabled it on dashboard)
+     • FEATURE_WORKED_EXAMPLE is off server-side
+     • the question has no prompt to walk through
+   The helper element gets a fixed-position class so it sits in the
+   bottom-right of the viewport without disturbing the question card
+   layout. Hides itself once the kid has answered (quiz.locked). */
+function buildQuizNovaHelper(q){
+  if(!novaInQuizEnabled) return null;
+  if(!q || (!q.q && !q.prompt)) return null;
+  // Don't show on lesson cards (no answer to "show me how" for).
+  if(q.type === 'lesson') return null;
+
+  const root = h('div',{class:'quiz-nova-helper'});
+
+  // Mascot + prompt button (visible state). On tap, replaced with
+  // step bubbles below.
+  const mascotWrap = h('div',{class:'qnh-mascot'});
+  try {
+    const m = createMascot({ tone:'cheerful', size:64 });
+    if(m) mascotWrap.appendChild(m);
+  } catch(e){ /* mascot is decorative — silent fail */ }
+  root.appendChild(mascotWrap);
+
+  // The button only appears when the AI feature is on. Without it,
+  // Nova is still visible as a friendly presence (the user explicitly
+  // wanted Nova-as-helper even without the AI walkthrough).
+  if(aiFeatureOn('FEATURE_WORKED_EXAMPLE')){
+    const showBtn = h('button',{
+      type:'button', class:'qnh-show-btn',
+      title:'Nova will walk you through HOW to think about this question — without giving away the answer.',
+    },[
+      h('span',{class:'qnh-show-ico'},'🎓'),
+      h('span',{},'Show me how'),
+    ]);
+    root.appendChild(showBtn);
+
+    showBtn.addEventListener('click', async ()=>{
+      showBtn.disabled = true;
+      // Replace the button with a spinner inline.
+      showBtn.innerHTML = '';
+      showBtn.appendChild(h('span',{class:'ai-btn-spin'}));
+      showBtn.appendChild(h('span',{style:'margin-left:8px'},'Nova is thinking…'));
+
+      const payload = {
+        questionType: q.type || 'unknown',
+        prompt: q.q || q.prompt || '',
+        choices: Array.isArray(q.choices) ? q.choices.slice(0, 6) : null,
+        gradeContext: (function(){
+          try{
+            const me = STUDENTS.find(x=>x.id===currentUser);
+            return me ? me.grade : '';
+          }catch(_){ return ''; }
+        })(),
+      };
+      const res = await callAI('/worked-example', payload, { studentId: currentUser, timeoutMs: 14000 });
+      showBtn.remove();
+
+      // Build the step-bubble UI.
+      if(res.ok && res.data && Array.isArray(res.data.steps) && res.data.steps.length){
+        const steps = res.data.steps;
+        const finalNudge = res.data.finalNudge || 'Now you can pick the answer!';
+        const bubble = h('div',{class:'qnh-bubble'});
+        const head = h('div',{class:'qnh-bubble-head'},[
+          h('span',{class:'qnh-badge'},'NOVA'),
+          h('span',{class:'qnh-step-counter'}, 'Step 1 of ' + steps.length),
+        ]);
+        const body = h('div',{class:'qnh-bubble-body'}, steps[0]);
+        const actions = h('div',{class:'qnh-bubble-actions'});
+        const nextBtn = h('button',{type:'button', class:'qnh-next'},
+          steps.length === 1 ? '✓ Got it' : '✓ Got it →');
+        actions.appendChild(nextBtn);
+        bubble.appendChild(head);
+        bubble.appendChild(body);
+        bubble.appendChild(actions);
+        root.appendChild(bubble);
+
+        // Auto-narrate each step as it appears (Nova reads it aloud).
+        try { speakAsNova(steps[0]); } catch(_){}
+
+        let idx = 0;
+        nextBtn.addEventListener('click', ()=>{
+          if(idx < steps.length - 1){
+            idx += 1;
+            head.querySelector('.qnh-step-counter').textContent = 'Step ' + (idx+1) + ' of ' + steps.length;
+            body.textContent = steps[idx];
+            try { speakAsNova(steps[idx]); } catch(_){}
+            if(idx === steps.length - 1){
+              nextBtn.textContent = '✓ Got it';
+            }
+          } else {
+            // Final tap — replace with the nudge then auto-dismiss.
+            head.querySelector('.qnh-step-counter').textContent = 'Now try it!';
+            body.textContent = finalNudge;
+            actions.remove();
+            try { speakAsNova(finalNudge); } catch(_){}
+            setTimeout(()=>{
+              try { bubble.classList.add('qnh-dismiss'); } catch(_){}
+              setTimeout(()=>{ try{ bubble.remove(); }catch(_){} }, 350);
+            }, 2200);
+          }
+        });
+      } else if(res.capped){
+        const bubble = h('div',{class:'qnh-bubble qnh-bubble-soft'},
+          'You\'ve used all your AI helps for today — try sounding it out, and come back tomorrow for more help!');
+        root.appendChild(bubble);
+      } else {
+        // disabled / error / network — friendly fallback.
+        const bubble = h('div',{class:'qnh-bubble qnh-bubble-soft'},
+          'Take a deep breath. Read the question slowly. You\'ve got this!');
+        root.appendChild(bubble);
+      }
+    });
+  }
+
+  return root;
 }
 
 /* Appends an AI writing-feedback panel below the rubric. The rubric

@@ -4288,9 +4288,9 @@ const ROUTES = {
   'POST /explain':            { flag: 'FEATURE_EXPLAIN',            fn: handleExplain },
   'POST /feedback':           { flag: 'FEATURE_FEEDBACK',           fn: handleFeedback },
   'POST /simplify':           { flag: 'FEATURE_SIMPLIFY',           fn: handleSimplify },
-  // Phase B — real handler for generate-questions; worked-example still stubbed.
+  // Phase B — real handlers.
   'POST /generate-questions': { flag: 'FEATURE_GENERATE_QUESTIONS', fn: handleGenerateQuestions },
-  'POST /worked-example':     { flag: 'FEATURE_WORKED_EXAMPLE',     fn: notYetImplemented('worked-example') },
+  'POST /worked-example':     { flag: 'FEATURE_WORKED_EXAMPLE',     fn: handleWorkedExample },
   // Phase C — scaffolded.
   'POST /teacher-summary':    { flag: 'FEATURE_TEACHER_SUMMARY',    fn: notYetImplemented('teacher-summary') },
   'POST /parent-report':      { flag: 'FEATURE_PARENT_REPORT',      fn: notYetImplemented('parent-report') },
@@ -4665,6 +4665,93 @@ async function handleExplain(request, env, ctx, corsOrigin) {
     },
     postProcess: (text) => ({ explanation: (text || '').trim().slice(0, 500) }),
     auditSummary: (inputs) => `explain → Q="${(inputs.prompt||'').slice(0, 60)}"`,
+  });
+}
+
+// ---- /worked-example ---------------------------------------------------
+// "Show me how" — Nova walks the kid through HOW to approach a question
+// step-by-step BEFORE they answer it, without revealing the answer.
+// Distinct from /explain (which fires AFTER a wrong answer to explain
+// what they missed): this is proactive guidance for kids who don't know
+// where to start.
+//
+// Cache key: question + choices + curriculum + grade. Same question
+// always yields the same walkthrough. 30-day TTL same as /explain.
+//
+// Output shape: { steps: [string, ...], finalNudge: string }
+//   - 2-4 steps, each <= 1 sentence
+//   - finalNudge points kid back to the choices ("Now you can pick!")
+async function handleWorkedExample(request, env, ctx, corsOrigin) {
+  return runStandardHandler({
+    request, env, ctx, corsOrigin,
+    endpoint: '/worked-example',
+    readInputs: async (body) => ({
+      questionType: String(body.questionType || 'unknown').slice(0, 40),
+      prompt: String(body.prompt || '').trim().slice(0, 600),
+      choices: Array.isArray(body.choices) ? body.choices.slice(0, 6).map(c => String(c).slice(0, 120)) : null,
+      gradeContext: String(body.gradeContext || '').slice(0, 40),
+      curriculum: (body.curriculum && typeof body.curriculum === 'object') ? body.curriculum : null,
+    }),
+    validate: ({ prompt }) => prompt ? null : { error: 'missing_prompt' },
+    cacheKey: ({ prompt, choices, gradeContext, curriculum }) =>
+      hashKey(
+        'worked-example',
+        prompt,
+        JSON.stringify(choices || []),
+        gradeContext,
+        curriculum ? JSON.stringify({g:curriculum.grade, s:curriculum.strand, c:curriculum.codes}) : ''
+      ),
+    cacheTtlSeconds: 30 * 24 * 3600,
+    maxTokens: 320,
+    buildSystemPrompt: () => (
+      'You are Nova, a warm AI tutor for a child who is stuck on a quiz question. Show them HOW to approach the question step by step — without giving away the answer. Reply with STRICT JSON ONLY (no prose, no markdown fences). Shape:\n' +
+      '{\n' +
+      '  "steps": [string, ...]   // 2 to 4 short steps. Each step is one sentence.\n' +
+      '  "finalNudge": string     // one short sentence pointing them back to the choices\n' +
+      '}\n\n' +
+      'Rules:\n' +
+      '- DO NOT reveal which choice is correct. Never say "the answer is" or hint at a specific letter/number.\n' +
+      '- Show the STRATEGY: how to read the question, what to look for, what to compare.\n' +
+      '- Match the grade level: K-2 very simple words, 3-5 friendly, 6+ solid.\n' +
+      '- Be warm and concise — kids stuck on a question already feel slow; no lectures.\n' +
+      '- Never mention the student\'s name or any identifying detail.\n' +
+      '- finalNudge example: "Now you can pick the one that fits!" or "Try it — you\'ve got this."'
+      + KID_SAFE_RULES
+      + CURRICULUM_ALIGNMENT_RULES
+    ),
+    buildUserPrompt: ({ questionType, prompt, choices, gradeContext, curriculum }) => {
+      let p = buildCurriculumBlock(curriculum || { grade: gradeContext }) + '\n\n';
+      p += 'Question type: ' + questionType + '\n';
+      p += 'Question the child sees: ' + prompt + '\n';
+      if (choices && choices.length) {
+        p += 'Choices the child sees:\n';
+        choices.forEach((c, i) => { p += '  ' + i + '. ' + c + '\n'; });
+      }
+      p += '\nNow write the JSON walkthrough — strategy only, no answer reveal.';
+      return p;
+    },
+    postProcess: (text) => {
+      const parsed = parseJsonFromText(text);
+      if (!parsed || typeof parsed !== 'object') {
+        return { error: 'parse_failed', raw: (text || '').slice(0, 200) };
+      }
+      const out = {};
+      if (Array.isArray(parsed.steps)) {
+        out.steps = parsed.steps
+          .filter(s => typeof s === 'string')
+          .map(s => s.trim().slice(0, 280))
+          .filter(Boolean)
+          .slice(0, 4);
+      }
+      if (typeof parsed.finalNudge === 'string' && parsed.finalNudge.trim()) {
+        out.finalNudge = parsed.finalNudge.trim().slice(0, 160);
+      }
+      if (!out.steps || out.steps.length === 0) {
+        return { error: 'no_steps' };
+      }
+      return out;
+    },
+    auditSummary: (inputs) => `worked-example → Q="${(inputs.prompt||'').slice(0, 60)}"`,
   });
 }
 
