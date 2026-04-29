@@ -16,7 +16,7 @@
    current version. skipWaiting + clients.claim means the new SW takes
    over on the very next page load after deploy. */
 
-const SW_VERSION = 'kidquest-v117-locked-down-nova-chat';
+const SW_VERSION = 'kidquest-v118-no-purple-nova';
 const SHELL_CACHE = SW_VERSION + '-shell';
 const RUNTIME_CACHE = SW_VERSION + '-runtime';
 

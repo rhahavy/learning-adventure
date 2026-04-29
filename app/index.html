@@ -22469,7 +22469,12 @@ function finishActivity(){
     if(rwMascot){
       rwMascot.innerHTML = '';
       const tier = !passed ? 'fail' : pct===1 ? 'perfect' : pct>=.7 ? 'great' : 'pass';
-      const tone = tier==='perfect' ? 'victory' : tier==='great' ? 'warm' : tier==='pass' ? 'cheerful' : 'magic';
+      // Apr 2026: dropped 'magic' (purple) for the fail tier — kids saw
+      // Nova suddenly switching colors and read it as a "different
+      // character." Falling back to 'cheerful' (blue/teal) keeps her
+      // visually consistent across tiers; the message + emoji still
+      // signal that this run didn't pass.
+      const tone = tier==='perfect' ? 'victory' : tier==='great' ? 'warm' : 'cheerful';
       const pep  = pickRewardPepTalk(tier, {
         isStretch,
         streakPerfects: window.__novaPerfectStreak || 0,
@@ -23331,7 +23336,7 @@ function miniGameAward(rating){
 function showMiniGameWin(opts){
   const overlay = h('div',{class:'mg-win-overlay'});
   const card = h('div',{class:'mg-win-card'});
-  const tone = opts.rating === 3 ? 'victory' : opts.rating === 2 ? 'warm' : opts.rating === 1 ? 'cheerful' : 'magic';
+  const tone = opts.rating === 3 ? 'victory' : opts.rating === 2 ? 'warm' : 'cheerful';
   const novaMsg = opts.rating === 3 ? 'Incredible!' : opts.rating === 2 ? 'Nice run!' : opts.rating === 1 ? 'Good try!' : 'Keep going!';
   card.appendChild(createMascot({ tone, size:78, message: novaMsg }));
   card.appendChild(h('h2',{class:'mg-win-title'}, opts.title));
@@ -23378,7 +23383,7 @@ function renderMiniHub(root){
     h('button',{class:'back-btn',onclick:()=>go('dashboard')},'← Back'),
   ]));
   root.appendChild(h('div',{class:'mini-hub-intro'},[
-    createMascot({ tone:'magic', size:90, message:'Need a brain break?' }),
+    createMascot({ tone:'cheerful', size:90, message:'Need a brain break?' }),
   ]));
   const today = new Date().toISOString().slice(0,10);
   const coinsToday = (state.miniGameStats.date === today) ? (state.miniGameStats.coinsToday||0) : 0;
@@ -23626,7 +23631,7 @@ function renderQuickMath(root, opts){
   let timerId = null; let answerLocked = false;
 
   const intro = h('div',{class:'qm-intro'},[
-    createMascot({ tone:'magic', size:90, message: '60 seconds — how many can you get?' }),
+    createMascot({ tone:'cheerful', size:90, message: '60 seconds — how many can you get?' }),
     h('button',{class:'btn btn-primary qm-start-btn',onclick:startGame}, '▶️ Start!'),
   ]);
   root.appendChild(intro);
@@ -23843,7 +23848,7 @@ function renderOddOneOut(root, opts){
   let qi = 0;
 
   const intro = h('div',{class:'oo-intro'},[
-    createMascot({ tone:'magic', size:90, message:'Pick the one that doesn\u2019t fit!' }),
+    createMascot({ tone:'cheerful', size:90, message:'Pick the one that doesn\u2019t fit!' }),
     h('button',{class:'btn btn-primary qm-start-btn',onclick:startGame}, '▶️ Start!'),
   ]);
   root.appendChild(intro);
@@ -23957,7 +23962,7 @@ function renderSimonSays(root, opts){
   let acceptingInput = false;
 
   const intro = h('div',{class:'ss-intro'},[
-    createMascot({ tone:'magic', size:90, message:'Watch the pattern. Tap it back!' }),
+    createMascot({ tone:'cheerful', size:90, message:'Watch the pattern. Tap it back!' }),
     h('button',{class:'btn btn-primary qm-start-btn',onclick:startGame}, '▶️ Start!'),
   ]);
   root.appendChild(intro);
@@ -24164,7 +24169,7 @@ function renderDropSum(root, opts){
     ]);
   }
   const intro = h('div',{class:'ds-intro'},[
-    createMascot({ tone:'magic', size:90, message:'Pick a difficulty!' }),
+    createMascot({ tone:'cheerful', size:90, message:'Pick a difficulty!' }),
     h('p',{style:'max-width:380px;margin:0 auto;font-size:13.5px;color:var(--ink3);font-weight:600;line-height:1.5'},
       'A new number appears at the top. Press ← → to move it, then ↓ or Space to drop. Stack numbers that add to 10 to clear them — everything above falls down. Chain clears earn combo bonuses!'),
     h('div',{class:'ds-mode-grid'},[
@@ -24675,7 +24680,7 @@ function renderGameAlienQuiz(root, opts){
 
   // ---- INTRO ----
   const intro = h('div',{class:'aq-intro'},[
-    createMascot({ tone:'magic', size:90, message:'Six fun questions. Find your alien match!' }),
+    createMascot({ tone:'cheerful', size:90, message:'Six fun questions. Find your alien match!' }),
     h('button',{class:'btn btn-primary qm-start-btn',onclick:startQuiz}, '🚀 Start!'),
   ]);
   root.appendChild(intro);
