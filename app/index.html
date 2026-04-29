@@ -20882,11 +20882,36 @@ function maybeInjectEasier(){
   if(!shouldBridgeNow()) return;
   const currentQ = quiz.questions[quiz.idx];
   const easier = getEasierQuestion(currentQ);
-  if(!easier) return;
-  quiz.questions[quiz.idx + 1] = easier;
-  quiz.easyBridgeIdx = quiz.idx + 1;
+  if(easier){
+    // Standard adaptive-down: swap the next question for an easier one
+    // pulled from the authored easy pool or the previous level.
+    quiz.questions[quiz.idx + 1] = easier;
+    quiz.easyBridgeIdx = quiz.idx + 1;
+    quiz.easyBridgeUsed = true;
+    quiz.wrongStreak = 0;
+    return;
+  }
+  // No easier source available — Level 1 of a subject has no prior
+  // level to fall back to, and nothing in the codebase has authored
+  // easyQuestions arrays. Solvix should NEVER tell a struggling kid
+  // "ask your teacher" — Nova IS the in-app teacher. Auto-trigger the
+  // FEATURE_EXPLAIN flow that's already wired up via attachAiExplainButton
+  // so the kid gets a kid-friendly walk-through of the concept they
+  // just missed, without needing to know to click the button. Help
+  // arrives proactively.
   quiz.easyBridgeUsed = true;
-  quiz.wrongStreak = 0; // reset — we've already responded to the struggle
+  quiz.wrongStreak = 0;
+  if(aiFeatureOn('FEATURE_EXPLAIN')){
+    // Tiny delay so the wrong-answer feedback animates in first; then
+    // auto-click the explain button that setFB already added to #fb.
+    setTimeout(()=>{
+      try {
+        const fb  = document.getElementById('fb');
+        const btn = fb && fb.querySelector('.ai-btn');
+        if(btn && !btn.disabled) btn.click();
+      } catch(_){}
+    }, 350);
+  }
 }
 function nextQ(){
   if(quiz.idx+1<quiz.questions.length){quiz.idx++;quiz.locked=false;renderQ($('.quiz'))}
