@@ -149,6 +149,31 @@ section.tight{padding:56px 0}
 .feature h3{font-size:20px;font-weight:800;margin-bottom:8px}
 .feature p{color:var(--ink2);line-height:1.55;font-size:15px}
 
+/* Adaptive engine — the actual differentiator vs other learning apps.
+   Two large side-by-side cards, each "branded" with its own accent
+   gradient. Bridge gets warm/coral (catches you when you fall);
+   Stretch gets the brand purple→sky (lifts you up). The accent strip
+   on top + matching pip color in the list ties the visual story
+   together without needing a second illustration per card. */
+#adapts{background:linear-gradient(180deg,transparent 0%,#F4F1FF 60%,transparent 100%)}
+.adapt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:1000px;margin:0 auto}
+@media(max-width:780px){.adapt-grid{grid-template-columns:1fr}}
+.adapt-card{position:relative;background:var(--card);border-radius:var(--r);padding:32px;box-shadow:var(--shadow);border:1px solid var(--line);overflow:hidden;transition:transform .2s ease,box-shadow .2s ease}
+.adapt-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.adapt-card::before{content:"";position:absolute;top:0;left:0;right:0;height:6px;background:var(--adapt-accent)}
+.adapt-bridge{--adapt-accent:linear-gradient(90deg,#FF8FAB,#FFB199);--adapt-pip:#FF8FAB;--adapt-icon-bg:#FFE5EC}
+.adapt-stretch{--adapt-accent:linear-gradient(90deg,#6C5CE7,#74B9FF);--adapt-pip:#6C5CE7;--adapt-icon-bg:#E8E5FF}
+.adapt-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;margin-top:6px}
+.adapt-icon{width:54px;height:54px;border-radius:16px;background:var(--adapt-icon-bg);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.adapt-name{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);line-height:1}
+.adapt-card .adapt-tag{font-size:18px;font-weight:800;color:var(--ink);margin-top:4px;letter-spacing:-.01em}
+.adapt-card h3{font-size:22px;line-height:1.3;font-weight:800;margin:0 0 12px;letter-spacing:-.01em}
+.adapt-card>p{color:var(--ink2);line-height:1.6;font-size:15px;margin:0 0 20px}
+.adapt-list{list-style:none;padding:0;margin:0}
+.adapt-list li{position:relative;padding:10px 0 10px 22px;font-size:14px;color:var(--ink2);line-height:1.5;border-top:1px solid var(--line)}
+.adapt-list li:first-child{border-top:0}
+.adapt-list li::before{content:"";position:absolute;left:4px;top:17px;width:8px;height:8px;border-radius:50%;background:var(--adapt-pip)}
+
 /* Subjects grid — concrete topic detail per subject so parents can see
    exactly what their kid will be doing. Sits between #features (the
    "what we offer" overview) and #see (the animated walkthroughs). Uses
@@ -798,6 +823,62 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         <div class="feature-icon" style="background:#e0f7f5">📚</div>
         <h3>8 core subjects</h3>
         <p>Reading, Writing, Math, Logic, Science, Social Studies, Coding, and French — all bundled. One login covers every skill your elementary learner is building.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ADAPTIVE ENGINE ============
+     The actual differentiator vs Khan, IXL, etc. Two named features
+     that run automatically with no parent setup:
+       • Early Bridge — catches struggling kids before they spiral
+         (rolling 3-of-last-5 wrong → swap easier OR pull Nova in)
+       • Stretch Mode — keeps fast kids out of repeat-the-easy-stuff
+         hell (lifetime perfect → harder questions in same skill,
+         backs off if recent accuracy drops)
+     Sits between #features (generic story) and #see (visual proof)
+     so the parent reads the conceptual story before watching the
+     mocks — when the hero animation later mentions "Stretch Mode",
+     they already know what it means. -->
+<section id="adapts">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-eyebrow">Adapts to each kid</span>
+      <h2>Two engines watching every answer</h2>
+      <p>Solvix nudges struggling kids gently down — and challenges flying kids up — without you lifting a finger.</p>
+    </div>
+
+    <div class="adapt-grid">
+      <div class="adapt-card adapt-bridge">
+        <div class="adapt-head">
+          <div class="adapt-icon">🌉</div>
+          <div>
+            <div class="adapt-name">Early Bridge</div>
+            <div class="adapt-tag">Catches kids before they spiral</div>
+          </div>
+        </div>
+        <p>The moment a kid misses 3 of the last 5 questions, Solvix swaps the next one for something easier — or pulls Nova in to walk it through step-by-step. No “ask your teacher” dead-ends.</p>
+        <ul class="adapt-list">
+          <li>Triggers automatically — no parent or teacher setup</li>
+          <li>Adjusts faster for kids on an IEP plan (2 of last 3)</li>
+          <li>Resets the moment they’re back on track</li>
+        </ul>
+      </div>
+
+      <div class="adapt-card adapt-stretch">
+        <div class="adapt-head">
+          <div class="adapt-icon">🚀</div>
+          <div>
+            <div class="adapt-name">Stretch Mode</div>
+            <div class="adapt-tag">No repeat-the-easy-stuff hell</div>
+          </div>
+        </div>
+        <p>Once a kid aces an activity, the next visit serves harder questions in the same skill — not a copy-paste of what they already mastered. If they slip on the harder version, it backs off automatically.</p>
+        <ul class="adapt-list">
+          <li>Per-skill, lifetime-tracked progress</li>
+          <li>Backs off if recent accuracy drops below 60%</li>
+          <li>Stays on grade-level curriculum, not random extension</li>
+        </ul>
       </div>
     </div>
   </div>
