@@ -602,8 +602,11 @@ img{max-width:100%}
    row containers below them control wrapping/spacing. */
 .dash-hero .dash-action-btn{background:rgba(108,92,231,.12);color:var(--primary);border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit;white-space:nowrap}
 .dash-hero .dash-action-btn:hover{background:rgba(108,92,231,.22);transform:translateY(-1px)}
-.dash-hero .dash-info-actions{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.dash-hero .dash-info-toggles{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* `.info` is now a column flex with gap:8px (see above), so these
+   row containers don't need their own margin-top — the parent gap
+   handles inter-row spacing uniformly. */
+.dash-hero .dash-info-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.dash-hero .dash-info-toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 /* Legacy classes — kept for backwards compatibility with any place
    that still uses them (e.g. the Nova-tour selector at line ~17776
    targets .change-avatar-btn). They alias to the unified style. */
@@ -621,7 +624,8 @@ img{max-width:100%}
    text. With real inner DOM we have explicit visual order — track
    (with knob inside) sits to the LEFT of the label, no overlap. */
 .dash-hero .tts-dash-toggle{
-  margin-top:6px;margin-left:6px;
+  /* Inline margins removed Apr 2026 — toggles now live inside
+     .dash-info-toggles which controls spacing via flex gap. */
   display:inline-flex;align-items:center;gap:10px;
   background:#fff;color:#5B5580;
   border:2px solid #d8dbe0;
@@ -659,9 +663,13 @@ img{max-width:100%}
 .dash-hero .tts-dash-toggle.on .tts-knob{transform:translateX(14px);box-shadow:0 1px 4px rgba(0,0,0,.28)}
 .dash-hero .av{width:100px;height:100px;border-radius:28px;display:grid;place-items:center;font-size:52px;color:#fff;font-weight:700;font-family:var(--font-display);border:3px solid #fff;box-shadow:0 12px 26px rgba(26,16,53,.2),inset 0 -4px 0 rgba(0,0,0,.18);flex-shrink:0;transition:transform .4s var(--spring)}
 .dash-hero:hover .av{transform:rotate(-4deg) scale(1.04)}
-.dash-hero .info{flex:1;min-width:200px}
-.dash-hero h1{font-family:var(--font-display);font-size:clamp(26px,4vw,36px);font-weight:700;letter-spacing:-.01em}
-.dash-hero .grade-pill{display:inline-block;margin-top:6px;padding:5px 14px;border-radius:999px;font-size:13px;font-weight:700;background:linear-gradient(135deg,rgba(108,92,231,.12),rgba(253,121,168,.12));color:var(--primary);border:1.5px solid rgba(108,92,231,.15)}
+.dash-hero .info{flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px}
+.dash-hero h1{font-family:var(--font-display);font-size:clamp(26px,4vw,36px);font-weight:700;letter-spacing:-.01em;margin:0;line-height:1.1}
+/* Title + grade pill share a row (Apr 2026). Pre-fix the pill
+   wrapped to its own line under the h1; baseline-aligning them
+   makes the header read as a single unit. */
+.dash-hero .dash-info-header{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.dash-hero .grade-pill{display:inline-block;padding:5px 14px;border-radius:999px;font-size:13px;font-weight:700;background:linear-gradient(135deg,rgba(108,92,231,.12),rgba(253,121,168,.12));color:var(--primary);border:1.5px solid rgba(108,92,231,.15);white-space:nowrap}
 /* Education plan pill — shown next to grade-pill when the student is on
    an IEP, gifted, ESL, or custom plan. Color + background come from the
    PLAN_META entry so each plan type has its own accent. cursor:help
@@ -22422,9 +22430,16 @@ function renderDashboard(root){
       onclick:()=>{ try{ runNovaTour(); }catch(e){ console.warn('[Solvix] replay tour failed:',e); } },
     }, '🎓 Replay Tutorial'),
   ].filter(Boolean);
+  // Title + grade pill share one row (baseline-aligned), then a row
+  // of action buttons, then a row of toggles. Pre-fix the four items
+  // were free-flowing siblings — h1 took its own line, grade pill
+  // dropped under it, and the two control rows looked disconnected.
+  // Wrapping the header in its own flex container glues them.
   const heroInfoKids = [
-    h('h1',{},'Hi, '+s.name+'!'),
-    h('span',{class:'grade-pill'},s.grade),
+    h('div',{class:'dash-info-header'}, [
+      h('h1',{},'Hi, '+s.name+'!'),
+      h('span',{class:'grade-pill'},s.grade),
+    ]),
     h('div',{class:'dash-info-actions'}, actionButtons),
     h('div',{class:'dash-info-toggles'}, [ttsToggle, novaQuizToggle]),
   ];
