@@ -419,6 +419,13 @@ tbody tr:last-child td{border-bottom:none}
    with the cartoon-biased query + Short duration filter applied. */
 .cv-vt-search{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;background:#fee2e2;color:#991b1b;font-weight:700;font-size:12.5px;text-decoration:none;border:1px solid #fca5a5;font-family:inherit;cursor:pointer;transition:all .15s ease;margin-right:6px}
 .cv-vt-search:hover{background:#fecaca;text-decoration:none}
+/* Controls strip above the videos table — chips on the left,
+   "hide demos" toggle pushed to the right. */
+.cv-videos-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.cv-videos-controls .cv-videos-filter{margin-bottom:0}
+.cv-videos-demo-toggle{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:#fff;border:1.5px solid var(--line);font-size:12.5px;font-weight:700;color:var(--ink2);cursor:pointer;user-select:none;font-family:inherit}
+.cv-videos-demo-toggle input{margin:0;cursor:pointer;accent-color:var(--primary)}
+.cv-videos-demo-toggle:hover{background:#fafafd}
 
 /* ===== Preview tab ===== Lightweight mirror of the kid-facing lesson
    layout. Read-only render of formDraft so the operator can sanity-
@@ -2349,8 +2356,12 @@ tbody tr:last-child td{border-bottom:none}
   // Videos-mode UI state — kept separate so a re-render of the
   // curriculum tree doesn't reset the operator's chosen filter.
   // Default 'missing' so the work queue is what they see first.
+  // hideDemos defaults true: real lessons are the priority, demoOnly
+  // previews are 30s marketing samples kids never reach unless they're
+  // in a parent demo. Hiding them by default cuts the work queue ~40%.
   var videosState = {
-    filter: 'missing'             // 'missing' | 'filled' | 'all'
+    filter: 'missing',            // 'missing' | 'filled' | 'all'
+    hideDemos: true
   };
 
   var $currMeta      = document.getElementById('curriculum-meta');
@@ -2942,8 +2953,14 @@ tbody tr:last-child td{border-bottom:none}
     $currList.style.display = 'block';
     // Filter selector — re-rendered on chip click. Default to 'missing'
     // so the operator sees the work queue first.
-    if(!videosState) videosState = { filter: 'missing' };
-    var allLessons = allRows.filter(function(r){ return r.effective; });
+    if(!videosState) videosState = { filter: 'missing', hideDemos: true };
+    // Real-lessons-only filter applied first so the chip counts that
+    // follow reflect what the operator actually sees.
+    var allLessons = allRows.filter(function(r){
+      if(!r.effective) return false;
+      if(videosState.hideDemos && r.effective.demoOnly) return false;
+      return true;
+    });
     var withVideo = allLessons.filter(function(r){
       var ids = r.effective.videoIds;
       return Array.isArray(ids) && ids.length > 0 && ids.some(function(v){ return v && String(v).trim(); });
@@ -2952,6 +2969,9 @@ tbody tr:last-child td{border-bottom:none}
       var ids = r.effective.videoIds;
       return !Array.isArray(ids) || !ids.length || !ids.some(function(v){ return v && String(v).trim(); });
     });
+    // Demo count for the toggle label — pulled from the unfiltered set
+    // so the operator sees how many they'd unlock by flipping it off.
+    var demoCount = allRows.filter(function(r){ return r.effective && r.effective.demoOnly; }).length;
     var filtered;
     if(videosState.filter === 'all')      filtered = allLessons;
     else if(videosState.filter === 'filled') filtered = withVideo;
@@ -2963,18 +2983,26 @@ tbody tr:last-child td{border-bottom:none}
       return;
     }
 
-    // Header strip with chip-style filter + counts.
+    // Header strip with chip-style filter + counts + a "hide demos"
+    // toggle. The toggle defaults ON because demo previews are marketing
+    // 30s samples — real-lesson video coverage is the priority.
     var filterBar = (
-      '<div class="cv-videos-filter">'+
-        '<button type="button" class="cv-vf-chip'+(videosState.filter==='missing'?' active':'')+'" data-f="missing">'+
-          '⚠️ Missing <span class="cv-vf-count">'+withoutVideo.length+'</span>'+
-        '</button>'+
-        '<button type="button" class="cv-vf-chip'+(videosState.filter==='filled'?' active':'')+'" data-f="filled">'+
-          '✅ Has video <span class="cv-vf-count">'+withVideo.length+'</span>'+
-        '</button>'+
-        '<button type="button" class="cv-vf-chip'+(videosState.filter==='all'?' active':'')+'" data-f="all">'+
-          '📺 All <span class="cv-vf-count">'+allLessons.length+'</span>'+
-        '</button>'+
+      '<div class="cv-videos-controls">'+
+        '<div class="cv-videos-filter">'+
+          '<button type="button" class="cv-vf-chip'+(videosState.filter==='missing'?' active':'')+'" data-f="missing">'+
+            '⚠️ Missing <span class="cv-vf-count">'+withoutVideo.length+'</span>'+
+          '</button>'+
+          '<button type="button" class="cv-vf-chip'+(videosState.filter==='filled'?' active':'')+'" data-f="filled">'+
+            '✅ Has video <span class="cv-vf-count">'+withVideo.length+'</span>'+
+          '</button>'+
+          '<button type="button" class="cv-vf-chip'+(videosState.filter==='all'?' active':'')+'" data-f="all">'+
+            '📺 All <span class="cv-vf-count">'+allLessons.length+'</span>'+
+          '</button>'+
+        '</div>'+
+        '<label class="cv-videos-demo-toggle" title="Demo previews are 30s marketing samples kids only see in a parent-demo. Hide them to focus on real lessons.">'+
+          '<input type="checkbox" id="cv-hide-demos"'+(videosState.hideDemos?' checked':'')+'>'+
+          '<span>Hide demo previews <span class="cv-vf-count">'+demoCount+'</span></span>'+
+        '</label>'+
       '</div>'
     );
     $currCount.textContent = String(filtered.length);
@@ -2990,6 +3018,11 @@ tbody tr:last-child td{border-bottom:none}
           videosState.filter = b.getAttribute('data-f');
           renderVideosMode(allRows);
         });
+      });
+      var $hd = $currList.querySelector('#cv-hide-demos');
+      if($hd) $hd.addEventListener('change', function(){
+        videosState.hideDemos = !!$hd.checked;
+        renderVideosMode(allRows);
       });
       return;
     }
@@ -3079,6 +3112,12 @@ tbody tr:last-child td{border-bottom:none}
         videosState.filter = b.getAttribute('data-f');
         renderVideosMode(allRows);
       });
+    });
+    // Wire the hide-demos toggle
+    var $hideDemosToggle = $currList.querySelector('#cv-hide-demos');
+    if($hideDemosToggle) $hideDemosToggle.addEventListener('change', function(){
+      videosState.hideDemos = !!$hideDemosToggle.checked;
+      renderVideosMode(allRows);
     });
     // Wire save buttons
     $currList.querySelectorAll('.cv-vt-save').forEach(function(btn){
