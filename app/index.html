@@ -595,11 +595,21 @@ img{max-width:100%}
 .theme-choice .tc-label{font-weight:800;font-size:16px;color:var(--ink)}
 .theme-choice .tc-sub{font-size:12px;color:var(--ink3);font-weight:600;margin-top:2px}
 
-/* "Change avatar" button on the dashboard hero */
-.dash-hero .change-avatar-btn{margin-top:6px;background:rgba(108,92,231,.12);color:var(--primary);border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit}
-.dash-hero .change-avatar-btn:hover{background:rgba(108,92,231,.22);transform:translateY(-1px)}
-/* Matching "Change theme" button — twin to change-avatar-btn */
-.dash-hero .change-theme-btn{margin-top:6px;margin-left:6px;background:rgba(108,92,231,.12);color:var(--primary);border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit}
+/* Dashboard hero action buttons — Change avatar / Change theme /
+   Replay Tutorial. Single shared class so all three look identical
+   (pre-fix they each had their own slightly different style; the
+   Replay one had a dashed border that looked tacked-on). The two
+   row containers below them control wrapping/spacing. */
+.dash-hero .dash-action-btn{background:rgba(108,92,231,.12);color:var(--primary);border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit;white-space:nowrap}
+.dash-hero .dash-action-btn:hover{background:rgba(108,92,231,.22);transform:translateY(-1px)}
+.dash-hero .dash-info-actions{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.dash-hero .dash-info-toggles{margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+/* Legacy classes — kept for backwards compatibility with any place
+   that still uses them (e.g. the Nova-tour selector at line ~17776
+   targets .change-avatar-btn). They alias to the unified style. */
+.dash-hero .change-avatar-btn,
+.dash-hero .change-theme-btn{background:rgba(108,92,231,.12);color:var(--primary);border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit;white-space:nowrap}
+.dash-hero .change-avatar-btn:hover,
 .dash-hero .change-theme-btn:hover{background:rgba(108,92,231,.22);transform:translateY(-1px)}
 /* Read-aloud toggle pill — a twin to .change-avatar-btn but with a
    tangible on/off state. The ON variant uses the same purple gradient as
@@ -22340,27 +22350,30 @@ function renderDashboard(root){
   // lives on the teacher dashboard only — it's for the tutor's planning, not
   // a label the kid carries around on their own screen. Same for the parent
   // view below (renderParentView). Keep this private to the teacher UI.
+  // Hero info — title row, then two organized control rows below.
+  // Pre-fix all 5 controls (3 buttons + 2 toggles) free-floated on one
+  // wrapping line of mixed shapes/sizes; the dashed Replay button in
+  // particular looked stuck-on. Now: a row of action buttons, then a
+  // row of toggle switches. Same controls, much cleaner read.
+  const isDemoActor = (typeof isDemoUser === 'function' && isDemoUser(currentUser));
+  // Note: change-avatar-btn and change-theme-btn legacy classes are
+  // kept alongside dash-action-btn so existing selectors (the Nova
+  // tour at line ~17786 targets .change-avatar-btn) still find these.
+  const actionButtons = [
+    h('button',{class:'dash-action-btn change-avatar-btn',onclick:()=>go('avatars')},  '🎨 Change avatar'),
+    h('button',{class:'dash-action-btn change-theme-btn',onclick:()=>go('themes')},   '🌈 Change theme'),
+    isDemoActor ? null : h('button',{
+      class:'dash-action-btn',
+      title:'Replay the welcome tour',
+      onclick:()=>{ try{ runNovaTour(); }catch(e){ console.warn('[Solvix] replay tour failed:',e); } },
+    }, '🎓 Replay Tutorial'),
+  ].filter(Boolean);
   const heroInfoKids = [
     h('h1',{},'Hi, '+s.name+'!'),
     h('span',{class:'grade-pill'},s.grade),
+    h('div',{class:'dash-info-actions'}, actionButtons),
+    h('div',{class:'dash-info-toggles'}, [ttsToggle, novaQuizToggle]),
   ];
-  heroInfoKids.push(
-    h('br'),
-    h('button',{class:'change-avatar-btn',onclick:()=>go('avatars')}, '🎨 Change avatar'),
-    h('button',{class:'change-theme-btn',onclick:()=>go('themes')}, '🌈 Change theme'),
-    ttsToggle,
-    novaQuizToggle,
-    // Replay Tutorial — bypasses the onboardingCompleted flag so a curious
-    // kid (or a parent showing a new sibling) can re-launch Nova's walkthrough
-    // anytime. Hidden on demo accounts to keep the preview uncluttered.
-    (typeof isDemoUser === 'function' && isDemoUser(currentUser))
-      ? null
-      : h('button',{
-          class:'replay-tour-btn',
-          title:'Replay the welcome tour',
-          onclick:()=>{ try{ runNovaTour(); }catch(e){ console.warn('[Solvix] replay tour failed:',e); } },
-        }, '🎓 Replay Tutorial'),
-  );
   const hero=h('div',{class:'dash-hero c-'+currentUser},[
     buildAvatarTile(currentUser,'av'),
     h('div',{class:'info'}, heroInfoKids),
