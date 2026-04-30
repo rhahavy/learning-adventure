@@ -23968,17 +23968,17 @@ function renderWrite(card,q){
     area.insertBefore(rubric, btn);
     // Coach feedback panel — ALWAYS attach it, regardless of AI flags.
     // attachAiWritingFeedback() decides internally whether to fire the
-    // /feedback AI call (FEATURE_FEEDBACK + AI_HEALTH live) or fall back
-    // to the heuristic coach derived from the rubric checks. Pre-fix,
-    // gating this call on aiFeatureOn() bypassed the heuristic fallback
-    // entirely whenever AI_HEALTH hadn't loaded yet (first paint of a
-    // fresh tab) or the feature flag was off — kids saw zero coaching.
-    // Either path produces a non-empty box; the function only removes
-    // itself if even the heuristic can't generate output, which is the
-    // empty-rubric edge case.
-    const aiHost = h('div',{class:'ai-fb-host'});
-    area.insertBefore(aiHost, btn);
-    attachAiWritingFeedback(aiHost, text, q, result);
+    // /feedback AI call or fall back to the rubric-derived heuristic.
+    // Either path renders a non-empty box.
+    //
+    // We use a TEMPORARY anchor element so attachAiWritingFeedback
+    // can insertBefore() it (so the feedback lands above the Submit/
+    // Continue button, not at the bottom of write-area). The anchor
+    // is removed after — leaves no empty wrapper. (Earlier versions
+    // used a wrapper div; if any CSS or another script accidentally
+    // matched .ai-fb-host the wrapper itself could've been hidden,
+    // taking the feedback inside it down too.)
+    attachAiWritingFeedback(area, text, q, result, { insertBeforeNode: btn });
     // Re-purpose the submit button as Continue →. Same button, same
     // location — kids naturally tap it again. The bottom-of-card Next
     // button still works (showNext below), this is just the cure for
@@ -24697,8 +24697,9 @@ function heuristicWritingCoach(text, q, rubric){
      • If AI is offline/capped/error → heuristic coach derived from the
        rubric pass/miss checks. Always shown, never silently removed.
    Either way the kid sees specific feedback — the box never vanishes. */
-function attachAiWritingFeedback(area, text, q, rubric){
+function attachAiWritingFeedback(area, text, q, rubric, opts){
   if(!area || !text) return;
+  opts = opts || {};
   const box = h('div',{class:'ai-fb-box'});
   const head = h('div',{class:'ai-fb-head'},[
     h('span',{class:'ai-badge'},'AI'),
@@ -24707,7 +24708,15 @@ function attachAiWritingFeedback(area, text, q, rubric){
   box.appendChild(head);
   const body = h('div',{class:'ai-fb-body'});
   box.appendChild(body);
-  area.appendChild(box);
+  // Insert the box directly into `area`. If a sibling node was passed
+  // in opts.insertBeforeNode AND it's still a child of area, we
+  // insertBefore so the box lands above it (e.g. above the Submit/
+  // Continue button); otherwise just append at the end.
+  if(opts.insertBeforeNode && opts.insertBeforeNode.parentNode === area){
+    area.insertBefore(box, opts.insertBeforeNode);
+  } else {
+    area.appendChild(box);
+  }
   // Pre-compute the heuristic up-front — every failure path below uses
   // it as a fallback. Computing it once keeps the failure handlers
   // small and side-effect-free.
