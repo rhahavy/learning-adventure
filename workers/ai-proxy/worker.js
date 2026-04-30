@@ -1223,6 +1223,7 @@ async function handleUnprovisionRoute(request, env, corsOrigin) {
   await env.KV.delete(`tenant:${tenantId}`);
   await env.KV.delete(`tenant:${tenantId}:data`);
   await env.KV.delete(`tenant:${tenantId}:snapshots`);
+  await env.KV.delete(`tenant:${tenantId}:audit-snapshots`);
   await env.KV.delete(`code:${code}`);
   return json({ ok: true, removed: { id: tenantId, code }, stripe: stripeResult }, 200, corsOrigin);
 }
@@ -3723,7 +3724,83 @@ async function sendDuplicateSignupNoticeEmail(env, toEmail, existingTenant) {
 // customer email: if the same address signs up twice (via two
 // different Stripe customer ids), we cancel the duplicate trial
 // and email the user their existing code instead.
+// ====================================================================
+// SAFETY NET — auto-snapshot before every Stripe webhook mutation
+// --------------------------------------------------------------------
+// INVARIANT: Stripe webhooks may NEVER mutate `tenant:{id}:data` —
+// that's the kid's progress (coins, completed activities, perfect
+// counts, streaks, wrong-answer log). Plan upgrades, downgrades,
+// cancellations, and re-checkouts only ever touch the tenant
+// metadata blob (`tenant:{id}` — subscription IDs, status, suspended
+// flag). The handlers themselves enforce this in their bodies; this
+// helper is the belt-and-suspenders second layer.
+//
+// snapshotForStripeEvent reads the CURRENT `:data` blob and stamps a
+// copy into `tenant:{id}:audit-snapshots` BEFORE any state mutation.
+// If a future bug ever did write to `:data` from a webhook path, the
+// pre-mutation copy stays here and we can recover by replaying it.
+//
+// Stored separately from the user-driven `:snapshots` blob so plan
+// thrashing can't push out user save-points, and vice versa. Capped
+// at 10 entries (FIFO eviction) — a tenant making 11+ plan changes
+// without ever being touched again is rare enough that the trade-off
+// is fine.
+// ====================================================================
+const STRIPE_AUDIT_SNAPSHOT_MAX = 10;
+const STRIPE_AUDIT_SNAPSHOT_MAX_DATA_BYTES = 200 * 1024; // 200KB cap per snapshot
+
+async function snapshotForStripeEvent(env, tenantId, eventName) {
+  if (!env.KV || !tenantId) return;
+  try {
+    const dataRaw = await env.KV.get(`tenant:${tenantId}:data`);
+    if (!dataRaw) return; // nothing to snapshot — fresh tenant or unprovisioned
+    // Hard size cap. If the data blob has somehow ballooned past the
+    // limit, log + skip — better to write a missing-snapshot warning
+    // than to refuse the webhook and have Stripe retry forever.
+    if (dataRaw.length > STRIPE_AUDIT_SNAPSHOT_MAX_DATA_BYTES) {
+      console.warn('[stripe-snapshot] data blob too large to snapshot', {
+        tenantId, bytes: dataRaw.length, event: eventName,
+      });
+      return;
+    }
+    let list = [];
+    try {
+      const auditRaw = await env.KV.get(`tenant:${tenantId}:audit-snapshots`);
+      if (auditRaw) {
+        const parsed = JSON.parse(auditRaw);
+        if (Array.isArray(parsed)) list = parsed;
+      }
+    } catch (_) {
+      // Corrupt audit blob — start fresh rather than block the webhook.
+    }
+    const entry = {
+      at: Date.now(),
+      reason: 'stripe:' + (eventName || 'unknown'),
+      _stripeEvent: true,
+      data: dataRaw,
+    };
+    list.unshift(entry);
+    if (list.length > STRIPE_AUDIT_SNAPSHOT_MAX) {
+      list = list.slice(0, STRIPE_AUDIT_SNAPSHOT_MAX);
+    }
+    await env.KV.put(`tenant:${tenantId}:audit-snapshots`, JSON.stringify(list));
+  } catch (e) {
+    // Snapshot failure must NEVER block the webhook handler — Stripe
+    // retries are at-least-once and a stuck failure would replay forever.
+    // Log and continue.
+    console.warn('[stripe-snapshot] failed', { tenantId, event: eventName, error: String(e && e.message || e) });
+  }
+}
+
 async function handleStripeCheckoutCompleted(session, env) {
+  // INVARIANT: NEVER mutate `tenant:{id}:data` from this handler.
+  // Plan changes / re-checkouts / replays only ever update tenant
+  // metadata (subscription IDs, status, suspended flag, customerEmail).
+  // Kid progress lives in `:data` and stays untouched. Before any
+  // mutation we auto-snapshot via snapshotForStripeEvent so a future
+  // bug couldn't lose data without leaving a recoverable copy in
+  // `:audit-snapshots`. See the snapshotForStripeEvent comment block
+  // above for the reasoning + storage shape.
   if (!env.KV) return;
   const customerId = session.customer || '';
   const subscriptionId = session.subscription || '';
@@ -3739,6 +3816,11 @@ async function handleStripeCheckoutCompleted(session, env) {
   // signup attempt for monitoring.
   const existingId = await env.KV.get(`customer:stripe:${customerId}`);
   if (existingId) {
+    // Safety-net: snapshot BEFORE we touch the tenant blob. The handler
+    // body below only mutates `tenant:{id}` (metadata), but the
+    // snapshot covers the future case where someone adds a `:data`
+    // mutation here without realising the invariant.
+    await snapshotForStripeEvent(env, existingId, 'checkout.completed.replay');
     const raw = await env.KV.get(`tenant:${existingId}`);
     const existing = raw ? JSON.parse(raw) : null;
     if (existing) {
@@ -3875,11 +3957,24 @@ async function handleStripeCheckoutCompleted(session, env) {
 // The override is cleared only by /admin/tenant/:id/unsuspend, never
 // by a webhook.
 async function handleStripeSubscriptionChange(subscription, env) {
+  // INVARIANT: NEVER mutate `tenant:{id}:data` from this handler.
+  // This fires on plan upgrades, downgrades, cancellations, payment
+  // failures, and reactivations — each one only ever updates tenant
+  // metadata (subscription status + ID + suspended flag). Kid
+  // progress is preserved across every plan change because we don't
+  // touch `:data`. Before any mutation we auto-snapshot via
+  // snapshotForStripeEvent so a future bug couldn't lose data without
+  // leaving a recoverable copy in `:audit-snapshots`.
   if (!env.KV) return;
   const customerId = subscription.customer || '';
   if (!customerId) return;
   const tenantId = await env.KV.get(`customer:stripe:${customerId}`);
   if (!tenantId) return;
+  // Safety-net snapshot before any state mutation. event.type isn't
+  // available here — we tag it with the subscription status so the
+  // audit log shows what triggered each snapshot ("active",
+  // "past_due", "canceled", etc.).
+  await snapshotForStripeEvent(env, tenantId, 'subscription.' + (subscription.status || 'change'));
   const raw = await env.KV.get(`tenant:${tenantId}`);
   if (!raw) return;
   let tenant;
