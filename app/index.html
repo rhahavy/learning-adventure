@@ -15894,7 +15894,19 @@ function sanitizeInlineHtml(s){
 function h(tag,a={},c=[]){
   const el=document.createElement(tag);
   for(const k in a){if(k==='class')el.className=a[k];else if(k==='html')el.innerHTML=sanitizeInlineHtml(a[k]);else if(k==='rawHtml')el.innerHTML=a[k];else if(k.startsWith('on'))el.addEventListener(k.slice(2),a[k]);else if(a[k]!=null)el.setAttribute(k,a[k])}
-  (Array.isArray(c)?c:[c]).forEach(x=>{if(x==null)return;if(typeof x==='string')el.appendChild(document.createTextNode(x));else el.appendChild(x)});
+  (Array.isArray(c)?c:[c]).forEach(x=>{
+    if(x==null)return;
+    // Coerce numbers/booleans to strings so callers can do e.g.
+    // h('div',{},result.level) without the appendChild blowing up.
+    // Pre-fix this threw "parameter 1 is not of type 'Node'" and
+    // crashed the submit handler — silently breaking writing feedback.
+    const t = typeof x;
+    if(t==='string' || t==='number' || t==='boolean'){
+      el.appendChild(document.createTextNode(String(x)));
+      return;
+    }
+    el.appendChild(x);
+  });
   return el;
 }
 
@@ -22598,8 +22610,8 @@ function renderActivity(root,actId,subId){
   //      help.
   // Stretch mode counts its own retries via stretchStats[a.id].attempts.
   try {
-    const baseAttempts    = (state.progress[a.id]      || {}).attempts || 0;
-    const stretchAttempts = (state.stretchStats && state.stretchStats[a.id] || {}).attempts || 0;
+    const baseAttempts    = (state.progress[activity.id]      || {}).attempts || 0;
+    const stretchAttempts = (state.stretchStats && state.stretchStats[activity.id] || {}).attempts || 0;
     const isRetry = useStretch ? (stretchAttempts > 0) : (baseAttempts > 0);
     const hasPassage = qs.some(q => q && q.type === 'passage');
     // Always shuffle choices (preserve correctness via answer remap).
