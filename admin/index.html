@@ -2739,6 +2739,34 @@ tbody tr:last-child td{border-bottom:none}
         }
       }
     }
+
+    // -- Stretch pool drops the passage ------------------------------------
+    // Pattern: the main questions array has a type:'passage' block, but the
+    // stretchQuestions array has none. Stretch mode renders ONLY the stretch
+    // pool (no lesson card, no main-pool questions), so any stretch question
+    // that references passage-specific characters or details ("Why did Kira
+    // knock politely?", "What does 'gust of wind' mean?") leaves the kid
+    // with no source to look at. Caught example: w1-akaran-r1 "The Lost Kite".
+    //
+    // Severity: warn — by-design "stretch tests recall" is one valid reading,
+    // but operators usually want passage-anchored stretch to RE-INCLUDE the
+    // passage. Two clean fixes per offender:
+    //   1. Add a {type:'passage', passage:'…', q:'…', choices:[…], answer:N}
+    //      to the start of stretchQuestions (often the same passage as main).
+    //   2. Rewrite stretch questions to be passage-independent
+    //      (vocabulary drills, sentence-structure inference, etc.)
+    if(Array.isArray(activity.stretchQuestions) && activity.stretchQuestions.length > 0){
+      var mainHasPassage = activity.questions.some(function(q){
+        return q && q.type === 'passage' && q.passage && String(q.passage).trim().length > 0;
+      });
+      var stretchHasPassage = activity.stretchQuestions.some(function(q){
+        return q && q.type === 'passage' && q.passage && String(q.passage).trim().length > 0;
+      });
+      if(mainHasPassage && !stretchHasPassage){
+        issues.push({severity:'warn', code:'stretch-drops-passage',
+          msg:'Main pool has a passage, but the stretch pool doesn\'t. Stretch mode renders only the stretch pool — kids see questions about the passage characters with no story to reference. Either add a passage block to stretchQuestions, or rewrite the stretch questions so they don\'t depend on the passage.'});
+      }
+    }
     // Anti-guess pattern: same-answer-position streak. If ≥4 of an
     // activity's MCQs share the same answer index, kids can pattern-
     // match "always pick B" and skip reading. Audit found 123 of 360
