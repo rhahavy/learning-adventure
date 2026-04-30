@@ -963,6 +963,12 @@ img{max-width:100%}
 .write-submit{margin-top:12px;width:100%;padding:14px;border-radius:var(--r);background:var(--primary);color:#fff;font-size:16px;font-weight:800;box-shadow:0 6px 18px rgba(108,92,231,.35);transition:all .2s}
 .write-submit:hover{transform:translateY(-2px)}
 .write-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+/* Continue → state — same button after the kid submits their writing.
+   Green-tinted so it visually reads as "completed, advance now" rather
+   than "still pending". See the renderWrite re-purpose comment for why
+   we mutate the button in place instead of swapping it out. */
+.write-submit.write-continue{background:linear-gradient(135deg,#00CEC9,#0AB89E);box-shadow:0 6px 18px rgba(0,206,201,.4)}
+.write-submit.write-continue:hover{transform:translateY(-2px);filter:brightness(1.05)}
 
 /* ---- Dictation (listen-and-spell) question ----
    Used for spelling drills where the kid hears the word and types it out.
@@ -23881,7 +23887,23 @@ function renderWrite(card,q){
   const meta=h('div',{class:'write-meta'},[h('span',{id:'wCount'},'0 words'),h('span',{},'Min: '+(q.minWords||3)+' words')]);
   area.appendChild(meta);
   ta.addEventListener('input',()=>{const wc=ta.value.trim().split(/\s+/).filter(w=>w).length;$('#wCount').textContent=wc+' words'});
+  // Track whether the writing was submitted, so the same button can
+  // act as Submit on first click and Continue → on second. This is
+  // the single biggest "frozen" complaint we've gotten — kids tap
+  // Submit, see the rubric + AI spinner appear, and don't realize the
+  // Next button at the very bottom of the card is also live. Many
+  // re-tap the now-disabled Submit button and assume the app is
+  // frozen. Re-purposing the same button into Continue → keeps the
+  // interaction in the spot they're already looking.
+  let submitted = false;
   const btn=h('button',{class:'write-submit',onclick:()=>{
+    // Second click on the same button = "Continue →". Defer to nextQ
+    // (which advances or finishes). This is the un-stick path on the
+    // device where the kid is staring at the submit button waiting.
+    if(submitted){
+      try { nextQ(); } catch(e){ console.warn('[Solvix] continue from write failed:', e); }
+      return;
+    }
     const text=ta.value.trim();
     const wc=text.split(/\s+/).filter(w=>w).length;
     if(wc<(q.minWords||2)){$('#fb').className='feedback no';$('#fb').textContent='Write a bit more! You need at least '+(q.minWords||2)+' words.';return}
@@ -23896,7 +23918,8 @@ function renderWrite(card,q){
     // window. Mirror MCQ's pattern here.
     if(quiz && quiz.locked) return;
     if(quiz) quiz.locked = true;
-    btn.disabled=true; ta.disabled=true; clearTimer();
+    submitted = true;
+    ta.disabled=true; clearTimer();
     const result=gradeWriting(text,q);
     trackCorrect(result.level>=3 ? 1 : 0); // Level 3-4 counts as correct
     if(result.level<3) logWrongAnswer(q, null, null);
@@ -23912,31 +23935,44 @@ function renderWrite(card,q){
     const tags=h('div',{class:'rubric-details'});
     result.checks.forEach(c=>{tags.appendChild(h('span',{class:'rubric-tag '+(c.pass?'pass':'miss')},(c.pass?'✓ ':'✗ ')+c.label))});
     rubric.appendChild(tags);
-    area.appendChild(rubric);
+    // Insert the rubric ABOVE the (re-labeled) Submit button so the
+    // kid sees their score, and the same button right below it
+    // becomes the obvious next step. Without this insertBefore the
+    // rubric/AI box appended AFTER the button, leaving the button
+    // looking like a stray disabled control above them.
+    area.insertBefore(rubric, btn);
     // AI: enriched writing feedback. Hidden/skipped unless
     // FEATURE_FEEDBACK is lit. The rubric above is the baseline (always
     // shown); the AI panel adds specific coaching on top — what's
     // working, what to try next time, an example sentence. Appears
     // async below the rubric when the Worker replies.
     if(aiFeatureOn('FEATURE_FEEDBACK')){
-      attachAiWritingFeedback(area, text, q, result);
+      const aiHost = h('div',{class:'ai-fb-host'});
+      area.insertBefore(aiHost, btn);
+      attachAiWritingFeedback(aiHost, text, q, result);
     }
+    // Re-purpose the submit button as Continue →. Same button, same
+    // location — kids naturally tap it again. The bottom-of-card Next
+    // button still works (showNext below), this is just the cure for
+    // "I clicked Submit and nothing happened" — they always see a
+    // big, obvious button right where they were looking.
+    btn.textContent = (quiz.idx + 1 < quiz.questions.length) ? 'Continue →' : 'Finish 🎉';
+    btn.classList.add('write-continue');
+    btn.disabled = false;
     // quiz.locked already set at the top of this handler — no need to
     // re-set here. Just reveal the Next button so the kid can advance
     // even while the AI feedback spinner is still chugging.
     showNext();
-    // Scroll the Next button into view. On a phone the rubric + AI box
-    // can push it below the fold, which contributes to the "I tapped
-    // Submit and nothing happened" perception even when the page is
-    // perfectly responsive.
+    // Scroll the (now-Continue) button into view. The rubric + AI box
+    // pushed UP from where the kid clicked, so we want them to see
+    // both the score AND the new Continue button without hunting.
     setTimeout(()=>{
       try {
-        const b = document.getElementById('nextBtn');
-        if(b && typeof b.scrollIntoView === 'function'){
-          b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if(typeof btn.scrollIntoView === 'function'){
+          btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       } catch(_){}
-    }, 80);
+    }, 120);
   }},'Submit Writing ✏️');
   area.appendChild(btn);
   card.appendChild(area);
