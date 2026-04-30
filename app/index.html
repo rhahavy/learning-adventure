@@ -20243,15 +20243,18 @@ function goBrand(){
   }
 }
 function go(screen,opts={}){
-  // Demo-tenant shortcut: when the active classroom is flagged isDemo,
-  // it has no real student profiles — its whole reason to exist is the
-  // preview demo grades. Short-circuit 'home' and 'profiles' to
-  // 'demo-grade' so prospective parents land on the picker directly
-  // instead of staring at an empty profile grid. Kids inside the demo
-  // tenant never see the real-student flow. 'teacher-login' still works
-  // so the demo tenant's teacher password can unlock the teacher view.
+  // Demo-tenant routing: demo tenants have no real student profiles,
+  // so we redirect 'profiles' → 'demo-grade' (a grade-picker for
+  // prospective parents) to avoid landing them on an empty profile
+  // grid. As of the demo Nova-says rollout (May 2026), 'home' is NO
+  // LONGER short-circuited — demos now see the welcome home screen
+  // with demo-flavored Nova lines + a "See a sample lesson →" CTA.
+  // The CTA routes through 'profiles' which then bounces them to
+  // 'demo-grade' via the redirect below, so the existing shortcut
+  // still kicks in once they click the CTA. Kids inside a demo never
+  // hit the real-student flow.
   if(tenant_state && tenant_state.isDemo && !isTeacher){
-    if(screen === 'home' || screen === 'profiles') screen = 'demo-grade';
+    if(screen === 'profiles') screen = 'demo-grade';
   }
   currentScreen=screen; currentOpts=opts;
   const root=$('#screen');
@@ -20360,18 +20363,23 @@ function go(screen,opts={}){
 
 /* ========== HOME ========== */
 function renderHome(root){
+  const isDemoTenant = !!(typeof tenant_state !== 'undefined' && tenant_state && tenant_state.isDemo);
+  // Demo tenants get a "See a sample lesson →" CTA instead of the
+  // generic "Get Started" — clicking still goes through 'profiles',
+  // which the go() router redirects to 'demo-grade' for them. Real
+  // tenants get the canonical "Get Started" CTA.
+  const ctaLabel = isDemoTenant ? 'See a sample lesson →' : 'Get Started →';
   const hero=h('section',{class:'hero'},[
     h('h1',{},'Solvix'),
     h('p',{class:'sub'},'Play, learn, and level up'),
-    h('button',{class:'cta',onclick:()=>go('profiles')},['Get Started →']),
+    h('button',{class:'cta',onclick:()=>go('profiles')},[ctaLabel]),
   ]);
   root.appendChild(hero);
   // Below the hero: a "Nova says…" card — Nova mascot + a personality
   // line that varies on every refresh, plus a tiny live stat strip
-  // (week coins / longest current streak / current week). Replaces the
-  // old marketing tiles AND the data-heavy snapshot panel — keeps just
-  // enough information to feel alive without turning the home screen
-  // into a dashboard.
+  // (week coins / longest current streak / current week). For demo
+  // tenants the line pool flips to demo-flavored greetings and the
+  // stat strip is hidden (no real data exists).
   try {
     const card = buildHomeNovaCard();
     if(card) root.appendChild(card);
@@ -20459,14 +20467,38 @@ const HOME_NOVA_LINES = [
     : null,
 ];
 
+/* Demo-tenant Nova lines. These run when the tenant is flagged
+   isDemo — i.e. a prospective parent on the public marketing demo.
+   Lines are calibrated to "you're shopping, not learning" — they
+   tease what's behind the CTA without any reference to real data
+   the demo doesn't have. */
+const HOME_NOVA_DEMO_LINES = [
+  "Welcome! Pick a grade below to see what a real lesson looks like. ✨",
+  "Hi there! 👋 You’re in the preview — tap below to peek at any grade.",
+  "I’m Nova, your tour guide. Want to try a sample lesson? Tap below!",
+  "Antenna check… BUZZING. Want to test-drive a grade?",
+  "Three hearts, three flutters — and a sample lesson with your name on it. Tap below!",
+  "Pop quiz: are we about to show you something cool? (Hint: yes.) Tap below!",
+  "Zorbs! Welcome to Solvix. The button below shows you a real lesson — go on, click it.",
+  "Cosmic fuel: 100%. Tour mode: ready. Pick a grade and let me show you around.",
+  "I beamed in just to give you the tour. Pick any grade below to start.",
+  "Want to know what your kid would actually see? Tap the button — I’ll show you.",
+  "On Learnia we call this “the meet-cute”. Tap below to start ours.",
+  "Pop in, peek around, no signup required. Tap below.",
+];
+
 /* Pick a Nova line for THIS render. Per-refresh randomization (not
    per-day deterministic — the user explicitly asked for a fresh line
    on every refresh). Filters out personalized lines that returned
    null because their data was missing, then picks uniformly from
-   what's left. Always falls back to a generic line if nothing
-   matches (which should be impossible since the generics are
-   unconditional, but defensive). */
+   what's left. Demo tenants get the demo line pool exclusively —
+   they don't have real data to personalize against, and the demo
+   lines tell them what to do next ("Tap below"). */
 function pickHomeNovaLine(ctx){
+  if(ctx && ctx.isDemo){
+    const pool = HOME_NOVA_DEMO_LINES;
+    return pool[Math.floor(Math.random() * pool.length)] || "Welcome! Pick a grade below.";
+  }
   const candidates = [];
   for(const entry of HOME_NOVA_LINES){
     if(typeof entry === 'string'){ candidates.push(entry); continue; }
@@ -20488,6 +20520,7 @@ function buildHomeNovaCtx(){
   const ctx = {
     kids: Array.isArray(STUDENTS) ? STUDENTS.slice() : [],
     isClass: false,
+    isDemo: false,
     longestStreak: null,
     topKid: null,
     weekCoins: 0,
@@ -20495,6 +20528,7 @@ function buildHomeNovaCtx(){
     currentWeek: 1,
   };
   try { ctx.isClass = isClassroomPlan(); } catch(_){}
+  try { ctx.isDemo = !!(typeof tenant_state !== 'undefined' && tenant_state && tenant_state.isDemo); } catch(_){}
   // Longest current streak across the roster.
   let bestStreak = null;
   ctx.kids.forEach(s => {
@@ -20545,8 +20579,15 @@ function buildHomeNovaCtx(){
    strip. Returns a DOM node, or null for brand-new tenants with no
    roster (the /profiles screen handles their setup flow). */
 function buildHomeNovaCard(){
-  if(!Array.isArray(STUDENTS) || !STUDENTS.length) return null;
   const ctx = buildHomeNovaCtx();
+  // Demo tenants render the card even without a roster — that's the
+  // whole point: a friendly Nova greeting before they tour the demo
+  // grades. Real tenants with no kids skip the card (their first stop
+  // is /profiles to add their first kid; the empty-roster screen
+  // there has its own onboarding copy).
+  if(!ctx.isDemo){
+    if(!Array.isArray(STUDENTS) || !STUDENTS.length) return null;
+  }
   const line = pickHomeNovaLine(ctx);
 
   const card = h('section',{class:'home-nova-card'});
@@ -20567,17 +20608,22 @@ function buildHomeNovaCard(){
   speech.appendChild(h('div',{class:'hnc-label'}, '✨ Nova says…'));
   speech.appendChild(h('div',{class:'hnc-line'}, line));
   // Tiny stat strip — only render the bits we actually have data for,
-  // so the card stays tidy on a fresh tenant.
+  // so the card stays tidy on a fresh tenant. Demo tenants don't have
+  // real per-tenant data (every visitor shares the same demo blob), so
+  // we suppress the strip entirely there. Their Nova line already
+  // includes the call-to-action.
   const stats = [];
-  if(ctx.weekCoins > 0){
-    stats.push(h('span',{class:'hnc-stat'}, '🪙 ' + ctx.weekCoins + ' this week'));
-  }
-  if(ctx.longestStreak && ctx.longestStreak.days >= 1){
-    stats.push(h('span',{class:'hnc-stat'},
-      '🔥 ' + ctx.longestStreak.name + ', ' + ctx.longestStreak.days + '-day streak'));
-  }
-  if(ctx.currentWeek >= 1){
-    stats.push(h('span',{class:'hnc-stat'}, '🎓 Week ' + ctx.currentWeek));
+  if(!ctx.isDemo){
+    if(ctx.weekCoins > 0){
+      stats.push(h('span',{class:'hnc-stat'}, '🪙 ' + ctx.weekCoins + ' this week'));
+    }
+    if(ctx.longestStreak && ctx.longestStreak.days >= 1){
+      stats.push(h('span',{class:'hnc-stat'},
+        '🔥 ' + ctx.longestStreak.name + ', ' + ctx.longestStreak.days + '-day streak'));
+    }
+    if(ctx.currentWeek >= 1){
+      stats.push(h('span',{class:'hnc-stat'}, '🎓 Week ' + ctx.currentWeek));
+    }
   }
   if(stats.length){
     const strip = h('div',{class:'hnc-stats'});
