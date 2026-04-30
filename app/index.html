@@ -30603,16 +30603,14 @@ function renderTeacher(root){
   });
   dash.appendChild(acc);
 
-  // AI Features status card. Only rendered when AI_PROXY_URL is set
-  // (otherwise there's nothing to report). Shows the master AI_ENABLED
-  // state and each per-feature flag as a compact on/off chip, so a
-  // tutor glancing at the dashboard knows exactly which AI powers are
-  // live right now. Read-only — flipping flags still means editing
-  // wrangler.toml and running `wrangler deploy`.
-  if(AI_PROXY_URL){
-    const aiCard = buildAiStatusCard();
-    if(aiCard) dash.appendChild(aiCard);
-  }
+  // AI Features status card was previously rendered here (read-only
+  // chips of every AI_* / FEATURE_* flag). Removed from the teacher
+  // dashboard — parents and teachers don't need infrastructure
+  // visibility, and the card looked technical/scary on a screen aimed
+  // at non-developers. The buildAiStatusCard() factory below is kept
+  // intact in case we want to surface it on the admin tools page
+  // later (admin/index.html has no equivalent today). Live flag state
+  // is also visible via curl https://<worker>/health.
   root.appendChild(dash);
 
   // Sync the browser tab title "(N)" prefix and fire a desktop notification
