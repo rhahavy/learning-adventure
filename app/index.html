@@ -23073,7 +23073,19 @@ function renderActivity(root,actId,subId){
   // Implementation note: ES2019+ Array.prototype.sort is stable, so
   // tied scores preserve authored order. We keep the index-tiebreak
   // in the comparator anyway as documentation of intent.
-  {
+  //
+  // BUG FIX: skip the sort entirely when ANY question is a passage.
+  // Reading lessons author Q1=passage, Q2-Q5=MCQs that reference "the
+  // passage above". The sort would put mcq (score 0) before passage
+  // (score 4), so the kid hit "Which sentence is a SUPPORTING DETAIL
+  // in the passage above?" with no passage rendered — the passage was
+  // re-sorted to come AFTER its own follow-up MCQ. The walk-back logic
+  // in renderQ that finds the most recent prior passage couldn't help
+  // because there WAS no prior passage in the new order. Authored
+  // order is the right order for these activities; only sort when
+  // there's no passage anchor to disrupt.
+  const hasAnyPassage = filtered.some(q => q && q.type === 'passage');
+  if(!hasAnyPassage){
     const TYPE_SCORE = { mcq:0, compare:1, dictate:1, order:2, match:2, emoji:2, write:3, passage:4 };
     const anyTiered = filtered.some(q => q && typeof q.d === 'number');
     const scoreOf = (q) => {
