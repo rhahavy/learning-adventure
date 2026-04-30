@@ -175,7 +175,11 @@ def parse_activity(act):
         j += 1
     mcqs = []
     for qsrc in qobjs:
-        if not re.search(r"type\s*:\s*['\"]mcq['\"]", qsrc): continue
+        # Treat both type:'mcq' and type:'passage' as bootstrap-shaped — both
+        # carry the same { q, choices, answer } skeleton the AI needs as a
+        # difficulty/topic anchor. (Passage Qs ALSO have a passage:'...' field
+        # but we don't need to pass that through; we just need shape + answer.)
+        if not re.search(r"type\s*:\s*['\"](?:mcq|passage)['\"]", qsrc): continue
         am = re.search(r"answer\s*:\s*(\d+)", qsrc)
         if not am: continue
         ans = int(am.group(1))
