@@ -685,6 +685,20 @@ img{max-width:100%}
 .level-card .l-title{font-size:16px;font-weight:700}
 .level-card .l-status{font-size:12px;color:var(--ink3);font-weight:600;margin-top:2px}
 .level-card .l-stretch-hint{font-size:11px;font-weight:700;margin-top:3px;color:#a06200;display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#fff3c4,#ffe28a);padding:3px 8px;border-radius:999px;border:1px solid rgba(230,170,40,.35)}
+/* Stretch Mode call-to-action — bigger, more directive replacement
+   for the old .l-stretch-hint pill. Kids didn't realize they had to
+   tap the level AGAIN to enter stretch mode — the small pill read
+   as "info" rather than "action". This version explicitly says
+   "Tap to try harder questions →" and pulses gently to draw the eye. */
+.level-card .l-stretch-cta{margin-top:8px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#fff3c4,#ffd97a 60%,#ffc44d);border:2px solid rgba(230,170,40,.55);border-radius:14px;padding:10px 14px;color:#5a3900;box-shadow:0 4px 14px rgba(230,170,40,.25);animation:stretchPulseCta 2.4s ease-in-out infinite}
+.level-card .l-stretch-cta-star{font-size:24px;flex-shrink:0;animation:starSpin 3s ease-in-out infinite;filter:drop-shadow(0 2px 4px rgba(230,170,40,.35))}
+.level-card .l-stretch-cta-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.level-card .l-stretch-cta-title{font-family:var(--font-display);font-size:15px;font-weight:800;line-height:1.1;color:#5a3900}
+.level-card .l-stretch-cta-sub{font-size:13px;font-weight:700;color:#7a4f00}
+@keyframes stretchPulseCta{
+  0%,100%{box-shadow:0 4px 14px rgba(230,170,40,.25)}
+  50%{box-shadow:0 6px 22px rgba(230,170,40,.5),0 0 0 4px rgba(255,215,90,.18)}
+}
 /* Fast-track hint — level auto-unlocked because kid aced 2 levels back on
    first try. Violet accent distinguishes it from the amber stretch hint. */
 .level-card .l-fasttrack-hint{font-size:11px;font-weight:700;margin-top:3px;color:#4b21c4;display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#e8defc,#c8b5f7);padding:3px 8px;border-radius:999px;border:1px solid rgba(108,92,231,.35);animation:fasttrackPulse 2.2s ease-in-out infinite}
@@ -22207,10 +22221,21 @@ function renderWeek(root,subId){
       h('div',{class:'l-status'}, statusText),
     ];
     if(hasStretch){
+      // Bigger, more directive CTA than the prior tiny "Stretch mode
+      // unlocked" pill. The pill alone wasn't communicating to kids
+      // that they could TAP THE LEVEL AGAIN to enter stretch — they
+      // saw "Done ✓" and moved on. Now it spells out the action AND
+      // pulses gently to draw the eye.
       infoChildren.push(h('div',{
-        class:'l-stretch-hint',
-        title:'Replay for Stretch Mode — harder questions, your perfect score is safe.',
-      }, [h('span',{'aria-hidden':'true'},'🌟'), h('span',{},'Stretch mode unlocked')]));
+        class:'l-stretch-cta',
+        title:'Tap this lesson to replay it with harder questions. Your perfect score is safe.',
+      }, [
+        h('span',{class:'l-stretch-cta-star','aria-hidden':'true'},'🌟'),
+        h('div',{class:'l-stretch-cta-text'},[
+          h('div',{class:'l-stretch-cta-title'},'Stretch Mode unlocked!'),
+          h('div',{class:'l-stretch-cta-sub'},'Tap to try harder questions →'),
+        ]),
+      ]));
     }
     // Fast-track hint — shown on levels auto-opened because the kid aced
     // the level two slots back on first try. Explains WHY an otherwise
@@ -24588,19 +24613,95 @@ function buildSidekickChat(q){
   return root;
 }
 
-/* Appends an AI writing-feedback panel below the rubric. The rubric
-   is mechanical (word count, keywords, sentence count); the AI adds
-   qualitative coaching — what's working, one specific thing to try,
-   optionally a rewrite of one sentence. Non-blocking: the rubric +
-   Next button are already visible; this panel fills in when ready.
-   Silent fail on error so a Worker hiccup doesn't ruin the moment. */
+/* Heuristic coach feedback derived from the rubric checks. Used as
+   the fallback whenever AI is offline / capped / disabled, so the kid
+   ALWAYS sees specific coaching even when the worker can't reply.
+   Pre-this fix the "AI box silently disappears on failure" path was
+   indistinguishable from "AI feature off" — kids submitting writing
+   sometimes saw zero coaching. Now they always get at least the
+   heuristic. Returns { whatsWorking, tryNext } or null on bad input.
+
+   Strategy: pick ONE pass to praise (most "writing-craft"-y), ONE
+   miss to coach (most actionable). Stays grade-band-appropriate via
+   the rubric's own labels — gradeWriting() already varies the checks
+   per grade band, so a JK miss like "needs more words" doesn't
+   accidentally become "needs multi-sentence structure". */
+function heuristicWritingCoach(text, q, rubric){
+  try {
+    const checks = (rubric && Array.isArray(rubric.checks)) ? rubric.checks : [];
+    const passes = checks.filter(c => c.pass);
+    const misses = checks.filter(c => !c.pass);
+    const praiseOrder = ['Uses descriptive words','Multiple sentences','Detailed','Uses topic words','Ends with punctuation','Starts with capital','Enough words'];
+    let praise = null;
+    for(const key of praiseOrder){
+      praise = passes.find(c => String(c.label).startsWith(key));
+      if(praise) break;
+    }
+    if(!praise && passes.length) praise = passes[0];
+    const coachOrder = ['Enough words','Multiple sentences','Detailed','Uses descriptive words','Uses topic words','Starts with capital','Ends with punctuation'];
+    let coach = null;
+    for(const key of coachOrder){
+      coach = misses.find(c => String(c.label).startsWith(key));
+      if(coach) break;
+    }
+    if(!coach && misses.length) coach = misses[0];
+
+    const labelToPraise = {
+      'Enough words': 'You hit the word target — nice effort!',
+      'Starts with capital': 'You started your sentence with a capital letter.',
+      'Ends with punctuation': 'You ended with a period — good sentence shape.',
+      'Uses topic words': 'You stayed on topic and used the right words for the lesson.',
+      'Detailed': 'You wrote a really good amount — that takes focus.',
+      'Multiple sentences': 'You used more than one sentence — that is strong writing.',
+      'Uses descriptive words': 'You used describing words — your sentences come alive!',
+    };
+    const labelToCoach = {
+      'Enough words': 'Try writing a few more words next time so you can really explain your idea.',
+      'Starts with capital': 'Next time, start your sentence with a capital letter.',
+      'Ends with punctuation': 'Do not forget to end with a period, question mark, or exclamation point.',
+      'Uses topic words': 'Try to use words from the lesson topic in your answer.',
+      'Detailed': 'Add a bit more detail — what does it look like? Why?',
+      'Multiple sentences': 'Try to write at least 2 sentences. End one with a period and start a new one!',
+      'Uses descriptive words': 'Try a describing word like "because", "suddenly", "really", or "favorite".',
+    };
+    const matchKey = (label) => {
+      for(const k of Object.keys(labelToCoach)){ if(String(label).startsWith(k)) return k; }
+      return null;
+    };
+    const out = {};
+    if(praise){
+      const k = matchKey(praise.label);
+      out.whatsWorking = (k && labelToPraise[k]) || ('You did well on: ' + praise.label.toLowerCase() + '.');
+    }
+    if(coach){
+      const k = matchKey(coach.label);
+      out.tryNext = (k && labelToCoach[k]) || ('Try working on: ' + coach.label.toLowerCase() + '.');
+    }
+    if(!out.whatsWorking && !out.tryNext){
+      out.whatsWorking = 'Your writing checks every box for your grade — nicely done!';
+    }
+    return out;
+  } catch(e){
+    console.warn('[Solvix] heuristicWritingCoach failed:', e);
+    return null;
+  }
+}
+
+/* Appends a writing-feedback panel below the rubric. The rubric is
+   mechanical (word count, mechanics, sentence count); this panel adds
+   qualitative coaching:
+     • If AI is healthy → AI returns specific strength/suggestion/rewrite.
+     • If AI is offline/capped/error → heuristic coach derived from the
+       rubric pass/miss checks. Always shown, never silently removed.
+   Either way the kid sees specific feedback — the box never vanishes. */
 function attachAiWritingFeedback(area, text, q, rubric){
   if(!area || !text) return;
   const box = h('div',{class:'ai-fb-box'});
-  box.appendChild(h('div',{class:'ai-fb-head'},[
+  const head = h('div',{class:'ai-fb-head'},[
     h('span',{class:'ai-badge'},'AI'),
     h('span',{},'Coach\'s notes'),
-  ]));
+  ]);
+  box.appendChild(head);
   const body = h('div',{class:'ai-fb-body'});
   const spin = h('div',{},[
     h('span',{class:'ai-btn-spin',style:'border-color:rgba(80,70,229,.25);border-top-color:#5046e5'}),
@@ -24609,7 +24710,51 @@ function attachAiWritingFeedback(area, text, q, rubric){
   body.appendChild(spin);
   box.appendChild(body);
   area.appendChild(box);
+  // Pre-compute the heuristic up-front — every failure path below uses
+  // it as a fallback. Computing it once keeps the failure handlers
+  // small and side-effect-free.
+  const heuristic = heuristicWritingCoach(text, q, rubric);
+  // Render helper used by both AI-success and heuristic-fallback paths
+  // so the visual treatment is identical. The badge re-skins to "COACH"
+  // (Nova teal) on fallback so we never imply AI ran when it did not.
+  const renderCoach = (data, opts) => {
+    body.innerHTML = '';
+    if(opts && opts.fallback){
+      head.innerHTML = '';
+      head.appendChild(h('span',{class:'ai-badge', style:'background:linear-gradient(135deg,#74B9FF,#00CEC9)'}, 'COACH'));
+      head.appendChild(h('span',{}, 'Quick notes on your writing'));
+    }
+    if(data.strength || data.whatsWorking){
+      body.appendChild(h('div',{style:'margin-bottom:6px'},[
+        h('b',{style:'color:#0e6b5a'}, "What's working: "),
+        h('span',{}, String(data.strength || data.whatsWorking)),
+      ]));
+    }
+    if(data.suggestion || data.tryNext){
+      body.appendChild(h('div',{style:'margin-bottom:6px'},[
+        h('b',{style:'color:#4f56d4'}, 'Try next time: '),
+        h('span',{}, String(data.suggestion || data.tryNext)),
+      ]));
+    }
+    if(data.exampleRewrite){
+      body.appendChild(h('div',{style:'margin-top:8px;padding:8px 10px;background:rgba(87,94,232,.08);border-radius:8px;font-style:italic'},[
+        h('b',{style:'font-style:normal'},'Example: '),
+        h('span',{}, '"'+String(data.exampleRewrite)+'"'),
+      ]));
+    }
+    if(!body.firstChild){
+      body.appendChild(h('div',{}, 'Nice job submitting your writing!'));
+    }
+  };
   (async ()=>{
+    // Front-run the obvious "no AI" cases: if FEATURE_FEEDBACK is off
+    // or AI_HEALTH hasn't loaded yet, skip the 15s spinner and go
+    // straight to the heuristic. The kid still sees coaching.
+    if(!aiFeatureOn('FEATURE_FEEDBACK')){
+      if(heuristic) renderCoach(heuristic, { fallback: true });
+      else box.remove();
+      return;
+    }
     const payload = {
       text: String(text).slice(0, 3000), // hard cap irrespective of Worker limit
       prompt: q.prompt || q.q || '',
@@ -24636,41 +24781,30 @@ function attachAiWritingFeedback(area, text, q, rubric){
       })(),
     };
     const res = await callAI('/feedback', payload, { timeoutMs: 15000 });
-    if(res.ok && res.data){
-      body.innerHTML = '';
-      // Shape we expect from the real handler:
-      //   { strength: "...", suggestion: "...", exampleRewrite?: "..." }
-      // Be defensive about missing fields.
-      const d = res.data;
-      if(d.strength){
-        body.appendChild(h('div',{style:'margin-bottom:6px'},[
-          h('b',{style:'color:#0e6b5a'},'What\'s working: '),
-          h('span',{}, String(d.strength)),
-        ]));
+    // Success path — AI returned at least one of strength/suggestion/rewrite.
+    if(res.ok && res.data && (res.data.strength || res.data.suggestion || res.data.exampleRewrite)){
+      renderCoach(res.data, { fallback: false });
+      return;
+    }
+    // Cap reached — show the heuristic AND a friendly cap notice. Pre-fix
+    // this branch left the kid with only "AI cap reached for today" and
+    // no specific feedback on their writing.
+    if(res.capped){
+      if(heuristic){
+        renderCoach(heuristic, { fallback: true });
+        body.appendChild(h('div',{style:'margin-top:8px;font-size:12px;color:var(--ink3)'}, '(AI coach is resting until tomorrow — your rubric above still counts!)'));
+      } else {
+        body.innerHTML = '';
+        body.appendChild(h('div',{style:'color:var(--ink3)'},'AI cap reached for today — your rubric above still counts!'));
       }
-      if(d.suggestion){
-        body.appendChild(h('div',{style:'margin-bottom:6px'},[
-          h('b',{style:'color:#4f56d4'},'Try next time: '),
-          h('span',{}, String(d.suggestion)),
-        ]));
-      }
-      if(d.exampleRewrite){
-        body.appendChild(h('div',{style:'margin-top:8px;padding:8px 10px;background:rgba(87,94,232,.08);border-radius:8px;font-style:italic'},[
-          h('b',{style:'font-style:normal'},'Example: '),
-          h('span',{}, '"'+String(d.exampleRewrite)+'"'),
-        ]));
-      }
-      if(!d.strength && !d.suggestion && !d.exampleRewrite){
-        // Empty body — remove the whole box rather than show an empty
-        // header. Keeps the screen clean.
-        box.remove();
-      }
-    } else if(res.capped){
-      body.innerHTML = '';
-      body.appendChild(h('div',{style:'color:var(--ink3)'},'AI cap reached for today — your rubric above still counts!'));
+      return;
+    }
+    // Disabled / network / timeout / error / cooldown — fall through to
+    // the heuristic instead of vanishing the box. The user explicitly
+    // reported the silent-removal as a missing-feedback bug.
+    if(heuristic){
+      renderCoach(heuristic, { fallback: true });
     } else {
-      // disabled / network / error — remove the whole box so the kid
-      // only sees the baseline rubric. No scary error messages.
       box.remove();
     }
   })();
