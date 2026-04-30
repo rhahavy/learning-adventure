@@ -24706,11 +24706,6 @@ function attachAiWritingFeedback(area, text, q, rubric){
   ]);
   box.appendChild(head);
   const body = h('div',{class:'ai-fb-body'});
-  const spin = h('div',{},[
-    h('span',{class:'ai-btn-spin',style:'border-color:rgba(80,70,229,.25);border-top-color:#5046e5'}),
-    h('span',{style:'margin-left:8px;color:#4f56d4;font-weight:700'},'Reading your writing…'),
-  ]);
-  body.appendChild(spin);
   box.appendChild(body);
   area.appendChild(box);
   // Pre-compute the heuristic up-front — every failure path below uses
@@ -24749,15 +24744,32 @@ function attachAiWritingFeedback(area, text, q, rubric){
       body.appendChild(h('div',{}, 'Nice job submitting your writing!'));
     }
   };
+  // Render the heuristic IMMEDIATELY — guaranteed feedback in under
+  // 100ms with no spinner. The AI call (if it fires) will replace
+  // the heuristic when it succeeds. This way the kid NEVER stares at
+  // an empty box or a 15-second spinner — they see coaching the
+  // instant the rubric appears, and it might quietly upgrade to a
+  // more specific AI version a beat later.
+  if(heuristic){
+    renderCoach(heuristic, { fallback: true });
+  } else {
+    body.appendChild(h('div',{}, 'Nice job submitting your writing!'));
+  }
+
   (async ()=>{
-    // Front-run the obvious "no AI" cases: if FEATURE_FEEDBACK is off
-    // or AI_HEALTH hasn't loaded yet, skip the 15s spinner and go
-    // straight to the heuristic. The kid still sees coaching.
+    // Skip the AI call entirely when AI is known off — the heuristic
+    // we just rendered IS the feedback. No spinner, no wasted RTT.
     if(!aiFeatureOn('FEATURE_FEEDBACK')){
-      if(heuristic) renderCoach(heuristic, { fallback: true });
-      else box.remove();
       return;
     }
+    // Quietly indicate that the AI is "thinking" — small spinning
+    // dot in the head, NOT a giant blocking spinner. The heuristic
+    // body remains visible so the kid has feedback while we wait.
+    const upgradeBadge = h('span',{class:'ai-fb-upgrade-badge', style:'margin-left:8px;font-size:11px;color:#4f56d4;display:inline-flex;align-items:center;gap:4px'},[
+      h('span',{class:'ai-btn-spin',style:'width:10px;height:10px;border-width:2px;border-color:rgba(80,70,229,.25);border-top-color:#5046e5'}),
+      h('span',{},'AI thinking…'),
+    ]);
+    head.appendChild(upgradeBadge);
     const payload = {
       text: String(text).slice(0, 3000), // hard cap irrespective of Worker limit
       prompt: q.prompt || q.q || '',
@@ -24784,32 +24796,25 @@ function attachAiWritingFeedback(area, text, q, rubric){
       })(),
     };
     const res = await callAI('/feedback', payload, { timeoutMs: 15000 });
+    // Always remove the "AI thinking…" badge once we have a response —
+    // success or failure, the wait is over.
+    try { upgradeBadge.remove(); } catch(_){}
     // Success path — AI returned at least one of strength/suggestion/rewrite.
+    // Replaces the heuristic with the more specific AI feedback.
     if(res.ok && res.data && (res.data.strength || res.data.suggestion || res.data.exampleRewrite)){
       renderCoach(res.data, { fallback: false });
       return;
     }
-    // Cap reached — show the heuristic AND a friendly cap notice. Pre-fix
-    // this branch left the kid with only "AI cap reached for today" and
-    // no specific feedback on their writing.
+    // Cap reached — heuristic is already rendered; just append a small
+    // cap notice so the kid knows AI is resting (their rubric still
+    // counts). Don't re-render — the feedback they're already reading
+    // would flicker away.
     if(res.capped){
-      if(heuristic){
-        renderCoach(heuristic, { fallback: true });
-        body.appendChild(h('div',{style:'margin-top:8px;font-size:12px;color:var(--ink3)'}, '(AI coach is resting until tomorrow — your rubric above still counts!)'));
-      } else {
-        body.innerHTML = '';
-        body.appendChild(h('div',{style:'color:var(--ink3)'},'AI cap reached for today — your rubric above still counts!'));
-      }
+      body.appendChild(h('div',{style:'margin-top:8px;font-size:12px;color:var(--ink3)'}, '(AI coach is resting until tomorrow — your rubric above still counts!)'));
       return;
     }
-    // Disabled / network / timeout / error / cooldown — fall through to
-    // the heuristic instead of vanishing the box. The user explicitly
-    // reported the silent-removal as a missing-feedback bug.
-    if(heuristic){
-      renderCoach(heuristic, { fallback: true });
-    } else {
-      box.remove();
-    }
+    // Disabled / network / timeout / error / cooldown — heuristic is
+    // already on screen, nothing to do. Box stays.
   })();
 }
 
