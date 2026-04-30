@@ -20419,7 +20419,7 @@ const ACTIVITY_LETTER_TO_SUBJECT = {
    Functions returning null/empty → that line is skipped this draw. */
 const HOME_NOVA_LINES = [
   // ---------- Generic delight (always eligible) ----------
-  "Three hearts, three flutters. Pick a kid and let's go.",
+  "Three hearts, three flutters. Let’s find your learner.",
   "Antenna check… BUZZING. Today is going to be good.",
   "Brain snacks loading. Who's hungry today? 🍎",
   "Cosmic fuel: 100%. Pilot: ready. Pick a learner.",
@@ -20432,7 +20432,7 @@ const HOME_NOVA_LINES = [
   "Small steps, big galaxies. That's the secret.",
   "I have three hearts and they're ALL excited.",
   "Pop quiz: are we about to learn something? (Hint: yes.)",
-  "Tap a kid below and let's level up.",
+  "Ready to level up? Hit Get Started.",
   "Beep boop! …Just kidding, I'm not a robot. But I AM friendly.",
   "If learning were a sport, you'd be MVP. Just saying.",
   "I love a good Tuesday. Or whatever day it is. They're all good.",
@@ -20471,20 +20471,26 @@ const HOME_NOVA_LINES = [
    isDemo — i.e. a prospective parent on the public marketing demo.
    Lines are calibrated to "you're shopping, not learning" — they
    tease what's behind the CTA without any reference to real data
-   the demo doesn't have. */
+   the demo doesn't have.
+
+   IMPORTANT: keep these position-agnostic. The Nova card renders
+   BELOW the hero (which contains the Get Started CTA), so phrases
+   like "tap below" used to be wrong-direction confusing. All lines
+   now point to "the Get Started button" / "tap to start" without
+   asserting where on the page that button is. */
 const HOME_NOVA_DEMO_LINES = [
-  "Welcome! Pick a grade below to see what a real lesson looks like. ✨",
-  "Hi there! 👋 You’re in the preview — tap below to peek at any grade.",
-  "I’m Nova, your tour guide. Want to try a sample lesson? Tap below!",
-  "Antenna check… BUZZING. Want to test-drive a grade?",
-  "Three hearts, three flutters — and a sample lesson with your name on it. Tap below!",
-  "Pop quiz: are we about to show you something cool? (Hint: yes.) Tap below!",
-  "Zorbs! Welcome to Solvix. The button below shows you a real lesson — go on, click it.",
-  "Cosmic fuel: 100%. Tour mode: ready. Pick a grade and let me show you around.",
-  "I beamed in just to give you the tour. Pick any grade below to start.",
-  "Want to know what your kid would actually see? Tap the button — I’ll show you.",
-  "On Learnia we call this “the meet-cute”. Tap below to start ours.",
-  "Pop in, peek around, no signup required. Tap below.",
+  "Welcome! Pick a grade to see what a real lesson looks like. ✨",
+  "Hi there! 👋 You’re in the preview — go peek at any grade you like.",
+  "I’m Nova, your tour guide. Want to try a sample lesson? Let’s go!",
+  "Antenna check… BUZZING. Ready to test-drive a grade?",
+  "Three hearts, three flutters — and a sample lesson with your name on it.",
+  "Pop quiz: are we about to show you something cool? (Hint: yes.)",
+  "Zorbs! Welcome to Solvix. Ready for a real lesson?",
+  "Cosmic fuel: 100%. Tour mode: ready. Let me show you around.",
+  "I beamed in just to give you the tour. Ready when you are!",
+  "Want to know what your kid would actually see? I’ll show you.",
+  "On Learnia we call this “the meet-cute”. Ready to begin ours?",
+  "Pop in, peek around, no signup required.",
 ];
 
 /* Pick a Nova line for THIS render. Per-refresh randomization (not
@@ -20493,7 +20499,9 @@ const HOME_NOVA_DEMO_LINES = [
    null because their data was missing, then picks uniformly from
    what's left. Demo tenants get the demo line pool exclusively —
    they don't have real data to personalize against, and the demo
-   lines tell them what to do next ("Tap below"). */
+   lines tell them what to do next without depending on UI position
+   (the Nova card sits BELOW the hero's CTA button, so any "tap
+   below" phrasing would point the wrong way). */
 function pickHomeNovaLine(ctx){
   if(ctx && ctx.isDemo){
     const pool = HOME_NOVA_DEMO_LINES;
@@ -20509,7 +20517,7 @@ function pickHomeNovaLine(ctx){
       } catch(_){}
     }
   }
-  if(!candidates.length) return "Pick a kid below and let’s go.";
+  if(!candidates.length) return "Ready when you are — hit Get Started.";
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
