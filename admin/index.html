@@ -2701,6 +2701,43 @@ tbody tr:last-child td{border-bottom:none}
             msg:'Q' + (i+1) + ' references "the passage/story/text" but no passage block exists — kid sees the question with no source to answer from.'});
         }
       });
+
+      // -- Reading-only "implies story but no passage" detection ---------
+      // The orphan-passage-ref check above scans QUESTION text only; this
+      // new rule also scans the lesson TITLE and INTRO. Catches the
+      // pattern operators reported with demos like "Story Pictures" /
+      // "Story Mountain" — title screams "this is a story lesson" but
+      // no passage block exists. The reading-no-passage rule above
+      // exempts JK/SK as pre-readers; this rule does NOT, because the
+      // title/intro itself promises a story regardless of grade.
+      //
+      // Scoped to READING subject only. False positives in other
+      // subjects:
+      //   • Math "Story Problems" / "Word Problems" — "story" is the
+      //     formal name for word problems; the problem IS the story,
+      //     no separate passage needed.
+      //   • Writing "Story Starter" / "Creative Story" — the kid is
+      //     asked to WRITE a story, not read one.
+      // Both are correctly designed and should not trip this rule.
+      //
+      // Severity: warn — authoring quality issue, not a hard break
+      // (kids can still answer abstract MCQs about story structure
+      // without a story), but it's confusing UX.
+      if(isReading){
+        var titleStr = String(activity.title || '');
+        var introStr = String((activity.lesson && activity.lesson.intro) || '');
+        var titleImpliesStory = /\b(story|passage|tale|text)\b/i.test(titleStr);
+        var introImpliesStory = /\b(this|the) (story|passage|tale|text)\b/i.test(introStr) ||
+                                /\bread (this|the) (story|passage|tale|text)\b/i.test(introStr) ||
+                                /\bin the (story|passage|tale|text)\b/i.test(introStr);
+        if(titleImpliesStory || introImpliesStory){
+          var trigger = titleImpliesStory ? 'title' : 'intro';
+          issues.push({severity:'warn', code:'lesson-implies-story',
+            msg:'Reading lesson ' + trigger + ' implies a story/passage but no passage block exists. ' +
+                'Kids will read references to "the story" with nothing to look at. ' +
+                'Either add a passage:\'…\' question, or rewrite the title/intro to be about story-skills generally.'});
+        }
+      }
     }
     // Anti-guess pattern: same-answer-position streak. If ≥4 of an
     // activity's MCQs share the same answer index, kids can pattern-
