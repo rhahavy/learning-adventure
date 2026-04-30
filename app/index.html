@@ -273,7 +273,34 @@ img{max-width:100%}
 /* Feature cards — tile shingles with color pops */
 .features{margin-top:32px;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 
-/* ---- Home snapshot panel — replaces the old marketing tiles. ----
+/* ---- Home Nova-says card — replaces both the old marketing tiles
+   AND the dense data-snapshot panel. Big mascot on the left, speech
+   bubble + stat strip on the right. The Nova line cycles every
+   refresh (see HOME_NOVA_LINES + pickHomeNovaLine in JS). */
+.home-nova-card{margin-top:32px;display:flex;align-items:center;gap:clamp(16px,3vw,28px);padding:clamp(20px,3vw,28px) clamp(20px,4vw,32px);background:linear-gradient(135deg,#FFFFFF 0%,#F4F2FF 60%,#E0F4F7 100%);border:1.5px solid rgba(108,92,231,.18);border-radius:var(--r);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.home-nova-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 0% 0%,rgba(116,185,255,.12),transparent 60%),radial-gradient(circle at 100% 100%,rgba(0,206,201,.1),transparent 55%);pointer-events:none}
+.hnc-mascot{flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+/* The mascot factory builds its own .mascot SVG; we just need a
+   sensible width on this column for narrow screens. */
+.hnc-mascot .mascot{width:clamp(90px,18vw,128px);height:auto}
+/* The mascot factory also wraps in .mascot-wrap — strip its default
+   margins/padding so the card hugs tight. */
+.hnc-mascot .mascot-wrap{margin:0;padding:0;text-align:left}
+/* createMascot may attach a speech-bubble if message: was passed; we
+   pass none, so this is defensive against future refactors. */
+.hnc-mascot .speech-bubble{display:none}
+.hnc-speech{flex:1;min-width:0;position:relative;z-index:1}
+.hnc-label{font-size:12px;font-weight:800;color:#0a8579;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.hnc-line{font-family:var(--font-display);font-size:clamp(17px,2.4vw,22px);font-weight:800;color:var(--ink);line-height:1.3;letter-spacing:-.005em;margin-bottom:14px}
+.hnc-stats{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13.5px;color:var(--ink2);font-weight:700}
+.hnc-stat{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.7);padding:5px 12px;border-radius:999px;border:1px solid rgba(108,92,231,.15)}
+.hnc-stat-sep{color:var(--ink3);opacity:.45;font-weight:800}
+@media (max-width: 540px){
+  .home-nova-card{flex-direction:column;text-align:center;align-items:center}
+  .hnc-stats{justify-content:center}
+}
+
+/* ---- Legacy: home snapshot panel — preserved for buildHomeSnapshotLegacy.
    Layout: title on top, then a vertical stack of snapshot cards.
    Subject cards (strongest + needs-work) sit side-by-side in their
    own row inside the stack. Color-blocked headers, light card body
@@ -20329,15 +20356,16 @@ function renderHome(root){
     h('button',{class:'cta',onclick:()=>go('profiles')},['Get Started →']),
   ]);
   root.appendChild(hero);
-  // Family/Class snapshot — replaces the old four "Personalized · Track
-  // Progress · Earn Rewards · Weekly Adventures" marketing tiles, which
-  // were aimed at someone who hadn't signed up yet. Anyone seeing this
-  // home screen IS already in the tenant — they don't need the pitch,
-  // they want a mirror of how they're doing.
+  // Below the hero: a "Nova says…" card — Nova mascot + a personality
+  // line that varies on every refresh, plus a tiny live stat strip
+  // (week coins / longest current streak / current week). Replaces the
+  // old marketing tiles AND the data-heavy snapshot panel — keeps just
+  // enough information to feel alive without turning the home screen
+  // into a dashboard.
   try {
-    const panel = buildHomeSnapshot();
-    if(panel) root.appendChild(panel);
-  } catch(e){ console.warn('[Solvix] home snapshot failed:', e); }
+    const card = buildHomeNovaCard();
+    if(card) root.appendChild(card);
+  } catch(e){ console.warn('[Solvix] home nova card failed:', e); }
 }
 
 /* Map activity-id letter (third segment of "w1-<sid>-<letter><N>") to
@@ -20354,10 +20382,208 @@ const ACTIVITY_LETTER_TO_SUBJECT = {
   p: 'coding',
 };
 
-/* Build the home-screen snapshot panel. Returns a DOM node, or null
-   for cases where there's nothing meaningful to show (brand-new tenant
-   with no roster + no progress). Never throws — caller wraps in try. */
-function buildHomeSnapshot(){
+/* ---- Nova-says home card (Apr 2026) ----
+   Replaced the data-heavy "family/class snapshot" panel with this
+   warmer card: Nova mascot + a personality line that varies on every
+   refresh, plus a tiny stat strip (week coins / longest streak / week).
+   Falls back to delight-only lines when there's no data to personalize.
+   The original buildHomeSnapshot() function is preserved below as
+   buildHomeSnapshotLegacy() in case the operator wants the dense
+   panel back for a classroom view later. */
+
+/* Pool of Nova lines for the home screen. Each entry is either a
+   plain string OR a function that takes a `ctx` object and returns
+   a string — so we can personalize when we have data and fall back
+   gracefully when we don't. ctx shape:
+     { kids: STUDENTS, longestStreak: {name, days}|null,
+       topKid: {name, earned}|null, weekCoins: number,
+       inactiveKid: {name}|null, currentWeek: number }
+   Functions returning null/empty → that line is skipped this draw. */
+const HOME_NOVA_LINES = [
+  // ---------- Generic delight (always eligible) ----------
+  "Three hearts, three flutters. Pick a kid and let's go.",
+  "Antenna check… BUZZING. Today is going to be good.",
+  "Brain snacks loading. Who's hungry today? 🍎",
+  "Cosmic fuel: 100%. Pilot: ready. Pick a learner.",
+  "I just floated here all morning waiting for you.",
+  "Today on Learnia, we celebrate small wins. Let's make some.",
+  "Zorbs! Welcome back, Earth-friend.",
+  "Ready when you are, learner.",
+  "My antenna picked up your signal from three galaxies away.",
+  "On Learnia, showing up IS the win. You showed up.",
+  "Small steps, big galaxies. That's the secret.",
+  "I have three hearts and they're ALL excited.",
+  "Pop quiz: are we about to learn something? (Hint: yes.)",
+  "Tap a kid below and let's level up.",
+  "Beep boop! …Just kidding, I'm not a robot. But I AM friendly.",
+  "If learning were a sport, you'd be MVP. Just saying.",
+  "I love a good Tuesday. Or whatever day it is. They're all good.",
+  "Plot twist: today's the day everything clicks.",
+  "Dust off those neurons — let's go!",
+  "Curiosity, deployed. Antenna, locked on. Let's move.",
+
+  // ---------- Personalized (skipped if data missing) ----------
+  ctx => ctx.longestStreak && ctx.longestStreak.days >= 3
+    ? ctx.longestStreak.name + ' is on a ' + ctx.longestStreak.days + '-day streak. That’s basically a force of nature.'
+    : null,
+  ctx => ctx.longestStreak && ctx.longestStreak.days >= 7
+    ? ctx.longestStreak.name + ' has shown up ' + ctx.longestStreak.days + ' days in a row. Back on Learnia that’d earn a medal. ✨'
+    : null,
+  ctx => (ctx.topKid && ctx.topKid.earned > 0)
+    ? ctx.topKid.name + ' just lit up the leaderboard with ' + ctx.topKid.earned + ' coins this week. Care to challenge them?'
+    : null,
+  ctx => (ctx.weekCoins && ctx.weekCoins >= 100)
+    ? ctx.weekCoins + ' coins earned this week and counting. Your ' + (ctx.isClass ? 'class' : 'family') + ' is HUSTLING.'
+    : null,
+  ctx => (ctx.inactiveKid)
+    ? ctx.inactiveKid.name + ' hasn’t logged in today — go nudge them?'
+    : null,
+  ctx => (ctx.kids && ctx.kids.length >= 3)
+    ? ctx.kids.length + ' brilliant little brains in this account. I see you all.'
+    : null,
+  ctx => (ctx.currentWeek && ctx.currentWeek >= 2)
+    ? "We’re on Week " + ctx.currentWeek + " and the brain glow is real."
+    : null,
+  ctx => (ctx.kids && ctx.kids.length === 1 && ctx.kids[0])
+    ? "Just you and " + ctx.kids[0].name + " today, " + ctx.kids[0].name + "? Let’s do this."
+    : null,
+];
+
+/* Pick a Nova line for THIS render. Per-refresh randomization (not
+   per-day deterministic — the user explicitly asked for a fresh line
+   on every refresh). Filters out personalized lines that returned
+   null because their data was missing, then picks uniformly from
+   what's left. Always falls back to a generic line if nothing
+   matches (which should be impossible since the generics are
+   unconditional, but defensive). */
+function pickHomeNovaLine(ctx){
+  const candidates = [];
+  for(const entry of HOME_NOVA_LINES){
+    if(typeof entry === 'string'){ candidates.push(entry); continue; }
+    if(typeof entry === 'function'){
+      try {
+        const out = entry(ctx);
+        if(typeof out === 'string' && out.trim()) candidates.push(out);
+      } catch(_){}
+    }
+  }
+  if(!candidates.length) return "Pick a kid below and let’s go.";
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+/* Compute the data Nova needs for personalization. Mirrors the same
+   helpers the (now-retired) buildHomeSnapshot used. Returns a
+   ctx object — never throws. */
+function buildHomeNovaCtx(){
+  const ctx = {
+    kids: Array.isArray(STUDENTS) ? STUDENTS.slice() : [],
+    isClass: false,
+    longestStreak: null,
+    topKid: null,
+    weekCoins: 0,
+    inactiveKid: null,
+    currentWeek: 1,
+  };
+  try { ctx.isClass = isClassroomPlan(); } catch(_){}
+  // Longest current streak across the roster.
+  let bestStreak = null;
+  ctx.kids.forEach(s => {
+    const ud = (allData && allData.users) ? allData.users[s.id] : null;
+    if(!ud) return;
+    const n = Number(ud.streak || 0);
+    if(n > 0 && (!bestStreak || n > bestStreak.days)){
+      bestStreak = { name: s.name, days: n };
+    }
+  });
+  ctx.longestStreak = bestStreak;
+  // Weekly goal data → top kid + total weekly coins.
+  try {
+    const wg = weeklyGoalProgress();
+    ctx.weekCoins = Number(wg && wg.current || 0);
+    if(wg && Array.isArray(wg.perKid) && wg.perKid.length){
+      const t = wg.perKid[0];
+      if(t && t.earned > 0) ctx.topKid = { name: t.name, earned: t.earned };
+    }
+  } catch(_){}
+  // First kid that hasn't logged in today (rough — uses lastActiveDate).
+  try {
+    const today = new Date().toDateString();
+    for(const s of ctx.kids){
+      const ud = (allData && allData.users) ? allData.users[s.id] : null;
+      if(!ud) continue;
+      if(ud.lastActiveDate && ud.lastActiveDate !== today){
+        ctx.inactiveKid = { name: s.name };
+        break;
+      }
+    }
+  } catch(_){}
+  // Current curriculum week — if any active student exists, take the max.
+  try {
+    let maxWeek = 1;
+    ctx.kids.forEach(s => {
+      const ud = (allData && allData.users) ? allData.users[s.id] : null;
+      if(!ud) return;
+      const w = Number(computeWeekForUser(ud) || 1);
+      if(w > maxWeek) maxWeek = w;
+    });
+    ctx.currentWeek = maxWeek;
+  } catch(_){}
+  return ctx;
+}
+
+/* Build the Nova-says home card. Mascot + cycling line + tiny stat
+   strip. Returns a DOM node, or null for brand-new tenants with no
+   roster (the /profiles screen handles their setup flow). */
+function buildHomeNovaCard(){
+  if(!Array.isArray(STUDENTS) || !STUDENTS.length) return null;
+  const ctx = buildHomeNovaCtx();
+  const line = pickHomeNovaLine(ctx);
+
+  const card = h('section',{class:'home-nova-card'});
+  // Mascot column (left). Cheerful tone — the home screen is a
+  // welcoming, low-pressure surface.
+  const mascotWrap = h('div',{class:'hnc-mascot'});
+  try {
+    const mascot = createMascot({ tone:'cheerful', size:120 });
+    mascotWrap.appendChild(mascot);
+  } catch(_){
+    // If mascot helper fails for some reason, fall back to an emoji
+    // so the layout doesn't collapse.
+    mascotWrap.appendChild(h('div',{style:'font-size:80px'},'👽'));
+  }
+  card.appendChild(mascotWrap);
+  // Speech column (right): label + line + stat strip.
+  const speech = h('div',{class:'hnc-speech'});
+  speech.appendChild(h('div',{class:'hnc-label'}, '✨ Nova says…'));
+  speech.appendChild(h('div',{class:'hnc-line'}, line));
+  // Tiny stat strip — only render the bits we actually have data for,
+  // so the card stays tidy on a fresh tenant.
+  const stats = [];
+  if(ctx.weekCoins > 0){
+    stats.push(h('span',{class:'hnc-stat'}, '🪙 ' + ctx.weekCoins + ' this week'));
+  }
+  if(ctx.longestStreak && ctx.longestStreak.days >= 1){
+    stats.push(h('span',{class:'hnc-stat'},
+      '🔥 ' + ctx.longestStreak.name + ', ' + ctx.longestStreak.days + '-day streak'));
+  }
+  if(ctx.currentWeek >= 1){
+    stats.push(h('span',{class:'hnc-stat'}, '🎓 Week ' + ctx.currentWeek));
+  }
+  if(stats.length){
+    const strip = h('div',{class:'hnc-stats'});
+    stats.forEach((s, i) => {
+      if(i > 0) strip.appendChild(h('span',{class:'hnc-stat-sep'}, '·'));
+      strip.appendChild(s);
+    });
+    speech.appendChild(strip);
+  }
+  card.appendChild(speech);
+  return card;
+}
+
+/* Legacy: dense data snapshot. Kept (renamed) so we can swap it back
+   in or surface it on the teacher dashboard later if useful. */
+function buildHomeSnapshotLegacy(){
   // Brand-new tenant edge case: no kids on the roster yet. The
   // empty-roster state on /profiles already handles "go set up"
   // messaging, so just suppress the snapshot here.
