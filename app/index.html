@@ -272,6 +272,38 @@ img{max-width:100%}
 
 /* Feature cards — tile shingles with color pops */
 .features{margin-top:32px;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+
+/* ---- Home snapshot panel — replaces the old marketing tiles. ----
+   Layout: title on top, then a vertical stack of snapshot cards.
+   Subject cards (strongest + needs-work) sit side-by-side in their
+   own row inside the stack. Color-blocked headers, light card body
+   so the panel reads as "data" not "promo". */
+.home-snapshot{margin-top:32px;display:flex;flex-direction:column;gap:14px}
+.home-snapshot .hs-title{font-family:var(--font-display);font-size:clamp(20px,3.5vw,26px);font-weight:800;color:var(--ink);margin:0 0 4px;text-align:center;letter-spacing:-.01em}
+.hs-card{background:var(--card);border:1.5px solid rgba(108,92,231,.12);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hs-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:var(--r) var(--r) 0 0;opacity:.7}
+.hs-goal::before{background:linear-gradient(90deg,var(--primary),var(--primary2))}
+.hs-top::before{background:linear-gradient(90deg,#FFD93D,#FF8C42)}
+.hs-subj-strong::before{background:linear-gradient(90deg,var(--mint),#55efc4)}
+.hs-subj-grow::before{background:linear-gradient(90deg,var(--sky),var(--primary))}
+.hs-card-label{font-size:12px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.hs-card-headline{font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--ink);margin-bottom:10px}
+.hs-card-sub{font-size:13px;color:var(--ink3);font-weight:600;margin-top:6px}
+/* Weekly goal bar */
+.hs-bar{width:100%;height:10px;background:rgba(108,92,231,.1);border-radius:999px;overflow:hidden}
+.hs-bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--primary2));border-radius:999px;transition:width .6s var(--spring)}
+.hs-bar-fill.achieved{background:linear-gradient(90deg,var(--mint),#55efc4)}
+/* Top players list */
+.hs-top-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.hs-top-row{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--ink)}
+.hs-top-medal{font-size:18px;flex-shrink:0;width:24px;text-align:center}
+.hs-top-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.hs-top-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hs-top-coins{font-weight:800;color:#b56820;background:rgba(253,203,110,.18);padding:3px 10px;border-radius:999px;font-size:13px;flex-shrink:0}
+/* Strongest + Needs-work cards side by side on wider screens */
+.hs-subj-row{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.hs-subj-name{font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px;margin-top:4px}
+.hs-subj-emoji{font-size:24px;line-height:1}
 .feat{background:var(--card);border:1.5px solid rgba(255,255,255,.9);border-radius:var(--r);padding:24px;box-shadow:var(--shadow);transition:all .35s var(--spring);text-align:left;position:relative;overflow:hidden}
 .feat::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;border-radius:var(--r) var(--r) 0 0;opacity:.65}
 .feat:nth-child(1)::before{background:linear-gradient(90deg,var(--primary),var(--primary2))}
@@ -20297,13 +20329,178 @@ function renderHome(root){
     h('button',{class:'cta',onclick:()=>go('profiles')},['Get Started →']),
   ]);
   root.appendChild(hero);
-  const feats=h('div',{class:'features stagger'},[
-    h('div',{class:'feat'},[h('div',{class:'ico'},'🎯'),h('h3',{},'Personalized'),h('p',{},'Content matched to each student\'s grade and needs.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},'📊'),h('h3',{},'Track Progress'),h('p',{},'Coins, streaks, and weekly completion tracking.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},'🏆'),h('h3',{},'Earn Rewards'),h('p',{},'Badges, coins, and celebrations for every achievement.')]),
-    h('div',{class:'feat'},[h('div',{class:'ico'},'📅'),h('h3',{},'Weekly Adventures'),h('p',{},'Fresh content every week across 5 core subjects.')]),
-  ]);
-  root.appendChild(feats);
+  // Family/Class snapshot — replaces the old four "Personalized · Track
+  // Progress · Earn Rewards · Weekly Adventures" marketing tiles, which
+  // were aimed at someone who hadn't signed up yet. Anyone seeing this
+  // home screen IS already in the tenant — they don't need the pitch,
+  // they want a mirror of how they're doing.
+  try {
+    const panel = buildHomeSnapshot();
+    if(panel) root.appendChild(panel);
+  } catch(e){ console.warn('[Solvix] home snapshot failed:', e); }
+}
+
+/* Map activity-id letter (third segment of "w1-<sid>-<letter><N>") to
+   the SUBJECTS row id. Letter 'p' is coding (programming), 'c' is
+   social studies — both noted at the SUBJECTS definition above. */
+const ACTIVITY_LETTER_TO_SUBJECT = {
+  r: 'reading',
+  w: 'writing',
+  m: 'math',
+  l: 'logic',
+  f: 'french',
+  s: 'science',
+  c: 'social',
+  p: 'coding',
+};
+
+/* Build the home-screen snapshot panel. Returns a DOM node, or null
+   for cases where there's nothing meaningful to show (brand-new tenant
+   with no roster + no progress). Never throws — caller wraps in try. */
+function buildHomeSnapshot(){
+  // Brand-new tenant edge case: no kids on the roster yet. The
+  // empty-roster state on /profiles already handles "go set up"
+  // messaging, so just suppress the snapshot here.
+  if(!Array.isArray(STUDENTS) || !STUDENTS.length) return null;
+
+  const isClass = (function(){ try { return isClassroomPlan(); } catch(_) { return false; } })();
+  const labelGroup = isClass ? 'Class' : 'Family';
+
+  // ---- Weekly goal (existing engine) ------------------------------
+  let weekGoal = null;
+  try { weekGoal = weeklyGoalProgress(); } catch(_){ weekGoal = null; }
+
+  // ---- Top players (sorted by coins earned this week) -------------
+  // weekGoal.perKid is already sorted desc by `earned`. Take top 3.
+  const top = (weekGoal && Array.isArray(weekGoal.perKid))
+    ? weekGoal.perKid.slice(0, 3).filter(p => p.earned > 0)
+    : [];
+
+  // ---- Subject strengths ------------------------------------------
+  // Family-level tally: across every kid, how many activities have
+  // been COMPLETED per subject, and how many of those were PERFECT.
+  // "Strongest" = most perfect-scored. "Needs work" = subject with
+  // the LOWEST perfect-ratio among subjects with ≥3 completions
+  // (subjects nobody's started are "haven't tried", not "weak").
+  const tally = {};
+  STUDENTS.forEach(s => {
+    const ud = (allData && allData.users) ? allData.users[s.id] : null;
+    if(!ud) return;
+    const completed = ud.completedActivities || {};
+    const perfect   = ud.perfectActivities   || {};
+    Object.keys(completed).forEach(aid => {
+      const m = String(aid).match(/-([a-z])\d/);
+      if(!m) return;
+      const subj = ACTIVITY_LETTER_TO_SUBJECT[m[1]];
+      if(!subj) return;
+      if(!tally[subj]) tally[subj] = { completed: 0, perfect: 0 };
+      tally[subj].completed++;
+      if(perfect[aid]) tally[subj].perfect++;
+    });
+  });
+  const tallySubjects = Object.keys(tally).filter(s => tally[s].completed >= 1);
+  let strongest = null, needsWork = null;
+  if(tallySubjects.length >= 2){
+    // Strongest = most perfect-scored count.
+    strongest = tallySubjects.reduce((a, b) => tally[a].perfect >= tally[b].perfect ? a : b);
+    // Needs work = lowest perfect-ratio among subjects with ≥3 attempts.
+    // Falls back to lowest completion count if nobody has ≥3 anywhere.
+    const eligible = tallySubjects.filter(s => tally[s].completed >= 3);
+    if(eligible.length){
+      needsWork = eligible.reduce((a, b) => {
+        const ra = tally[a].perfect / tally[a].completed;
+        const rb = tally[b].perfect / tally[b].completed;
+        return ra <= rb ? a : b;
+      });
+    } else {
+      needsWork = tallySubjects.reduce((a, b) => tally[a].completed <= tally[b].completed ? a : b);
+    }
+    // If it picked the same subject for both (rare — only 1 had data
+    // in some edge), drop them.
+    if(strongest === needsWork){ strongest = null; needsWork = null; }
+  }
+
+  // If nothing useful at all (no goal data, no top earners, no
+  // subject signal), skip the panel rather than show empty cards.
+  const hasGoal = !!(weekGoal && weekGoal.target > 0);
+  const hasTop  = top.length > 0;
+  const hasSubj = !!(strongest || needsWork);
+  if(!hasGoal && !hasTop && !hasSubj) return null;
+
+  // ---- Render ------------------------------------------------------
+  const panel = h('section',{class:'home-snapshot'});
+  panel.appendChild(h('h2',{class:'hs-title'}, '✨ ' + labelGroup + ' snapshot'));
+
+  // Weekly goal row.
+  if(hasGoal){
+    const goalCard = h('div',{class:'hs-card hs-goal'});
+    goalCard.appendChild(h('div',{class:'hs-card-label'}, '🎯 Weekly goal'));
+    const headline = (weekGoal.achieved
+      ? '🎉 ' + weekGoal.current + ' / ' + weekGoal.target + ' coins — goal hit!'
+      : weekGoal.current + ' / ' + weekGoal.target + ' coins');
+    goalCard.appendChild(h('div',{class:'hs-card-headline'}, headline));
+    const bar = h('div',{class:'hs-bar'});
+    const fill = h('div',{class:'hs-bar-fill' + (weekGoal.achieved ? ' achieved' : '')});
+    fill.style.width = Math.max(2, Math.min(100, weekGoal.pct)) + '%';
+    bar.appendChild(fill);
+    goalCard.appendChild(bar);
+    goalCard.appendChild(h('div',{class:'hs-card-sub'}, weekGoal.pct + '% of this week\'s ' + labelGroup.toLowerCase() + ' target'));
+    panel.appendChild(goalCard);
+  }
+
+  // Top players row.
+  if(hasTop){
+    const topCard = h('div',{class:'hs-card hs-top'});
+    topCard.appendChild(h('div',{class:'hs-card-label'}, '⭐ Top ' + (top.length === 1 ? 'player' : 'players') + ' this week'));
+    const list = h('div',{class:'hs-top-list'});
+    const medals = ['🥇','🥈','🥉'];
+    top.forEach((p, i) => {
+      const row = h('div',{class:'hs-top-row'});
+      row.appendChild(h('span',{class:'hs-top-medal'}, medals[i] || '·'));
+      const dot = h('span',{class:'hs-top-dot'});
+      dot.style.background = p.color || '#6C5CE7';
+      row.appendChild(dot);
+      row.appendChild(h('span',{class:'hs-top-name'}, p.name || p.sid));
+      row.appendChild(h('span',{class:'hs-top-coins'}, '🪙 ' + p.earned));
+      list.appendChild(row);
+    });
+    topCard.appendChild(list);
+    panel.appendChild(topCard);
+  }
+
+  // Subject strength + needs-work, side by side when both exist.
+  if(strongest || needsWork){
+    const subjRow = h('div',{class:'hs-subj-row'});
+    if(strongest){
+      const sObj = SUBJECTS.find(x => x.id === strongest);
+      const card = h('div',{class:'hs-card hs-subj hs-subj-strong'});
+      card.appendChild(h('div',{class:'hs-card-label'}, '💪 Strongest subject'));
+      card.appendChild(h('div',{class:'hs-subj-name'}, [
+        h('span',{class:'hs-subj-emoji'}, sObj ? sObj.emoji : '✨'),
+        h('span',{}, sObj ? sObj.name : strongest),
+      ]));
+      card.appendChild(h('div',{class:'hs-card-sub'},
+        tally[strongest].perfect + ' perfect score' + (tally[strongest].perfect === 1 ? '' : 's')));
+      subjRow.appendChild(card);
+    }
+    if(needsWork){
+      const sObj = SUBJECTS.find(x => x.id === needsWork);
+      const card = h('div',{class:'hs-card hs-subj hs-subj-grow'});
+      card.appendChild(h('div',{class:'hs-card-label'}, '📈 Needs more practice'));
+      card.appendChild(h('div',{class:'hs-subj-name'}, [
+        h('span',{class:'hs-subj-emoji'}, sObj ? sObj.emoji : '✨'),
+        h('span',{}, sObj ? sObj.name : needsWork),
+      ]));
+      const t = tally[needsWork];
+      const ratio = t.completed > 0 ? Math.round(t.perfect / t.completed * 100) : 0;
+      card.appendChild(h('div',{class:'hs-card-sub'},
+        t.completed + ' done · ' + ratio + '% perfect'));
+      subjRow.appendChild(card);
+    }
+    panel.appendChild(subjRow);
+  }
+
+  return panel;
 }
 
 /* ========== PROFILES ========== */
