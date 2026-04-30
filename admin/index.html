@@ -3662,17 +3662,63 @@ tbody tr:last-child td{border-bottom:none}
     var pool = formDraft.activity.stretchQuestions;
     var count = (Array.isArray(pool) ? pool.length : 0);
     if(count === 0){
-      box.innerHTML = (
-        '<div class="cf-help" style="margin:0 0 10px">'+
-          'No stretch pool defined. When kids ace this lesson and replay it, the engine '+
-          'looks for harder variants here — without one, replay just shows the same questions. '+
-          'Click below and the AI proxy will draft 3 harder questions on the same skill, anchored '+
-          'to this lesson\'s curriculum tag. You can review on the Raw JSON tab before saving.'+
-        '</div>'+
-        '<button type="button" class="btn btn-primary btn-sm" id="cf-stretch-generate">'+
-          '✨ Auto-generate stretch questions'+
-        '</button>'
-      );
+      // Auto-generate when the pool is empty UNLESS:
+      //   • the operator just manually cleared it (we shouldn't undo
+      //     their explicit action by auto-regenerating on the very next
+      //     render), or
+      //   • a generation is already in flight for this lesson, or
+      //   • a prior auto-attempt FAILED — we don't want to retry-loop
+      //     the operator out of API calls; show the manual button
+      //     instead so they can decide whether to retry.
+      if(formDraft._stretchManuallyCleared || formDraft._stretchAutoInFlight){
+        // Manual / in-flight branch — show the original button so the
+        // operator stays in control. Also runs if generation already
+        // failed once: prior call set _stretchAutoFailed which we treat
+        // as "fall back to manual".
+        box.innerHTML = (
+          '<div class="cf-help" style="margin:0 0 10px">'+
+            'No stretch pool defined. When kids ace this lesson and replay it, the engine '+
+            'looks for harder variants here — without one, replay just shows the same questions.'+
+          '</div>'+
+          '<button type="button" class="btn btn-primary btn-sm" id="cf-stretch-generate">'+
+            '✨ Generate stretch questions now'+
+          '</button>'
+        );
+      } else if(formDraft._stretchAutoFailed){
+        // Auto attempt errored — surface the canonical error UI built
+        // by showStretchError() instead of looping. Operator can hit
+        // "Try again" to fire generateStretchPool(false).
+        // (showStretchError replaces box.innerHTML; we don't need to
+        // pre-render here.)
+        showStretchError(formDraft._stretchAutoFailed.msg || 'Auto-generation failed.', formDraft._stretchAutoFailed.detail || '');
+      } else {
+        // Empty pool, no manual clear, no in-flight call → kick off
+        // auto-generation now. The kid-side complaint was that opening
+        // a lesson with no pool felt incomplete; the operator now sees
+        // "✨ Drafting stretch questions…" instead of an action button.
+        box.innerHTML = (
+          '<div style="padding:14px 16px;background:linear-gradient(135deg,rgba(116,185,255,.08),rgba(0,206,201,.08));border:1px solid rgba(0,206,201,.25);border-radius:10px;display:flex;align-items:center;gap:12px">'+
+            '<div class="ai-btn-spin" style="width:18px;height:18px;border-width:3px;border-color:rgba(80,70,229,.25);border-top-color:#5046e5;flex-shrink:0"></div>'+
+            '<div style="font-size:13.5px;line-height:1.45;color:#0a3a6b;font-weight:600">'+
+              '<div style="font-weight:800;color:#062a4f;margin-bottom:2px">Drafting stretch questions…</div>'+
+              'AI is writing 3 harder variants for this lesson, anchored to its curriculum tag. Takes a few seconds.'+
+            '</div>'+
+          '</div>'
+        );
+        // Mark in-flight so a second renderStretchPool() (e.g. from a
+        // sibling field re-render) doesn't double-fire the API call.
+        formDraft._stretchAutoInFlight = true;
+        // Defer one tick so the spinner paints before the (often
+        // synchronous) JSON validation in generateStretchPool runs.
+        setTimeout(function(){
+          try { generateStretchPool(false); }
+          catch(e){
+            formDraft._stretchAutoInFlight = false;
+            formDraft._stretchAutoFailed = { msg: 'Could not start auto-generation.', detail: String(e && e.message || e) };
+            renderStretchPool();
+          }
+        }, 30);
+      }
     } else {
       // Preview the first question text so the operator gets a sense of the
       // pool without leaving the Form tab.
@@ -3699,7 +3745,17 @@ tbody tr:last-child td{border-bottom:none}
     }
     // Wire whichever buttons are now in the DOM.
     var btnGen = document.getElementById('cf-stretch-generate');
-    if(btnGen) btnGen.addEventListener('click', function(){ generateStretchPool(false); });
+    if(btnGen) btnGen.addEventListener('click', function(){
+      // Manual click on the "Generate now" button (shown in the
+      // post-clear branch) → clear the manual-cleared flag so a
+      // future render returns to the auto-fire default if this
+      // pool is ever cleared again. Also clear failed flag.
+      if(formDraft){
+        formDraft._stretchManuallyCleared = false;
+        formDraft._stretchAutoFailed = null;
+      }
+      generateStretchPool(false);
+    });
     var btnRegen = document.getElementById('cf-stretch-regen');
     if(btnRegen) btnRegen.addEventListener('click', function(){
       if(confirm('Replace the existing '+count+' stretch question'+(count===1?'':'s')+' with a fresh AI-generated set? Your current pool will be discarded.')){
@@ -3712,6 +3768,13 @@ tbody tr:last-child td{border-bottom:none}
     if(btnClear) btnClear.addEventListener('click', function(){
       if(confirm('Clear the stretch pool? Kids who replay this lesson will see the same questions again instead of harder variants.')) {
         formDraft.activity.stretchQuestions = [];
+        // Mark as a deliberate manual clear so renderStretchPool's
+        // empty-pool branch shows the manual "Generate now" button
+        // instead of immediately auto-firing the AI again — the
+        // operator clearly DID NOT want a pool here.
+        formDraft._stretchManuallyCleared = true;
+        formDraft._stretchAutoInFlight = false;
+        formDraft._stretchAutoFailed = null;
         renderStretchPool();
         toast('Stretch pool cleared. Click Save to apply.', 'ok');
       }
@@ -3730,6 +3793,14 @@ tbody tr:last-child td{border-bottom:none}
   // prefix so DevTools surfaces the full request/response.
   function showStretchError(msg, detail){
     console.error('[stretch-gen]', msg, detail || '');
+    // Auto-generation tracking: clear in-flight, mark as failed so the
+    // renderStretchPool() empty-pool branch doesn't loop us back into
+    // another auto-fire on the next render. The "Try again" button in
+    // the error UI clears the failed flag and explicitly re-fires.
+    if(formDraft){
+      formDraft._stretchAutoInFlight = false;
+      formDraft._stretchAutoFailed = { msg: msg, detail: detail || '' };
+    }
     var box = document.getElementById('cf-stretch-body');
     if(!box) return;
     var detailHtml = detail ? '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11.5px;color:#7f1d1d">Technical detail</summary><pre style="margin:6px 0 0;padding:8px;background:#fff;border:1px solid #fecaca;border-radius:6px;font-size:11px;overflow:auto;max-height:160px">'+escapeHtml(String(detail))+'</pre></details>' : '';
@@ -3741,7 +3812,13 @@ tbody tr:last-child td{border-bottom:none}
       '<button type="button" class="btn btn-ghost btn-sm" id="cf-stretch-retry" style="margin-top:10px">↩︎ Try again</button>'
     );
     var retry = document.getElementById('cf-stretch-retry');
-    if(retry) retry.addEventListener('click', renderStretchPool);
+    if(retry) retry.addEventListener('click', function(){
+      // Clear the failed flag so renderStretchPool's empty-pool branch
+      // will fire auto-generation again (instead of bouncing back into
+      // this same error UI via the _stretchAutoFailed check).
+      if(formDraft) formDraft._stretchAutoFailed = null;
+      renderStretchPool();
+    });
   }
 
   async function generateStretchPool(isRegen){
@@ -3840,6 +3917,10 @@ tbody tr:last-child td{border-bottom:none}
       return;
     }
     formDraft.activity.stretchQuestions = newQs;
+    // Auto-gen succeeded — clear the flags so future renders treat
+    // the now-populated pool normally (no spinner, no retry banner).
+    formDraft._stretchAutoInFlight = false;
+    formDraft._stretchAutoFailed = null;
     renderStretchPool();
     var cached = !!(data && data.cached);
     toast('Generated ' + newQs.length + ' stretch question' + (newQs.length===1?'':'s') + (cached ? ' (from cache)' : '') + '. Click Save to deploy.', 'ok');
