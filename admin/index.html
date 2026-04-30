@@ -2681,6 +2681,27 @@ tbody tr:last-child td{border-bottom:none}
           msg:'Reading lesson has no passage block — kids see questions with no story.'});
       }
     }
+    // Orphaned passage references — questions that explicitly mention
+    // "the passage / story / text" but the activity has no passage
+    // block. Tighter than reading-no-passage above (which is reading-
+    // only and threshold-based): this fires on ANY subject when a Q
+    // references a passage that isn't there. Catches the bug where
+    // a kid sees "According to the passage, why did Maya..." with
+    // no passage rendered above. Severity: error — this is a real
+    // broken lesson, not a stylistic suggestion.
+    var ANY_PASSAGE = activity.questions.some(function(q){
+      return q && q.type === 'passage' && q.passage && String(q.passage).trim().length > 0;
+    });
+    if(!ANY_PASSAGE){
+      var passageRefRe = /(according to (the )?(passage|story|text)|(in|from) (the )?(passage|story|text)\b|the (passage|story|text) (says|tells|shows)|re-?read the (passage|story|text))/i;
+      activity.questions.forEach(function(q, i){
+        if(!q || typeof q.q !== 'string') return;
+        if(passageRefRe.test(q.q)){
+          issues.push({severity:'error', code:'orphan-passage-ref',
+            msg:'Q' + (i+1) + ' references "the passage/story/text" but no passage block exists — kid sees the question with no source to answer from.'});
+        }
+      });
+    }
     // Per-question checks
     activity.questions.forEach(function(q, i){
       var qNum = 'Q' + (i + 1);
