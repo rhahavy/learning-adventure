@@ -1011,6 +1011,17 @@ img{max-width:100%}
 .rubric-title{font-size:18px;font-weight:800}
 .rubric-fb{font-size:14px;color:var(--ink2);margin-top:4px;line-height:1.5}
 .rubric-details{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+/* Inline coach feedback inside the rubric. Lives in the SAME div as
+   the rubric checks, so if the rubric renders, the coach renders.
+   No separate box that could fail to mount. The label switches from
+   "✨ Coach's notes" → "🤖 Coach's notes (AI)" when the /feedback
+   endpoint succeeds and replaces the heuristic. */
+.rubric-coach{margin-top:14px;padding:12px 14px;background:linear-gradient(135deg,rgba(116,185,255,.08),rgba(0,206,201,.08));border:1px solid rgba(0,206,201,.25);border-radius:12px}
+.rubric-coach-label{font-size:12px;font-weight:800;color:#0a8579;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.rubric-coach-body{font-size:14px;line-height:1.5;color:var(--ink);font-weight:500}
+.rubric-coach-line{margin-bottom:4px}
+.rubric-coach-line:last-child{margin-bottom:0}
+.rubric-coach-rewrite{margin-top:8px;padding:8px 10px;background:rgba(87,94,232,.08);border-radius:8px;font-style:italic;font-size:13.5px;line-height:1.45}
 .rubric-tag{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700}
 .rubric-tag.pass{background:rgba(0,206,201,.15);color:#00855a}
 .rubric-tag.miss{background:rgba(255,118,117,.12);color:#c0392b}
@@ -23948,7 +23959,11 @@ function renderWrite(card,q){
     const result=gradeWriting(text,q);
     trackCorrect(result.level>=3 ? 1 : 0); // Level 3-4 counts as correct
     if(result.level<3) logWrongAnswer(q, null, null);
-    // Show rubric
+    // Build the rubric AND embed the coach feedback inline in the
+    // SAME div. Earlier separate-box approaches kept failing for kids
+    // (cache, mounting, CSS, who knows). The rubric is the one thing
+    // proven to render — by embedding feedback inside it, if the
+    // rubric shows, the feedback shows. No separate DOM node to lose.
     const rubric=h('div',{class:'rubric'});
     const lvNames=['','Needs Work','Getting There','Good Job!','Excellent!'];
     const lvEmoji=['','😊','👍','⭐','🌟'];
@@ -23960,44 +23975,94 @@ function renderWrite(card,q){
     const tags=h('div',{class:'rubric-details'});
     result.checks.forEach(c=>{tags.appendChild(h('span',{class:'rubric-tag '+(c.pass?'pass':'miss')},(c.pass?'✓ ':'✗ ')+c.label))});
     rubric.appendChild(tags);
-    // Insert the rubric ABOVE the (re-labeled) Submit button so the
-    // kid sees their score, and the same button right below it
-    // becomes the obvious next step. Without this insertBefore the
-    // rubric/AI box appended AFTER the button, leaving the button
-    // looking like a stray disabled control above them.
+    // Inline coach feedback — heuristic now, AI may upgrade later.
+    // Heuristic is computed from the same checks the rubric just
+    // rendered, so it's always non-empty for any non-trivial submission.
+    const heuristic = (typeof heuristicWritingCoach === 'function')
+      ? heuristicWritingCoach(text, q, result)
+      : null;
+    const coachWrap = h('div', { class: 'rubric-coach' });
+    const coachLabel = h('div', { class: 'rubric-coach-label' }, '✨ Coach\'s notes');
+    coachWrap.appendChild(coachLabel);
+    const coachBody = h('div', { class: 'rubric-coach-body' });
+    const initialCoach = heuristic || { whatsWorking: 'Nice job submitting your writing!' };
+    if(initialCoach.whatsWorking){
+      coachBody.appendChild(h('div',{class:'rubric-coach-line'},[
+        h('b',{style:'color:#0e6b5a'}, "What's working: "),
+        h('span',{}, String(initialCoach.whatsWorking)),
+      ]));
+    }
+    if(initialCoach.tryNext){
+      coachBody.appendChild(h('div',{class:'rubric-coach-line'},[
+        h('b',{style:'color:#4f56d4'}, 'Try next time: '),
+        h('span',{}, String(initialCoach.tryNext)),
+      ]));
+    }
+    coachWrap.appendChild(coachBody);
+    rubric.appendChild(coachWrap);
     area.insertBefore(rubric, btn);
-    // Coach feedback panel — ALWAYS attach it, regardless of AI flags.
-    // attachAiWritingFeedback() decides internally whether to fire the
-    // /feedback AI call or fall back to the rubric-derived heuristic.
-    // Either path renders a non-empty box.
-    //
-    // We use a TEMPORARY anchor element so attachAiWritingFeedback
-    // can insertBefore() it (so the feedback lands above the Submit/
-    // Continue button, not at the bottom of write-area). The anchor
-    // is removed after — leaves no empty wrapper. (Earlier versions
-    // used a wrapper div; if any CSS or another script accidentally
-    // matched .ai-fb-host the wrapper itself could've been hidden,
-    // taking the feedback inside it down too.)
-    attachAiWritingFeedback(area, text, q, result, { insertBeforeNode: btn });
-    // Re-purpose the submit button as Continue →. Same button, same
-    // location — kids naturally tap it again. The bottom-of-card Next
-    // button still works (showNext below), this is just the cure for
-    // "I clicked Submit and nothing happened" — they always see a
-    // big, obvious button right where they were looking.
+
+    // If AI is healthy, fire /feedback and quietly upgrade the inline
+    // coach text. No spinner — the kid is already reading the heuristic.
+    if(typeof aiFeatureOn === 'function' && aiFeatureOn('FEATURE_FEEDBACK')){
+      (async () => {
+        try {
+          const payload = {
+            text: String(text).slice(0, 3000),
+            prompt: q.prompt || q.q || '',
+            minWords: q.minWords || 0,
+            goodWords: q.goodWords || 0,
+            rubricLevel: (result && result.level) || 0,
+            rubricNotes: (result && result.feedback) || '',
+            gradeContext: (function(){
+              try{
+                const me = STUDENTS.find(x=>x.id===currentUser);
+                return me ? me.grade : '';
+              }catch(_){ return ''; }
+            })(),
+            curriculum: (function(){
+              try { return (quiz && quiz.activity && quiz.activity.curriculum) || null; }
+              catch(_){ return null; }
+            })(),
+          };
+          const res = await callAI('/feedback', payload, { timeoutMs: 15000 });
+          if(res && res.ok && res.data && (res.data.strength || res.data.suggestion || res.data.exampleRewrite)){
+            // Replace the heuristic with the more specific AI feedback.
+            coachBody.innerHTML = '';
+            coachLabel.textContent = '🤖 Coach\'s notes (AI)';
+            if(res.data.strength){
+              coachBody.appendChild(h('div',{class:'rubric-coach-line'},[
+                h('b',{style:'color:#0e6b5a'}, "What's working: "),
+                h('span',{}, String(res.data.strength)),
+              ]));
+            }
+            if(res.data.suggestion){
+              coachBody.appendChild(h('div',{class:'rubric-coach-line'},[
+                h('b',{style:'color:#4f56d4'}, 'Try next time: '),
+                h('span',{}, String(res.data.suggestion)),
+              ]));
+            }
+            if(res.data.exampleRewrite){
+              coachBody.appendChild(h('div',{class:'rubric-coach-rewrite'},[
+                h('b',{style:'font-style:normal'}, 'Example: '),
+                h('span',{}, '"'+String(res.data.exampleRewrite)+'"'),
+              ]));
+            }
+          }
+        } catch(e){ console.warn('[Solvix] inline AI coach upgrade failed:', e); }
+      })();
+    }
+    // Re-purpose the submit button as Continue →. Kid clicks it once
+    // to advance, OR waits for auto-advance below.
     btn.textContent = (quiz.idx + 1 < quiz.questions.length) ? 'Continue →' : 'Finish 🎉';
     btn.classList.add('write-continue');
     btn.disabled = false;
-    // quiz.locked already set at the top of this handler — no need to
-    // re-set here. Just reveal the Next button so the kid can advance
-    // even while the AI feedback spinner is still chugging.
     showNext();
-    // Scroll the (now-Continue) button into view. The rubric + AI box
-    // pushed UP from where the kid clicked, so we want them to see
-    // both the score AND the new Continue button without hunting.
+    // Scroll the rubric+coach into view so the kid sees their feedback.
     setTimeout(()=>{
       try {
-        if(typeof btn.scrollIntoView === 'function'){
-          btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if(typeof rubric.scrollIntoView === 'function'){
+          rubric.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       } catch(_){}
     }, 120);
