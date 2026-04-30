@@ -960,6 +960,11 @@ img{max-width:100%}
 .btn-primary:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 14px 30px rgba(108,92,231,.5),inset 0 -4px 0 rgba(0,0,0,.2)}
 .btn-ghost{background:rgba(108,92,231,.08);color:var(--primary);border-color:rgba(108,92,231,.15)}
 .btn-ghost:hover{background:rgba(108,92,231,.15);transform:translateY(-2px);border-color:rgba(108,92,231,.25)}
+/* Quit button — softer red, sits next to ← Back. Distinct from .btn-danger
+   which is red-fill (used for destructive admin actions); kids need a
+   clear "leave" exit but it shouldn't look as scary as Delete. */
+.btn-ghost.btn-quit{background:rgba(225,80,80,.07);color:#c9444c;border-color:rgba(225,80,80,.18)}
+.btn-ghost.btn-quit:hover{background:rgba(225,80,80,.13);color:#a8333b;border-color:rgba(225,80,80,.32)}
 
 /* Choice buttons animations */
 .choice{transition:all .25s var(--spring)}
@@ -22998,10 +23003,28 @@ function renderQ(wrap){
   }
   const fb=h('div',{class:'feedback',id:'fb'},'');
   wrap.appendChild(card); wrap.appendChild(fb);
-  wrap.appendChild(h('div',{class:'controls'},[
-    h('button',{class:'btn btn-ghost',onclick:()=>go('week',{subject:quiz.subject})},'← Back'),
-    h('button',{class:'btn btn-primary',id:'nextBtn',style:'display:none',onclick:nextQ},'Next →'),
-  ]));
+  // Quiz controls: ← Back goes BACK ONE QUESTION (not all the way to
+  // the week page — kids kept losing their place). Quit explicitly
+  // exits the activity. Both buttons sit on the left so the primary
+  // Next/Finish CTA on the right stays the obvious next step.
+  // Back is hidden on the very first question (nothing to go back to).
+  const showBack = quiz && quiz.idx > 0;
+  const controlsChildren = [];
+  if(showBack){
+    controlsChildren.push(h('button',{class:'btn btn-ghost',onclick:prevQ,title:'Re-read the previous question.'},'← Back'));
+  }
+  controlsChildren.push(h('button',{class:'btn btn-ghost btn-quit',onclick:()=>{
+    // Confirm before quitting — losing in-progress quiz answers is
+    // expensive enough to warrant a tap-twice gate. Native confirm()
+    // is fine here; teacher-portal-style modal would be overkill.
+    if(confirm('Quit this quiz? Your answers so far will be saved, but the quiz will end.')){
+      try { cancelWriteAutoAdvance(); } catch(_){}
+      try { if(quiz) quiz.finished = true; } catch(_){}
+      go('week',{subject: (quiz && quiz.subject) || null});
+    }
+  },title:'Leave this quiz and go back to your lesson list.'},'✕ Quit'));
+  controlsChildren.push(h('button',{class:'btn btn-primary',id:'nextBtn',style:'display:none',onclick:nextQ},'Next →'));
+  wrap.appendChild(h('div',{class:'controls'}, controlsChildren));
   // First-time activity tour. Idempotent (flag-gated) + inert on lesson-
   // intro cards (no .q-text present). Runs on every renderQ call but the
   // flag ensures it only actually fires once per student, when they hit
@@ -23945,10 +23968,11 @@ function renderWrite(card,q){
   // interaction in the spot they're already looking.
   let submitted = false;
   const btn=h('button',{class:'write-submit',onclick:()=>{
-    // Second click on the same button = "Continue →". Defer to nextQ
-    // (which advances or finishes). This is the un-stick path on the
-    // device where the kid is staring at the submit button waiting.
+    // Second click on the same button = "Continue →" / "Finish 🎉" —
+    // cancel any pending auto-advance timer (else nextQ fires twice)
+    // and advance now.
     if(submitted){
+      try { if(btn._autoAdvanceInterval){ clearInterval(btn._autoAdvanceInterval); btn._autoAdvanceInterval = null; } } catch(_){}
       try { nextQ(); } catch(e){ console.warn('[Solvix] continue from write failed:', e); }
       return;
     }
@@ -24066,7 +24090,8 @@ function renderWrite(card,q){
     }
     // Re-purpose the submit button as Continue →. Kid clicks it once
     // to advance, OR waits for auto-advance below.
-    btn.textContent = (quiz.idx + 1 < quiz.questions.length) ? 'Continue →' : 'Finish 🎉';
+    const isLastQ = !(quiz.idx + 1 < quiz.questions.length);
+    btn.textContent = isLastQ ? 'Finish 🎉' : 'Continue →';
     btn.classList.add('write-continue');
     btn.disabled = false;
     showNext();
@@ -24078,6 +24103,38 @@ function renderWrite(card,q){
         }
       } catch(_){}
     }, 120);
+    // ---------- AUTO-ADVANCE COUNTDOWN ----------
+    // Kid clicked Submit. They're not going to manually click Continue
+    // to advance — that "two clicks for one action" was the loudest UX
+    // complaint after the freeze fix landed. Auto-advance after 5s so
+    // the kid has time to read their feedback, then we move on. The
+    // Continue/Finish button stays clickable for impatient kids who
+    // want to skip the wait, and we update its label every second so
+    // they know the countdown is live. Cancellable by clicking the
+    // button (which advances NOW) or by ← Back / Quit.
+    const baseLabel = isLastQ ? 'Finish' : 'Continue';
+    const arrow = isLastQ ? '🎉' : '→';
+    let secondsLeft = 5;
+    btn.textContent = baseLabel + ' ' + arrow + ' (' + secondsLeft + ')';
+    const tick = () => {
+      secondsLeft--;
+      if(secondsLeft <= 0){
+        clearInterval(autoAdvanceInterval);
+        try { nextQ(); } catch(e){ console.warn('[Solvix] auto-advance failed:', e); }
+        return;
+      }
+      btn.textContent = baseLabel + ' ' + arrow + ' (' + secondsLeft + ')';
+    };
+    const autoAdvanceInterval = setInterval(tick, 1000);
+    // If the kid clicks the button manually, kill the timer so we
+    // don't double-fire nextQ(). The submitted=true branch at the top
+    // of this onclick already calls nextQ — we just need to cancel
+    // the timer here.
+    const origClickListener = btn.onclick;
+    // We can't easily remove the addEventListener-style listener, so
+    // tag the interval onto the button and have the submitted branch
+    // cancel it via a small lookup. Stash on the button dataset.
+    btn._autoAdvanceInterval = autoAdvanceInterval;
   }},'Submit Writing ✏️');
   area.appendChild(btn);
   card.appendChild(area);
@@ -25130,6 +25187,34 @@ function maybeInjectEasier(){
 function nextQ(){
   if(quiz.idx+1<quiz.questions.length){quiz.idx++;quiz.locked=false;renderQ($('.quiz'))}
   else finishActivity();
+}
+/* prevQ — back-one-question. Used by the ← Back button in quiz
+   controls. Decrements idx and re-renders so the kid sees the prior
+   question fresh. If they already answered it, the quiz state still
+   counted that — we don't try to "undo" the score because that opens
+   farming + UI complexity. Plain re-read is the goal: kids losing
+   their place was the original complaint. Also cancels the write-
+   submit auto-advance countdown if the kid jumps back mid-countdown. */
+function prevQ(){
+  if(!quiz || quiz.idx <= 0) return;
+  try { cancelWriteAutoAdvance(); } catch(_){}
+  quiz.idx--;
+  quiz.locked = false;
+  try { renderQ($('.quiz')); } catch(e){ console.warn('[Solvix] prevQ render failed:', e); }
+}
+/* Cancel any in-flight write-submit auto-advance timer. Called by
+   prevQ + the Quit button so a navigation away from the current
+   question doesn't get clobbered ~ms later by the timer firing
+   nextQ() and re-navigating. The interval lives on btn._autoAdvanceInterval. */
+function cancelWriteAutoAdvance(){
+  try {
+    document.querySelectorAll('.write-submit').forEach(b => {
+      if(b._autoAdvanceInterval){
+        clearInterval(b._autoAdvanceInterval);
+        b._autoAdvanceInterval = null;
+      }
+    });
+  } catch(_){}
 }
 
 /* Pass threshold — kids need at least this % correct to mark the level
