@@ -378,8 +378,16 @@ section.tight{padding:56px 0}
 .plan-yearly-note{font-size:13px;color:var(--ink3);margin-bottom:24px;min-height:18px}
 .plan-yearly-note .save{color:#00916e;font-weight:700}
 .plan ul{list-style:none;margin-bottom:28px;flex:1}
-.plan li{padding:8px 0;font-size:14px;color:var(--ink);display:flex;align-items:flex-start;gap:10px;line-height:1.45}
-.plan li::before{content:'✓';color:var(--primary);font-weight:800;flex-shrink:0;margin-top:1px}
+/* Switched from flex+gap to absolute-positioned checkmark (Apr 2026).
+   The flex layout used `gap:10px` to space the ✓ from the bullet text,
+   but our brand-words IIFE wraps "Nova" → <span class="brand-name">
+   Nova</span> on page load. That turned bullet text like "Nova, the AI
+   tutor" into TWO flex items (the span + the trailing ", the AI tutor"
+   text node), so the 10px gap rendered as a visible space BEFORE the
+   comma. Absolute-positioning the checkmark keeps the same look without
+   flex'ing the bullet text, so wrapped brand words sit flush. */
+.plan li{position:relative;padding:8px 0 8px 24px;font-size:14px;color:var(--ink);line-height:1.45}
+.plan li::before{content:'✓';position:absolute;left:0;top:8px;color:var(--primary);font-weight:800;line-height:1.45}
 .plan .btn{width:100%}
 
 /* FAQ */
