@@ -20686,16 +20686,55 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  *  this student (across every subject) as completed. Empty subjects
  *  don't block — only authored content counts. Used as the gate for
  *  rolling forward to Week wk+1. */
+/* Resolve a sid (potentially a demo profile or tenant-added kid) to
+   the WEEKS bucket key that owns its content. Mirrors the resolution
+   in getWeekActivities — kept as a tiny local helper here so the
+   week-completion + unlock-progress functions don't have to depend on
+   currentWeek the way getWeekActivities does (those callers pass the
+   week explicitly). */
+function resolveContentSid(sid, wk){
+  if(!sid) return sid;
+  // Demo profile mapping (DEMO_GRADES.curriculumSid → real grade-master).
+  try {
+    if(typeof DEMO_GRADES !== 'undefined' && Array.isArray(DEMO_GRADES)){
+      const demo = DEMO_GRADES.find(d => d && d.id === sid);
+      if(demo && demo.curriculumSid) return demo.curriculumSid;
+    }
+  } catch(_){}
+  // Direct hit in WEEKS[wk]? Use sid as-is.
+  if(WEEKS && WEEKS[wk] && WEEKS[wk][sid]) return sid;
+  // Tenant-added kid — resolve via grade → template-sid mapping.
+  try {
+    const studentRec = (typeof STUDENTS !== 'undefined' && Array.isArray(STUDENTS))
+      ? STUDENTS.find(s => s && s.id === sid)
+      : null;
+    if(studentRec && studentRec.grade && typeof templateSidForGrade === 'function'){
+      const t = templateSidForGrade(studentRec.grade);
+      if(t) return t;
+    }
+  } catch(_){}
+  return sid;
+}
+
 function isWeekComplete(ud, wk, sid){
   if(!ud || !sid) return false;
   const weekBucket = WEEKS && WEEKS[wk];
   if(!weekBucket) return false;
-  const studentBucket = weekBucket[sid];
+  const resolved = resolveContentSid(sid, wk);
+  const studentBucket = weekBucket[resolved];
   if(!studentBucket) return false;
   const completed = ud.completedActivities || {};
   for(const subj of Object.keys(studentBucket)){
     const acts = studentBucket[subj] || [];
     for(const act of acts){
+      // Skip demoOnly previews — they're parent-marketing samples,
+      // not real work the kid is expected to complete. Pre-fix this
+      // function counted them, so a kid who'd done all 5 real
+      // activities per subject still showed "5 left in every subject"
+      // because each subject also has 5 hidden demo previews. The
+      // dashboard's per-subject "5/5 complete" cards already filter
+      // them out (see getWeekActivities), so the two views diverged.
+      if(act && act.demoOnly) continue;
       if(act && act.id && !completed[act.id]) return false;
     }
   }
@@ -20720,7 +20759,13 @@ function computeWeekForUser(ud, sid){
   for(let wk = 1; wk < MAX_AUTHORED_WEEK; wk++){
     if(!isWeekComplete(ud, wk, sid)) return wk;
     const next = WEEKS[wk + 1];
-    if(!next || !next[sid]) return wk;
+    // Resolve sid through the demo/template mapping so a tenant-added
+    // kid (sid not in WEEKS directly) or a demo profile correctly
+    // lands on their grade-master's bucket. Pre-fix: this check used
+    // raw `sid` and stalled non-grade-master kids on Week 1 forever
+    // even when their grade had Week 2 authored.
+    const resolvedNext = resolveContentSid(sid, wk + 1);
+    if(!next || !next[resolvedNext]) return wk;
   }
   return MAX_AUTHORED_WEEK;
 }
@@ -20743,7 +20788,8 @@ function weekUnlockProgress(ud, sid, wk){
   if(!ud || !sid) return null;
   const weekBucket = WEEKS && WEEKS[wk];
   if(!weekBucket) return null;
-  const studentBucket = weekBucket[sid];
+  const resolved = resolveContentSid(sid, wk);
+  const studentBucket = weekBucket[resolved];
   if(!studentBucket) return null;
   const completed = ud.completedActivities || {};
   let remaining = 0;
@@ -20751,6 +20797,12 @@ function weekUnlockProgress(ud, sid, wk){
   for(const subj of Object.keys(studentBucket)){
     let subjLeft = 0;
     for(const act of (studentBucket[subj] || [])){
+      // Skip demoOnly previews — same reasoning as isWeekComplete.
+      // Without this skip, a kid who had finished all 5 real lessons
+      // per subject saw "Reading: 5 · Writing: 5 · …" in the unlock
+      // banner because each subject also has 5 hidden demo previews
+      // they're not expected to complete.
+      if(act && act.demoOnly) continue;
       if(act && act.id && !completed[act.id]) { subjLeft++; remaining++; }
     }
     if(subjLeft) perSubject[subj] = subjLeft;
