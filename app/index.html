@@ -21331,6 +21331,111 @@ WEEKS[2] = {
       ['"Evaluate" means to...',['avoid','judge carefully','list','repeat'],1],
       ['"Summarize" means to give the...',['full text','main ideas briefly','opposite view','next chapter'],1]]),
   ]);
+
+  // Theo (JK) — pre-readers: letter names → first sounds → sight words → tiny
+  // words → color words. Each lesson has 3 questions like the other grades'
+  // spelling sets. JK kids working with a parent will have these read aloud,
+  // so the question stems are deliberately short.
+  push('theo','spelling',[
+    P('w1-theo-sp6','Letter Names','🔤','Every letter has a name. The first ones go A, B, C, D, E.',[
+      ['What is the FIRST letter of the alphabet?',['B','A','C','D'],1],
+      ['Which letter says "buh" like in BALL?',['A','C','B','D'],2],
+      ['What letter comes right after A?',['C','D','B','E'],2]]),
+    P('w1-theo-sp7','First Sounds','👂','Every word starts with a sound. CAT starts with /k/. SUN starts with /s/.',[
+      ['CAT starts with the sound...',['/m/','/c/','/d/','/f/'],1],
+      ['SUN starts with the sound...',['/s/','/n/','/u/','/m/'],0],
+      ['DOG starts with the sound...',['/g/','/o/','/d/','/b/'],2]]),
+    P('w1-theo-sp8','Sight Words','✨','Some words you just know: I, a, the. They show up in EVERY book!',[
+      ['Which one is a word all by itself?',['ee','ai','I','oo'],2],
+      ['Which spells the word for "one"?',['ah','a','at','an'],1],
+      ['Which is the word "the"?',['te','tha','thee','the'],3]]),
+    P('w1-theo-sp9','Two-Letter Words','✌️','Tiny words can do a lot: NO, GO, UP, ON, IT, IS.',[
+      ['How do you spell the opposite of YES?',['nu','no','noh','knoa'],1],
+      ['How do you spell GO?',['go','goe','geo','gou'],0],
+      ['How do you spell UP?',['op','ap','up','ub'],2]]),
+    P('w1-theo-sp10','Color Words','🎨','Colors are everywhere: RED, BLUE, GREEN, YELLOW.',[
+      ['How do you spell the color of fire?',['rad','red','rede','reed'],1],
+      ['How do you spell the color of the sky?',['blu','blue','bloo','bleau'],1],
+      ['Which is spelled correctly?',['yelow','yallow','yellow','yelew'],2]]),
+  ]);
+
+  // Lily (G4) — suffix-doubling, compound words, prefixes, -tion family,
+  // common homophones. Sits between akshayan (G3) and isaiah (G5) so the
+  // overall progression across the spelling demos stays smooth.
+  push('lily','spelling',[
+    P('w1-lily-sp6','Adding -ing','🔄','Word ends in a short vowel + one consonant? Double the consonant before -ing: run → running, hop → hopping. Long vowel (silent e)? Drop the e first: bake → baking.',[
+      ['Add -ing to RUN:',['runing','runn','running','runninng'],2],
+      ['Add -ing to BAKE (long vowel, silent e):',['bakeing','baking','bakking','bakingg'],1],
+      ['Add -ing to STOP:',['stoping','stopping','stoppin','stoppping'],1]]),
+    P('w1-lily-sp7','Compound Words','🔗','Two words joined into one: sun + shine = sunshine. Each part keeps its own spelling.',[
+      ['Sun + flower =',['sun flower','sunfler','sunflower','suner'],2],
+      ['Base + ball =',['baseball','base ball','baseboll','basball'],0],
+      ['Rain + bow =',['rein bow','rainbow','rainboe','renbow'],1]]),
+    P('w1-lily-sp8','Common Prefixes','⏪','Prefixes go at the START of a word. UN- means "not" (unhappy). RE- means "again" (redo). PRE- means "before" (preview).',[
+      ['"Not happy" =',['unhapy','unhappy','unhapie','un happy'],1],
+      ['"Do again" =',['redo','rido','re-do','redou'],0],
+      ['"View before" =',['preview','priview','priveiw','preeview'],0]]),
+    P('w1-lily-sp9','Words Ending in -tion','📜','-TION sounds like "shun": action, station, nation. Watch the spelling — it\'s never spelled "shun" or "shion."',[
+      ['Spell the word for "what you do":',['acshun','acsion','action','actoin'],2],
+      ['A place where trains stop:',['stashun','station','stasion','statoin'],1],
+      ['Which is spelled correctly?',['nashun','nation','nashin','natoin'],1]]),
+    P('w1-lily-sp10','Their / There / They\'re','⚠️','Three words that sound the same but mean different things: THEIR (belongs to them), THERE (in that place), THEY\'RE (they are).',[
+      ['"___ going to the park." (they are)',['Their','There','They\'re','Thier'],2],
+      ['"Put it ___." (in that place)',['their','there','they\'re','thier'],1],
+      ['"That is ___ dog." (belongs to them)',['there','they\'re','their','thier'],2]]),
+  ]);
+
+  // Jasper (G6) — Greek/Latin roots, easily-confused pairs, irregular
+  // plurals, silent letters. The roots set is intentional: a G6 reader
+  // who knows TELE/PHOTO/GRAPH starts decoding new words on their own.
+  push('jasper','spelling',[
+    P('w1-jasper-sp6','Greek Roots: TELE, PHOTO, GRAPH','🏛️','TELE = far (telephone). PHOTO = light (photograph). GRAPH = write (autograph).',[
+      ['Which word means "writing from far away"?',['photograph','telegraph','telegram','telephone'],1],
+      ['"Photograph" literally means...',['written light','far writing','writing again','sound far'],0],
+      ['"Autograph" means...',['self-writing','self-light','far-self','self-far'],0]]),
+    P('w1-jasper-sp7','Latin Roots: PORT, DICT, JECT','📜','PORT = carry (transport). DICT = say (dictate). JECT = throw (eject).',[
+      ['Which word means to "throw out"?',['ejcect','eject','egect','ejekt'],1],
+      ['"Transport" means to...',['carry across','say across','throw across','see across'],0],
+      ['"Dictate" means to...',['carry words','say words','throw words','eat words'],1]]),
+    P('w1-jasper-sp8','Affect / Effect','⚖️','AFFECT (verb) = to influence. EFFECT (noun) = result. "Rain AFFECTS the game; the EFFECT is mud."',[
+      ['"The rain ___ the game." (verb)',['affect','effect','affects','effects'],2],
+      ['"The ___ was a flood." (noun)',['affect','effect','affecting','effecting'],1],
+      ['Which is the noun?',['affect','effect','accept','except'],1]]),
+    P('w1-jasper-sp9','Irregular Plurals','🐭','Some plurals don\'t add S: mouse → mice, goose → geese, child → children, foot → feet.',[
+      ['Plural of MOUSE?',['mouses','mices','mice','meece'],2],
+      ['Plural of GOOSE?',['gooses','geese','geeses','goosies'],1],
+      ['Plural of CHILD?',['childs','childen','children','childes'],2]]),
+    P('w1-jasper-sp10','Silent Letters','🤫','Some letters are silent: K in KNOW, W in WRITE, G in GNOME, P in PSALM. You write them but don\'t hear them.',[
+      ['Which has a silent K?',['knife','keep','kite','kick'],0],
+      ['Which has a silent W?',['water','white','write','wash'],2],
+      ['Which has a silent G?',['gate','gnome','give','goal'],1]]),
+  ]);
+
+  // Nora (G8) — academic-tier spelling: classic demons, -able/-ible,
+  // borrowed words, hyphenation, principal/principle and stationary/
+  // stationery (the most-confused pairs in junior-high writing).
+  push('nora','spelling',[
+    P('w1-nora-sp6','Spelling Demons','😈','Words that catch even adults: necessary, embarrass, occurrence, separate.',[
+      ['Which is correct?',['neccessary','necessary','nessessary','necesary'],1],
+      ['Which is correct?',['embarass','embarras','embarrass','embarrasse'],2],
+      ['Which is correct?',['ocurrence','occurence','occurrence','ocurence'],2]]),
+    P('w1-nora-sp7','-able vs -ible','📖','-ABLE follows a complete word (enjoy → enjoyable). -IBLE follows a root that isn\'t a standalone word (vis → visible).',[
+      ['Spell the word for "can be visited":',['visitible','visitable','vistitable','visitble'],1],
+      ['Spell the word for "can be seen":',['visable','visible','viseable','visibel'],1],
+      ['Which uses -able correctly?',['terrible','possable','enjoyable','horrable'],2]]),
+    P('w1-nora-sp8','Words from Other Languages','🌍','English borrows from everywhere: KINDERGARTEN (German), BALLET (French), TSUNAMI (Japanese), SAFARI (Swahili).',[
+      ['Which is spelled correctly?',['kindergarden','kindergarten','kindergartin','kindergaarten'],1],
+      ['Which is spelled correctly?',['ballet','ballay','balet','balette'],0],
+      ['Which is spelled correctly?',['tsunamie','sunami','tsunami','tsunamy'],2]]),
+    P('w1-nora-sp9','Hyphenation','➖','Hyphens join compound modifiers BEFORE a noun (a well-known author). Family terms become solid: motherinlaw → mother-in-law.',[
+      ['Which is correct?',['well known author','wellknown author','well-known author','wellknownauthor'],2],
+      ['Which is the correct hyphenated form?',['mother in law','motherinlaw','mother-in-law','mothers-in-law'],2],
+      ['When do you hyphenate "well known"?',['always','never','only before a noun','only after a noun'],2]]),
+    P('w1-nora-sp10','Principal / Principle, Stationary / Stationery','🤔','PRINCIPAL = the head of a school. PRINCIPLE = a rule. STATIONARY = standing still. STATIONERY = paper for letters.',[
+      ['"The school ___ welcomed us."',['principle','principal','principel','principil'],1],
+      ['"That\'s an important ___." (rule)',['principle','principal','principel','principil'],0],
+      ['"___ paper" (for letters):',['stationary','stationery','statonary','stationerys'],1]]),
+  ]);
 })();
 
 /* ==========================================================================
