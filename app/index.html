@@ -300,11 +300,23 @@ img{max-width:100%}
 .hnc-stat{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.7);padding:5px 12px;border-radius:999px;border:1px solid rgba(108,92,231,.15)}
 /* Goal chip is the primary "where is the family this week?" stat —
    slightly bolder weight and a touch more padding so it reads as the
-   primary data point next to the muted week/level marker. The
-   inline-style green tint (in JS) overrides this when the goal is
-   already achieved. */
+   primary data point. The inline-style green tint (in JS) overrides
+   this when the goal is already achieved. */
 .hnc-goal-chip{font-weight:800;padding:5px 14px}
 .hnc-stat-sep{color:var(--ink3);opacity:.45;font-weight:800}
+/* Most-wished-for mini-block — a tiny call-out under the goal chip
+   that appears only when the store is turned on for the tenant. The
+   little "×N" counter shows how many kids have the item on their
+   wishlist, so the parent / teacher sees popular targets without
+   having to dig into the per-kid wishlists. */
+.hnc-wishlist{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.hnc-wishlist-label{font-size:11.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--ink3)}
+.hnc-wishlist-items{display:flex;flex-wrap:wrap;gap:6px}
+.hnc-wish-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.85);border:1px solid rgba(108,92,231,.18);padding:4px 10px 4px 8px;border-radius:999px;font-size:12.5px;font-weight:700;color:var(--ink2);max-width:100%;min-width:0}
+.hnc-wish-emoji{font-size:14px;line-height:1;flex-shrink:0}
+.hnc-wish-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.hnc-wish-count{color:var(--primary);font-weight:800;font-size:11.5px;flex-shrink:0}
+@media(max-width:640px){.hnc-wish-name{max-width:100px}}
 @media (max-width: 540px){
   .home-nova-card{flex-direction:column;text-align:center;align-items:center}
   .hnc-stats{justify-content:center}
@@ -21814,9 +21826,22 @@ function weeklyGoalTargetForLevel(level, tenureWeek){
   const tenureMult = 1 + 0.20 * (tw - 1);
   return Math.round(defaultWeeklyGoalTarget() * levelMult * tenureMult);
 }
-function weeklyGoalBonusForLevel(level){
+function weeklyGoalBonusForLevel(level, tenureWeek){
   const lv = Math.max(1, Math.min(WEEKLY_GOAL_MAX_LEVEL, Number(level||1)));
-  return 5 + 3 * (lv - 1);
+  // Bonus scales with tenure week the same way the target does — harder
+  // weekly challenge → larger bonus payout. Without this, a Week-6
+  // family was grinding through a 2× target for the same 5-coin payout
+  // a Week-1 family got. Operator request: "as the challenges get
+  // harder give them more coins."
+  //   W1L1 = 5,   W1L6 = 20  (within-week scale unchanged)
+  //   W6L1 = 10,  W6L6 = 40  (tenure-doubled at the cap)
+  const rawTw = (typeof tenureWeek === 'number' && tenureWeek > 0)
+    ? tenureWeek
+    : familyTenureWeek();
+  const tw = Math.max(1, Math.min(WEEKLY_GOAL_MAX_TENURE, rawTw));
+  const baseBonus  = 5 + 3 * (lv - 1);
+  const tenureMult = 1 + 0.20 * (tw - 1);
+  return Math.round(baseBonus * tenureMult);
 }
 
 function weeklyGoalRollover(){
@@ -28446,41 +28471,93 @@ function buildHomeNovaCard(){
     : pickMotivationalQuote();
   const lineEl = h('div',{class:'hnc-line'}, quote);
   speech.appendChild(lineEl);
-  // Stats strip — replaced the streak/week pills with the family's
-  // shared class goal progress. The goal already tenure-scales (each
-  // tenure-week the bar gets 20% bigger) so the pill IS the answer
-  // to "where are we this week vs. last week?". Demo tenants don't
-  // have a goal blob, so they skip the strip; their Nova quote alone
-  // is the whole card body.
+  // Stats strip — operator pass (Apr 2026):
+  //   • Dropped the "🪜 Week N · LX" pill. Every kid's on their own
+  //     clock, and the operator wanted the strip to feel goal-focused
+  //     not progression-focused.
+  //   • Kept the class/family goal chip. It's the one piece of data
+  //     that's actually shared across the roster, so it answers "what
+  //     are we pulling toward this week?" cleanly. Goal target now
+  //     tenure-scales AND the bonus payout tenure-scales (see
+  //     weeklyGoalBonusForLevel) — harder weekly challenges = more
+  //     coins, so the chip's bonus tooltip stays honest.
+  //   • Added a "🔥 Most wished-for" mini-section UNDER the goal chip
+  //     when the store is enabled. Driven by the same wishTally logic
+  //     the teacher's catalog panel uses (count occurrences across
+  //     every kid's wishlist). When the store is OFF for the tenant,
+  //     we suppress this section entirely — the card is just quote +
+  //     goal then.
+  // Demo tenants skip the whole strip — they don't have real progress
+  // blobs to feed the goal chip and don't have catalog overrides.
   if(!ctx.isDemo){
     let goal = null;
     try { goal = weeklyGoalProgress(); } catch(_){ goal = null; }
     if(goal){
-      const tw = familyTenureWeek();
-      const lv = Number((allData.weeklyGoal && allData.weeklyGoal.level) || 1);
       const labelGroup = ctx.isClass ? 'Class' : 'Family';
       // Primary chip: goal progress (current/target coins). Tinted
       // green once achieved so the family sees a visible win even
-      // before the bonus payout lands.
+      // before the bonus payout lands. Bonus value in the tooltip
+      // reflects the tenure-scaled payout the family will actually
+      // see when the bar fills.
       const goalChipBg = goal.achieved
         ? 'background:rgba(72,187,120,.15);border-color:rgba(72,187,120,.45);color:#1f6f43'
         : '';
+      const lv = Number((allData.weeklyGoal && allData.weeklyGoal.level) || 1);
+      let bonusForTip = 5;
+      try { bonusForTip = weeklyGoalBonusForLevel(lv); } catch(_){}
       const strip = h('div',{class:'hnc-stats'});
-      strip.appendChild(h('span',{class:'hnc-stat hnc-goal-chip', style: goalChipBg, title:'Coins earned this week toward the family\'s shared goal — bonus pays out when the bar fills.'},
+      strip.appendChild(h('span',{
+        class:'hnc-stat hnc-goal-chip',
+        style: goalChipBg,
+        title:'Coins earned this week toward the family\'s shared goal. Each kid earns +' + bonusForTip + ' coins when the bar fills — payout grows with the difficulty.',
+      },
         '🎯 ' + labelGroup + ' goal: ' + (goal.current || 0) + ' / ' + goal.target + ' coins'
       ));
-      strip.appendChild(h('span',{class:'hnc-stat-sep'}, '·'));
-      // Secondary chip: difficulty marker. Tenure week + within-week
-      // level. As the family advances, this number ticks up and the
-      // primary chip's denominator grows with it. Capped visually at
-      // WEEKLY_GOAL_MAX_TENURE so the pill doesn't lie about further
-      // scaling that the engine isn't actually doing.
-      const twDisp = Math.min(WEEKLY_GOAL_MAX_TENURE, tw);
-      const tier   = twDisp >= WEEKLY_GOAL_MAX_TENURE ? ' (max)' : '';
-      strip.appendChild(h('span',{class:'hnc-stat', title:'Goals get 20% bigger every week the family progresses, on top of the within-week level bumps.'},
-        '🪜 Week ' + twDisp + tier + ' · L' + lv
-      ));
       speech.appendChild(strip);
+    }
+    // ---- Most wished-for (store-gated) ----------------------------
+    // Mirrors the tally in the teacher's Reward Catalog panel: walk
+    // every active student's wishlist, count item occurrences, sort
+    // descending, take top 3. Tucked under the goal chip so the
+    // hierarchy is "quote → shared goal → motivation context".
+    let storeOn = false;
+    try { storeOn = (typeof isStoreEnabled === 'function') ? isStoreEnabled() : false; } catch(_){ storeOn = false; }
+    if(storeOn){
+      const tally = {};   // itemId → count
+      try {
+        if(typeof STUDENTS !== 'undefined' && Array.isArray(STUDENTS)){
+          for(const s of STUDENTS){
+            const ud = (allData && allData.users) ? allData.users[s.id] : null;
+            const wl = (ud && Array.isArray(ud.wishlist)) ? ud.wishlist : [];
+            for(const id of wl){
+              if(!id) continue;
+              tally[id] = (tally[id] || 0) + 1;
+            }
+          }
+        }
+      } catch(_){}
+      const top = Object.entries(tally)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([id, count]) => ({ item: (typeof getItemById === 'function') ? getItemById(id) : null, count }))
+        .filter(x => x.item);
+      if(top.length){
+        const wishWrap = h('div',{class:'hnc-wishlist'});
+        wishWrap.appendChild(h('div',{class:'hnc-wishlist-label'}, '🔥 Most wished-for'));
+        const wishList = h('div',{class:'hnc-wishlist-items'});
+        top.forEach(({ item, count }) => {
+          wishList.appendChild(h('span',{
+            class:'hnc-wish-chip',
+            title: item.name + ' — ' + count + ' kid' + (count === 1 ? '' : 's') + ' have this on their wishlist (' + (item.coinCost || 0) + ' coins each).',
+          }, [
+            h('span',{class:'hnc-wish-emoji'}, item.emoji || '🎁'),
+            h('span',{class:'hnc-wish-name'}, item.name),
+            h('span',{class:'hnc-wish-count'}, '×' + count),
+          ]));
+        });
+        wishWrap.appendChild(wishList);
+        speech.appendChild(wishWrap);
+      }
     }
   }
   // Click anywhere on the card → rotate to a new motivational quote.
