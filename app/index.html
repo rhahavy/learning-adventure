@@ -29904,6 +29904,18 @@ function renderParentView(root){
 /* ========== STUDENT DASHBOARD ========== */
 function renderDashboard(root){
   if(!currentUser||!state){go('home');return}
+  // Self-clearing — three in-place re-render sites in this function
+  // (Read-aloud toggle, Nova-in-quiz toggle, week-selector chips) call
+  // renderDashboard(root) without going through go(). Pre-fix the
+  // function only ever appended, so each click stacked a fresh
+  // dashboard under the previous one and the OLD toggle (still in its
+  // OFF visual state) stayed pinned at the top of the viewport. Looked
+  // exactly like the toggle "wasn't responding" — the click did flip
+  // state.ttsEnabled and saveState wrote it through, but the kid never
+  // saw the new pill. Clearing here makes those re-render call sites
+  // safe and is idempotent for the canonical go() flow (which already
+  // empties #screen before dispatching).
+  try { root.innerHTML = ''; } catch(_){}
   // Recompute the per-student week clock on every dashboard render so a
   // page refresh after the 7-day boundary advances the student without
   // needing a log-out/log-in. Cheap — just arithmetic on joinedAt.
