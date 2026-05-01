@@ -20047,7 +20047,20 @@ WEEKS[2] = {
   });
 
   const W = WEEKS[1];
-  const push = (sid, subj, levels) => { if(W[sid] && W[sid][subj]) W[sid][subj].push(...levels); };
+  // Pre-fix push() silently no-op'd when W[sid][subj] didn't exist —
+  // which broke v174's W1 spelling fill for theo/lily/jasper/nora,
+  // because those four sids have NO `spelling: []` array in the
+  // WEEKS[1] const declaration (only the 6 originally-authored grades
+  // do). The 20 new lessons authored as `push('theo','spelling',[…])`
+  // dropped on the floor. Now push() creates the array if missing,
+  // so future "fill a subject for grades that didn't have it" patches
+  // (operator-driven) Just Work without separate const-declaration
+  // edits.
+  const push = (sid, subj, levels) => {
+    if(!W[sid]) return;
+    if(!Array.isArray(W[sid][subj])) W[sid][subj] = [];
+    W[sid][subj].push(...levels);
+  };
 
   /* ===== NISHAN (K / Grade 1) ===== */
   push('nishan','reading',[
