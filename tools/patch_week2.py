@@ -119,6 +119,49 @@ def find_balanced(s, i, open_c, close_c):
         j += 1
     return -1
 
+def find_top_level_kv_blocks(text):
+    """Walk `text` and return every top-level `key: { ... }` or
+    `key: [ ... ]` pair as (key, open_idx, close_idx) — both indices
+    relative to `text`, both inclusive of the brace/bracket.
+
+    Used by the merge path: we scan WEEKS[2]'s body to find sid blocks,
+    then scan each sid's inner body to find subject arrays. Skips strings
+    so colons inside passage text don't get mistaken for keys."""
+    out = []
+    j = 0; d = 0; in_s = None; esc = False
+    n = len(text)
+    while j < n:
+        c = text[j]
+        if esc: esc = False
+        elif in_s:
+            if c == '\\': esc = True
+            elif c == in_s: in_s = None
+        else:
+            if c in "\"'`": in_s = c
+            elif c in '{[': d += 1
+            elif c in '}]': d -= 1
+            elif d == 0 and c == ':':
+                # Walk back to capture the JS identifier acting as the key.
+                k = j - 1
+                while k >= 0 and text[k] in ' \t\n': k -= 1
+                end = k + 1
+                while k >= 0 and (text[k].isalnum() or text[k] == '_'):
+                    k -= 1
+                key = text[k+1:end].strip()
+                if key:
+                    # Walk forward to the value's opening brace/bracket.
+                    m = j + 1
+                    while m < n and text[m] in ' \t\n': m += 1
+                    if m < n and text[m] in '{[':
+                        opener = text[m]
+                        closer = '}' if opener == '{' else ']'
+                        close_idx = find_balanced(text, m, opener, closer)
+                        if close_idx > 0:
+                            out.append((key, m, close_idx))
+                            j = close_idx  # jump past the value to avoid re-entering it
+        j += 1
+    return out
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--app', default=DEFAULT_APP)
@@ -156,53 +199,75 @@ def main():
     if close_brace < 0:
         print("❌  Could not find matching close brace for WEEKS[2]"); sys.exit(1)
     block_body = src[open_brace+1:close_brace]
-    # Existing top-level sids in WEEKS[2]
-    existing_sids = set()
-    j = 0; d = 0; in_s = None; esc = False
-    while j < len(block_body):
-        c = block_body[j]
-        if esc: esc = False
-        elif in_s:
-            if c == '\\': esc = True
-            elif c == in_s: in_s = None
-        else:
-            if c in "\"'`": in_s = c
-            elif c in '{[': d += 1
-            elif c in '}]': d -= 1
-            elif d == 0 and c == ':':
-                k = j - 1
-                while k >= 0 and block_body[k] in ' \t\n': k -= 1
-                end = k + 1
-                while k >= 0 and (block_body[k].isalnum() or block_body[k] == '_'):
-                    k -= 1
-                key = block_body[k+1:end].strip()
-                if key: existing_sids.add(key)
-        j += 1
-    print(f"WEEKS[2] currently has sids: {sorted(existing_sids)}")
+    # Walk WEEKS[2]'s body once to capture each existing sid → its
+    # inner-brace range. We need the range (not just the name) so we
+    # can MERGE missing subjects into the existing sid block instead
+    # of skipping it. (rushan/akshayan landed with reading-only on the
+    # first pass; the rest of the subjects are in /tmp/week2_partial.json
+    # and need to slot into the same sid block — not a new one, which
+    # would produce a duplicate key the JS parser would silently keep
+    # only the second of.)
+    sid_kv = find_top_level_kv_blocks(block_body)
+    existing_sid_info = {key: (op, cl) for (key, op, cl) in sid_kv}
+    print(f"WEEKS[2] currently has sids: {sorted(existing_sid_info.keys())}")
 
-    # Compose insertions
-    to_inject = []
+    # Plan two kinds of edits:
+    #   - new_sid_blocks  → full sid blocks to append before WEEKS[2]'s `}`
+    #   - merge_edits     → (abs_pos, text) inserts before an EXISTING sid's `}`
+    new_sid_blocks = []
+    merge_edits = []
+    skipped_fully_present = []
+
     for sid in by_sid:
-        if sid in existing_sids:
-            print(f"  ⚠️  {sid} already in WEEKS[2] — skipping (delete the existing block first if you want to overwrite)")
+        if sid not in existing_sid_info:
+            new_sid_blocks.append(render_sid_block(sid, by_sid[sid]))
             continue
-        to_inject.append(render_sid_block(sid, by_sid[sid]))
-    if not to_inject:
+        # Sid already exists — find its current subjects and figure out
+        # what we still need to inject.
+        sid_open_bb, sid_close_bb = existing_sid_info[sid]
+        sid_inner = block_body[sid_open_bb+1:sid_close_bb]
+        existing_subjects = {k for (k, _, _) in find_top_level_kv_blocks(sid_inner)}
+        missing = [s for s in SUBJECT_ORDER if s in by_sid[sid] and s not in existing_subjects]
+        already = [s for s in by_sid[sid] if s in existing_subjects]
+        if already:
+            print(f"  ↪️  {sid}: keeping existing {sorted(already)}; will not clobber")
+        if not missing:
+            skipped_fully_present.append(sid)
+            continue
+        print(f"  ➕  {sid}: merging {missing}")
+        rendered = '\n'.join(render_subject(subj, by_sid[sid][subj]) for subj in missing)
+        # Absolute insertion position = before the sid's closing `}`.
+        # block_body[i] sits at src[open_brace+1+i].
+        insertion_pos = open_brace + 1 + sid_close_bb
+        merge_edits.append((insertion_pos, '\n' + rendered + '\n  '))
+
+    for sid in skipped_fully_present:
+        print(f"  ⚠️  {sid} already has every subject we wanted — nothing to do")
+
+    if not new_sid_blocks and not merge_edits:
         print("Nothing new to inject."); return
 
     if args.dry_run:
-        print("\n=== Would inject ===\n")
-        for blk in to_inject:
+        print(f"\n=== Would inject {len(new_sid_blocks)} new sid block(s) and merge into {len(merge_edits)} existing sid(s) ===\n")
+        for blk in new_sid_blocks:
             print(blk[:600])
             print("  ... (truncated)" if len(blk) > 600 else "")
+        for (pos, repl) in merge_edits:
+            print(f"  merge @ src[{pos}]:")
+            print(repl[:400])
+            print("  ... (truncated)" if len(repl) > 400 else "")
         return
 
-    # Insert before the closing brace of WEEKS[2].
-    # Find a clean insertion point: just before close_brace, after the
-    # last existing top-level entry. We append at close_brace position
-    # with a leading newline.
-    insertion = '\n' + '\n'.join(to_inject) + '\n'
-    new_src = src[:close_brace] + insertion + src[close_brace:]
+    # Apply ALL edits back-to-front so earlier offsets stay valid.
+    # Append-new-sids at close_brace is the rightmost insert; merge edits
+    # land at sid-internal positions BEFORE close_brace. Sorting by pos
+    # descending preserves correctness.
+    all_edits = list(merge_edits)
+    if new_sid_blocks:
+        all_edits.append((close_brace, '\n' + '\n'.join(new_sid_blocks) + '\n'))
+    new_src = src
+    for (pos, repl) in sorted(all_edits, key=lambda x: -x[0]):
+        new_src = new_src[:pos] + repl + new_src[pos:]
 
     if new_src == src:
         print("No change."); return
@@ -215,7 +280,7 @@ def main():
         print(f"❌  Activity count delta is {delta} (expected ≥ 1). Aborting write."); sys.exit(1)
 
     with open(args.app, 'w') as f: f.write(new_src)
-    print(f"✅  Patched WEEKS[2] with {len(to_inject)} new sid block(s). Activity count: {before} → {after} (+{delta}).")
+    print(f"✅  Patched WEEKS[2] — {len(new_sid_blocks)} new sid block(s), {len(merge_edits)} merged into existing sid(s). Activity count: {before} → {after} (+{delta}).")
 
 if __name__ == '__main__':
     main()
