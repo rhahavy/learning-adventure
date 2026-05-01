@@ -2908,6 +2908,17 @@ body.has-dev-banner{padding-top:26px}
 .cp-msg.from-student{align-self:flex-end;background:linear-gradient(135deg,#0984e3,#00b894);color:#fff;border-bottom-right-radius:4px}
 .cp-msg.from-teacher{align-self:flex-start;background:#fff;color:var(--ink);border:1px solid rgba(0,0,0,.08);border-bottom-left-radius:4px}
 .cp-msg-ts{font-size:10px;opacity:.7;margin-top:3px;font-weight:600}
+/* Demo-mode chat affordances. The banner pins to the top of the
+   message list and the .cp-demo-echo bubbles get a dotted border
+   so they're visually distinguishable from real persisted bubbles
+   even in screenshots — operator can't accidentally claim a
+   marketing screenshot is "real" chat. */
+.cp-demo-banner{align-self:stretch;background:linear-gradient(135deg,#fff3cf,#ffe9b3);color:#7a4a00;border:1px solid #f4d27a;border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.4;display:flex;flex-direction:column;gap:2px}
+.cp-demo-banner-title{font-weight:800;font-size:13px;letter-spacing:.2px}
+.cp-demo-banner-body{font-weight:500;color:#5a3500}
+.cp-msg.cp-demo-echo{border-style:dashed !important;opacity:.95}
+.cp-msg.from-student.cp-demo-echo{background:linear-gradient(135deg,#1e96e3 0%,#00a988 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+.cp-msg.from-teacher.cp-demo-echo{background:#fffaf0;border:1px dashed #f4d27a;color:#5a3500}
 @keyframes cpMsgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .cp-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(0,0,0,.08);background:#fff;flex-shrink:0}
 .cp-input-row input{flex:1;padding:10px 14px;border-radius:999px;border:1.5px solid rgba(0,0,0,.12);font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
@@ -24134,6 +24145,16 @@ function getThread(sid){
 function pushMessage(sid, fromRole, text){
   const clean = String(text||'').trim();
   if(!clean || !sid) return null;
+  // Demo gate — real profiles only. The FAB + panel are visible in
+  // demo so prospective parents see chat exists, but the actual send
+  // is a silent no-op: nothing touches allData.messages, nothing
+  // persists to localStorage, nothing syncs to the cloud blob.
+  // Without this, every demo visitor's typed message would land on
+  // the shared demo tenant's roster and the next visitor would see
+  // a stranger's words in the thread. The demo UX in the form
+  // handler echoes the typed text + a Nova reply in DOM-only so the
+  // user gets feedback without persistence.
+  if(isDemoSession(sid)) return null;
   ensureMessagesStore();
   if(!Array.isArray(allData.messages[sid])) allData.messages[sid] = [];
   const msg = { from: fromRole, text: clean.slice(0, 500), ts: Date.now(), read: false };
@@ -24182,9 +24203,13 @@ let chatPanelOpen = false;
 function updateChatFab(){
   const fab = document.getElementById('chatFab');
   if(!fab) return;
-  // Show when a real student is logged in (not teacher, not demo, not
-  // nobody). Chat is pointless without a user identity to attach messages to.
-  const show = !!currentUser && !isTeacher && !isDemoUser(currentUser);
+  // Visible whenever someone is signed in as a kid (not a teacher view,
+  // not the empty profile picker). Demo profiles see the FAB too —
+  // operator request: prospective parents shopping the demo should
+  // discover that real chat exists. The pushMessage guard further
+  // down silently drops their sends so the shared demo blob never
+  // accumulates ghost conversations.
+  const show = !!currentUser && !isTeacher;
   fab.classList.toggle('hidden', !show);
   if(!show){
     const panel = document.getElementById('chatPanel');
@@ -24194,10 +24219,26 @@ function updateChatFab(){
   }
   const badge = document.getElementById('chatFabBadge');
   if(badge){
-    const n = countUnread(currentUser, 'student');
+    // Demo users have no real thread, so the unread badge is always 0
+    // for them. countUnread() returns 0 anyway (empty thread) but we
+    // skip the call defensively in case a future code path seeds demo
+    // messages in a way that would falsely light the badge.
+    const inDemo = isDemoSession(currentUser);
+    const n = inDemo ? 0 : countUnread(currentUser, 'student');
     badge.textContent = n > 9 ? '9+' : String(n);
     badge.style.display = n > 0 ? '' : 'none';
   }
+}
+
+/* True when the chat side is in demo mode for any reason — the user's
+   own profile is a demo (DEMO_ID_SET) OR the whole tenant is flagged
+   demo (tenant_state.isDemo, set by /auth from a demo invite link).
+   One helper used by both the FAB / panel UX and the pushMessage gate
+   so the two sides can never disagree. */
+function isDemoSession(sid){
+  if(isDemoUser(sid)) return true;
+  try { if(typeof tenant_state !== 'undefined' && tenant_state && tenant_state.isDemo) return true; } catch(_){}
+  return false;
 }
 
 function openChatPanel(){
@@ -24221,11 +24262,26 @@ function closeChatPanel(){
 function renderChatPanel(){
   const msgEl = document.getElementById('chatPanelMessages');
   if(!msgEl || !currentUser) return;
-  const thread = getThread(currentUser);
+  const inDemo = isDemoSession(currentUser);
+  const thread = inDemo ? [] : getThread(currentUser);  // demo never persists, never reads
   msgEl.innerHTML = '';
+  // Demo banner — sits at the top of the message list so a prospective
+  // parent immediately sees this is a preview and not a real channel
+  // to anyone. The submit handler echoes their typed message + a
+  // friendly Nova reply (DOM-only) so they can experience the flow
+  // without messages actually going through.
+  if(inDemo){
+    msgEl.appendChild(h('div',{class:'cp-demo-banner'},[
+      h('div',{class:'cp-demo-banner-title'},'✨ Chat preview'),
+      h('div',{class:'cp-demo-banner-body'},
+        'Real students chat privately with their parent or teacher. Messages stay inside your account. Sign up to start.'),
+    ]));
+  }
   if(!thread.length){
     msgEl.appendChild(h('div',{class:'cp-empty'},
-      'Say hi to your teacher! 👋\nAsk for help with any lesson — they\'ll see it and reply.'));
+      inDemo
+        ? 'Try typing a message below — Nova will show you what real chat feels like. 👋'
+        : 'Say hi to your teacher! 👋\nAsk for help with any lesson — they\'ll see it and reply.'));
     return;
   }
   thread.forEach(m=>{
@@ -24252,6 +24308,29 @@ function initChatFab(){
     if(!currentUser) return;
     const val = (input.value||'').trim();
     if(!val) return;
+    // Demo path — echo the typed message + a friendly Nova-tone
+    // reply to give the user a feel for the flow, but DOM-only.
+    // We don't call pushMessage (it would no-op in demo anyway) so
+    // the messages don't take up screen space the next time the
+    // user opens the panel — fresh demo experience every time.
+    if(isDemoSession(currentUser)){
+      const msgEl = document.getElementById('chatPanelMessages');
+      if(msgEl){
+        // If the demo banner is currently the only child, leave it
+        // pinned at the top — append messages after it.
+        msgEl.appendChild(h('div',{class:'cp-msg from-student cp-demo-echo'},[
+          h('div',{}, val),
+          h('div',{class:'cp-msg-ts'}, 'just now · preview'),
+        ]));
+        msgEl.appendChild(h('div',{class:'cp-msg from-teacher cp-demo-echo'},[
+          h('div',{}, '👋 In real chat, your teacher would see this and reply within a day. Sign up to start chatting for real.'),
+          h('div',{class:'cp-msg-ts'}, 'preview reply'),
+        ]));
+        msgEl.scrollTop = msgEl.scrollHeight;
+      }
+      input.value = '';
+      return;
+    }
     pushMessage(currentUser, 'student', val);
     input.value = '';
     renderChatPanel();
@@ -26202,7 +26281,7 @@ const NOVA_TOUR_STEPS = [
     text: "I'm your guide. I'll show you around super quick — tap Next!",
     tone: 'cheerful' },
   { title: 'Your coins',
-    text: "🪙 Earn coins by getting answers right — spend them on real prizes in the Store!",
+    text: "💰 Earn coins by getting answers right — spend them on real prizes in the Store!",
     target: '.dash-stats',
     tone: 'cheerful' },
   { title: 'Your daily mission',
@@ -26509,8 +26588,8 @@ function getNovaActivityTourSteps(){
   }
 
   steps.push({
-    title: 'Earn coins 🪙',
-    text: "Right answers earn 🪙 coins. Save them up to buy real rewards your teacher picked out for you!",
+    title: 'Earn coins 💰',
+    text: "Right answers earn 💰 coins. Save them up to buy real rewards your teacher picked out for you!",
     tone: 'cheerful',
   });
 
@@ -29646,7 +29725,7 @@ function buildHomeSnapshotLegacy(){
       dot.style.background = p.color || '#6C5CE7';
       row.appendChild(dot);
       row.appendChild(h('span',{class:'hs-top-name'}, p.name || p.sid));
-      row.appendChild(h('span',{class:'hs-top-coins'}, '🪙 ' + p.earned));
+      row.appendChild(h('span',{class:'hs-top-coins'}, '💰 ' + p.earned));
       list.appendChild(row);
     });
     topCard.appendChild(list);
@@ -35126,7 +35205,7 @@ function showStreakToast(reward){
       h('div', { class: 'streak-toast-title' }, titleLine),
       isMilestone ? h('div', { class: 'streak-toast-milestone-line' }, '✨ ' + reward.milestone) : null,
       h('div', { class: 'streak-toast-coins' }, [
-        h('span', { class: 'coin' }, '🪙'),
+        h('span', { class: 'coin' }, '💰'),
         h('span', {}, '+' + reward.coins + ' coin' + (reward.coins === 1 ? '' : 's')),
       ]),
     ].filter(Boolean)),
