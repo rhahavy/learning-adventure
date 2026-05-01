@@ -28,10 +28,10 @@ DEFAULT_APP    = "app/index.html"
 RESULTS_FILE   = "/tmp/week2_lessons.json"
 
 SUBJECT_LETTER = {
-    'reading':'r', 'writing':'w', 'math':'m', 'logic':'l',
+    'reading':'r', 'writing':'w', 'spelling':'sp', 'math':'m', 'logic':'l',
     'french':'f', 'science':'s', 'social':'c', 'coding':'p',
 }
-SUBJECT_ORDER = ['reading','writing','math','logic','french','science','social','coding']
+SUBJECT_ORDER = ['reading','writing','spelling','math','logic','french','science','social','coding']
 
 def js_str(s):
     """Single-quoted JS string literal, escaping backslashes and quotes."""
@@ -273,8 +273,8 @@ def main():
         print("No change."); return
 
     # Sanity: activity-id count should INCREASE by len(lessons_by_aid)
-    before = len(re.findall(r"\bid\s*:\s*'(w\d+-[a-z]+-[a-z]\d+)'", src))
-    after  = len(re.findall(r"\bid\s*:\s*'(w\d+-[a-z]+-[a-z]\d+)'", new_src))
+    before = len(re.findall(r"\bid\s*:\s*'(w\d+-[a-z]+-[a-z]+\d+)'", src))
+    after  = len(re.findall(r"\bid\s*:\s*'(w\d+-[a-z]+-[a-z]+\d+)'", new_src))
     delta = after - before
     if delta < 1:
         print(f"❌  Activity count delta is {delta} (expected ≥ 1). Aborting write."); sys.exit(1)

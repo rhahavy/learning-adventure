@@ -58,9 +58,14 @@ GRADE_MASTERS = [
 GRADE_BY_SID = {g['sid']: g['grade'] for g in GRADE_MASTERS}
 
 # Subject ID → activity-letter (matches the WEEKS structure in app/index.html).
-SUBJECTS = ['reading','writing','math','logic','french','science','social','coding']
+SUBJECTS = ['reading','writing','spelling','math','logic','french','science','social','coding']
+# Single-letter prefixes for most subjects, but spelling uses the
+# two-letter prefix 'sp' (existing W1 convention — see app/index.html
+# `push('nishan','spelling',[ P('w1-nishan-sp6', ...) ... ])`). The
+# concat in main() (`{SUBJECT_LETTER[subj]}{n}`) is letter-agnostic
+# so two-char prefixes work without further changes.
 SUBJECT_LETTER = {
-    'reading':'r', 'writing':'w', 'math':'m', 'logic':'l',
+    'reading':'r', 'writing':'w', 'spelling':'sp', 'math':'m', 'logic':'l',
     'french':'f', 'science':'s', 'social':'c', 'coding':'p',
 }
 SUBJECTS_NEEDING_PASSAGE = {'reading'}
@@ -202,13 +207,22 @@ def main():
 
     # Build target list: [(sid, subject, lesson_index 6..10)]
     targets_sids = [args.sid] if args.sid else [g['sid'] for g in GRADE_MASTERS]
-    # Auto-skip sids that already have a WEEKS[2] block UNLESS the
-    # operator explicitly named them via --sid (which signals intent
-    # to backfill — even though patch_week2 will then refuse).
-    if not args.sid:
+    # Auto-skip sids that already have a WEEKS[2] block UNLESS:
+    #   - the operator named the sid explicitly via --sid (intent to
+    #     backfill that specific kid), OR
+    #   - the operator named a --subject (intent to fill THAT subject
+    #     on EVERY sid, even ones that already have a WEEKS[2] block —
+    #     used to backfill late-added subjects like 'spelling' that
+    #     weren't in the initial author pass).
+    # patch_week2.py's merge path handles dropping new subjects into
+    # existing sid blocks, so this is safe.
+    if not args.sid and not args.subject:
         targets_sids = [s for s in targets_sids if s not in existing_w2_sids]
         if existing_w2_sids:
             print(f"Skipping sids already in WEEKS[2]: {sorted(existing_w2_sids)}")
+    elif args.subject and not args.sid:
+        if existing_w2_sids:
+            print(f"Subject-mode: filling {args.subject!r} on {len(targets_sids)} sid(s); patch_week2 will merge into existing blocks.")
     targets = []
     for sid in targets_sids:
         if sid not in GRADE_BY_SID:
