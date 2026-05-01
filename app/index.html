@@ -674,7 +674,10 @@ img{max-width:100%}
   box-shadow:0 1px 3px rgba(0,0,0,.22);
   transition:transform .2s ease;
 }
-.dash-hero .tts-dash-toggle .tts-label{line-height:1}
+.dash-hero .tts-dash-toggle .tts-label{line-height:1.05;display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px}
+.dash-hero .tts-dash-toggle .tts-label-main{font-size:12px;font-weight:800}
+.dash-hero .tts-dash-toggle .tts-label-sub{font-size:10px;font-weight:700;opacity:.72;letter-spacing:.2px}
+.dash-hero .tts-dash-toggle.on .tts-label-sub{opacity:.92}
 .dash-hero .tts-dash-toggle.on{
   background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);
   color:#fff;
@@ -26034,9 +26037,14 @@ async function _speakViaProxy(text, lang, opts){
   const speed = (typeof o.speed === 'number')
     ? Math.max(0.7, Math.min(1.2, o.speed))
     : (o.slow ? 0.75 : 1.0);
-  // Cache key includes speed so a normal-speed read doesn't get
-  // served when slow is requested (and vice versa).
-  const cacheKey = `${lang||''}|${o.voiceId||''}|${speed}|${text}`;
+  // tone:'nova' flips the worker into expressive synthesis mode (different
+  // voice_settings + a more naturalistic model). Forwarded as-is so the
+  // worker stays the single source of truth for synthesis params.
+  const tone = (typeof o.tone === 'string') ? o.tone : '';
+  // Cache key includes speed AND tone so a Nova-toned read of a phrase
+  // doesn't accidentally serve when the narrator-toned version is asked
+  // for (and vice versa).
+  const cacheKey = `${lang||''}|${o.voiceId||''}|${speed}|${tone}|${text}`;
   let blob = _ttsBlobCache.get(cacheKey);
 
   if(!blob){
@@ -26051,6 +26059,7 @@ async function _speakViaProxy(text, lang, opts){
           voiceId: o.voiceId,
           lang: lang,
           speed: speed,
+          tone: tone || undefined,  // omit when empty so worker's default-tone path is unambiguous
         }),
         signal: ctl.signal,
       });
@@ -26325,7 +26334,7 @@ function updateNovaMuteButton(){
 function speakAsNova(text){
   if(!text) return;
   if(novaMuted) return;
-  // Pass both signals:
+  // Pass three signals:
   //   voiceId     — used by the ElevenLabs proxy to route to Nova's cloned voice.
   //   novaMode    — used by the BROWSER-FALLBACK path (_speakViaBrowser) to
   //                 pick a distinct voice + bump pitch/rate so Nova still
@@ -26333,7 +26342,11 @@ function speakAsNova(text){
   //                 unavailable (free-tier datacenter block, no credits,
   //                 offline, etc.). Kid always hears Nova as her own voice —
   //                 just a less-polished impression of it without ElevenLabs.
-  const opts = { novaMode: true };
+  //   tone:'nova' — used by the ELEVENLABS-PROXY path. The Worker reads this
+  //                 and flips synthesis to expressive voice_settings +
+  //                 multilingual_v2 (warmer, less robotic). Operator caught
+  //                 the legacy "monotone Nova" sound — this is the fix.
+  const opts = { novaMode: true, tone: 'nova' };
   if(NOVA_VOICE_ID) opts.voiceId = NOVA_VOICE_ID;
   speak(text, 'en-CA', opts);
 }
@@ -31447,15 +31460,27 @@ function renderDashboard(root){
   const ttsToggle = h('button',{
     class:'tts-dash-toggle'+(ttsOn?' on':''),
     'aria-pressed': ttsOn ? 'true' : 'false',
-    title: ttsOn ? 'Read-aloud is ON — tap to turn off' : 'Read-aloud is OFF — tap to turn on',
+    // Tooltip names the narrator explicitly so a parent / kid sees that
+    // the read-aloud voice is the TEACHER (Mr. Lee — male voice), not
+    // Nova. They sound different on purpose: Nova has her own voice
+    // for greetings and quips, while Mr. Lee is the steady narrator
+    // for questions and passages. The two-voices rule keeps the
+    // characters distinct so kids don't read everything as "Nova said
+    // it" and lose the lesson framing.
+    title: ttsOn
+      ? 'Mr. Lee (your teacher voice) reads questions out loud — tap to turn off'
+      : 'Tap to have Mr. Lee — your teacher voice — read questions out loud',
     onclick: ()=>{
       state.ttsEnabled = !state.ttsEnabled;
       state.ttsSeeded = true;
       saveState();
       // Quick audible confirmation when turning ON — kid hears the voice
-      // immediately so they know what they just unlocked.
+      // immediately so they know what they just unlocked, AND Mr. Lee
+      // introduces himself by name so the kid associates the voice with
+      // the teacher persona (separate from Nova's higher-pitched alien
+      // voice they hear on the dashboard).
       if(state.ttsEnabled){
-        try{ speak('Read aloud is on. Tap the speaker to hear any question.', 'en-CA'); }catch(e){}
+        try{ speak('Hi! I\'m Mr. Lee, your read-aloud teacher. Tap any speaker to hear it.', 'en-CA'); }catch(e){}
       } else {
         try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
       }
@@ -31468,7 +31493,13 @@ function renderDashboard(root){
     h('span',{class:'tts-track','aria-hidden':'true'}, [
       h('span',{class:'tts-knob'})
     ]),
-    h('span',{class:'tts-label'},'Read aloud'),
+    // Two-line label: primary "Read aloud", secondary "Mr. Lee
+    // narrates" so the kid sees who the voice belongs to without
+    // needing to hover for the tooltip on touch devices.
+    h('span',{class:'tts-label'}, [
+      h('span',{class:'tts-label-main'}, 'Read aloud'),
+      h('span',{class:'tts-label-sub'}, 'Mr. Lee'),
+    ]),
   ]);
   // Nova-in-quiz toggle — same iOS-switch pattern as Read aloud, but
   // controls whether Nova appears as a small floating helper during

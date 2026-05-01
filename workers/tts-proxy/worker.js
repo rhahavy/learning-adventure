@@ -122,7 +122,17 @@ async function handleTts(request, env, corsOrigin) {
   }
 
   const voiceId = sanitizeId(body.voiceId) || env.DEFAULT_VOICE_ID || FALLBACK_VOICE_ID;
-  const modelId = sanitizeId(body.modelId) || env.DEFAULT_MODEL_ID || FALLBACK_MODEL_ID;
+  // tone === 'nova' flips the synthesis to expressive + naturalistic
+  // settings + the multilingual_v2 model (slower but warmer/less robot
+  // -y). The narrator stays on flash_v2_5 with calm/consistent settings
+  // — kids hear the SAME teacher voice for every read-aloud, while
+  // Nova gets to actually emote when she pops up. Operator request:
+  // "nova sounds super AI."
+  const isNovaTone = (typeof body.tone === 'string' && body.tone.toLowerCase() === 'nova');
+  const modelId = sanitizeId(body.modelId)
+    || (isNovaTone ? 'eleven_multilingual_v2' : null)
+    || env.DEFAULT_MODEL_ID
+    || FALLBACK_MODEL_ID;
 
   // Output format notes:
   //   mp3_44100_128 — works on EVERY ElevenLabs tier including Free.
@@ -157,19 +167,22 @@ async function handleTts(request, env, corsOrigin) {
   const speed = (Number.isFinite(speedRaw) && speedRaw >= 0.7 && speedRaw <= 1.2) ? speedRaw : 1.0;
 
   // Stability/similarity defaults chosen for a calm, consistent
-  // read-aloud voice. Adjusting these means re-uploading a custom
-  // voice on ElevenLabs — we keep them fixed so the kid hears the
-  // same voice every time.
+  // read-aloud voice. The narrator hears these every time — no
+  // variation by design (kids notice).
+  //
+  // Nova tone (tone:'nova' flag) overrides with EXPRESSIVE settings:
+  //   stability 0.30 (lower = more variation in delivery)
+  //   style 0.55     (amplifies the source voice's expressiveness)
+  // Combined with the multilingual_v2 model above, Nova goes from
+  // "AI-y monotone" to actually emoting on her quips, peptalk, and
+  // Nova-says rotates. Narrator path is untouched.
+  const voiceSettings = isNovaTone
+    ? { stability: 0.30, similarity_boost: 0.75, style: 0.55, use_speaker_boost: true, speed: speed }
+    : { stability: 0.55, similarity_boost: 0.75, style: 0.0,  use_speaker_boost: true, speed: speed };
   const payload = {
     text,
     model_id: modelId,
-    voice_settings: {
-      stability: 0.55,
-      similarity_boost: 0.75,
-      style: 0.0,
-      use_speaker_boost: true,
-      speed: speed,
-    },
+    voice_settings: voiceSettings,
   };
 
   let upstream;
