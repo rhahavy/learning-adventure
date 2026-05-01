@@ -154,8 +154,61 @@ def main():
             print(f"⚠️  Could not parse {args.results}: {e} — starting fresh")
             results = {}
 
+    # Detect sids that already have ANY content in WEEKS[2] — we won't
+    # try to enrich them. The patcher refuses to overwrite an existing
+    # sid block, so generating for them is wasted API calls. Operators
+    # who want to ADD subjects to an already-present sid should clear
+    # that sid block from the source first OR target with --sid.
+    existing_w2_sids = set()
+    m = re.search(r'^WEEKS\[2\] = \{', src, re.M)
+    if m:
+        # find balanced close
+        i = m.end() - 1; depth = 0; in_str = None; esc = False; j = i
+        while j < len(src):
+            c = src[j]
+            if esc: esc = False
+            elif in_str:
+                if c == '\\': esc = True
+                elif c == in_str: in_str = None
+            else:
+                if c in "\"'`": in_str = c
+                elif c == '{': depth += 1
+                elif c == '}':
+                    depth -= 1
+                    if depth == 0: break
+            j += 1
+        body = src[i+1:j]
+        # Walk depth-1 keys
+        k = 0; d = 0; in_s = None; e2 = False
+        while k < len(body):
+            ch = body[k]
+            if e2: e2 = False
+            elif in_s:
+                if ch == '\\': e2 = True
+                elif ch == in_s: in_s = None
+            else:
+                if ch in "\"'`": in_s = ch
+                elif ch in '{[': d += 1
+                elif ch in '}]': d -= 1
+                elif d == 0 and ch == ':':
+                    p = k - 1
+                    while p >= 0 and body[p] in ' \t\n': p -= 1
+                    end = p + 1
+                    while p >= 0 and (body[p].isalnum() or body[p] == '_'):
+                        p -= 1
+                    key = body[p+1:end].strip()
+                    if key: existing_w2_sids.add(key)
+            k += 1
+
     # Build target list: [(sid, subject, lesson_index 6..10)]
     targets_sids = [args.sid] if args.sid else [g['sid'] for g in GRADE_MASTERS]
+    # Auto-skip sids that already have a WEEKS[2] block UNLESS the
+    # operator explicitly named them via --sid (which signals intent
+    # to backfill — even though patch_week2 will then refuse).
+    if not args.sid:
+        targets_sids = [s for s in targets_sids if s not in existing_w2_sids]
+        if existing_w2_sids:
+            print(f"Skipping sids already in WEEKS[2]: {sorted(existing_w2_sids)}")
     targets = []
     for sid in targets_sids:
         if sid not in GRADE_BY_SID:
