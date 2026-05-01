@@ -11790,18 +11790,29 @@ WEEKS[2] = {
       ['"Ball" starts with what sound?',['B','D','F','M'],0],
       ['"Apple" starts with what sound?',['E','A','I','U'],1],
       ['"Sun" starts with what sound?',['T','R','S','N'],2]]),
-    P('w1-nishan-r8','Story Pictures','🖼️','Pictures help us understand stories. Look at the picture AND the words.',[
-      ['A picture of a dog means the story is about...',['A cat','A dog','A car','A tree'],1],
-      ['Pictures can show us the...',['color','story','price','time'],1],
-      ['If a picture shows rain, the weather is...',['sunny','snowy','rainy','windy'],2]]),
+    // w1-nishan-r8 used to be a P() factory call (no passage). Lint rule
+    // lesson-implies-story flagged it because the title "Story Pictures"
+    // promised a story that wasn't there. Converted to PR() with a tiny
+    // SK-appropriate story so the lesson actually has the picture-clues
+    // scenario kids are answering questions about.
+    PR('w1-nishan-r8','Story Pictures','🖼️',
+       '🐕 A little dog walked outside. It was raining! He saw a big puddle. He jumped right over it.',[
+      ['Who is the story about?',['A cat','A dog','A bird','A fish'],1],
+      ['What is the weather like?',['Sunny','Snowy','Rainy','Windy'],2],
+      ['What does the dog do?',['Sleeps','Jumps over a puddle','Eats a snack','Runs home'],1]]),
     P('w1-nishan-r9','Tell Me Why','❓','Stories have reasons things happen. Ask "why?"',[
       ['The boy cried because...',['he was sad','he was silly','he was tall','it was sunny'],0],
       ['The dog barked because...',['he was asleep','someone was at the door','it was raining','he ate'],1],
       ['The girl smiled because...',['she was mad','she got a gift','she fell','it was dark'],1]]),
-    P('w1-nishan-r10','Story Mountain','🏔️','Stories have a BEGINNING, MIDDLE, and END.',[
-      ['The beginning of a story tells us...',['the ending','who and where','nothing','just colors'],1],
-      ['The middle of a story usually has...',['the problem','the title','the author','the price'],0],
-      ['The end of a story...',['wraps it up','is the first part','has the title','has no words'],0]]),
+    // w1-nishan-r10 — same fix as r8. The title "Story Mountain" is the
+    // structural metaphor for beginning/middle/end, so we anchor the
+    // teaching with an actual 3-part bunny story kids can practise the
+    // beginning/middle/end framing on.
+    PR('w1-nishan-r10','Story Mountain','🏔️',
+       '🐰 A bunny wanted a big carrot. He looked everywhere — under leaves, in the grass, behind rocks. Finally, he found a giant carrot in the garden!',[
+      ['What does the bunny WANT at the BEGINNING?',['Water','A carrot','A friend','A house'],1],
+      ['What is the PROBLEM in the MIDDLE?',['The bunny could not find the carrot','The bunny got lost','The bunny fell down','The bunny was tired'],0],
+      ['How does the story END?',['The bunny goes home sad','The bunny finds the carrot','The bunny meets a fox','The bunny gives up'],1]]),
   ]);
   push('nishan','writing',[
     P('w1-nishan-w6','Label It','🏷️','A label is one word that names a thing.',[
