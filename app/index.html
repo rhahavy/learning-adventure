@@ -21995,24 +21995,40 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
    week-completion + unlock-progress functions don't have to depend on
    currentWeek the way getWeekActivities does (those callers pass the
    week explicitly). */
-function resolveContentSid(sid, wk){
+function resolveContentSid(sid, wk, subj){
   if(!sid) return sid;
   // Demo profile mapping (DEMO_GRADES.curriculumSid → real grade-master).
+  // Demos are reference content for parents/teachers — they always show
+  // their authored grade unchanged (no offset applied).
   try {
     if(typeof DEMO_GRADES !== 'undefined' && Array.isArray(DEMO_GRADES)){
       const demo = DEMO_GRADES.find(d => d && d.id === sid);
       if(demo && demo.curriculumSid) return demo.curriculumSid;
     }
   } catch(_){}
-  // Direct hit in WEEKS[wk]? Use sid as-is.
-  if(WEEKS && WEEKS[wk] && WEEKS[wk][sid]) return sid;
-  // Tenant-added kid — resolve via grade → template-sid mapping.
+  // Per-subject offset: tenant kids can be placed N grades up or down
+  // for any individual subject. When subj is provided AND the kid has
+  // a non-zero offset for it, we MUST go through the grade-ladder path
+  // even if WEEKS[wk][sid] would otherwise be a direct hit (that direct
+  // hit is the at-grade content, not the offset-shifted bucket).
+  let offset = 0;
+  if(subj){
+    try { offset = getStudentGradeOffset(sid, subj) | 0; } catch(_){ offset = 0; }
+  }
+  // Direct hit in WEEKS[wk] AND no offset request? Use sid as-is. (This
+  // is the fast path for grade-master sids and any future first-class
+  // tenant kids that happen to have their own bucket authored.)
+  if(offset === 0 && WEEKS && WEEKS[wk] && WEEKS[wk][sid]) return sid;
+  // Tenant-added kid — resolve via grade (+ offset) → template-sid.
   try {
     const studentRec = (typeof STUDENTS !== 'undefined' && Array.isArray(STUDENTS))
       ? STUDENTS.find(s => s && s.id === sid)
       : null;
     if(studentRec && studentRec.grade && typeof templateSidForGrade === 'function'){
-      const t = templateSidForGrade(studentRec.grade);
+      const adjGrade = (typeof applyGradeOffset === 'function')
+        ? applyGradeOffset(studentRec.grade, offset)
+        : studentRec.grade;
+      const t = templateSidForGrade(adjGrade);
       if(t) return t;
     }
   } catch(_){}
@@ -22051,12 +22067,21 @@ function isWeekComplete(ud, wk, sid){
   if(!ud || !sid) return false;
   const weekBucket = WEEKS && WEEKS[wk];
   if(!weekBucket) return false;
-  const resolved = resolveContentSid(sid, wk);
-  const studentBucket = weekBucket[resolved];
-  if(!studentBucket) return false;
+  // Determine which subjects this kid has authored content for. We need
+  // ANY resolved bucket to enumerate subject keys from, but the actual
+  // activities for each subject are looked up via the per-subject
+  // offset-aware sid. Two kids at the same home grade can complete
+  // "the same" Week 2 if their offsets differ — Maya finishes Grade-3
+  // reading; Liam finishes Grade-2 reading; both count as Week-2 done.
+  const baseResolved = resolveContentSid(sid, wk);
+  const baseBucket = weekBucket[baseResolved];
+  if(!baseBucket) return false;
   const completed = ud.completedActivities || {};
-  for(const subj of Object.keys(studentBucket)){
-    const acts = studentBucket[subj] || [];
+  let foundAny = false;
+  for(const subj of Object.keys(baseBucket)){
+    const sidForSubj = resolveContentSid(sid, wk, subj);
+    const acts = (weekBucket[sidForSubj] && weekBucket[sidForSubj][subj]) || [];
+    if(acts.length) foundAny = true;
     for(const act of acts){
       // Skip demoOnly previews — they're parent-marketing samples,
       // not real work the kid is expected to complete. Pre-fix this
@@ -22069,7 +22094,7 @@ function isWeekComplete(ud, wk, sid){
       if(act && act.id && !completed[act.id]) return false;
     }
   }
-  return true;
+  return foundAny;
 }
 function computeWeekForUser(ud, sid){
   // sid (the student key in WEEKS[wk]) is needed to look up completion
@@ -22119,15 +22144,20 @@ function weekUnlockProgress(ud, sid, wk){
   if(!ud || !sid) return null;
   const weekBucket = WEEKS && WEEKS[wk];
   if(!weekBucket) return null;
-  const resolved = resolveContentSid(sid, wk);
-  const studentBucket = weekBucket[resolved];
-  if(!studentBucket) return null;
+  const baseResolved = resolveContentSid(sid, wk);
+  const baseBucket = weekBucket[baseResolved];
+  if(!baseBucket) return null;
   const completed = ud.completedActivities || {};
   let remaining = 0;
   const perSubject = {};
-  for(const subj of Object.keys(studentBucket)){
+  for(const subj of Object.keys(baseBucket)){
+    // Per-subject offset-aware lookup. A kid placed +1 in math sees
+    // five Grade-N+1 math activities here; the unlock banner counts
+    // those as the gating set, not the at-grade five they'll never see.
+    const sidForSubj = resolveContentSid(sid, wk, subj);
+    const acts = (weekBucket[sidForSubj] && weekBucket[sidForSubj][subj]) || [];
     let subjLeft = 0;
-    for(const act of (studentBucket[subj] || [])){
+    for(const act of acts){
       // Skip demoOnly previews — same reasoning as isWeekComplete.
       // Without this skip, a kid who had finished all 5 real lessons
       // per subject saw "Reading: 5 · Writing: 5 · …" in the unlock
@@ -26990,22 +27020,184 @@ function templateSidForGrade(grade){
   return GRADE_TO_TEMPLATE_SID[grade] || 'akaran';
 }
 
+/* ==========================================================================
+   GRADE-OFFSET PLACEMENT — using the demos as adaptive templates
+   --------------------------------------------------------------------------
+   Real students get their content from a grade-master demo (theo / nishan /
+   akaran / rushan / akshayan / isaiah / jasper / lily / evan / nora) via
+   templateSidForGrade(rec.grade). That places everyone "at level" by
+   default. But kids aren't uniform — Maya might fly through Grade-3
+   reading and need Grade-4 challenges, while struggling through Grade-3
+   math and needing to drop back to Grade 2.
+
+   The plan blob already stores per-subject offsets:
+     allData.studentPlans[sid].gradeOffsets = { reading: -1, math: +1, ... }
+
+   Until now those offsets were collected in the Education Plans editor
+   but never read by the curriculum engine — picking "1 grade above" did
+   nothing. The helpers below close that loop. They're the single point
+   of truth for "where is this kid actually working?" — every read site
+   (resolveContentSid, getWeekActivities, isWeekComplete, the unlock
+   progress banner, the dashboard placement pill) goes through them.
+
+   GRADE_LADDER is the index space the offset arithmetic walks. Off the
+   top/bottom is clamped (a JK kid with -3 stays at JK; a Grade-10 kid
+   with +3 stays at G10). Don't reorder — index drift would silently
+   re-place every existing student. */
+const GRADE_LADDER = [
+  'Junior Kindergarten',
+  'Senior Kindergarten',
+  'Grade 1',
+  'Grade 2',
+  'Grade 3',
+  'Grade 4',
+  'Grade 5',
+  'Grade 6',
+  'Grade 7',
+  'Grade 8',
+  'Grade 9',
+  'Grade 10',
+];
+
+/* Shift a grade label up/down the ladder by `offset` steps (clamped to
+   ladder bounds). Returns the input unchanged if homeGrade isn't on the
+   ladder (e.g. legacy free-text 'Other'). */
+function applyGradeOffset(homeGrade, offset){
+  if(!offset) return homeGrade;
+  const idx = GRADE_LADDER.indexOf(homeGrade);
+  if(idx < 0) return homeGrade;
+  const newIdx = Math.max(0, Math.min(GRADE_LADDER.length - 1, idx + offset));
+  return GRADE_LADDER[newIdx];
+}
+
+/* What grade level is this student currently working at, in this subject?
+   Combines their home grade (rec.grade) with their per-subject offset.
+   Returns '' if the sid isn't a tenant-added student or has no grade. */
+function effectiveGradeForStudent(sid, subj){
+  if(!sid) return '';
+  let rec = null;
+  try {
+    rec = (typeof STUDENTS !== 'undefined' && Array.isArray(STUDENTS))
+      ? STUDENTS.find(s => s && s.id === sid) : null;
+  } catch(_){ rec = null; }
+  if(!rec || !rec.grade) return '';
+  const off = subj ? getStudentGradeOffset(sid, subj) : 0;
+  return applyGradeOffset(rec.grade, off);
+}
+
+/* Resolve a (sid, subject) pair to the grade-master sid that owns the
+   curriculum bucket. This is the read-side hook that makes per-subject
+   offsets actually take effect. Returns null if we can't resolve (no
+   grade on file). */
+function effectiveSidForStudent(sid, subj){
+  const g = effectiveGradeForStudent(sid, subj);
+  if(!g) return null;
+  return templateSidForGrade(g);
+}
+
+/* Compact human summary of a student's per-subject placement, suitable
+   for a roster-card pill. Examples:
+     - "On grade in every subject"
+     - "📖 -1"               (one subject below)
+     - "📖 -1 · 🔢 +2"        (mixed)
+     - "📖 -1 · 🔢 +2 · ✏️ +1 · +2 more"  (>3 entries collapse)
+   Returns { text, color, anyOffset:bool } so the caller can decide
+   styling (we tint the pill purple when there's any deviation, slate
+   otherwise). */
+function summarizePlacement(sid){
+  if(!sid) return { text:'', color:'var(--ink3)', anyOffset:false };
+  let entries = [];
+  try {
+    entries = SUBJECTS
+      .map(s => ({ id:s.id, name:s.name, emoji:s.emoji, off: getStudentGradeOffset(sid, s.id) | 0 }))
+      .filter(e => e.off !== 0);
+  } catch(_){ entries = []; }
+  if(!entries.length) return { text:'On grade in every subject', color:'var(--ink3)', anyOffset:false };
+  const fmt = (n) => (n > 0 ? '+' : '') + n;
+  const shown = entries.slice(0, 3).map(e => (e.emoji || '') + ' ' + fmt(e.off));
+  const more  = entries.length - shown.length;
+  return {
+    text: shown.join(' · ') + (more > 0 ? ' · +' + more + ' more' : ''),
+    color: 'var(--primary)',
+    anyOffset: true,
+  };
+}
+
+/* Suggested offset based on the kid's recent performance in this subject.
+   Inputs: completedActivities + perfectActivities (set by the quiz engine).
+   Returns null if there's not enough signal yet (< 3 completed), or the
+   kid is already at the suggested offset. Otherwise returns the offset
+   we'd recommend (current ± 1, clamped to [-3, +3]).
+
+   Heuristics — deliberately conservative so we don't yo-yo placements:
+     - Bump UP when ≥80% of authored content is completed AND ≥85% of the
+       completions were perfect-on-first-try. The kid is breezing through.
+     - Bump DOWN when ≥3 activities have been completed but <40% were
+       perfect. The kid is grinding without locking it in.
+   These thresholds are exposed at the top so a tutor / operator can tune
+   without hunting for magic numbers. */
+const PLACEMENT_BUMP_UP_PERFECT_PCT  = 0.85;
+const PLACEMENT_BUMP_UP_DONE_PCT     = 0.80;
+const PLACEMENT_BUMP_DOWN_PERFECT_PCT = 0.40;
+const PLACEMENT_BUMP_DOWN_MIN_DONE   = 3;
+function suggestedOffsetForSubject(sid, subj){
+  if(!sid || !subj) return null;
+  const ud = (allData && allData.users && allData.users[sid]) || null;
+  if(!ud) return null;
+  const completed = ud.completedActivities || {};
+  const perfect = ud.perfectActivities || {};
+  let acts = [];
+  try { acts = getWeekActivities(sid, subj) || []; } catch(_){ acts = []; }
+  if(!acts.length) return null;
+  let done = 0, donePerf = 0;
+  for(const a of acts){
+    if(!a || !a.id) continue;
+    if(completed[a.id]) done++;
+    if(perfect[a.id]) donePerf++;
+  }
+  if(done < PLACEMENT_BUMP_DOWN_MIN_DONE) return null;
+  const perfectPct = done ? donePerf / done : 0;
+  const donePct    = acts.length ? done / acts.length : 0;
+  const cur = getStudentGradeOffset(sid, subj);
+  if(perfectPct >= PLACEMENT_BUMP_UP_PERFECT_PCT && donePct >= PLACEMENT_BUMP_UP_DONE_PCT){
+    return cur < 3 ? cur + 1 : null;
+  }
+  if(perfectPct < PLACEMENT_BUMP_DOWN_PERFECT_PCT){
+    return cur > -3 ? cur - 1 : null;
+  }
+  return null;
+}
+
 function getWeekActivities(sid,subj){
   // Demo profiles reuse an existing student's curriculum via curriculumSid
   // so we don't duplicate the big WEEKS data structure. Real students hit
   // the fast path unchanged. New-tenant students fall through to a
-  // grade-template lookup so they don't see an empty curriculum.
+  // grade-template lookup (+ per-subject placement offset) so they don't
+  // see an empty curriculum and so a kid placed -1 in this subject reads
+  // from the grade-below master's bucket.
   const demo = DEMO_GRADES.find(d=>d.id===sid);
   let resolved = demo ? demo.curriculumSid : sid;
-  if(!demo && (!WEEKS[currentWeek] || !WEEKS[currentWeek][resolved])){
-    // Real student whose id isn't in WEEKS — tenant-added kid. Resolve via
-    // their grade. STUDENTS is the live roster; getStudentInfo() looks here.
+  if(!demo){
+    // Real student — always go through grade + per-subject offset.
+    // Even if their sid happens to live directly in WEEKS, the offset
+    // wins (offset = 0 + on-bucket sid still yields the same answer
+    // via templateSidForGrade(rec.grade), so we don't lose the fast
+    // path; we just go through the same code path for consistency).
     try {
       const studentRec = (typeof STUDENTS !== 'undefined' && Array.isArray(STUDENTS))
         ? STUDENTS.find(s => s.id === sid)
         : null;
       if(studentRec && studentRec.grade){
-        resolved = templateSidForGrade(studentRec.grade);
+        const off = (subj && typeof getStudentGradeOffset === 'function')
+          ? (getStudentGradeOffset(sid, subj) | 0) : 0;
+        const adjGrade = (typeof applyGradeOffset === 'function')
+          ? applyGradeOffset(studentRec.grade, off)
+          : studentRec.grade;
+        resolved = templateSidForGrade(adjGrade);
+      } else if(!WEEKS[currentWeek] || !WEEKS[currentWeek][resolved]){
+        // No grade on file (legacy / migrated record). Fall back to
+        // whatever resolveContentSid says (handles edge cases).
+        try { resolved = resolveContentSid(sid, currentWeek, subj) || resolved; } catch(_){}
       }
     } catch(e){ /* fall through to original resolved */ }
   }
@@ -35688,6 +35880,13 @@ function renderBadges(root){
 // Students Overview defaults to open so the page still has a useful first
 // impression when a teacher lands here fresh.
 let teacherTabOpen = { students: true };
+// One-shot focus hint for the Education Plans tab. The roster row's
+// "📋 Plan" button sets this to a student id, then re-renders the
+// teacher screen with the plans tab open. buildStudentPlansPanel reads
+// it on render, opens that student's <details> accordion, scrolls into
+// view, and clears the var so the next render goes back to the default
+// (everyone collapsed).
+let focusedPlanSid = null;
 
 /* ==========================================================================
    DATA EXPORT — teacher-tools-only. Dumps the whole allData object as a
@@ -36812,10 +37011,61 @@ function renderTeacher(root){
         row.appendChild(h('div', {
           style:'width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,'+s.colorLight+','+s.colorDark+');color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0'
         }, s.initial || '?'));
+        // Placement pill — at-a-glance "where is this kid working" summary
+        // synthesized from the per-subject offsets. Click → opens the
+        // Education Plans tab focused on this kid so a tutor can adjust
+        // without hunting. The pill recolors when any subject is off-grade
+        // so a packed roster surfaces the placements that diverge from
+        // home grade visually before the tutor reads the chip text.
+        let placement = { text:'', color:'var(--ink3)', anyOffset:false };
+        try { placement = (typeof summarizePlacement === 'function') ? summarizePlacement(s.id) : placement; } catch(_){}
+        // Auto-suggest hint — if performance signals a probable bump in
+        // any subject, surface a "💡 1 suggestion" chip. The actual
+        // recommendations live in the plans panel; this is just a nudge
+        // so the tutor knows there's something worth reviewing.
+        let suggestionCount = 0;
+        try {
+          if(typeof suggestedOffsetForSubject === 'function' && typeof SUBJECTS !== 'undefined'){
+            for(const sub of SUBJECTS){
+              const sug = suggestedOffsetForSubject(s.id, sub.id);
+              if(sug !== null) suggestionCount++;
+            }
+          }
+        } catch(_){ suggestionCount = 0; }
+        const placementLine = h('div', {
+          style:'font-size:11px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px'
+        });
+        placementLine.appendChild(h('span', {
+          style: 'display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;'
+            + (placement.anyOffset
+                ? 'background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;font-weight:700;'
+                : 'background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;'),
+        }, '📍 ' + placement.text));
+        if(suggestionCount > 0){
+          placementLine.appendChild(h('span', {
+            style:'display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;font-weight:700',
+            title: suggestionCount + ' subject' + (suggestionCount === 1 ? '' : 's') + ' have a suggested placement bump based on recent performance — open the Plans tab to review.',
+          }, '💡 ' + suggestionCount + ' suggestion' + (suggestionCount === 1 ? '' : 's')));
+        }
         row.appendChild(h('div', { style:'flex:1;min-width:0' }, [
           h('div', { style:'font-weight:700;font-size:14px;color:#1f2937' }, s.name),
           h('div', { style:'font-size:12px;color:#64748b' }, s.grade + ' · 💰 ' + (ud.coins || 0) + ' coins'),
+          placementLine,
         ]));
+        row.appendChild(h('button', {
+          class:'btn btn-ghost btn-sm',
+          style:'padding:6px 12px;font-size:12px',
+          title:'Open this student in the Education Plans editor',
+          onclick: () => {
+            try {
+              focusedPlanSid = s.id;
+              teacherTabOpen = teacherTabOpen || {};
+              teacherTabOpen.plans = true;
+              const scr = document.getElementById('screen');
+              if(scr){ scr.innerHTML = ''; renderTeacher(scr); }
+            } catch(e){ alert('Could not open plans: ' + e.message); }
+          }
+        }, '📋 Plan'));
         row.appendChild(h('button', {
           class:'btn btn-ghost btn-sm',
           style:'padding:6px 12px;font-size:12px;color:#dc2626;border-color:#fecaca',
@@ -37423,7 +37673,11 @@ function renderTeacher(root){
     STUDENTS.forEach(s => {
       const plan = getStudentPlan(s.id);
       const supports = getStudentSupports(s.id);
-      const row = h('details',{class:'sp-row'});
+      // data-sid lets the focus hint (focusedPlanSid) find this row to
+      // auto-open + scrollIntoView when the tutor hits "📋 Plan" from
+      // the roster card. Without it we'd have no way to identify which
+      // accordion belongs to which student post-render.
+      const row = h('details',{class:'sp-row','data-sid':s.id});
       // Build a "where is this kid working" badge from the per-subject
       // gradeOffsets. "On grade in everything" if all zeros; otherwise
       // a compact summary like "Reading -1 · Math +2" (max 3 listed,
@@ -37601,11 +37855,41 @@ function renderTeacher(root){
         });
         sel.value = String(cur);
         offsetCells[subj.id] = sel;
+        // Performance-driven suggestion. If the kid is acing the work
+        // we hint "+1"; if they're grinding without locking it in we
+        // hint "-1". One-click chip applies the suggestion (changing
+        // the select value + the off-grade tint); the actual save still
+        // happens on the panel's Save button so a tutor can preview a
+        // batch of changes before committing.
+        let suggestion = null;
+        try { suggestion = (typeof suggestedOffsetForSubject === 'function') ? suggestedOffsetForSubject(s.id, subj.id) : null; } catch(_){ suggestion = null; }
+        const labelChildren = [
+          h('span',{class:'sp-offset-emoji'}, subj.emoji),
+          h('span',{}, subj.name),
+        ];
+        if(suggestion !== null && suggestion !== cur){
+          const dir = suggestion > cur ? 'up' : 'down';
+          const fmtOff = (n) => (n > 0 ? '+' : '') + n;
+          const chip = h('button', {
+            type:'button',
+            class:'sp-offset-suggest',
+            style: 'margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;'
+              + (dir === 'up'
+                  ? 'background:#dcfce7;color:#166534;border:1px solid #86efac;'
+                  : 'background:#fef3c7;color:#92400e;border:1px solid #fcd34d;'),
+            title: dir === 'up'
+              ? 'This student has been completing most ' + subj.name.toLowerCase() + ' lessons perfectly on the first try — try bumping them up a grade.'
+              : 'This student has been grinding through ' + subj.name.toLowerCase() + ' without locking it in — try dropping them a grade.',
+          }, '💡 Try ' + fmtOff(suggestion));
+          chip.addEventListener('click', () => {
+            sel.value = String(suggestion);
+            sel.dispatchEvent(new Event('change'));
+            chip.remove();
+          });
+          labelChildren.push(chip);
+        }
         const cell = h('div',{class:'sp-offset-row'+(cur === 0 ? '' : ' is-off-grade')},[
-          h('span',{class:'sp-offset-label'},[
-            h('span',{class:'sp-offset-emoji'}, subj.emoji),
-            h('span',{}, subj.name),
-          ]),
+          h('span',{class:'sp-offset-label'}, labelChildren),
           sel,
         ]);
         sel.addEventListener('change', ()=>{
@@ -37856,6 +38140,24 @@ function renderTeacher(root){
       row.appendChild(body);
       wrap.appendChild(row);
     });
+    // One-shot focus: if the roster's "📋 Plan" button set focusedPlanSid,
+    // auto-open that student's <details> and scroll it into view. Defer
+    // to the next paint so the wrap is in the DOM before we measure /
+    // .open the element. Then clear the var so subsequent renders go
+    // back to the all-collapsed default.
+    if(focusedPlanSid){
+      const targetSid = focusedPlanSid;
+      focusedPlanSid = null;
+      setTimeout(() => {
+        try {
+          const target = wrap.querySelector('details.sp-row[data-sid="' + targetSid + '"]');
+          if(target){
+            target.open = true;
+            target.scrollIntoView({ behavior:'smooth', block:'start' });
+          }
+        } catch(_){}
+      }, 50);
+    }
     return wrap;
   };
 
