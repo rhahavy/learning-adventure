@@ -268,6 +268,24 @@ tbody tr:last-child td{border-bottom:none}
 .curr-select{min-width:120px}
 .curr-search{flex:1;min-width:200px}
 .curr-select:focus,.curr-search:focus{outline:none;border-color:var(--primary)}
+/* Group-by header — a full-width band that breaks the lesson grid
+   into navigable sections (Week 1, Grade 3, Reading, etc.). The
+   `grid-column:1/-1` makes it span every column of the auto-fill
+   grid so cards always re-flow underneath their bucket header. */
+.curr-group-head{
+  grid-column:1/-1;
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding:10px 14px;
+  margin-top:10px;
+  background:linear-gradient(180deg,rgba(108,92,231,.10),rgba(108,92,231,.04));
+  border:1px solid rgba(108,92,231,.22);
+  border-radius:10px;
+  font-weight:800;font-size:14px;color:var(--ink,#1f2937);
+  letter-spacing:-.005em;
+}
+.curr-group-head:first-child{margin-top:0}
+.curr-group-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.curr-group-count{font-weight:600;font-size:12px;color:var(--ink3,#94a3b8)}
 .curr-card{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease;display:flex;flex-direction:column;gap:6px}
 .curr-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:rgba(108,92,231,.35)}
 .curr-card .row{display:flex;align-items:center;gap:8px}
@@ -641,6 +659,35 @@ tbody tr:last-child td{border-bottom:none}
           <option value="missing-passage">Reading w/o passage</option>
         </select>
         <input type="search" id="curr-search" placeholder="Search title or ID…" class="curr-search">
+        <!-- Sort selector. "Default" is the legacy issues→week→grade→
+             subject ordering so a freshly-opened editor still surfaces
+             work-to-do at the top. Other modes let the operator scan
+             the catalog by title, lesson #, recently-overridden, etc.
+             without having to search-and-fish. -->
+        <select id="curr-sort" class="curr-select" aria-label="Sort order" title="How to order the lesson cards">
+          <option value="default">Sort: issues first</option>
+          <option value="title-asc">Sort: title A→Z</option>
+          <option value="title-desc">Sort: title Z→A</option>
+          <option value="week-asc">Sort: week ↑</option>
+          <option value="week-desc">Sort: week ↓</option>
+          <option value="grade-asc">Sort: grade ↑ (JK→G8)</option>
+          <option value="grade-desc">Sort: grade ↓ (G8→JK)</option>
+          <option value="subject-asc">Sort: subject A→Z</option>
+          <option value="lesson-asc">Sort: lesson # 1→10</option>
+          <option value="issues-desc">Sort: most issues</option>
+          <option value="recent-edits">Sort: recently overridden</option>
+        </select>
+        <!-- Grouping selector. Independent from sort — a single sort
+             mode applies WITHIN each group, but the group buckets
+             carve the catalog into navigable sections. "None" keeps
+             the flat grid the editor used to ship. -->
+        <select id="curr-group" class="curr-select" aria-label="Group by" title="Bucket the cards by week, grade, subject, or status">
+          <option value="none">Group: none</option>
+          <option value="week">Group by week</option>
+          <option value="grade">Group by grade</option>
+          <option value="subject">Group by subject</option>
+          <option value="status">Group by status</option>
+        </select>
       </div>
       <div id="curriculum-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px"></div>
     </div>
@@ -2346,7 +2393,12 @@ tbody tr:last-child td{border-bottom:none}
     iframeTimer: null,
     // `grade` filter holds the grade-master SID (e.g. 'akshayan' for
     // Grade 3). Empty string = all grades.
-    filters: { week:'', grade:'', subject:'', status:'all', search:'' },
+    filters: { week:'', grade:'', subject:'', status:'all', search:'',
+               // Sort mode + groupBy mode for the lesson grid. Persist
+               // across re-renders the same way the other filters do so
+               // a save/edit doesn't reset the operator's ordering. See
+               // sortRows() + groupRows() for the catalog of modes.
+               sort:'default', groupBy:'none' },
     // viewMode toggles between the lessons grid (default) and the
     // centralised YouTube manager. Controlled by the Lessons / Videos
     // pill switch in the panel head.
@@ -2374,6 +2426,8 @@ tbody tr:last-child td{border-bottom:none}
   var $currSubject   = document.getElementById('curr-subject');
   var $currStatusSel = document.getElementById('curr-status');
   var $currSearch    = document.getElementById('curr-search');
+  var $currSort      = document.getElementById('curr-sort');
+  var $currGroup     = document.getElementById('curr-group');
   var $currIframe    = document.getElementById('curr-iframe');
   var $currEditBg    = document.getElementById('curr-edit-bg');
   var $currEditTitle = document.getElementById('curr-edit-title-h');
@@ -2475,6 +2529,8 @@ tbody tr:last-child td{border-bottom:none}
     $currSubject.value  = curriculumState.filters.subject;
     $currStatusSel.value = curriculumState.filters.status;
     $currSearch.value   = curriculumState.filters.search;
+    if($currSort)  $currSort.value  = curriculumState.filters.sort  || 'default';
+    if($currGroup) $currGroup.value = curriculumState.filters.groupBy || 'none';
 
     $currFilters.style.display = 'flex';
     $currMeta.textContent = '';
@@ -2945,6 +3001,196 @@ tbody tr:last-child td{border-bottom:none}
     return merged;
   }
 
+  // ---- Sort + group helpers (used by renderCurriculum) ----
+  // Lesson number lives in the activity ID suffix, e.g. 'w2-akshayan-r6'
+  // → 6. Returns 0 for any ID that doesn't match the standard shape so
+  // legacy / one-off entries don't break the comparator.
+  function lessonNumberFromId(aid){
+    if(!aid) return 0;
+    var m = String(aid).match(/-([a-z])(\d+)$/);
+    return m ? Number(m[2]) : 0;
+  }
+  // Index of a grade-master sid in GRADE_MASTERS — used to order the
+  // grade ladder JK→G8 instead of falling back to alphabetical (which
+  // would put 'akaran' before 'theo' even though G1 should come AFTER
+  // JK). Off-list sids sort to the end.
+  function gradeIndexForSid(sid){
+    for(var i = 0; i < GRADE_MASTERS.length; i++){
+      if(GRADE_MASTERS[i].sid === sid) return i;
+    }
+    return 999;
+  }
+  // 0 = has any error, 1 = warnings only, 2 = clean. Lower = surfaces
+  // first under the default sort.
+  function severityRank(issues){
+    if(!issues || !issues.length) return 2;
+    for(var i = 0; i < issues.length; i++){
+      if(issues[i].severity === 'error') return 0;
+    }
+    return 1;
+  }
+  function compareCurriculumDefault(a, b){
+    var aSev = severityRank(a.issues), bSev = severityRank(b.issues);
+    if(aSev !== bSev) return aSev - bSev;
+    var w = Number(a.week) - Number(b.week);
+    if(w) return w;
+    if(a.sid !== b.sid) return gradeIndexForSid(a.sid) - gradeIndexForSid(b.sid);
+    if(a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+    return (a.activity.id || '').localeCompare(b.activity.id || '');
+  }
+  // sortRows(rows, mode) — returns a NEW sorted array (doesn't mutate
+  // the input). Add a new mode by appending a case here + an <option>
+  // in the toolbar; nothing else needs to change.
+  function sortRows(rows, mode){
+    var sorted = rows.slice();
+    switch(mode){
+      case 'title-asc':
+        sorted.sort(function(a, b){ return (a.activity.title || '').localeCompare(b.activity.title || ''); });
+        break;
+      case 'title-desc':
+        sorted.sort(function(a, b){ return (b.activity.title || '').localeCompare(a.activity.title || ''); });
+        break;
+      case 'week-asc':
+        sorted.sort(function(a, b){
+          var w = Number(a.week) - Number(b.week);
+          if(w) return w;
+          var g = gradeIndexForSid(a.sid) - gradeIndexForSid(b.sid);
+          if(g) return g;
+          if(a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+          return lessonNumberFromId(a.activity.id) - lessonNumberFromId(b.activity.id);
+        });
+        break;
+      case 'week-desc':
+        sorted.sort(function(a, b){
+          var w = Number(b.week) - Number(a.week);
+          if(w) return w;
+          return gradeIndexForSid(a.sid) - gradeIndexForSid(b.sid);
+        });
+        break;
+      case 'grade-asc':
+        sorted.sort(function(a, b){
+          var g = gradeIndexForSid(a.sid) - gradeIndexForSid(b.sid);
+          if(g) return g;
+          var w = Number(a.week) - Number(b.week);
+          if(w) return w;
+          if(a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+          return lessonNumberFromId(a.activity.id) - lessonNumberFromId(b.activity.id);
+        });
+        break;
+      case 'grade-desc':
+        sorted.sort(function(a, b){
+          var g = gradeIndexForSid(b.sid) - gradeIndexForSid(a.sid);
+          if(g) return g;
+          return Number(a.week) - Number(b.week);
+        });
+        break;
+      case 'subject-asc':
+        sorted.sort(function(a, b){
+          if(a.subject !== b.subject) return a.subject.localeCompare(b.subject);
+          var g = gradeIndexForSid(a.sid) - gradeIndexForSid(b.sid);
+          if(g) return g;
+          return Number(a.week) - Number(b.week);
+        });
+        break;
+      case 'lesson-asc':
+        sorted.sort(function(a, b){
+          var l = lessonNumberFromId(a.activity.id) - lessonNumberFromId(b.activity.id);
+          if(l) return l;
+          var w = Number(a.week) - Number(b.week);
+          if(w) return w;
+          return gradeIndexForSid(a.sid) - gradeIndexForSid(b.sid);
+        });
+        break;
+      case 'issues-desc':
+        sorted.sort(function(a, b){
+          var aI = (a.issues && a.issues.length) || 0;
+          var bI = (b.issues && b.issues.length) || 0;
+          if(aI !== bI) return bI - aI;
+          return compareCurriculumDefault(a, b);
+        });
+        break;
+      case 'recent-edits':
+        sorted.sort(function(a, b){
+          var aOv = curriculumState.overrides[a.activity.id];
+          var bOv = curriculumState.overrides[b.activity.id];
+          var aT = (aOv && aOv.updatedAt) || 0;
+          var bT = (bOv && bOv.updatedAt) || 0;
+          if(aT !== bT) return bT - aT;   // most recent first
+          return compareCurriculumDefault(a, b);
+        });
+        break;
+      case 'default':
+      default:
+        sorted.sort(compareCurriculumDefault);
+        break;
+    }
+    return sorted;
+  }
+  // groupRows(rows, mode) — returns [{label, rows}, …] in display
+  // order. mode='none' returns a single unlabeled group so callers can
+  // always iterate the same shape regardless of grouping. Within each
+  // group, the rows preserve whatever sort the caller already applied.
+  function groupRows(rows, mode){
+    if(!mode || mode === 'none') return [{ label: '', rows: rows }];
+    var buckets = {};
+    var labels  = [];
+    function key(r){
+      if(mode === 'week')    return 'Week ' + r.week;
+      if(mode === 'grade')   return r.grade || r.sid;
+      if(mode === 'subject'){
+        // Title-case the subject (subject is stored lowercase like
+        // 'reading' but the operator sees 'Reading' in the chips).
+        var s = String(r.subject || '');
+        return s ? (s.charAt(0).toUpperCase() + s.slice(1)) : '(unknown)';
+      }
+      if(mode === 'status'){
+        if(!r.issues || !r.issues.length){
+          var ov = curriculumState.overrides[r.activity.id];
+          if(ov && ov._hidden) return '🙈 Hidden';
+          if(ov)               return '✓ Overridden (clean)';
+          return '✓ Clean';
+        }
+        var hasErr = false;
+        for(var i = 0; i < r.issues.length; i++){
+          if(r.issues[i].severity === 'error'){ hasErr = true; break; }
+        }
+        return hasErr ? '⛔ With errors' : '⚠ With warnings';
+      }
+      return '';
+    }
+    for(var i = 0; i < rows.length; i++){
+      var k = key(rows[i]);
+      if(!buckets[k]){ buckets[k] = []; labels.push(k); }
+      buckets[k].push(rows[i]);
+    }
+    // Order group labels in a stable, human-sensible way per mode.
+    if(mode === 'week'){
+      labels.sort(function(a, b){
+        return parseInt(a.replace('Week ',''),10) - parseInt(b.replace('Week ',''),10);
+      });
+    } else if(mode === 'grade'){
+      var gradeIdx = function(label){
+        for(var i = 0; i < GRADE_MASTERS.length; i++){
+          if(GRADE_MASTERS[i].grade === label) return i;
+        }
+        return 999;
+      };
+      labels.sort(function(a, b){ return gradeIdx(a) - gradeIdx(b); });
+    } else if(mode === 'subject'){
+      labels.sort();
+    } else if(mode === 'status'){
+      var order = {
+        '⛔ With errors': 0,
+        '⚠ With warnings': 1,
+        '🙈 Hidden': 2,
+        '✓ Overridden (clean)': 3,
+        '✓ Clean': 4,
+      };
+      labels.sort(function(a, b){ return (order[a] === undefined ? 99 : order[a]) - (order[b] === undefined ? 99 : order[b]); });
+    }
+    return labels.map(function(l){ return { label: l, rows: buckets[l] }; });
+  }
+
   function applyCurriculumFilters(rows){
     var f = curriculumState.filters;
     var q = (f.search || '').trim().toLowerCase();
@@ -3328,21 +3574,14 @@ tbody tr:last-child td{border-bottom:none}
       $currList.innerHTML = '<div class="curr-empty">No lessons match these filters.</div>';
       return;
     }
-    rows.sort(function(a,b){
-      // Lessons WITH issues sort to the top so they're impossible to miss
-      // when the operator is browsing the unfiltered list. Within that,
-      // errors-first, then warnings, then clean lessons. Then the original
-      // week / sid / subject / id order for stable display.
-      var aSev = (a.issues && a.issues.length) ? (a.issues.some(function(x){return x.severity==='error';}) ? 0 : 1) : 2;
-      var bSev = (b.issues && b.issues.length) ? (b.issues.some(function(x){return x.severity==='error';}) ? 0 : 1) : 2;
-      if(aSev !== bSev) return aSev - bSev;
-      var w = Number(a.week)-Number(b.week);
-      if(w) return w;
-      if(a.sid !== b.sid) return a.sid.localeCompare(b.sid);
-      if(a.subject !== b.subject) return a.subject.localeCompare(b.subject);
-      return (a.activity.id || '').localeCompare(b.activity.id || '');
-    });
-    var html = rows.map(function(r){
+    // Sort (within whatever group we end up with) + group. Both helpers
+    // are idempotent — sortRows returns a copy, groupRows preserves the
+    // sort. Default mode keeps the legacy "issues first → week → grade
+    // → subject → id" ordering, so freshly opening the editor still
+    // surfaces work-to-do at the top with no operator action.
+    rows = sortRows(rows, curriculumState.filters.sort);
+    var groups = groupRows(rows, curriculumState.filters.groupBy);
+    function renderCard(r){
       var a = r.activity;
       var ov = curriculumState.overrides[a.id];
       var classes = ['curr-card'];
@@ -3399,6 +3638,21 @@ tbody tr:last-child td{border-bottom:none}
           issueDetailHtml +
         '</div>'
       );
+    }
+    // Walk the (sorted, grouped) buckets. Each group emits a header
+    // div spanning the full grid row (CSS: grid-column:1/-1) followed
+    // by its cards. When mode='none' there's exactly one unlabeled
+    // group, so the output collapses to the legacy flat grid.
+    var html = groups.map(function(g){
+      var head = '';
+      if(g.label){
+        head =
+          '<div class="curr-group-head">' +
+            '<span class="curr-group-label">'+escapeHtml(g.label)+'</span>' +
+            '<span class="curr-group-count">'+g.rows.length+' lesson'+(g.rows.length === 1 ? '' : 's')+'</span>' +
+          '</div>';
+      }
+      return head + g.rows.map(renderCard).join('');
     }).join('');
     $currList.innerHTML = html;
     var cards = $currList.querySelectorAll('.curr-card');
@@ -4430,6 +4684,16 @@ tbody tr:last-child td{border-bottom:none}
   $currStatusSel.addEventListener('change', function(){
     curriculumState.filters.status = this.value; renderCurriculum();
   });
+  if($currSort){
+    $currSort.addEventListener('change', function(){
+      curriculumState.filters.sort = this.value; renderCurriculum();
+    });
+  }
+  if($currGroup){
+    $currGroup.addEventListener('change', function(){
+      curriculumState.filters.groupBy = this.value; renderCurriculum();
+    });
+  }
 
   // Lessons ↔ Videos view mode toggle. Switches the panel body between
   // the lessons grid (default) and the centralised YouTube manager.
