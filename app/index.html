@@ -34922,7 +34922,15 @@ function finishActivity(){
       // character." Falling back to 'cheerful' (blue/teal) keeps her
       // visually consistent across tiers; the message + emoji still
       // signal that this run didn't pass.
-      const tone = tier==='perfect' ? 'victory' : tier==='great' ? 'warm' : 'cheerful';
+      // Apr 2026 (round 2): same reasoning applied to the 'great' tier.
+      // 17/20 runs were rendering Nova in the 'warm' tone (yellow→pink
+      // gradient = peach Nova) which read as a totally different
+      // character from the brand blue/teal. Now: perfect → victory
+      // (still teal-family, mint→teal — close enough to brand to read
+      // as "the same Nova in a celebratory mood"), everything else →
+      // cheerful (the canonical blue→teal). Tier-distinct cues live in
+      // the message + emoji + star count, not in body color.
+      const tone = tier==='perfect' ? 'victory' : 'cheerful';
       const pep  = pickRewardPepTalk(tier, {
         isStretch,
         streakPerfects: window.__novaPerfectStreak || 0,
