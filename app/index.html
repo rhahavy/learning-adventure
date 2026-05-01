@@ -292,8 +292,18 @@ img{max-width:100%}
 .hnc-speech{flex:1;min-width:0;position:relative;z-index:1}
 .hnc-label{font-size:12px;font-weight:800;color:#0a8579;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
 .hnc-line{font-family:var(--font-display);font-size:clamp(17px,2.4vw,22px);font-weight:800;color:var(--ink);line-height:1.3;letter-spacing:-.005em;margin-bottom:14px}
+/* Quote-rotate animation — same keyframe the dashboard's nova-says
+   card uses (defined alongside .nova-says-line.pop), so the home and
+   dashboard rotators feel like the same gesture. */
+.hnc-line.pop{animation:novaSaysPop .45s var(--spring)}
 .hnc-stats{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13.5px;color:var(--ink2);font-weight:700}
 .hnc-stat{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.7);padding:5px 12px;border-radius:999px;border:1px solid rgba(108,92,231,.15)}
+/* Goal chip is the primary "where is the family this week?" stat —
+   slightly bolder weight and a touch more padding so it reads as the
+   primary data point next to the muted week/level marker. The
+   inline-style green tint (in JS) overrides this when the goal is
+   already achieved. */
+.hnc-goal-chip{font-weight:800;padding:5px 14px}
 .hnc-stat-sep{color:var(--ink3);opacity:.45;font-weight:800}
 @media (max-width: 540px){
   .home-nova-card{flex-direction:column;text-align:center;align-items:center}
@@ -21754,16 +21764,55 @@ function defaultWeeklyGoalTarget(){
    before progressive levels existed; each bump above it makes the
    target harder + the bonus payout bigger so the curve feels rewarding
    rather than punishing.
-   - Target: base × (1 + 0.5 × (level-1))
-       L1 = 1.0×, L2 = 1.5×, L3 = 2.0×, L4 = 2.5× ...
+   - Target: base × (1 + 0.5 × (level-1)) × (1 + 0.20 × (tenureWeek-1))
+       Within-week (level): L1 = 1.0×, L2 = 1.5×, L3 = 2.0× ...
+       Across-weeks (tenure): W1 = 1.0×, W2 = 1.2×, W3 = 1.4× ... cap W6 = 2.0×
    - Bonus per kid: 5 + 3 × (level-1)
-       L1 = 5,    L2 = 8,    L3 = 11,   L4 = 14   ...
-   Capped at level 6 so we don't generate impossible targets late in
-   the week — past that it just stays at the L6 difficulty + payout. */
-const WEEKLY_GOAL_MAX_LEVEL = 6;
-function weeklyGoalTargetForLevel(level){
+       L1 = 5, L2 = 8, L3 = 11, L4 = 14 ...
+   Capped at level 6 within-week so we don't generate impossible targets
+   late in the week. Capped at tenure week 6 (2× base) so a long-tenured
+   family doesn't get a wall of 5,000-coin Mondays.
+
+   Why tenure-scaling: operator request. Pre-fix, every Monday reset
+   to L1 base difficulty regardless of how many weeks the family had
+   been on the app — Week-1 family and Week-12 family had the same
+   bar. Now base difficulty scales with the family's furthest
+   progression-week (familyTenureWeek), so each week starts harder
+   than the last. */
+const WEEKLY_GOAL_MAX_LEVEL  = 6;
+const WEEKLY_GOAL_MAX_TENURE = 6;
+
+/* The family's "tenure week" — the maximum progression week across
+   all active students. Week 1 = base difficulty, each subsequent
+   week ramps the goal target by 20%. Capped at WEEKLY_GOAL_MAX_TENURE
+   so the late-game curve doesn't run away. */
+function familyTenureWeek(){
+  if(!STUDENTS || !STUDENTS.length) return 1;
+  let max = 1;
+  for(const s of STUDENTS){
+    const ud = (allData && allData.users) ? allData.users[s.id] : null;
+    if(!ud) continue;
+    try {
+      const w = computeWeekForUser(ud, s.id);
+      if(w > max) max = w;
+    } catch(_){}
+  }
+  return Math.max(1, max);
+}
+
+function weeklyGoalTargetForLevel(level, tenureWeek){
   const lv = Math.max(1, Math.min(WEEKLY_GOAL_MAX_LEVEL, Number(level||1)));
-  return Math.round(defaultWeeklyGoalTarget() * (1 + 0.5 * (lv - 1)));
+  // tenureWeek is optional — auto-computed from the active roster's
+  // max progression week if the caller didn't supply one. This keeps
+  // every existing call site (rollover, level-bump, dashboard reads)
+  // working without each one having to thread the tenure through.
+  const rawTw = (typeof tenureWeek === 'number' && tenureWeek > 0)
+    ? tenureWeek
+    : familyTenureWeek();
+  const tw = Math.max(1, Math.min(WEEKLY_GOAL_MAX_TENURE, rawTw));
+  const levelMult  = 1 + 0.50 * (lv - 1);
+  const tenureMult = 1 + 0.20 * (tw - 1);
+  return Math.round(defaultWeeklyGoalTarget() * levelMult * tenureMult);
 }
 function weeklyGoalBonusForLevel(level){
   const lv = Math.max(1, Math.min(WEEKLY_GOAL_MAX_LEVEL, Number(level||1)));
@@ -28003,6 +28052,179 @@ const ACTIVITY_LETTER_TO_SUBJECT = {
    buildHomeSnapshotLegacy() in case the operator wants the dense
    panel back for a classroom view later. */
 
+/* ==========================================================================
+   NOVA_MOTIVATION_QUOTES — kid-friendly motivational quote pool
+   --------------------------------------------------------------------------
+   Replaces the old per-tenant personalized lines on the home Nova-says
+   card. Operator request: every kid started at a different time, so
+   "X-day streak" / "Week N" copy felt off — show a motivational quote
+   instead, and pair it with the class-goal progress (which IS family-
+   wide) in the stat strip below.
+
+   Curation goals:
+     - Ages 5-12 (no irony, no big abstract words)
+     - Growth-mindset framing: effort, mistakes-as-data, brain-grows
+     - Mix Nova's character flavor (Learnia / antenna / three hearts)
+       with neutral encouragement so the pool stays fresh
+     - One sentence each, ≤80 chars where possible — these render in a
+       single line on the home card
+     - No claims about "talent" or "you're so smart" (Carol Dweck pattern:
+       praise effort, not innate ability)
+
+   Pool size: 120+ entries. The picker is plain Math.random() — different
+   draw on every page load + a click on the card rotates fresh.
+   ========================================================================== */
+const NOVA_MOTIVATION_QUOTES = [
+  // ---------- Brain-grows / mistakes-as-data ----------
+  "Mistakes mean your brain is growing.",
+  "Wrong answers are clues, not failures.",
+  "Confused face = brain working face. Both are good.",
+  "Confused? Cool — that means you're about to learn.",
+  "Failure is just data. Use it.",
+  "Stuck? That's where the learning lives.",
+  "Brains get stronger every time you stretch them.",
+  "Smart isn't a thing you have. It's a thing you grow.",
+  "Practice rewires your brain. For real.",
+  "When you don't know YET, that's the magic word.",
+  "Stuck just means: smart move incoming.",
+  "The 'aha' is right after the 'huh?'",
+  "Brave brains ask 'how?'",
+  "Smart looks like: tries, misses, tries again.",
+  "Brains love a good puzzle.",
+  "Even pros warm up. So warm up.",
+  "Brain workouts: just like muscle workouts.",
+  "Big brains are made one question at a time.",
+  "If it's hard, it's WORKING.",
+  "Brave kids fail forward.",
+
+  // ---------- Effort + persistence ----------
+  "You can do hard things.",
+  "Tiny steps still move mountains.",
+  "Effort beats talent every time.",
+  "The hard part is right before the WIN.",
+  "Hard now, easy later.",
+  "Hard for now. Easy later.",
+  "Today's hard problem is tomorrow's easy one.",
+  "Try again — your brain LOVES this.",
+  "The kid who keeps trying always wins.",
+  "Slow learning is real learning.",
+  "Slow is smooth. Smooth is fast.",
+  "One step at a time. That's the pace.",
+  "Take the next small step. That's the move.",
+  "Try the next one. Just one.",
+  "Try a bit more. See what happens.",
+  "Keep going — the answer is up ahead.",
+  "Tiny brave moves count.",
+  "Big tasks split into small ones. Always.",
+  "Big dreams need tiny daily moves.",
+  "Tiny wins stack into giant ones.",
+  "Trust your effort.",
+  "If it doesn't challenge you, it doesn't change you.",
+  "Read it once more. Brains love repeats.",
+  "Reading a hard sentence twice is a strategy.",
+  "Done is better than perfect. Today, anyway.",
+  "Done > perfect. Always.",
+  "Did your best? That IS the win.",
+
+  // ---------- Curiosity / wonder ----------
+  "Curiosity is the fastest road to smart.",
+  "Curious is cool.",
+  "Asking 'why' is a superpower.",
+  "Brave kids ask questions.",
+  "Curiosity > getting it perfect.",
+  "Fierce curiosity > fierce competition.",
+  "Curiosity beats cool every time.",
+  "Every Q is a chance to think.",
+  "Today's lesson will surprise you.",
+  "Every page turn is a small adventure.",
+  "Solve like a detective today.",
+  "Look up — your potential is enormous.",
+  "Brain food = trying new things.",
+  "Show your brain a new trick today.",
+  "Today is a great day to learn one new thing.",
+
+  // ---------- Self-belief, self-kindness ----------
+  "You showed up — that's already incredible.",
+  "Show up. That's already a win.",
+  "I see you trying. That matters.",
+  "You're smarter than yesterday.",
+  "You're doing the brave thing right now.",
+  "Be patient with yourself. Brains take time.",
+  "Your kindness to YOURSELF matters most.",
+  "You have permission to take it slow.",
+  "Trust yourself. Today especially.",
+  "Believe it before you can do it.",
+  "You're not lost — you're in the middle of getting better.",
+  "Even when it's slow, you are growing.",
+  "Look how far you've come.",
+  "Listen to YOUR voice today.",
+  "Don't compare. Just grow.",
+  "I'd rather see effort than perfect.",
+  "Brave is doing it scared.",
+  "Brave kids start before they're ready.",
+  "Brave kids try the hard one.",
+  "Today: be 1% braver than yesterday.",
+  "Stretchy brain, sturdy heart.",
+
+  // ---------- Encouragement / "next move" ----------
+  "Start. Start small. Just start.",
+  "Pause. Breathe. Try again.",
+  "Make your future-self proud.",
+  "Your future self is so proud of right now.",
+  "Take it one question at a time.",
+  "Got 5 minutes? Spend them smart.",
+  "Bored? Try the harder one. Surprise yourself.",
+  "Try the hard one. That's where it gets fun.",
+  "Focus is a superpower you can practice.",
+  "Brain glow is REAL.",
+  "Effort is ALWAYS allowed.",
+  "There's no 'too small' for trying.",
+  "Brave brain, light it up.",
+  "Even tiny progress is progress.",
+  "Every day you show up, you grow.",
+  "What you do daily becomes who you are.",
+  "Pencil down, brain on — that works too.",
+  "Today's win is showing up.",
+
+  // ---------- Nova-character flavor (Learnia / antenna / three hearts) ----------
+  "On Learnia, we celebrate the try.",
+  "Three of my hearts are cheering for you.",
+  "My antenna is flashing — you got this.",
+  "I traveled three galaxies for THIS lesson.",
+  "Back on Learnia, brave learners get parades.",
+  "Antenna check… pointing right at you.",
+  "All three of my hearts say: keep going.",
+  "Cosmic fuel: 100%. You're the engine.",
+  "Zorbs! Look at that brain working.",
+  "I learned a thing today watching you try.",
+  "Tiny rocket, real miles.",
+  "Brain glow visible from Learnia. ✨",
+
+  // ---------- Spice / quirky ----------
+  "Today on Earth, we celebrate small wins. Let's make some.",
+  "Plot twist: today's the day everything clicks.",
+  "Dust off those neurons — let's go!",
+  "Curiosity, deployed. Antenna, locked on. Let's move.",
+  "Read between the lines. You're good at that.",
+  "Got stuck? Smart kids unstick themselves.",
+  "Make today's brain a little stronger than yesterday's.",
+  "Big brain energy today.",
+  "If learning were a sport, you'd be MVP.",
+  "Pop quiz: are we about to learn something? (Hint: yes.)",
+  "Rome wasn't learned in a day. We've got time.",
+  "Show up loud. Make mistakes loud.",
+];
+
+/* Pick a motivational quote at random. We don't seed by day/user the
+   way the legacy Nova line picker did — the operator wants this to
+   feel fresh, and a click on the card rotates it again so a kid can
+   pull a new quote whenever they want. */
+function pickMotivationalQuote(){
+  const pool = NOVA_MOTIVATION_QUOTES;
+  if(!pool || !pool.length) return "You can do hard things.";
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 /* Pool of Nova lines for the home screen. Each entry is either a
    plain string OR a function that takes a `ctx` object and returns
    a string — so we can personalize when we have data and fall back
@@ -28010,7 +28232,11 @@ const ACTIVITY_LETTER_TO_SUBJECT = {
      { kids: STUDENTS, longestStreak: {name, days}|null,
        topKid: {name, earned}|null, weekCoins: number,
        inactiveKid: {name}|null, currentWeek: number }
-   Functions returning null/empty → that line is skipped this draw. */
+   Functions returning null/empty → that line is skipped this draw.
+   (Apr 2026: the home Nova card now uses NOVA_MOTIVATION_QUOTES
+   instead of this pool. Kept here because pickHomeNovaLine is still
+   imported by a couple of legacy code paths and we'd rather not
+   break them silently. Safe to delete in a follow-up sweep.) */
 const HOME_NOVA_LINES = [
   // ---------- Generic delight (always eligible) ----------
   "Three hearts, three flutters. Let’s find your learner.",
@@ -28208,33 +28434,77 @@ function buildHomeNovaCard(){
   // Speech column (right): label + line + stat strip.
   const speech = h('div',{class:'hnc-speech'});
   speech.appendChild(h('div',{class:'hnc-label'}, '✨ Nova says…'));
-  speech.appendChild(h('div',{class:'hnc-line'}, line));
-  // Tiny stat strip — only render the bits we actually have data for,
-  // so the card stays tidy on a fresh tenant. Demo tenants don't have
-  // real per-tenant data (every visitor shares the same demo blob), so
-  // we suppress the strip entirely there. Their Nova line already
-  // includes the call-to-action.
-  const stats = [];
+  // Motivational quote (Apr 2026) — replaces the legacy personalized
+  // line picker. Every kid is on their own clock so streak / week-N
+  // copy felt off when surfaced family-wide; a quote is the same for
+  // everyone and the rotate-on-click keeps it feeling fresh.
+  const quote = (ctx.isDemo && typeof pickHomeNovaLine === 'function')
+    ? pickHomeNovaLine(ctx)                 // demo tenants keep the
+                                            // delight pool — they
+                                            // don't have real progress
+                                            // for the goal strip below.
+    : pickMotivationalQuote();
+  const lineEl = h('div',{class:'hnc-line'}, quote);
+  speech.appendChild(lineEl);
+  // Stats strip — replaced the streak/week pills with the family's
+  // shared class goal progress. The goal already tenure-scales (each
+  // tenure-week the bar gets 20% bigger) so the pill IS the answer
+  // to "where are we this week vs. last week?". Demo tenants don't
+  // have a goal blob, so they skip the strip; their Nova quote alone
+  // is the whole card body.
   if(!ctx.isDemo){
-    if(ctx.weekCoins > 0){
-      stats.push(h('span',{class:'hnc-stat'}, '🪙 ' + ctx.weekCoins + ' this week'));
-    }
-    if(ctx.longestStreak && ctx.longestStreak.days >= 1){
-      stats.push(h('span',{class:'hnc-stat'},
-        '🔥 ' + ctx.longestStreak.name + ', ' + ctx.longestStreak.days + '-day streak'));
-    }
-    if(ctx.currentWeek >= 1){
-      stats.push(h('span',{class:'hnc-stat'}, '🎓 Week ' + ctx.currentWeek));
+    let goal = null;
+    try { goal = weeklyGoalProgress(); } catch(_){ goal = null; }
+    if(goal){
+      const tw = familyTenureWeek();
+      const lv = Number((allData.weeklyGoal && allData.weeklyGoal.level) || 1);
+      const labelGroup = ctx.isClass ? 'Class' : 'Family';
+      // Primary chip: goal progress (current/target coins). Tinted
+      // green once achieved so the family sees a visible win even
+      // before the bonus payout lands.
+      const goalChipBg = goal.achieved
+        ? 'background:rgba(72,187,120,.15);border-color:rgba(72,187,120,.45);color:#1f6f43'
+        : '';
+      const strip = h('div',{class:'hnc-stats'});
+      strip.appendChild(h('span',{class:'hnc-stat hnc-goal-chip', style: goalChipBg, title:'Coins earned this week toward the family\'s shared goal — bonus pays out when the bar fills.'},
+        '🎯 ' + labelGroup + ' goal: ' + (goal.current || 0) + ' / ' + goal.target + ' coins'
+      ));
+      strip.appendChild(h('span',{class:'hnc-stat-sep'}, '·'));
+      // Secondary chip: difficulty marker. Tenure week + within-week
+      // level. As the family advances, this number ticks up and the
+      // primary chip's denominator grows with it. Capped visually at
+      // WEEKLY_GOAL_MAX_TENURE so the pill doesn't lie about further
+      // scaling that the engine isn't actually doing.
+      const twDisp = Math.min(WEEKLY_GOAL_MAX_TENURE, tw);
+      const tier   = twDisp >= WEEKLY_GOAL_MAX_TENURE ? ' (max)' : '';
+      strip.appendChild(h('span',{class:'hnc-stat', title:'Goals get 20% bigger every week the family progresses, on top of the within-week level bumps.'},
+        '🪜 Week ' + twDisp + tier + ' · L' + lv
+      ));
+      speech.appendChild(strip);
     }
   }
-  if(stats.length){
-    const strip = h('div',{class:'hnc-stats'});
-    stats.forEach((s, i) => {
-      if(i > 0) strip.appendChild(h('span',{class:'hnc-stat-sep'}, '·'));
-      strip.appendChild(s);
-    });
-    speech.appendChild(strip);
-  }
+  // Click anywhere on the card → rotate to a new motivational quote.
+  // Tiny delight touch so a kid (or parent) waiting on a sibling can
+  // surf the pool. Demo tenants get the same behavior with their own
+  // pool so the marketing card never feels static.
+  card.style.cursor = 'pointer';
+  card.setAttribute('role','button');
+  card.setAttribute('tabindex','0');
+  card.setAttribute('aria-label','Tap for a new Nova quote');
+  const rotateQuote = () => {
+    const next = (ctx.isDemo && typeof pickHomeNovaLine === 'function')
+      ? pickHomeNovaLine(ctx)
+      : pickMotivationalQuote();
+    if(next === lineEl.textContent) return;  // unlucky double-draw — let next click try
+    lineEl.classList.remove('pop');
+    void lineEl.offsetWidth;        // reflow trick to restart the animation
+    lineEl.textContent = next;
+    lineEl.classList.add('pop');
+  };
+  card.addEventListener('click', rotateQuote);
+  card.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); rotateQuote(); }
+  });
   card.appendChild(speech);
   return card;
 }
