@@ -5058,15 +5058,30 @@ async function handleSidekick(request, env, ctx, corsOrigin) {
       };
       // Belt-and-suspenders leak check (same pattern as /worked-example).
       // If the correct answer text appears in the reply, drop it.
+      //
+      // EXCEPTION: single-character answers. JK / SK letter-matching
+      // questions like "Match BIG H with its little buddy" have the
+      // correct answer 'h'. Nova literally cannot help the kid without
+      // saying the letter ("the little buddy is the same letter in
+      // lowercase form — h"). Same goes for tiny-number math: "What
+      // comes after 4?" with answer '5'. The strict word-boundary
+      // check fired on every reasonable reply, so the kid saw the
+      // offline "I can't chat right now" fallback instead of help.
+      // For single-character answers we trust the system prompt's
+      // "NEVER REVEAL THE ANSWER" instruction + the fact that the kid
+      // still has to identify which TILE shows the letter even after
+      // Nova names it (the four choices include both cases of two
+      // letters, so naming "h" doesn't bypass picking the right cell).
       try {
         const inp = inputs || {};
         const choices = Array.isArray(inp.choices) ? inp.choices : null;
         const correctText = (typeof inp.correctAnswer === 'number' && choices && choices[inp.correctAnswer] !== undefined)
           ? String(choices[inp.correctAnswer])
           : (inp.correctAnswer != null ? String(inp.correctAnswer) : '');
-        if (correctText && correctText.trim().length > 0) {
+        const correctTrim = correctText ? correctText.trim() : '';
+        if (correctTrim.length > 1) {  // skip leak check for 1-char answers
           const haystack = out.reply.toLowerCase();
-          const needle = correctText.trim().toLowerCase();
+          const needle = correctTrim.toLowerCase();
           let leaked = false;
           if (needle.length <= 3) {
             const re = new RegExp('(?:^|[^\\w])' + needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:[^\\w]|$)');
@@ -5210,17 +5225,26 @@ async function handleWorkedExample(request, env, ctx, corsOrigin) {
       // contaminated and return an error so the client falls back to a
       // soft generic nudge instead of leaking. This catches both direct
       // ("the answer is 12") and indirect leaks ("count: 8, 9, 10, 11, 12").
+      //
+      // EXCEPTION: single-character answers (see /sidekick for the
+      // full rationale). JK letter-matching questions and tiny-number
+      // math have answers like 'h' or '5' — Nova literally cannot
+      // walk the kid through HOW without naming them. For single-char
+      // answers we trust the system prompt's "never reveal" instruction
+      // and the structural fact that the kid still has to pick the
+      // right tile even after the letter / digit has been named.
       try {
         const inp = inputs || {};
         const choices = Array.isArray(inp.choices) ? inp.choices : null;
         const correctText = (typeof inp.correctAnswer === 'number' && choices && choices[inp.correctAnswer] !== undefined)
           ? String(choices[inp.correctAnswer])
           : (inp.correctAnswer != null ? String(inp.correctAnswer) : '');
-        if (correctText && correctText.trim().length > 0) {
+        const correctTrim = correctText ? correctText.trim() : '';
+        if (correctTrim.length > 1) {  // skip leak check for 1-char answers
           // Build the haystack from all output text the kid will see.
           const haystack = (out.steps.join(' ') + ' ' + (out.finalNudge || '')).toLowerCase();
-          const needle = correctText.trim().toLowerCase();
-          // For very short answers (1-3 chars, e.g. "12", "B"), do a
+          const needle = correctTrim.toLowerCase();
+          // For very short answers (2-3 chars, e.g. "12", "no"), do a
           // word-boundary check so "1234" doesn't trip on "12". For longer
           // answers, substring match is fine — they're distinctive.
           let leaked = false;
