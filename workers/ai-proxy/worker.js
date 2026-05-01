@@ -4385,6 +4385,7 @@ const ROUTES = {
   'POST /simplify':           { flag: 'FEATURE_SIMPLIFY',           fn: handleSimplify },
   // Phase B — real handlers.
   'POST /generate-questions': { flag: 'FEATURE_GENERATE_QUESTIONS', fn: handleGenerateQuestions },
+  'POST /generate-lesson':    { flag: 'FEATURE_GENERATE_QUESTIONS', fn: handleGenerateLesson },
   'POST /worked-example':     { flag: 'FEATURE_WORKED_EXAMPLE',     fn: handleWorkedExample },
   // Phase C — partially scaffolded.
   'POST /teacher-summary':    { flag: 'FEATURE_TEACHER_SUMMARY',    fn: notYetImplemented('teacher-summary') },
@@ -5493,6 +5494,172 @@ async function handleGenerateQuestions(request, env, ctx, corsOrigin) {
       const n = (out && Array.isArray(out.questions)) ? out.questions.length : 0;
       const g = (inputs.curriculum && inputs.curriculum.grade) || '?';
       return `generate-questions → ${n}q, ${g}, ${inputs.difficulty}`;
+    },
+  });
+}
+
+// ---- /generate-lesson --------------------------------------------------
+// Build a COMPLETE Solvix activity object for a given grade × subject
+// slot. Returned JSON includes title, emoji, curriculum tag (Ontario
+// strand + codes + description), lesson{title,intro,example,hint},
+// 5 main questions (with optional passage block on reading lessons),
+// and 5 stretch questions one tier harder.
+//
+// Used by tools/bulk_fill_week2.py to seed Week 2+ rosters when
+// authored content runs out. The operator reviews the output JSON
+// (which gets patched into app/index.html as a `{ id:..., title:...,
+// questions:[...], stretchQuestions:[...] }` activity literal) before
+// committing — so the AI hallucination floor doesn't ship to kids
+// without human eyes on it.
+//
+// NOT cached: each lesson should be unique even for the same grade/
+// subject. We don't want every operator running the script to get
+// identical "Cause and Effect" lessons.
+async function handleGenerateLesson(request, env, ctx, corsOrigin) {
+  return runStandardHandler({
+    request, env, ctx, corsOrigin,
+    endpoint: '/generate-lesson',
+    readInputs: async (body) => ({
+      grade:        String(body.grade || '').trim().slice(0, 40),
+      subject:      String(body.subject || '').trim().slice(0, 40),
+      week:         Math.max(1, Math.min(20, Number(body.week) || 2)),
+      // Optional topic suggestion. If omitted, the AI picks a topic
+      // appropriate for the grade × subject × week-of-curriculum.
+      suggestedTopic: String(body.suggestedTopic || '').slice(0, 120),
+      // Optional priorTopics: an array of topic names from prior weeks
+      // so the AI doesn't repeat what the kid already covered. Empty
+      // array → AI picks freely.
+      priorTopics:  Array.isArray(body.priorTopics)
+        ? body.priorTopics.slice(0, 12).map(t => String(t).slice(0, 80))
+        : [],
+      // Whether the lesson should include a reading passage. Default
+      // true for reading subject, false otherwise.
+      needsPassage: typeof body.needsPassage === 'boolean'
+        ? body.needsPassage
+        : (String(body.subject || '').toLowerCase() === 'reading'),
+    }),
+    validate: ({ grade, subject }) => {
+      if (!grade) return { error: 'missing_grade' };
+      if (!subject) return { error: 'missing_subject' };
+      return null;
+    },
+    cacheKey: null, // never cache — see comment above
+    maxTokens: 2400,
+    buildSystemPrompt: () => (
+      'You generate a COMPLETE grade-level lesson for the Solvix learning app. ' +
+      'Output STRICT JSON ONLY (no prose, no markdown fences). Shape:\n' +
+      '{\n' +
+      '  "title": string,                    // ≤ 40 chars, kid-friendly\n' +
+      '  "emoji": string,                    // ONE emoji that captures the topic\n' +
+      '  "curriculum": {\n' +
+      '    "grade": string,                  // matches input grade exactly\n' +
+      '    "strand": string,                 // Ontario strand and substrand, e.g. "Language — C. Comprehension: Understanding Texts"\n' +
+      '    "codes":  [string],               // 1-3 Ontario expectation codes (e.g. "C1.5", "B3.2"). Use real Ontario Curriculum codes.\n' +
+      '    "description": string             // ≤ 200 chars. The Ontario expectation in plain English.\n' +
+      '  },\n' +
+      '  "lesson": {\n' +
+      '    "title": string,                  // teaching-card heading, ≤ 40 chars\n' +
+      '    "intro": string,                  // 2-3 sentences explaining the concept in kid words\n' +
+      '    "example": string,                // 1 concrete worked example\n' +
+      '    "hint":   string                  // 1 short anchor phrase the kid can repeat to themselves\n' +
+      '  },\n' +
+      '  "questions": [                       // EXACTLY 5 entries\n' +
+      '    // For READING lessons, the FIRST entry MUST be:\n' +
+      '    // { "type":"passage", "passage": string (~50-100 words for the grade), "q": string, "choices": [4 strings], "answer": int 0-3 },\n' +
+      '    // For non-reading lessons, ALL 5 are MCQs with the shape below:\n' +
+      '    { "type":"mcq", "q": string, "choices": [4 strings], "answer": int 0-3 }\n' +
+      '  ],\n' +
+      '  "stretchQuestions": [                // EXACTLY 5 entries, all type:"mcq", ONE tier harder than questions\n' +
+      '    { "type":"mcq", "q": string, "choices": [4 strings], "answer": int 0-3 }\n' +
+      '  ]\n' +
+      '}\n\n' +
+      'Hard rules:\n' +
+      '- Match the grade level rigorously: K-2 simple sentences, 3-5 friendly + concrete, 6-8 academic.\n' +
+      '- Strand + codes MUST be real Ontario Curriculum (Ontario Ministry of Education).\n' +
+      '- Distractors (wrong choices) must be PLAUSIBLE for the grade — no "obviously silly" wrong answers.\n' +
+      '- All 4 choices in a question should be similar LENGTH — avoid the "longest = correct" giveaway.\n' +
+      '- Answer indices should VARY across the 5 questions (not all 1, not all 2).\n' +
+      '- Stretch questions test the SAME skill at a slightly harder level (more abstract, longer reading load, two-step reasoning).\n' +
+      '- Reading passage should be self-contained — kids must be able to answer all 5 main questions from the passage alone.\n' +
+      '- Never include the student\'s real name. Use generic kid names (Maya, Liam, Sara, Ben, Aria, etc.).\n'
+      + KID_SAFE_RULES
+      + CURRICULUM_ALIGNMENT_RULES
+    ),
+    buildUserPrompt: ({ grade, subject, week, suggestedTopic, priorTopics, needsPassage }) => (
+      'Generate ONE complete lesson for:\n' +
+      '  Grade: ' + grade + '\n' +
+      '  Subject: ' + subject + '\n' +
+      '  Week: ' + week + ' (so the topic should progress beyond Week 1 of this subject for this grade)\n' +
+      (suggestedTopic ? '  Suggested topic: ' + suggestedTopic + '\n' : '  Suggested topic: (you pick a Week-' + week + '-appropriate topic)\n') +
+      (priorTopics.length
+        ? '  Prior weeks already covered: ' + priorTopics.join(', ') + '\n  Pick a topic that BUILDS on these without repeating them.\n'
+        : '') +
+      '  Reading passage required? ' + (needsPassage ? 'YES — first question MUST be type:"passage"' : 'NO — all 5 questions are type:"mcq"') + '\n\n' +
+      'Return the JSON now.'
+    ),
+    postProcess: (text, inputs) => {
+      const parsed = parseJsonFromText(text);
+      if (!parsed || typeof parsed !== 'object') {
+        return { error: 'parse_failed', raw: (text || '').slice(0, 200) };
+      }
+      // Defensive shape validation. We don't fix the AI's mistakes here —
+      // we surface them so the operator script can retry. But we DO
+      // truncate string fields so a runaway AI can't blow up the source
+      // file.
+      const out = {};
+      if (typeof parsed.title === 'string')  out.title = parsed.title.slice(0, 60);
+      if (typeof parsed.emoji === 'string')  out.emoji = parsed.emoji.slice(0, 8);
+      if (parsed.curriculum && typeof parsed.curriculum === 'object') {
+        out.curriculum = {
+          grade: String(parsed.curriculum.grade || inputs.grade).slice(0, 40),
+          strand: String(parsed.curriculum.strand || '').slice(0, 200),
+          codes: Array.isArray(parsed.curriculum.codes)
+            ? parsed.curriculum.codes.slice(0, 4).map(c => String(c).slice(0, 20))
+            : [],
+          description: String(parsed.curriculum.description || '').slice(0, 280),
+        };
+      }
+      if (parsed.lesson && typeof parsed.lesson === 'object') {
+        out.lesson = {
+          title:   String(parsed.lesson.title || '').slice(0, 60),
+          intro:   String(parsed.lesson.intro || '').slice(0, 600),
+          example: String(parsed.lesson.example || '').slice(0, 400),
+          hint:    String(parsed.lesson.hint || '').slice(0, 200),
+        };
+      }
+      const sanitizeQuestions = (arr, allowPassage) => {
+        if (!Array.isArray(arr)) return [];
+        return arr.slice(0, 6).map(q => {
+          if (!q || typeof q !== 'object') return null;
+          const t = String(q.type || 'mcq');
+          const cleanType = (t === 'passage' && allowPassage) ? 'passage' : 'mcq';
+          const ans = (typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 5) ? q.answer : 0;
+          const out = {
+            type: cleanType,
+            q: String(q.q || '').slice(0, 320),
+            choices: Array.isArray(q.choices)
+              ? q.choices.slice(0, 6).map(c => String(c).slice(0, 160))
+              : [],
+            answer: ans,
+          };
+          if (cleanType === 'passage' && typeof q.passage === 'string') {
+            out.passage = q.passage.slice(0, 1200);
+          }
+          return out;
+        }).filter(q => q && q.choices.length >= 2 && q.q);
+      };
+      out.questions = sanitizeQuestions(parsed.questions, true);
+      out.stretchQuestions = sanitizeQuestions(parsed.stretchQuestions, false);
+      // Final validation: must have at least 3 main questions to be
+      // worth shipping. Stretch is optional but expected.
+      if (out.questions.length < 3) {
+        return { error: 'parse_failed', raw: 'Too few main questions (' + out.questions.length + ')' };
+      }
+      return out;
+    },
+    auditSummary: (inputs, out) => {
+      const t = (out && out.title) || '?';
+      return `generate-lesson → ${inputs.grade}/${inputs.subject} W${inputs.week}: ${t}`;
     },
   });
 }
