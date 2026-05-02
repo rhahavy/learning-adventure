@@ -1715,6 +1715,15 @@ body.nova-tour-active{scroll-padding-top:40px}
 .ana-section{background:#fff;border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow);border:1.5px solid var(--line)}
 .ana-section h3{font-family:var(--font-display);font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
 .ana-section .ana-sub{font-size:12px;color:var(--ink3);font-weight:600;margin-bottom:14px}
+/* Week-selector row above the accuracy heatmap. Tucks just under the
+   subtitle so a tutor sees "I can scope this by week" before scanning
+   the matrix. Same select look as the curriculum-editor toolbar selects
+   so the operator UI feels consistent. */
+.ana-section .ana-week-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.ana-section .ana-week-label{font-size:12px;font-weight:800;color:var(--ink2);letter-spacing:.2px;text-transform:uppercase}
+.ana-section .ana-week-select{padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;background:#fff;font-family:var(--font);font-weight:700;font-size:13px;color:var(--ink);cursor:pointer;min-width:200px}
+.ana-section .ana-week-select:focus{outline:none;border-color:var(--primary)}
+.ana-section .ana-heatmap-wrap{overflow-x:auto}
 /* 30-day wrong-answer timeline */
 .ana-timeline{display:flex;align-items:flex-end;gap:3px;height:80px;padding:6px 0;border-bottom:1.5px solid var(--line)}
 .ana-tl-bar{flex:1;min-width:4px;background:linear-gradient(180deg,#FF7675,#E17055);border-radius:3px 3px 0 0;min-height:2px;transition:height .3s var(--spring);position:relative;cursor:pointer}
@@ -25625,33 +25634,94 @@ function buildAnalyticsPanel(){
   ]));
   wrap.appendChild(tl);
 
-  // Subject-accuracy heatmap
+  // Subject-accuracy heatmap with a week selector. Pre-fix the heatmap
+  // aggregated using whatever currentWeek pointed at — the operator
+  // had no way to compare Week 1 vs Week 2 accuracy per kid × subject.
+  // Now: dropdown lets them pick "All weeks" (sum across every authored
+  // week, the most useful default for spotting persistent struggles)
+  // or a specific week. Re-renders the table in place on change without
+  // rebuilding the whole analytics panel.
   const hm = h('div',{class:'ana-section'});
-  hm.appendChild(h('h3',{},[h('span',{},'🎯'),h('span',{},'Accuracy by subject')]));
+  const hmHead = h('div',{class:'ana-hm-head'},[
+    h('h3',{},[h('span',{},'🎯'),h('span',{},'Accuracy by subject')]),
+  ]);
+  hm.appendChild(hmHead);
   hm.appendChild(h('div',{class:'ana-sub'}, 'Per-student question accuracy (green = strong, red = needs work). Blanks = not attempted yet.'));
-  const table = h('table',{class:'ana-heatmap'});
-  const thead = h('tr',{},[h('th',{},'Student')].concat(SUBJECTS.map(sub=>h('th',{class:'c'}, sub.emoji+' '+sub.name))));
-  table.appendChild(thead);
-  STUDENTS.forEach(s=>{
-    const row = h('tr',{});
-    row.appendChild(h('td',{class:'student'}, s.name));
-    SUBJECTS.forEach(sub=>{
-      try{
-        const stt = computeSubjectStats(s.id, sub.id);
-        if(!stt || !stt.touched){
+
+  // Week selector — pulls the available authored weeks from WEEKS object
+  // keys so we can\'t offer a week the catalog doesn\'t actually have.
+  // "All weeks" is index 0 / value '' so the default reads naturally.
+  const authoredWeeks = (function(){
+    try {
+      return Object.keys(WEEKS || {})
+        .map(k => Number(k))
+        .filter(n => Number.isFinite(n) && n > 0)
+        .sort((a,b) => a-b);
+    } catch(_){ return [1]; }
+  })();
+  const weekSelectorRow = h('div',{class:'ana-week-row'});
+  weekSelectorRow.appendChild(h('label',{class:'ana-week-label', for:'ana-hm-week'}, 'Show week:'));
+  const weekSelect = h('select',{id:'ana-hm-week', class:'ana-week-select'},
+    [h('option',{value:''}, 'All weeks (combined)')].concat(
+      authoredWeeks.map(n => h('option',{value:String(n)}, 'Week ' + n))
+    )
+  );
+  weekSelectorRow.appendChild(weekSelect);
+  hm.appendChild(weekSelectorRow);
+
+  const tableWrap = h('div',{class:'ana-heatmap-wrap'});
+  hm.appendChild(tableWrap);
+
+  // Combine per-week stats into one aggregate row when wk is null/empty.
+  // We sum totalCorrect / totalScorable across each week\'s scope so the
+  // resulting accuracy is a true cross-week ratio (NOT an average of
+  // ratios — that would over-weight low-attempt weeks).
+  function aggregateAcrossWeeks(sid, subjId){
+    let totalCorrect = 0, totalScorable = 0, anyTouched = false;
+    for(const wk of authoredWeeks){
+      try {
+        const st = computeSubjectStats(sid, subjId, wk);
+        if(!st) continue;
+        if(st.touched) anyTouched = true;
+        totalCorrect  += (st.totalCorrect  || 0);
+        totalScorable += (st.totalScorable || 0);
+      } catch(_){}
+    }
+    return {
+      touched: anyTouched,
+      questionAccuracy: totalScorable ? totalCorrect / totalScorable : 0,
+    };
+  }
+
+  function renderHeatmap(weekValue){
+    const wk = weekValue ? Number(weekValue) : null;
+    const table = h('table',{class:'ana-heatmap'});
+    const thead = h('tr',{},[h('th',{},'Student')].concat(SUBJECTS.map(sub=>h('th',{class:'c'}, sub.emoji+' '+sub.name))));
+    table.appendChild(thead);
+    STUDENTS.forEach(s=>{
+      const row = h('tr',{});
+      row.appendChild(h('td',{class:'student'}, s.name));
+      SUBJECTS.forEach(sub=>{
+        try{
+          const stt = wk ? computeSubjectStats(s.id, sub.id, wk) : aggregateAcrossWeeks(s.id, sub.id);
+          if(!stt || !stt.touched){
+            row.appendChild(h('td',{class:'none'}, '—'));
+            return;
+          }
+          const pct = Math.round((stt.questionAccuracy||0)*100);
+          const cls = pct>=85?'p4' : pct>=70?'p3' : pct>=50?'p2' : pct>=30?'p1' : 'p0';
+          row.appendChild(h('td',{class:cls}, pct+'%'));
+        }catch(e){
           row.appendChild(h('td',{class:'none'}, '—'));
-          return;
         }
-        const pct = Math.round((stt.questionAccuracy||0)*100);
-        const cls = pct>=85?'p4' : pct>=70?'p3' : pct>=50?'p2' : pct>=30?'p1' : 'p0';
-        row.appendChild(h('td',{class:cls}, pct+'%'));
-      }catch(e){
-        row.appendChild(h('td',{class:'none'}, '—'));
-      }
+      });
+      table.appendChild(row);
     });
-    table.appendChild(row);
-  });
-  hm.appendChild(table);
+    tableWrap.innerHTML = '';
+    tableWrap.appendChild(table);
+  }
+  renderHeatmap('');  // initial: All weeks combined
+  weekSelect.addEventListener('change', (e)=>{ renderHeatmap(e.target.value); });
   wrap.appendChild(hm);
 
   // Top struggle concepts (family-wide)
@@ -28382,7 +28452,15 @@ function suggestedOffsetForSubject(sid, subj){
   return null;
 }
 
-function getWeekActivities(sid,subj){
+function getWeekActivities(sid,subj,wk){
+  // Optional `wk` parameter (Apr 2026) — lets the teacher's analytics
+  // panel ask "what activities are in Week N for this kid?" without
+  // mutating the kid's currentWeek. Defaults to currentWeek so every
+  // existing caller (dashboard subject cards, level math, scoreboards,
+  // resetStudent, etc.) continues to work unchanged. Pass an explicit
+  // week number to scope the lookup to that week; pass nothing for
+  // "the current week" semantics.
+  const week = (typeof wk === 'number' && wk > 0) ? wk : currentWeek;
   // Demo profiles reuse an existing student's curriculum via curriculumSid
   // so we don't duplicate the big WEEKS data structure. Real students hit
   // the fast path unchanged. New-tenant students fall through to a
@@ -28408,14 +28486,14 @@ function getWeekActivities(sid,subj){
           ? applyGradeOffset(studentRec.grade, off)
           : studentRec.grade;
         resolved = templateSidForGrade(adjGrade);
-      } else if(!WEEKS[currentWeek] || !WEEKS[currentWeek][resolved]){
+      } else if(!WEEKS[week] || !WEEKS[week][resolved]){
         // No grade on file (legacy / migrated record). Fall back to
         // whatever resolveContentSid says (handles edge cases).
-        try { resolved = resolveContentSid(sid, currentWeek, subj) || resolved; } catch(_){}
+        try { resolved = resolveContentSid(sid, week, subj) || resolved; } catch(_){}
       }
     } catch(e){ /* fall through to original resolved */ }
   }
-  const acts = (WEEKS[currentWeek] && WEEKS[currentWeek][resolved] && WEEKS[currentWeek][resolved][subj]) || [];
+  const acts = (WEEKS[week] && WEEKS[week][resolved] && WEEKS[week][resolved][subj]) || [];
   // Layered merge at read time:
   //   base WEEKS → operator (global) override → tenant tutor override
   //              → student simpleLanguage → student autoStretch
@@ -30615,9 +30693,14 @@ const RC_SKILL_NOTES = {
   coding:  ['Reads and writes simple code','Debugs problems step by step'],
 };
 
-function computeSubjectStats(sid, subjId){
+function computeSubjectStats(sid, subjId, wk){
+  // Optional `wk` parameter (Apr 2026) — scopes the stats to a specific
+  // authored week instead of the kid's current week. Used by the
+  // teacher analytics heatmap so a tutor can compare Week 1 → Week 2
+  // accuracy per kid × subject without re-routing the whole app's
+  // currentWeek pointer. Default behaviour (no wk) is unchanged.
   const ud = getStudentData(sid);
-  const acts = getWeekActivities(sid, subjId);
+  const acts = getWeekActivities(sid, subjId, wk);
   const total = acts.length || 1;
   let done = 0, perfect = 0;
   // --- Attempts & TRUE question-level accuracy ---
