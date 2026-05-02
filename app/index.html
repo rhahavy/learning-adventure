@@ -28545,7 +28545,7 @@ function getWeekActivities(sid,subj,wk){
   if(demo) return merged;
   return merged.filter(a => !a.demoOnly);
 }
-function countDone(sid,subj){const acts=getWeekActivities(sid,subj);const ud=getStudentData(sid);return acts.filter(a=>ud.completedActivities[a.id]).length}
+function countDone(sid,subj,wk){const acts=getWeekActivities(sid,subj,wk);const ud=getStudentData(sid);return acts.filter(a=>ud.completedActivities[a.id]).length}
 function isActivityDone(sid,aid){return !!(getStudentData(sid).completedActivities[aid])}
 
 /* ==========================================================================
@@ -38311,22 +38311,52 @@ function renderTeacher(root){
 
   // Students Overview — the original top-of-page grid of student cards
   // with stars/coins/streak, attempts + accuracy, and per-subject bars.
-  const buildOverviewGrid = () => {
+  const buildOverviewGrid = (wk) => {
+    // Optional `wk` arg (Apr 2026) — scopes the completion %, accuracy,
+    // attempts, and per-subject bars to a specific authored week. When
+    // null/undefined we aggregate across EVERY authored week so the
+    // teacher sees the full picture by default. Operator request:
+    // "allow me to see different weeks in here."
+    //
+    // Coins + streak stay cross-week — those are running totals on the
+    // user record, not subject-scoped.
+    const authoredWeeks = (function(){
+      try {
+        return Object.keys(WEEKS || {})
+          .map(k => Number(k))
+          .filter(n => Number.isFinite(n) && n > 0)
+          .sort((a, b) => a - b);
+      } catch(_){ return [1]; }
+    })();
+    const weeksInScope = wk ? [Number(wk)] : authoredWeeks;
     const grid = h('div',{class:'t-grid stagger'});
     STUDENTS.forEach(s=>{
       const ud = getStudentData(s.id);
-      const td = Object.keys(ud.completedActivities).length;
-      const totalActs = SUBJECTS.reduce((sum,sub)=>sum+getWeekActivities(s.id,sub.id).length,0);
+      // Aggregate completion + activity total across the in-scope weeks.
+      // For "All weeks" this sums every authored week; for a specific
+      // week pick it returns just that one. Per-subject bars below use
+      // the SAME weeksInScope set so the row totals stay consistent
+      // with the headline % (no "card says 60% but bars say 100%").
+      let td = 0, totalActs = 0;
+      for(const ww of weeksInScope){
+        SUBJECTS.forEach(sub => {
+          const acts = getWeekActivities(s.id, sub.id, ww) || [];
+          totalActs += acts.length;
+          for(const a of acts){ if(ud.completedActivities && ud.completedActivities[a.id]) td++; }
+        });
+      }
       const pct = totalActs ? Math.round(td/totalActs*100) : 0;
       let allAttempts = 0, allCorrect = 0, allScorable = 0, allTouched = 0, allDone = 0;
-      SUBJECTS.forEach(sub=>{
-        const stt = computeSubjectStats(s.id, sub.id);
-        allAttempts += stt.totalAttempts || 0;
-        allCorrect  += stt.totalCorrect  || 0;
-        allScorable += stt.totalScorable || 0;
-        allTouched  += stt.touched       || 0;
-        allDone     += stt.done          || 0;
-      });
+      for(const ww of weeksInScope){
+        SUBJECTS.forEach(sub=>{
+          const stt = computeSubjectStats(s.id, sub.id, ww);
+          allAttempts += stt.totalAttempts || 0;
+          allCorrect  += stt.totalCorrect  || 0;
+          allScorable += stt.totalScorable || 0;
+          allTouched  += stt.touched       || 0;
+          allDone     += stt.done          || 0;
+        });
+      }
       const overallAccuracy = allScorable ? Math.round(allCorrect/allScorable*100) : 0;
       const effortRead = allAttempts>0
         ? interpretEffort(s.name, allAttempts, allTouched, allDone, allCorrect, allScorable)
@@ -38347,8 +38377,13 @@ function renderTeacher(root){
       ]);
       const bars = h('div',{class:'t-subj-bars'});
       SUBJECTS.forEach(sub=>{
-        const done = countDone(s.id,sub.id);
-        const total = getWeekActivities(s.id,sub.id).length;
+        // Sum done + total across the in-scope weeks so the bar reflects
+        // whatever the operator picked from the week dropdown above.
+        let done = 0, total = 0;
+        for(const ww of weeksInScope){
+          done  += countDone(s.id, sub.id, ww);
+          total += (getWeekActivities(s.id, sub.id, ww) || []).length;
+        }
         const p = total ? Math.round(done/total*100) : 0;
         // Pull the color off the SUBJECTS entry itself rather than a local
         // lookup — the old hardcoded `{reading,writing,math,logic}` dict
@@ -38821,7 +38856,39 @@ function renderTeacher(root){
     const overviewBlock = h('div',{style:'display:flex;flex-direction:column;gap:12px'});
     overviewBlock.appendChild(subHead('👥', 'Students Overview',
       'Stars, coins, streak, and per-subject progress for each student at a glance.'));
-    overviewBlock.appendChild(buildOverviewGrid());
+
+    // Week selector — same UX as the accuracy heatmap below. Default
+    // is "All weeks" so the cards aggregate across every authored week
+    // (the most useful default for "how is my class doing overall?").
+    // Picking a specific week scopes the completion %, accuracy,
+    // attempts, and per-subject bars to that week.
+    const overviewAuthoredWeeks = (function(){
+      try {
+        return Object.keys(WEEKS || {})
+          .map(k => Number(k))
+          .filter(n => Number.isFinite(n) && n > 0)
+          .sort((a, b) => a - b);
+      } catch(_){ return [1]; }
+    })();
+    const overviewWeekRow = h('div',{class:'ana-week-row'});
+    overviewWeekRow.appendChild(h('label',{class:'ana-week-label', for:'overview-week-sel'}, 'Show week:'));
+    const overviewWeekSel = h('select',{id:'overview-week-sel', class:'ana-week-select'},
+      [h('option',{value:''}, 'All weeks (combined)')].concat(
+        overviewAuthoredWeeks.map(n => h('option',{value:String(n)}, 'Week ' + n))
+      )
+    );
+    overviewWeekRow.appendChild(overviewWeekSel);
+    overviewBlock.appendChild(overviewWeekRow);
+
+    const overviewGridWrap = h('div',{});
+    overviewGridWrap.appendChild(buildOverviewGrid());
+    overviewBlock.appendChild(overviewGridWrap);
+    overviewWeekSel.addEventListener('change', (e)=>{
+      const v = e.target.value;
+      overviewGridWrap.innerHTML = '';
+      overviewGridWrap.appendChild(buildOverviewGrid(v ? Number(v) : null));
+    });
+
     wrap.appendChild(overviewBlock);
 
     // 2️⃣  Learning Analytics — cross-kid patterns
