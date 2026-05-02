@@ -1198,17 +1198,30 @@ tbody tr:last-child td{border-bottom:none}
       else if(t.stripeSubscriptionStatus === 'trialing') statusBadge = '<span class="badge badge-trial">Trial</span>';
       else statusBadge = '<span class="badge badge-ok">Active</span>';
       var legacyBadge = t.hasLegacyPlaintextPassword ? ' <span class="badge badge-legacy" title="Plaintext password — needs migration">Legacy PW</span>' : '';
+      // Stripe-drift chip — fires when local says suspended but the
+      // worker's last attempt to push cancel_at_period_end to Stripe
+      // failed (network blip, transient 5xx, etc). Without this surfaced,
+      // a tenant could keep getting auto-renewed silently — exactly the
+      // May 2026 incident. Re-running suspend (or delete) re-tries the
+      // Stripe call, so the operator can clear the drift in one click.
+      var driftBadge = t.stripeSuspensionPending
+        ? ' <span class="badge badge-suspended" title="Local suspended, Stripe NOT confirmed: '+escapeHtml(t.stripeSuspensionLastError||'unknown')+' (last try '+escapeHtml(t.stripeSuspensionLastAttempt||'?')+'). Re-run Suspend or Delete to retry the Stripe call.">⚠ Stripe drift</span>'
+        : '';
 
-      return '<tr data-id="'+escapeHtml(t.id)+'">'+
+      // Code is needed for /unprovision (admin endpoint takes code, not
+      // tenantId — blast-radius reduction). Stash it on the row so the
+      // delete handler can read it without re-fetching.
+      return '<tr data-id="'+escapeHtml(t.id)+'" data-code="'+escapeHtml(t.code||'')+'" data-label="'+escapeHtml(t.label||'')+'" data-email="'+escapeHtml(t.customerEmail||'')+'">'+
         '<td><div class="label-cell">'+escapeHtml(t.label || '(no label)')+'<span class="planType">'+escapeHtml(t.planType||'')+'</span></div></td>'+
         '<td><span class="code">'+escapeHtml((t.code||'').toUpperCase())+'</span></td>'+
         '<td><span class="email">'+escapeHtml(t.customerEmail || '—')+'</span></td>'+
-        '<td>'+statusBadge+legacyBadge+'</td>'+
+        '<td>'+statusBadge+legacyBadge+driftBadge+'</td>'+
         '<td><span title="'+escapeHtml(t.createdAt||'')+'">'+escapeHtml(formatDate(t.createdAt))+'</span></td>'+
         '<td class="actions-cell">'+
           '<button class="btn btn-ghost btn-sm" data-act="view" data-id="'+escapeHtml(t.id)+'">View</button>'+
           (t.suspended
-            ? '<button class="btn btn-primary btn-sm" data-act="unsuspend" data-id="'+escapeHtml(t.id)+'">Unsuspend</button>'
+            ? '<button class="btn btn-primary btn-sm" data-act="unsuspend" data-id="'+escapeHtml(t.id)+'">Unsuspend</button>'+
+              '<button class="btn btn-danger btn-sm" data-act="delete" data-id="'+escapeHtml(t.id)+'" title="Permanently delete this tenant — wipes KV + cancels Stripe sub. Suspended tenants only.">🗑 Delete</button>'
             : '<button class="btn btn-danger btn-sm" data-act="suspend" data-id="'+escapeHtml(t.id)+'">Suspend</button>'
           )+
         '</td>'+
@@ -1226,7 +1239,61 @@ tbody tr:last-child td{border-bottom:none}
     if(act === 'view') return openTenantModal(id);
     if(act === 'suspend') return suspendTenant(btn, id, 'suspend');
     if(act === 'unsuspend') return suspendTenant(btn, id, 'unsuspend');
+    if(act === 'delete') return deleteTenant(btn);
   });
+
+  // Permanently delete a suspended tenant. Two-stage confirmation
+  // because this wipes data + cancels Stripe + can't be undone:
+  //   1. confirm() with full impact summary
+  //   2. prompt() requiring the operator to type the tenant code
+  //      verbatim — guards against muscle-memory click-throughs
+  // Calls POST /unprovision with { code, immediate: true } so the
+  // Stripe sub is hard-cancelled (not period-end) — a deleted tenant
+  // shouldn't keep generating service for the rest of the period.
+  async function deleteTenant(btn){
+    var row = btn.closest('tr[data-id]');
+    if(!row){ toast('Could not read tenant row', 'error'); return; }
+    var code  = row.getAttribute('data-code')  || '';
+    var label = row.getAttribute('data-label') || '(unknown)';
+    var email = row.getAttribute('data-email') || '';
+    if(!code){ toast('Tenant has no code on file — cannot delete via API. Wipe by hand from Cloudflare KV.', 'error'); return; }
+
+    var msg = 'Permanently DELETE this tenant?\n\n' +
+              '• Tenant: ' + label + (email ? ' (' + email + ')' : '') + '\n' +
+              '• Code: ' + code.toUpperCase() + '\n\n' +
+              'This will:\n' +
+              '  – HARD-cancel the Stripe subscription (no period-end grace)\n' +
+              '  – Wipe the tenant record + code alias\n' +
+              '  – Wipe ALL kid data + snapshots\n\n' +
+              'This cannot be undone. The customer will need to re-checkout to come back.';
+    if(!confirm(msg)) return;
+    var typed = prompt('Type the tenant code "' + code.toUpperCase() + '" to confirm:');
+    if(!typed) return;
+    if(String(typed).trim().toLowerCase() !== code.toLowerCase()){
+      toast('Code did not match — delete cancelled.', 'error');
+      return;
+    }
+
+    var orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      var res = await api('/unprovision', { method:'POST', body: { code: code, immediate: true } });
+      var stripeMsg;
+      var s = (res && res.stripe) || {};
+      if(!s.attempted) stripeMsg = 'no Stripe sub on file';
+      else if(s.canceled && s.mode === 'immediate') stripeMsg = 'Stripe sub cancelled immediately';
+      else if(s.canceled && s.status === 'already_gone') stripeMsg = 'Stripe sub was already gone';
+      else if(s.error) stripeMsg = '⚠ Stripe error: ' + s.error;
+      else stripeMsg = 'Stripe call status unclear';
+      toast('✓ Deleted — ' + stripeMsg, 'success');
+      await loadTenants();
+    } catch(e){
+      toast('Delete failed: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
 
   async function confirmAndCall(btn, verb, path, method, body, successMsg){
     if(!confirm('Are you sure you want to '+verb+'?')) return;
