@@ -1807,6 +1807,15 @@ async function handleAdminListTenantsRoute(request, env, corsOrigin) {
       label: t.label,
       planType: t.planType,
       suspended: !!t.suspended,
+      // Surface the Stripe-suspension drift flag so the admin list can
+      // show a warning chip on tenants where local says suspended but
+      // Stripe never confirmed the cancel. Set by the suspend handler
+      // when a Stripe API call fails after we've already locked the
+      // tenant out locally — without this signal, billing kept running
+      // silently in the background. See handleAdminTenantSuspendRoute.
+      stripeSuspensionPending: !!t.stripeSuspensionPending,
+      stripeSuspensionLastError: t.stripeSuspensionLastError || null,
+      stripeSuspensionLastAttempt: t.stripeSuspensionLastAttempt || null,
       isDemo: !!t.isDemo,
       stripeCustomerId: t.stripeCustomerId || null,
       stripeSubscriptionId: t.stripeSubscriptionId || null,
@@ -2053,15 +2062,38 @@ async function handleAdminTenantSuspendRoute(request, env, corsOrigin, mode) {
           stripeResult.status = (r.data && r.data.status) || null;
           stripeResult.cancelAtPeriodEnd = !!(r.data && r.data.cancel_at_period_end);
           if (r.data && r.data.status) t.stripeSubscriptionStatus = r.data.status;
+          // Stripe confirmed the cancel-at-period-end flip. Clear any
+          // prior drift markers so the admin UI doesn't keep nagging
+          // on a tenant that's already in a healthy state.
+          delete t.stripeSuspensionPending;
+          delete t.stripeSuspensionLastError;
+          delete t.stripeSuspensionLastAttempt;
         } else if (r && r.status === 404) {
-          // Already gone in Stripe — local suspend still takes effect.
+          // Already gone in Stripe — local suspend still takes effect,
+          // and there's nothing left to fail (sub is genuinely missing).
           stripeResult.success = true;
           stripeResult.status = 'already_gone';
+          delete t.stripeSuspensionPending;
+          delete t.stripeSuspensionLastError;
+          delete t.stripeSuspensionLastAttempt;
         } else {
           stripeResult.error = (r && r.data && r.data.error && r.data.error.message) || `stripe_${r ? r.status : 'unknown'}`;
+          // Local suspend already took effect (kid is locked out), but
+          // Stripe never confirmed the cancel. Without this drift flag
+          // billing would silently keep renewing — that's exactly what
+          // happened to tenant 8a90efd0… (May 2026 incident: $9.99
+          // auto-charged 4 days post-suspend). The flag is read by the
+          // admin tenants list so the operator sees the divergence + can
+          // re-trigger /suspend (which is idempotent).
+          t.stripeSuspensionPending = true;
+          t.stripeSuspensionLastError = stripeResult.error;
+          t.stripeSuspensionLastAttempt = new Date().toISOString();
         }
       } catch (e) {
         stripeResult.error = (e && e.message) || 'stripe_call_threw';
+        t.stripeSuspensionPending = true;
+        t.stripeSuspensionLastError = stripeResult.error;
+        t.stripeSuspensionLastAttempt = new Date().toISOString();
       }
     }
   } else {
@@ -2092,6 +2124,11 @@ async function handleAdminTenantSuspendRoute(request, env, corsOrigin, mode) {
                 t.stripeSubscriptionStatus = r.data.status;
               }
               t.suspended = false;
+              // Reactivation succeeded — the tenant is fully back in
+              // sync with Stripe, so any prior drift markers are stale.
+              delete t.stripeSuspensionPending;
+              delete t.stripeSuspensionLastError;
+              delete t.stripeSuspensionLastAttempt;
             } else {
               stripeResult.error = (r && r.data && r.data.error && r.data.error.message) || `stripe_${r ? r.status : 'unknown'}`;
               // Stripe call failed — leave the local flag as-is so the
