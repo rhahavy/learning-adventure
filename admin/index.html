@@ -172,6 +172,18 @@ tbody tr:last-child td{border-bottom:none}
 .panel-head h2{font-size:15px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px}
 .panel-head h2 .count{background:var(--primary);color:#fff;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.4px}
 .panel-head h2 .count.urgent{background:#ef4444;animation:countPulse 1.6s ease-in-out infinite}
+/* Collapsible-panel affordance — click the h2 (cursor:pointer) to
+   collapse/expand. Chevron rotates when collapsed. Buttons sitting
+   in the panel-head (Refresh, Turn ON, etc.) stay clickable because
+   the toggle handler only fires on the h2 itself, not its siblings.
+   State is persisted in localStorage by panel id, so a refresh
+   keeps the operator's chosen layout. */
+.panel-head h2{cursor:pointer;user-select:none}
+.panel-head h2::after{content:'▾';margin-left:8px;font-size:11px;color:var(--ink2);opacity:.7;transition:transform .18s ease}
+.panel.collapsed .panel-head h2::after{transform:rotate(-90deg)}
+.panel.collapsed{margin-bottom:14px}
+.panel.collapsed .panel-body{display:none}
+.panel.collapsed .panel-head{border-bottom:0}
 @keyframes countPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}50%{box-shadow:0 0 0 7px rgba(239,68,68,0)}}
 
 /* Reward orders panel — operator view of every prize order across all
@@ -733,6 +745,15 @@ tbody tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- Tenants — wrapped in a panel so the collapsible-section pattern
+       applies here too. The search bar + filter chips live inside the
+       panel-body so collapsing the panel hides everything together. -->
+  <div class="panel" id="tenants-panel">
+    <div class="panel-head">
+      <h2>👥 Tenants <span class="count" id="tenants-count">—</span></h2>
+    </div>
+    <div class="panel-body">
+
   <!-- Controls (search + filter) -->
   <div class="controls">
     <div class="search">
@@ -769,6 +790,8 @@ tbody tr:last-child td{border-bottom:none}
       <span id="foot-meta"></span>
     </div>
   </div>
+    </div><!-- /panel-body for tenants-panel -->
+  </div><!-- /panel#tenants-panel -->
 </div>
 
 <!-- ============ TENANT DETAIL MODAL ============ -->
@@ -1043,6 +1066,43 @@ tbody tr:last-child td{border-bottom:none}
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
+(function setupCollapsiblePanels(){
+  // Make every .panel collapsible by clicking its h2. State persists in
+  // localStorage so the operator's chosen layout survives reloads.
+  // Buttons that live inside the panel-head (Refresh, filter chips, etc.)
+  // are siblings of the h2 — clicks on them don't bubble through the h2
+  // listener, so they keep working as-is.
+  var COLLAPSE_KEY = 'solvix_admin_collapsed_panels';
+  function readState(){
+    try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}') || {}; }
+    catch(e){ return {}; }
+  }
+  function writeState(state){
+    try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(state)); }
+    catch(e){ /* quota / disabled — not worth surfacing, it just won't persist */ }
+  }
+  function applyState(){
+    var state = readState();
+    document.querySelectorAll('.panel[id]').forEach(function(p){
+      p.classList.toggle('collapsed', !!state[p.id]);
+    });
+  }
+  // Apply once on load (panels are static HTML so they exist by the time
+  // this IIFE runs at the top of the script block).
+  applyState();
+  // Delegated click handler — toggles the parent panel and persists.
+  document.addEventListener('click', function(e){
+    var h2 = e.target.closest('.panel-head h2');
+    if(!h2) return;
+    var panel = h2.closest('.panel[id]');
+    if(!panel) return;
+    var collapsed = panel.classList.toggle('collapsed');
+    var state = readState();
+    if(collapsed) state[panel.id] = true; else delete state[panel.id];
+    writeState(state);
+  });
+})();
+
 (function(){
   // Worker base URL — same as the rest of the app/marketing site uses.
   // Resolve to a full URL so the page works whether served from the
@@ -1098,6 +1158,10 @@ tbody tr:last-child td{border-bottom:none}
   var $warn    = document.getElementById('warn-banner');
   var $warnT   = document.getElementById('warn-text');
   var $count   = document.getElementById('foot-count');
+  // Mirror the visible-of-total count into the panel-head badge so the
+  // operator sees the count even when the tenants panel is collapsed
+  // (the foot-count is inside the panel-body and hides with it).
+  var $tenantHeadCount = document.getElementById('tenants-count');
   var $meta    = document.getElementById('foot-meta');
   var $search  = document.getElementById('search-input');
   var $filter  = document.getElementById('filter-bar');
@@ -1189,6 +1253,7 @@ tbody tr:last-child td{border-bottom:none}
     if(!visible.length){
       $body.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="emoji">🔍</div><h3>No tenants match</h3><p>Try clearing the search or filter.</p></div></td></tr>';
       $count.textContent = '0 of '+tenants.length;
+      if($tenantHeadCount) $tenantHeadCount.textContent = '0 / ' + tenants.length;
       return;
     }
     $body.innerHTML = visible.map(function(t){
@@ -1228,6 +1293,7 @@ tbody tr:last-child td{border-bottom:none}
       '</tr>';
     }).join('');
     $count.textContent = visible.length+' of '+tenants.length;
+    if($tenantHeadCount) $tenantHeadCount.textContent = visible.length + ' / ' + tenants.length;
   }
 
   // -------- Actions --------
