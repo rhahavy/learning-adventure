@@ -28470,18 +28470,32 @@ function getWeekActivities(sid,subj,wk){
   const demo = DEMO_GRADES.find(d=>d.id===sid);
   let resolved = demo ? demo.curriculumSid : sid;
   if(!demo){
-    // Real student — always go through grade + per-subject offset.
-    // Even if their sid happens to live directly in WEEKS, the offset
-    // wins (offset = 0 + on-bucket sid still yields the same answer
-    // via templateSidForGrade(rec.grade), so we don't lose the fast
-    // path; we just go through the same code path for consistency).
+    // Real student — resolve via grade + per-subject offset, with a
+    // critical fast-path FIRST: when offset is 0 AND the sid has its
+    // own authored bucket in WEEKS (Axel, Mia — Grade-3 clones whose
+    // activities are re-keyed `w1-axel-*` / `w1-mia-*` so their
+    // progress doesn't leak into akshayan's), use the sid directly.
+    //
+    // Pre-fix v163 always routed real students through templateSidForGrade
+    // — for Axel that returned 'akshayan' and the dashboard then looked
+    // up w1-akshayan-r1, w1-akshayan-r2, … none of which matched Axel's
+    // completedActivities (keyed w1-axel-*). Result: every subject card
+    // showed 0/5 even though the kid had completed real work. The unlock
+    // banner used resolveContentSid which had this fast-path already, so
+    // the two views disagreed (banner: "Writing: 1 left"; cards: "0/5").
+    // This restores parity.
     try {
       const studentRec = (typeof STUDENTS !== 'undefined' && Array.isArray(STUDENTS))
         ? STUDENTS.find(s => s.id === sid)
         : null;
-      if(studentRec && studentRec.grade){
-        const off = (subj && typeof getStudentGradeOffset === 'function')
-          ? (getStudentGradeOffset(sid, subj) | 0) : 0;
+      const off = (studentRec && subj && typeof getStudentGradeOffset === 'function')
+        ? (getStudentGradeOffset(sid, subj) | 0) : 0;
+      if(off === 0 && WEEKS[week] && WEEKS[week][sid]){
+        // Fast-path: use the kid's own bucket. Their completedActivities
+        // are keyed against THIS sid's activity ids — never re-route to
+        // a grade-master that would silently zero them out.
+        resolved = sid;
+      } else if(studentRec && studentRec.grade){
         const adjGrade = (typeof applyGradeOffset === 'function')
           ? applyGradeOffset(studentRec.grade, off)
           : studentRec.grade;
