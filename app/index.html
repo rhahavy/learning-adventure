@@ -23191,6 +23191,18 @@ function resolveContentSid(sid, wk, subj){
    to earlier weeks to replay/finish without re-unlocking. */
 function computeUnlockedWeeksForUser(ud, sid){
   if(!ud || !sid) return [1];
+  // Demo profiles unlock EVERY authored week up front. The demo
+  // experience is browsing — a prospective parent or teacher needs to
+  // see what Week 2+ looks like before they sign up, not earn their
+  // way there. Real students still gate on progression below. We use
+  // MAX_AUTHORED_WEEK rather than walking the demo's own bucket so
+  // that newly-shipped weeks light up for demos automatically (no
+  // per-grade special case to maintain).
+  if(typeof isDemoUser === 'function' && isDemoUser(sid)){
+    const all = [];
+    for(let wk = 1; wk <= MAX_AUTHORED_WEEK; wk++) all.push(wk);
+    return all;
+  }
   const out = new Set([1]);
   let progressionWk = 1;
   try { progressionWk = computeWeekForUser(ud, sid); } catch(_){ progressionWk = 1; }
