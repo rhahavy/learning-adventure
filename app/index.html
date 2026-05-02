@@ -27303,15 +27303,34 @@ const EMOJI_KEYWORDS = {
   'party':'🎉','gift':'🎁','balloon':'🎈','cake':'🎂',
   'first':'🥇','second':'🥈','third':'🥉',
 };
-// Pre-sorted by descending length so "ice cream" is tested before "ice".
-const _emojiKeys = Object.keys(EMOJI_KEYWORDS).sort((a,b)=>b.length-a.length);
+// Pre-sorted by descending length so "ice cream" is tested before "ice",
+// and pre-compiled into word-boundary regexes so the per-question lookup
+// is fast AND never substring-matches inside a longer word.
+//
+// Pre-fix used a raw t.includes(k) — that matched 'ship' inside
+// 'relationship', stamping a 🚢 emoji on a Cause-Effect grammar
+// question ("Which word signals a CAUSE-EFFECT relationship?"). The
+// same family of bugs would have hit 'championship', 'friendship',
+// 'sponsorship', 'cat' inside 'category', 'rat' inside 'rating', etc.
+const _emojiPatterns = Object.keys(EMOJI_KEYWORDS)
+  .sort((a, b) => b.length - a.length)
+  .map(k => ({
+    emoji: EMOJI_KEYWORDS[k],
+    // \b is a non-letter boundary, which means it also fires on the
+    // internal space in multi-word keys like 'ice cream' — both ends
+    // of the phrase still need to butt up against non-word chars.
+    // Optional 's'/'es' suffix preserves plural matching ("stars" still
+    // hits the 'star' key) without re-introducing the substring-inside-
+    // word bug ('ship' inside 'relationship' still fails the \\b start
+    // boundary because 'relation' is all word chars).
+    re: new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:s|es)?\\b'),
+  }));
 /** Return the best topical emoji for a piece of text, or null if nothing matches. */
 function emojiFor(text){
   const t = String(text||'').toLowerCase();
   if(!t) return null;
-  for(const k of _emojiKeys){
-    // Word-boundary-ish match (works for multi-word like "ice cream")
-    if(t.includes(k)) return EMOJI_KEYWORDS[k];
+  for(const p of _emojiPatterns){
+    if(p.re.test(t)) return p.emoji;
   }
   return null;
 }
