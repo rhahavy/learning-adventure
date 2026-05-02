@@ -1854,6 +1854,19 @@ body.nova-tour-active{scroll-padding-top:40px}
 .t-student .t-stats-extra span{background:rgba(108,92,231,.06);padding:3px 10px;border-radius:999px}
 /* Natural-language effort read — sits under the attempts/accuracy pills. */
 .t-student .t-effort-read{margin-top:6px;font-size:12px;line-height:1.4;color:var(--ink2);font-weight:500;font-style:italic;background:rgba(255,193,7,.08);border-left:3px solid #ffc107;padding:6px 10px;border-radius:6px;cursor:help}
+/* Per-card week tab strip — sits between the kid's name+coins/streak
+   header and the rest of the body. Each tab scopes the body content
+   below (completion %, attempts, accuracy, per-subject bars) to that
+   week. State is per-card so two cards can show different weeks
+   simultaneously. */
+.t-student .t-week-tabs{display:inline-flex;gap:4px;margin-top:12px;padding:3px;background:rgba(108,92,231,.07);border:1px solid rgba(108,92,231,.15);border-radius:999px;flex-wrap:wrap}
+.t-student .t-week-tab{appearance:none;background:transparent;border:0;font-family:inherit;font-size:12px;font-weight:800;color:var(--ink3);padding:5px 12px;border-radius:999px;cursor:pointer;transition:background .15s,color .15s;letter-spacing:.2px}
+.t-student .t-week-tab:hover{color:var(--ink2)}
+.t-student .t-week-tab.active{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(108,92,231,.25)}
+.t-student .t-week-tab:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+/* The body container that swaps in/out on tab change. */
+.t-student .t-card-body{display:flex;flex-direction:column}
+.t-student .t-card-body .t-stats-week{margin-top:10px}
 .t-student .t-stats span{background:rgba(0,0,0,.05);padding:4px 10px;border-radius:999px}
 .t-subj-bars{margin-top:12px}
 .t-subj-bar{margin-top:6px}
@@ -38311,15 +38324,16 @@ function renderTeacher(root){
 
   // Students Overview — the original top-of-page grid of student cards
   // with stars/coins/streak, attempts + accuracy, and per-subject bars.
-  const buildOverviewGrid = (wk) => {
-    // Optional `wk` arg (Apr 2026) — scopes the completion %, accuracy,
-    // attempts, and per-subject bars to a specific authored week. When
-    // null/undefined we aggregate across EVERY authored week so the
-    // teacher sees the full picture by default. Operator request:
-    // "allow me to see different weeks in here."
+  const buildOverviewGrid = () => {
+    // Each card carries its own per-student week filter via tab buttons
+    // at the top. State lives on the card itself so two cards can have
+    // different weeks selected simultaneously — useful when a tutor is
+    // mid-comparison ("how was Akshayan's W1 vs Rushan's W2?").
     //
-    // Coins + streak stay cross-week — those are running totals on the
-    // user record, not subject-scoped.
+    // Coins + streak in the card header stay cross-week (running totals
+    // on the user record). Everything below the tab strip — completion
+    // %, attempts, accuracy, the effort-read line, and the per-subject
+    // bars — re-renders to match the chosen week.
     const authoredWeeks = (function(){
       try {
         return Object.keys(WEEKS || {})
@@ -38328,74 +38342,121 @@ function renderTeacher(root){
           .sort((a, b) => a - b);
       } catch(_){ return [1]; }
     })();
-    const weeksInScope = wk ? [Number(wk)] : authoredWeeks;
+
     const grid = h('div',{class:'t-grid stagger'});
     STUDENTS.forEach(s=>{
       const ud = getStudentData(s.id);
-      // Aggregate completion + activity total across the in-scope weeks.
-      // For "All weeks" this sums every authored week; for a specific
-      // week pick it returns just that one. Per-subject bars below use
-      // the SAME weeksInScope set so the row totals stay consistent
-      // with the headline % (no "card says 60% but bars say 100%").
-      let td = 0, totalActs = 0;
-      for(const ww of weeksInScope){
-        SUBJECTS.forEach(sub => {
-          const acts = getWeekActivities(s.id, sub.id, ww) || [];
-          totalActs += acts.length;
-          for(const a of acts){ if(ud.completedActivities && ud.completedActivities[a.id]) td++; }
-        });
-      }
-      const pct = totalActs ? Math.round(td/totalActs*100) : 0;
-      let allAttempts = 0, allCorrect = 0, allScorable = 0, allTouched = 0, allDone = 0;
-      for(const ww of weeksInScope){
-        SUBJECTS.forEach(sub=>{
-          const stt = computeSubjectStats(s.id, sub.id, ww);
-          allAttempts += stt.totalAttempts || 0;
-          allCorrect  += stt.totalCorrect  || 0;
-          allScorable += stt.totalScorable || 0;
-          allTouched  += stt.touched       || 0;
-          allDone     += stt.done          || 0;
-        });
-      }
-      const overallAccuracy = allScorable ? Math.round(allCorrect/allScorable*100) : 0;
-      const effortRead = allAttempts>0
-        ? interpretEffort(s.name, allAttempts, allTouched, allDone, allCorrect, allScorable)
-        : null;
       const tToken = getStudentAvatarDisplay(s.id).value;
+
+      // Card shell — name, grade, coins, streak. These don't change
+      // when the week tab flips; only the body below does.
       const card = h('div',{class:'t-student'},[
         h('h3',{},[h('span',{style:'font-size:22px;margin-right:6px'},tToken),h('span',{},s.name)]),
         h('div',{class:'t-grade'},s.grade),
         h('div',{class:'t-stats'},[
-          h('span',{},'💰 '+(ud.coins||0)),
-          h('span',{},'🔥 '+(ud.streak||0)),h('span',{},'📊 '+pct+'%'),
+          h('span',{title:'Lifetime coins (not week-scoped)'},'💰 '+(ud.coins||0)),
+          h('span',{title:'Daily login streak (not week-scoped)'},'🔥 '+(ud.streak||0)),
         ]),
-        h('div',{class:'t-stats t-stats-extra'},[
+      ]);
+
+      // Per-card week tabs. "All" sits first as the default. Each tab
+      // is its own button so the active state can be toggled cleanly.
+      const tabs = h('div',{class:'t-week-tabs', role:'tablist','aria-label':s.name+' week filter'});
+      const tabButtons = [];
+      const bodyEl = h('div',{class:'t-card-body'});
+
+      // Render the changeable body content for a chosen week (null =
+      // "All weeks combined" — sums every authored week).
+      function renderBody(wk){
+        bodyEl.innerHTML = '';
+        const weeksInScope = wk ? [Number(wk)] : authoredWeeks;
+
+        let td = 0, totalActs = 0;
+        for(const ww of weeksInScope){
+          SUBJECTS.forEach(sub => {
+            const acts = getWeekActivities(s.id, sub.id, ww) || [];
+            totalActs += acts.length;
+            for(const a of acts){ if(ud.completedActivities && ud.completedActivities[a.id]) td++; }
+          });
+        }
+        const pct = totalActs ? Math.round(td/totalActs*100) : 0;
+
+        let allAttempts = 0, allCorrect = 0, allScorable = 0, allTouched = 0, allDone = 0;
+        for(const ww of weeksInScope){
+          SUBJECTS.forEach(sub=>{
+            const stt = computeSubjectStats(s.id, sub.id, ww);
+            allAttempts += stt.totalAttempts || 0;
+            allCorrect  += stt.totalCorrect  || 0;
+            allScorable += stt.totalScorable || 0;
+            allTouched  += stt.touched       || 0;
+            allDone     += stt.done          || 0;
+          });
+        }
+        const overallAccuracy = allScorable ? Math.round(allCorrect/allScorable*100) : 0;
+        const effortRead = allAttempts>0
+          ? interpretEffort(s.name, allAttempts, allTouched, allDone, allCorrect, allScorable)
+          : null;
+
+        bodyEl.appendChild(h('div',{class:'t-stats t-stats-week'},[
+          h('span',{title:'Completion across the selected week scope'},'📊 '+pct+'%'),
           h('span',{title:'Total attempts across every activity (sum of retries)'},'🎯 '+allAttempts+' attempts'),
           h('span',{title:'Correct answers ÷ total scored questions, on attempted activities'},'✅ '+overallAccuracy+'% accuracy'),
-        ]),
-        ...(effortRead ? [h('div',{class:'t-effort-read', title:effortRead.detail}, effortRead.headline)] : []),
-      ]);
-      const bars = h('div',{class:'t-subj-bars'});
-      SUBJECTS.forEach(sub=>{
-        // Sum done + total across the in-scope weeks so the bar reflects
-        // whatever the operator picked from the week dropdown above.
-        let done = 0, total = 0;
-        for(const ww of weeksInScope){
-          done  += countDone(s.id, sub.id, ww);
-          total += (getWeekActivities(s.id, sub.id, ww) || []).length;
-        }
-        const p = total ? Math.round(done/total*100) : 0;
-        // Pull the color off the SUBJECTS entry itself rather than a local
-        // lookup — the old hardcoded `{reading,writing,math,logic}` dict
-        // silently returned undefined for spelling/french/science/social,
-        // so their progress bars rendered transparent (looked empty even at
-        // 100%). Every SUBJECTS row already carries a `color`.
-        bars.appendChild(h('div',{class:'t-subj-bar'},[
-          h('div',{class:'t-bar-label'},[h('span',{},sub.emoji+' '+sub.name),h('span',{},done+'/'+total)]),
-          h('div',{class:'t-bar'},[h('i',{style:'width:'+p+'%;background:'+(sub.color||'#6c5ce7')})]),
         ]));
+        if(effortRead){
+          bodyEl.appendChild(h('div',{class:'t-effort-read', title:effortRead.detail}, effortRead.headline));
+        }
+
+        const bars = h('div',{class:'t-subj-bars'});
+        SUBJECTS.forEach(sub=>{
+          let done = 0, total = 0;
+          for(const ww of weeksInScope){
+            done  += countDone(s.id, sub.id, ww);
+            total += (getWeekActivities(s.id, sub.id, ww) || []).length;
+          }
+          const p = total ? Math.round(done/total*100) : 0;
+          // Pull the color off the SUBJECTS entry itself rather than a
+          // local lookup — the old hardcoded `{reading,writing,math,
+          // logic}` dict silently returned undefined for spelling/
+          // french/science/social, so their progress bars rendered
+          // transparent (looked empty even at 100%). Every SUBJECTS
+          // row already carries a `color`.
+          bars.appendChild(h('div',{class:'t-subj-bar'},[
+            h('div',{class:'t-bar-label'},[h('span',{},sub.emoji+' '+sub.name),h('span',{},done+'/'+total)]),
+            h('div',{class:'t-bar'},[h('i',{style:'width:'+p+'%;background:'+(sub.color||'#6c5ce7')})]),
+          ]));
+        });
+        bodyEl.appendChild(bars);
+      }
+
+      function setActiveTab(idx){
+        tabButtons.forEach((btn, i) => {
+          btn.classList.toggle('active', i === idx);
+          btn.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+        });
+      }
+
+      // "All" tab + one per authored week
+      const allTab = h('button',{
+        type:'button', class:'t-week-tab active', role:'tab', 'aria-selected':'true',
+        title:'Aggregate across every authored week',
+      }, 'All');
+      allTab.addEventListener('click', () => { setActiveTab(0); renderBody(null); });
+      tabs.appendChild(allTab);
+      tabButtons.push(allTab);
+      authoredWeeks.forEach((wk, i) => {
+        const t = h('button',{
+          type:'button', class:'t-week-tab', role:'tab', 'aria-selected':'false',
+          title:'Show only Week ' + wk,
+        }, 'W' + wk);
+        t.addEventListener('click', () => { setActiveTab(i + 1); renderBody(wk); });
+        tabs.appendChild(t);
+        tabButtons.push(t);
       });
-      card.appendChild(bars);
+
+      card.appendChild(tabs);
+      card.appendChild(bodyEl);
+      renderBody(null);  // initial render: All weeks
+
       // "View as" button — drops the teacher into this student's session
       // so they can see exactly what the kid sees (dashboard, activities,
       // quiz flow). Uses a deep-cloned state + saveState/pullCloud guards
@@ -38852,43 +38913,17 @@ function renderTeacher(root){
       return head;
     };
 
-    // 1️⃣  Students Overview — quick glance cards
+    // 1️⃣  Students Overview — quick glance cards. Each card carries
+    // its own per-week tab strip (operator request: "put a tab to see
+    // the different weeks within each progress report"). One kid's
+    // week filter doesn't affect the others, which matches how a tutor
+    // actually scans this screen — drilling into one student at a
+    // time, comparing their Week 1 → Week 2 progress without losing
+    // context on the rest of the class.
     const overviewBlock = h('div',{style:'display:flex;flex-direction:column;gap:12px'});
     overviewBlock.appendChild(subHead('👥', 'Students Overview',
-      'Stars, coins, streak, and per-subject progress for each student at a glance.'));
-
-    // Week selector — same UX as the accuracy heatmap below. Default
-    // is "All weeks" so the cards aggregate across every authored week
-    // (the most useful default for "how is my class doing overall?").
-    // Picking a specific week scopes the completion %, accuracy,
-    // attempts, and per-subject bars to that week.
-    const overviewAuthoredWeeks = (function(){
-      try {
-        return Object.keys(WEEKS || {})
-          .map(k => Number(k))
-          .filter(n => Number.isFinite(n) && n > 0)
-          .sort((a, b) => a - b);
-      } catch(_){ return [1]; }
-    })();
-    const overviewWeekRow = h('div',{class:'ana-week-row'});
-    overviewWeekRow.appendChild(h('label',{class:'ana-week-label', for:'overview-week-sel'}, 'Show week:'));
-    const overviewWeekSel = h('select',{id:'overview-week-sel', class:'ana-week-select'},
-      [h('option',{value:''}, 'All weeks (combined)')].concat(
-        overviewAuthoredWeeks.map(n => h('option',{value:String(n)}, 'Week ' + n))
-      )
-    );
-    overviewWeekRow.appendChild(overviewWeekSel);
-    overviewBlock.appendChild(overviewWeekRow);
-
-    const overviewGridWrap = h('div',{});
-    overviewGridWrap.appendChild(buildOverviewGrid());
-    overviewBlock.appendChild(overviewGridWrap);
-    overviewWeekSel.addEventListener('change', (e)=>{
-      const v = e.target.value;
-      overviewGridWrap.innerHTML = '';
-      overviewGridWrap.appendChild(buildOverviewGrid(v ? Number(v) : null));
-    });
-
+      'Stars, coins, streak, and per-subject progress for each student at a glance. Tap a week tab on any card to scope just that student.'));
+    overviewBlock.appendChild(buildOverviewGrid());
     wrap.appendChild(overviewBlock);
 
     // 2️⃣  Learning Analytics — cross-kid patterns
