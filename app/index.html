@@ -1859,8 +1859,17 @@ body.nova-tour-active{scroll-padding-top:40px}
    below (completion %, attempts, accuracy, per-subject bars) to that
    week. State is per-card so two cards can show different weeks
    simultaneously. */
-.t-student .t-week-tabs{display:inline-flex;gap:4px;margin-top:12px;padding:3px;background:rgba(108,92,231,.07);border:1px solid rgba(108,92,231,.15);border-radius:999px;flex-wrap:wrap}
-.t-student .t-week-tab{appearance:none;background:transparent;border:0;font-family:inherit;font-size:12px;font-weight:800;color:var(--ink3);padding:5px 12px;border-radius:999px;cursor:pointer;transition:background .15s,color .15s;letter-spacing:.2px}
+/* Horizontal-scroll strip so the tab row scales to many authored
+   weeks without wrapping or overflowing the card. With 50+ weeks the
+   user can swipe/drag the strip; click a hidden tab and we scroll it
+   into view smoothly. flex-shrink:0 keeps each pill its full size.
+   Custom thin scrollbar so the operator sees there's more to the right
+   without it looking like a layout glitch. */
+.t-student .t-week-tabs{display:flex;gap:4px;margin-top:12px;padding:3px;background:rgba(108,92,231,.07);border:1px solid rgba(108,92,231,.15);border-radius:999px;flex-wrap:nowrap;max-width:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:rgba(108,92,231,.35) transparent}
+.t-student .t-week-tabs::-webkit-scrollbar{height:5px}
+.t-student .t-week-tabs::-webkit-scrollbar-thumb{background:rgba(108,92,231,.3);border-radius:999px}
+.t-student .t-week-tabs::-webkit-scrollbar-track{background:transparent}
+.t-student .t-week-tab{appearance:none;background:transparent;border:0;font-family:inherit;font-size:12px;font-weight:800;color:var(--ink3);padding:5px 12px;border-radius:999px;cursor:pointer;transition:background .15s,color .15s;letter-spacing:.2px;flex-shrink:0;scroll-snap-align:center;white-space:nowrap}
 .t-student .t-week-tab:hover{color:var(--ink2)}
 .t-student .t-week-tab.active{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(108,92,231,.25)}
 .t-student .t-week-tab:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
@@ -38459,11 +38468,21 @@ function renderTeacher(root){
       }
 
       // "All" tab + one per authored week
+      // Smoothly scroll the clicked tab into view in the (potentially
+      // overflowing) strip. With many authored weeks the strip
+      // horizontally scrolls; without this the active tab can sit
+      // off-screen after a click on an adjacent one, which feels
+      // disorienting. block:'nearest' avoids vertical scroll, inline:
+      // 'center' keeps the tab centered horizontally when possible.
+      const scrollIntoStrip = (el) => {
+        try { el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); }
+        catch(_){}
+      };
       const allTab = h('button',{
         type:'button', class:'t-week-tab active', role:'tab', 'aria-selected':'true',
         title:'Aggregate across every authored week',
       }, 'All');
-      allTab.addEventListener('click', () => { setActiveTab(0); renderBody(null); });
+      allTab.addEventListener('click', () => { setActiveTab(0); renderBody(null); scrollIntoStrip(allTab); });
       tabs.appendChild(allTab);
       tabButtons.push(allTab);
       authoredWeeks.forEach((wk, i) => {
@@ -38471,7 +38490,7 @@ function renderTeacher(root){
           type:'button', class:'t-week-tab', role:'tab', 'aria-selected':'false',
           title:'Show only Week ' + wk,
         }, 'W' + wk);
-        t.addEventListener('click', () => { setActiveTab(i + 1); renderBody(wk); });
+        t.addEventListener('click', () => { setActiveTab(i + 1); renderBody(wk); scrollIntoStrip(t); });
         tabs.appendChild(t);
         tabButtons.push(t);
       });
