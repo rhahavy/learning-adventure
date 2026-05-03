@@ -286,7 +286,7 @@ tbody tr:last-child td{border-bottom:none}
    grid so cards always re-flow underneath their bucket header. */
 .curr-group-head{
   grid-column:1/-1;
-  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:10px 14px;
   margin-top:10px;
   background:linear-gradient(180deg,rgba(108,92,231,.10),rgba(108,92,231,.04));
@@ -294,10 +294,39 @@ tbody tr:last-child td{border-bottom:none}
   border-radius:10px;
   font-weight:800;font-size:14px;color:var(--ink,#1f2937);
   letter-spacing:-.005em;
+  cursor:pointer;user-select:none;
+  transition:background .12s ease,border-color .12s ease;
 }
+.curr-group-head:hover{background:linear-gradient(180deg,rgba(108,92,231,.16),rgba(108,92,231,.08));border-color:rgba(108,92,231,.32)}
 .curr-group-head:first-child{margin-top:0}
+.curr-group-chev{display:inline-block;width:14px;font-size:13px;color:var(--ink3,#94a3b8);transition:transform .15s ease;flex-shrink:0}
+.curr-group-head.collapsed .curr-group-chev{transform:rotate(-90deg)}
 .curr-group-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .curr-group-count{font-weight:600;font-size:12px;color:var(--ink3,#94a3b8)}
+/* When a group is collapsed, hide its sibling cards — they sit in a
+   wrapper that spans the full grid row so we can flip display in one
+   line. The wrapper is itself a grid that mirrors the parent's
+   auto-fill column rule. */
+.curr-group-cards{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.curr-group-cards.collapsed{display:none}
+/* Compact density — single-line rows so the operator can scan ~5x
+   more lessons per screen. Toggled by #curr-density-btn; persisted
+   in localStorage. The list container becomes a single column; each
+   group's wrapper also becomes a single column so groups stack
+   cleanly. Cards drop the id line + inline issue list (still
+   reachable by clicking the card). */
+#curriculum-list.compact{grid-template-columns:1fr;gap:4px}
+#curriculum-list.compact .curr-group-cards{grid-template-columns:1fr;gap:4px}
+#curriculum-list.compact .curr-card{
+  flex-direction:row;align-items:center;gap:10px;padding:8px 12px;border-radius:10px;
+}
+#curriculum-list.compact .curr-card .row{flex:1;min-width:0;gap:8px}
+#curriculum-list.compact .curr-card .emoji{font-size:18px}
+#curriculum-list.compact .curr-card .ttl{font-size:13px}
+#curriculum-list.compact .curr-card .id{display:none}
+#curriculum-list.compact .curr-card .meta{margin-top:0;flex:0 0 auto}
+#curriculum-list.compact .curr-card .meta .chip{font-size:10px;padding:1px 6px}
+#curriculum-list.compact .curr-card .curr-issues{display:none}
 .curr-card{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease;display:flex;flex-direction:column;gap:6px}
 .curr-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:rgba(108,92,231,.35)}
 .curr-card .row{display:flex;align-items:center;gap:8px}
@@ -700,6 +729,13 @@ tbody tr:last-child td{border-bottom:none}
           <option value="subject">Group by subject</option>
           <option value="status">Group by status</option>
         </select>
+        <!-- Density toggle. Cards mode (default) shows the full lesson
+             card with chips + issues; compact mode collapses to a
+             single-line row (icon + title + chips + edit pencil) so the
+             operator can scan ~5x more lessons per screen. The choice
+             persists in localStorage so an operator who prefers compact
+             stays in compact across reloads. -->
+        <button id="curr-density-btn" class="curr-select" type="button" aria-label="Toggle density" title="Switch between cards and compact rows" style="cursor:pointer">▦ Cards</button>
       </div>
       <div id="curriculum-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px"></div>
     </div>
@@ -2645,6 +2681,15 @@ tbody tr:last-child td{border-bottom:none}
 
     $currWeek.innerHTML = '<option value="">All weeks</option>' +
       weekKeys.map(function(w){ return '<option value="'+escapeHtml(w)+'">Week '+escapeHtml(w)+'</option>'; }).join('');
+    // First-open default: latest week. Without this the editor opens
+    // with "All weeks" and paints the entire catalog (~800 cards today,
+    // 1250+ once Week 3 lands). Defaulting to the latest week keeps the
+    // initial paint to ~one-week's-worth (~45-90 cards) and matches what
+    // the operator usually wants — review the most recent ship. The
+    // operator can still pick "All weeks" or any older week manually.
+    if(curriculumState.filters.week === '' && weekKeys.length){
+      curriculumState.filters.week = weekKeys[weekKeys.length - 1];
+    }
     // Grade dropdown: one option per GRADE_MASTERS row. Value = the
     // grade-master sid (so existing filter logic comparing against
     // row.sid still works); label = the human-readable grade name.
@@ -3772,20 +3817,34 @@ tbody tr:last-child td{border-bottom:none}
         '</div>'
       );
     }
-    // Walk the (sorted, grouped) buckets. Each group emits a header
-    // div spanning the full grid row (CSS: grid-column:1/-1) followed
-    // by its cards. When mode='none' there's exactly one unlabeled
-    // group, so the output collapses to the legacy flat grid.
+    // Walk the (sorted, grouped) buckets. Each group emits a clickable
+    // header div + a wrapper div holding its cards — both span the full
+    // grid row (grid-column:1/-1). Clicking a header toggles
+    // `.collapsed` on both, persisted per-(mode,label) in localStorage
+    // so the operator's expand/collapse choices survive reloads. When
+    // mode='none' there's exactly one unlabeled group, so the output
+    // collapses to the legacy flat grid (no header, no wrapper class).
+    var collapsedSet = readCollapsedGroups();
+    var groupMode = curriculumState.filters.groupBy || 'none';
     var html = groups.map(function(g){
-      var head = '';
-      if(g.label){
-        head =
-          '<div class="curr-group-head">' +
-            '<span class="curr-group-label">'+escapeHtml(g.label)+'</span>' +
-            '<span class="curr-group-count">'+g.rows.length+' lesson'+(g.rows.length === 1 ? '' : 's')+'</span>' +
-          '</div>';
+      if(!g.label){
+        // Ungrouped — render cards directly into the parent grid.
+        return g.rows.map(renderCard).join('');
       }
-      return head + g.rows.map(renderCard).join('');
+      var key = groupMode + ':' + g.label;
+      var isCollapsed = collapsedSet[key];
+      var headCls = 'curr-group-head' + (isCollapsed ? ' collapsed' : '');
+      var bodyCls = 'curr-group-cards' + (isCollapsed ? ' collapsed' : '');
+      return (
+        '<div class="'+headCls+'" data-group-key="'+escapeHtml(key)+'" role="button" tabindex="0" aria-expanded="'+(!isCollapsed)+'">' +
+          '<span class="curr-group-chev">▾</span>' +
+          '<span class="curr-group-label">'+escapeHtml(g.label)+'</span>' +
+          '<span class="curr-group-count">'+g.rows.length+' lesson'+(g.rows.length === 1 ? '' : 's')+'</span>' +
+        '</div>' +
+        '<div class="'+bodyCls+'" data-group-body="'+escapeHtml(key)+'">' +
+          g.rows.map(renderCard).join('') +
+        '</div>'
+      );
     }).join('');
     $currList.innerHTML = html;
     var cards = $currList.querySelectorAll('.curr-card');
@@ -3794,6 +3853,39 @@ tbody tr:last-child td{border-bottom:none}
         openCurriculumEditor(this.getAttribute('data-aid'));
       });
     }
+    var heads = $currList.querySelectorAll('.curr-group-head');
+    for(var j=0;j<heads.length;j++){
+      heads[j].addEventListener('click', onGroupHeadClick);
+      heads[j].addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); onGroupHeadClick.call(this, ev); }
+      });
+    }
+  }
+
+  // Collapsed-group persistence — keyed per (groupBy mode, label) so
+  // that switching groupBy doesn't blow away your week-bucket choices,
+  // and a "Week 3" collapse stays collapsed across reloads.
+  var COLLAPSED_GROUPS_KEY = 'solvix_admin_curr_collapsed_groups_v1';
+  function readCollapsedGroups(){
+    try { return JSON.parse(localStorage.getItem(COLLAPSED_GROUPS_KEY) || '{}') || {}; }
+    catch(e){ return {}; }
+  }
+  function writeCollapsedGroups(set){
+    try { localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify(set)); } catch(e){}
+  }
+  function onGroupHeadClick(ev){
+    var head = this;
+    var key = head.getAttribute('data-group-key');
+    if(!key) return;
+    var body = $currList.querySelector('[data-group-body="'+key.replace(/"/g,'\\"')+'"]');
+    var nowCollapsed = !head.classList.contains('collapsed');
+    head.classList.toggle('collapsed', nowCollapsed);
+    if(body) body.classList.toggle('collapsed', nowCollapsed);
+    head.setAttribute('aria-expanded', String(!nowCollapsed));
+    var set = readCollapsedGroups();
+    if(nowCollapsed) set[key] = 1;
+    else delete set[key];
+    writeCollapsedGroups(set);
   }
 
   // The activity id is preserved server-side, so don't show it in the
@@ -4825,6 +4917,24 @@ tbody tr:last-child td{border-bottom:none}
   if($currGroup){
     $currGroup.addEventListener('change', function(){
       curriculumState.filters.groupBy = this.value; renderCurriculum();
+    });
+  }
+
+  // Density toggle (Cards ↔ Compact). Read on init from localStorage so
+  // an operator who picked compact stays in compact across reloads.
+  var DENSITY_KEY = 'solvix_admin_curr_density_v1';
+  var $currDensityBtn = document.getElementById('curr-density-btn');
+  function applyDensity(mode){
+    var compact = (mode === 'compact');
+    if($currList) $currList.classList.toggle('compact', compact);
+    if($currDensityBtn) $currDensityBtn.textContent = compact ? '☰ Compact' : '▦ Cards';
+  }
+  try { applyDensity(localStorage.getItem(DENSITY_KEY) || 'cards'); } catch(e){}
+  if($currDensityBtn){
+    $currDensityBtn.addEventListener('click', function(){
+      var nowCompact = !($currList && $currList.classList.contains('compact'));
+      applyDensity(nowCompact ? 'compact' : 'cards');
+      try { localStorage.setItem(DENSITY_KEY, nowCompact ? 'compact' : 'cards'); } catch(e){}
     });
   }
 
