@@ -3423,6 +3423,21 @@ async function handleStripeCheckoutRoute(request, env, corsOrigin) {
   const email = (body.email || '').toString().trim().slice(0, 120);
   const trialDays = parseInt(env.STRIPE_TRIAL_DAYS || '7', 10) || 7;
 
+  // Promo support. The marketing page sets `promo: true` when the
+  // launch-promo banner is active. We honor it ONLY if the operator
+  // has configured a Stripe coupon ID in env (STRIPE_PROMO_COUPON_ID).
+  // If the flag is set but the env is missing, we silently skip the
+  // discount — better than failing the checkout — and log a warning
+  // so the operator can fix it. To end the promo: clear the env var
+  // OR flip PROMO_ACTIVE=false on the marketing site (either alone
+  // turns it off; defense in depth).
+  const wantsPromo = !!body.promo;
+  const promoCouponId = (env.STRIPE_PROMO_COUPON_ID || '').trim();
+  if (wantsPromo && !promoCouponId) {
+    console.warn('[stripe] promo requested but STRIPE_PROMO_COUPON_ID env unset — falling back to full price');
+  }
+  const promoActive = wantsPromo && !!promoCouponId;
+
   const params = {
     mode: 'subscription',
     'line_items[0][price]': priceId,
@@ -3439,13 +3454,23 @@ async function handleStripeCheckoutRoute(request, env, corsOrigin) {
     'metadata[planType]':  spec.planType,
     'metadata[planKey]':   planKey,
     'metadata[label]':     label,
+    'metadata[promo]':     promoActive ? promoCouponId : '',
     'subscription_data[metadata][planType]': spec.planType,
     'subscription_data[metadata][planKey]':  planKey,
     'subscription_data[metadata][label]':    label,
+    'subscription_data[metadata][promo]':    promoActive ? promoCouponId : '',
     success_url: successUrl,
     cancel_url:  cancelUrl,
     // Prefill email if provided; otherwise Stripe collects it.
     ...(email ? { customer_email: email } : {}),
+    // Apply the launch-promo coupon when active. Stripe's checkout
+    // session takes `discounts: [{ coupon }]` to pre-apply a coupon
+    // (no customer-facing code required). The coupon's
+    // duration/percent-off is whatever you configure in the dashboard
+    // — typically `forever` or `once` at 50% off. Conflicts with
+    // `allow_promotion_codes:true`, so we deliberately don't enable
+    // both at once.
+    ...(promoActive ? { 'discounts[0][coupon]': promoCouponId } : {}),
     // NOTE: previously sent `consent_collection[promotions] = none`
     // here, but that parameter is EU-only — Canadian/US Stripe
     // accounts reject the entire Checkout call with

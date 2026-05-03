@@ -372,9 +372,16 @@ section.tight{padding:56px 0}
 .plan-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(120deg,var(--primary),var(--pink));color:#fff;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .plan-name{font-size:14px;font-weight:800;color:var(--primary);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
 .plan-users{font-size:13px;color:var(--ink3);margin-bottom:20px}
-.plan-price{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
+.plan-price{display:flex;align-items:baseline;gap:6px;margin-bottom:6px;flex-wrap:wrap}
 .plan-price .amount{font-size:48px;font-weight:800;letter-spacing:-.02em;line-height:1}
 .plan-price .period{color:var(--ink2);font-weight:600;font-size:16px}
+/* 50%-OFF promo display. The strike-through full price sits above the
+   amount; the amount itself is replaced with the half-price when the
+   promo is active. The 🔥 badge floats top-right of the price block. */
+.plan-price .strike{font-size:18px;color:var(--ink3);text-decoration:line-through;font-weight:700;margin-right:4px;align-self:center}
+.plan-price .promo-tag{display:inline-block;background:linear-gradient(120deg,#fdcb6e,#fd79a8);color:#fff;font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;letter-spacing:.05em;text-transform:uppercase;margin-left:auto;animation:promoPulse 2.4s ease-in-out infinite;align-self:center}
+@keyframes promoPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.plan-promo-line{font-size:12px;color:#a14a00;font-weight:700;margin:-2px 0 4px;letter-spacing:.02em}
 .plan-yearly-note{font-size:13px;color:var(--ink3);margin-bottom:24px;min-height:18px}
 .plan-yearly-note .save{color:#00916e;font-weight:700}
 .plan ul{list-style:none;margin-bottom:28px;flex:1}
@@ -1473,10 +1480,13 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         <div class="plan-name">Family</div>
         <div class="plan-users">Up to 5 kids</div>
         <div class="plan-price">
-          <span class="amount" data-monthly="$9.99" data-yearly="$79">$9.99</span>
+          <span class="strike" data-monthly="$9.99" data-yearly="$79">$9.99</span>
+          <span class="amount" data-monthly="$4.99" data-yearly="$39.50">$4.99</span>
           <span class="period" data-monthly="/month" data-yearly="/year">/month</span>
+          <span class="promo-tag">🔥 50% OFF</span>
         </div>
-        <div class="plan-yearly-note" data-monthly=" " data-yearly="Just $6.58/mo · Save $41 a year" style="min-height:18px"> </div>
+        <div class="plan-promo-line">Limited-time launch price · No code needed</div>
+        <div class="plan-yearly-note" data-monthly=" " data-yearly="Just $3.29/mo · Save $59.50 a year" style="min-height:18px"> </div>
         <ul>
           <li>Up to 5 child profiles</li>
           <li>All 8 subjects</li>
@@ -1494,10 +1504,13 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
         <div class="plan-name">Classroom</div>
         <div class="plan-users">Up to 35 students</div>
         <div class="plan-price">
-          <span class="amount" data-monthly="$29.99" data-yearly="$249">$29.99</span>
+          <span class="strike" data-monthly="$29.99" data-yearly="$249">$29.99</span>
+          <span class="amount" data-monthly="$14.99" data-yearly="$124.50">$14.99</span>
           <span class="period" data-monthly="/month" data-yearly="/year">/month</span>
+          <span class="promo-tag">🔥 50% OFF</span>
         </div>
-        <div class="plan-yearly-note" data-monthly=" " data-yearly="Just $20.75/mo · Save $111 a year" style="min-height:18px"> </div>
+        <div class="plan-promo-line">Limited-time launch price · No code needed</div>
+        <div class="plan-yearly-note" data-monthly=" " data-yearly="Just $10.38/mo · Save $179.50 a year" style="min-height:18px"> </div>
         <ul>
           <li>Up to 35 student profiles</li>
           <li>Teacher dashboard: mastery, stuck points, time-on-task</li>
@@ -1541,7 +1554,11 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
       </details>
       <details class="faq-item">
         <summary>Do yearly plans really save that much?</summary>
-        <p>Yep. Family goes from $120/yr (monthly) down to $79/yr (~34% off). Classroom goes from $360/yr down to $249/yr (~31% off). Same features either way.</p>
+        <p>Yep. Family goes from $120/yr (monthly) down to $79/yr (~34% off). Classroom goes from $360/yr down to $249/yr (~31% off). Same features either way. The launch promo (50% off) stacks on top of either plan, so the yearly price you see on the card is already discounted.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Is the 50% off promo a trick — does it expire?</summary>
+        <p>It's a real launch discount, applied automatically at checkout — no code to enter. Right now we're offering it to everyone who signs up during the launch window. If you sign up while the promo is live, the discount stays on your subscription through Stripe (no surprise full-price renewal). If you don't see the strike-through price on the cards above, the promo has ended.</p>
       </details>
     </div>
   </div>
@@ -1607,6 +1624,26 @@ var CHECKOUT_BACKEND_URL = 'https://kidquest-ai-proxy.rhahavy-b.workers.dev';
 // this to pick the right Stripe price id (plan-monthly vs plan-yearly).
 var BILLING_MODE = 'monthly';
 
+// Launch promo. When true, /stripe/checkout requests carry promo:true,
+// the Worker applies the Stripe coupon configured in the
+// STRIPE_PROMO_COUPON_ID env var. To END the promo:
+//   1) Flip PROMO_ACTIVE to false (hides the strike + 🔥 chip)
+//   2) Optionally clear STRIPE_PROMO_COUPON_ID on the Worker (defense
+//      in depth — if the flag flip ships before the env, the Worker
+//      stops applying the discount on its own anyway since `promo`
+//      is no longer requested).
+var PROMO_ACTIVE = true;
+var PROMO_PERCENT_OFF = 50;
+
+// Hide the strike-through + 🔥 chip if the promo is turned off in code.
+// We don't touch the data-monthly/data-yearly attributes on .amount —
+// those stay at the half-price strings so the on-disk markup is
+// promo-ready when we flip back. Restoring requires PROMO_ACTIVE=true
+// and rebuilding the half-price values to match if regular prices change.
+if(!PROMO_ACTIVE){
+  document.querySelectorAll('.plan-price .strike, .plan-price .promo-tag, .plan-promo-line').forEach(function(el){ el.style.display='none'; });
+}
+
 function switchBilling(mode){
   BILLING_MODE = (mode === 'yearly') ? 'yearly' : 'monthly';
   document.getElementById('tabMonthly').classList.toggle('on', BILLING_MODE==='monthly');
@@ -1654,7 +1691,7 @@ async function startTrial(planFamily){
     res = await fetch(CHECKOUT_BACKEND_URL.replace(/\/+$/,'') + '/stripe/checkout', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ plan: plan, label: label }),
+      body: JSON.stringify({ plan: plan, label: label, promo: !!PROMO_ACTIVE }),
     });
   } catch(e){
     restore();
