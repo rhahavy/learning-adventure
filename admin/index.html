@@ -1518,6 +1518,12 @@ tbody tr:last-child td{border-bottom:none}
       // worker endpoint takes the tenant *code* (not id) and rotates the
       // PBKDF2 hash + clears any rate-limit lockout in one shot.
       actions.push('<button class="btn btn-ghost btn-sm" id="m-reset-pw">🔑 Reset teacher password…</button>');
+      // Recovery snapshots — the worker auto-snapshots the prior /data
+      // blob whenever a write would have wiped a protected field
+      // (studentPlans, studentSupports, roster). 90-day TTL. This
+      // surfaces those snapshots so the operator can browse + restore
+      // when a customer reports "my plans are gone."
+      actions.push('<button class="btn btn-ghost btn-sm" id="m-recovery">🛟 Recovery snapshots…</button>');
       if(t.suspended){
         actions.push('<button class="btn btn-primary btn-sm" id="m-unsuspend">Unsuspend</button>');
       } else {
@@ -1547,6 +1553,45 @@ tbody tr:last-child td{border-bottom:none}
       });
       var $rf = document.getElementById('m-refund');
       if($rf) $rf.addEventListener('click', function(){ openRefundDialog(t); });
+      // Recovery snapshots — list and (optionally) restore. Each entry
+      // shows the field counts inside that snapshot so the operator
+      // can pick the one that has the customer's lost plans.
+      var $rec = document.getElementById('m-recovery');
+      if($rec) $rec.addEventListener('click', async function(){
+        $rec.disabled = true; $rec.textContent = 'Loading…';
+        try {
+          var resp = await api('/admin/tenant/'+id+'/recovery-snapshots');
+          var snaps = (resp && resp.snapshots) || [];
+          if(!snaps.length){
+            alert('No recovery snapshots for this tenant.\n\nThe worker takes one automatically only when a /data POST would have erased a protected field (studentPlans / studentSupports / roster). If none exist, no destructive write was detected in the last 90 days.');
+            return;
+          }
+          var pick = prompt(
+            'Recovery snapshots for tenant "'+(t.code||t.id)+'":\n\n' +
+            snaps.map(function(s, i){
+              var summ = s.summary
+                ? 'plans:'+s.summary.studentPlans+' / supports:'+s.summary.studentSupports+' / roster:'+s.summary.roster+' / users:'+s.summary.users
+                : '(unparseable)';
+              return (i+1) + ') ' + (s.takenAtIso || '?') + '  '+ Math.round((s.bytes||0)/1024) +'KB  ['+summ+']';
+            }).join('\n') +
+            '\n\nEnter a snapshot number to RESTORE it (the current data is auto-snapshotted first so the restore is reversible). Empty to cancel.'
+          );
+          if(!pick) return;
+          var idx = parseInt(pick, 10) - 1;
+          if(!(idx >= 0 && idx < snaps.length)){
+            toast('Invalid snapshot number — nothing changed.', 'error');
+            return;
+          }
+          var chosen = snaps[idx];
+          if(!confirm('Restore snapshot from '+(chosen.takenAtIso||'?')+'?\n\nThis writes the snapshot back to the canonical data blob. Tenant\'s current data is auto-snapshotted first so this is reversible. Customer\'s next page load picks up the restored state.')) return;
+          var r = await api('/admin/tenant/'+id+'/recovery-snapshots/restore', { method:'POST', body:{ key: chosen.key } });
+          toast('✓ Restored — customer reload picks up the data ('+Math.round((r.bytes||0)/1024)+'KB)', 'success');
+        } catch(e){
+          toast('Error: '+(e && e.message || e), 'error');
+        } finally {
+          $rec.disabled = false; $rec.textContent = '🛟 Recovery snapshots…';
+        }
+      });
       // Teacher password reset. Two prompts so a typo can't lock anyone
       // out, then POST to /admin/reset-teacher-password. The endpoint
       // looks the tenant up by code (not id) and also clears any

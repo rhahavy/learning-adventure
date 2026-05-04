@@ -4280,6 +4280,89 @@ const DATA_ROUTES = {
   'GET /activity':  { kind: 'activity',  read: true  },
 };
 
+// Server-side wipe protection. May 2026: a client-side rehydrate bug
+// silently emptied per-tenant studentPlans/studentSupports on every
+// reload, then the next /data POST overwrote the cloud copy. Plans
+// were destroyed across every device. The client fix preserves the
+// fields, but we add this server-side guard as defense in depth: even
+// if a future client regression sends an empty blob, the worker
+// preserves a recovery copy of the prior blob. A snapshot is taken
+// when a "protected" field that was non-empty becomes empty in the
+// new write. Recovery snapshots live at:
+//   tenant:{id}:data:recovery:{epoch_ms}
+// with a 90-day TTL — long enough to cover "operator went on vacation
+// and then noticed plans missing." Capped at 10 per tenant via a
+// cleanup pass that drops the oldest when adding a new one.
+//
+// We do NOT refuse the write — that risks locking out a tenant if
+// our heuristic is wrong (e.g. they intentionally cleared plans).
+// Always-snapshot + always-apply gives a recovery path without a
+// availability cost.
+const DATA_RECOVERY_TTL_S = 60 * 60 * 24 * 90; // 90 days
+const DATA_RECOVERY_MAX_PER_TENANT = 10;
+// Top-level fields where a non-empty → empty transition is a strong
+// signal of accidental data destruction. Keep this narrow: a routine
+// kid-played-a-quiz write touches users[sid] but never touches
+// studentPlans, so studentPlans empties only via the kind of bug we
+// want to catch. orders+messages+catalogOverrides change frequently
+// and legitimately empty (e.g. teacher dismisses chat history) so
+// they're not protected here.
+const DATA_PROTECTED_FIELDS = ['roster', 'studentPlans', 'studentSupports'];
+
+function isNonEmptyContainer(v) {
+  if (v == null) return false;
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === 'object') return Object.keys(v).length > 0;
+  return false;
+}
+
+async function maybeSnapshotForRecovery(env, tenant, prevBody, nextBody) {
+  // Skip if there's no prior blob — first write for this tenant.
+  if (!prevBody) return null;
+  let prev, next;
+  try { prev = JSON.parse(prevBody); } catch { return null; }
+  try { next = JSON.parse(nextBody); } catch { return null; }
+  if (!prev || typeof prev !== 'object' || !next || typeof next !== 'object') return null;
+  let destructive = null;
+  for (const f of DATA_PROTECTED_FIELDS) {
+    if (isNonEmptyContainer(prev[f]) && !isNonEmptyContainer(next[f])) {
+      destructive = f;
+      break;
+    }
+  }
+  if (!destructive) return null;
+  const ts = Date.now();
+  const recKey = `tenant:${tenant.id}:data:recovery:${ts}`;
+  try {
+    // Store the OLD blob (the one being replaced) so a restore can
+    // bring back the destroyed fields. The new blob just gets written
+    // over the canonical key normally below.
+    await env.KV.put(recKey, prevBody, { expirationTtl: DATA_RECOVERY_TTL_S });
+    // Cap per-tenant snapshot count. KV.list returns keys in lex order
+    // — since recovery keys end with the epoch ms, lex order = chrono
+    // order, so the FIRST keys are the oldest. We only delete excess
+    // if list() reports more than the cap.
+    const all = await env.KV.list({ prefix: `tenant:${tenant.id}:data:recovery:`, limit: 100 });
+    if (all && Array.isArray(all.keys) && all.keys.length > DATA_RECOVERY_MAX_PER_TENANT) {
+      const toDelete = all.keys
+        .map(k => k.name)
+        .sort() // chrono asc
+        .slice(0, all.keys.length - DATA_RECOVERY_MAX_PER_TENANT);
+      // Best-effort delete; ignore errors. TTL would clean these up
+      // anyway, this just keeps the count tight.
+      await Promise.all(toDelete.map(k => env.KV.delete(k).catch(() => {})));
+    }
+    try { console.warn(`[Solvix] recovery snapshot taken for tenant ${tenant.id} — ${destructive} would have been wiped from non-empty → empty`); } catch (e) {}
+    return { destructive, snapshotKey: recKey };
+  } catch (e) {
+    // Snapshot failed — log but don't block the write. The whole point
+    // is availability + recoverability; if KV is degraded, applying
+    // the user's write is still better than refusing it.
+    try { console.warn(`[Solvix] recovery snapshot WRITE failed for tenant ${tenant.id}:`, e && e.message); } catch (er) {}
+    return null;
+  }
+}
+
 async function handleDataRoute(request, env, corsOrigin, route) {
   if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
   const code = (extractBearer(request) || '').toLowerCase();
@@ -4301,11 +4384,131 @@ async function handleDataRoute(request, env, corsOrigin, route) {
   if (body.length > DATA_MAX_BYTES) {
     return json({ error: 'payload_too_large', max_bytes: DATA_MAX_BYTES }, 413, corsOrigin);
   }
+  // Recovery snapshot guard — only on the data blob, not on snapshots/
+  // activity. Reads the prior value, compares protected fields, and
+  // if a destructive transition is detected, parks the OLD blob in a
+  // dated recovery key before applying the write. Best-effort; never
+  // blocks availability.
+  let recoveryNote = null;
+  if (route.kind === 'data') {
+    try {
+      const prev = await env.KV.get(key);
+      const r = await maybeSnapshotForRecovery(env, tenant, prev, body);
+      if (r) recoveryNote = r;
+    } catch (e) {
+      // Snapshot failure must not block the write.
+      try { console.warn(`[Solvix] recovery snapshot pre-check failed:`, e && e.message); } catch (er) {}
+    }
+  }
   await env.KV.put(key, body);
   // Intentionally don't echo tenantId back — caller already has their
   // code, and exposing internal IDs widens the surface for future bugs
-  // that might trust a tenantId from untrusted input.
-  return json({ ok: true, bytes: body.length }, 200, corsOrigin);
+  // that might trust a tenantId from untrusted input. The recoveryNote
+  // is included only when a snapshot was taken — non-destructive writes
+  // get the unchanged response.
+  return json({
+    ok: true,
+    bytes: body.length,
+    ...(recoveryNote ? { recovery_snapshot: { field: recoveryNote.destructive, taken_at: Date.now() } } : {}),
+  }, 200, corsOrigin);
+}
+
+// GET /admin/tenant/:id/recovery-snapshots — admin only. Lists every
+// server-side recovery snapshot taken for this tenant within the last
+// 90 days (after that they age out of KV automatically). Each entry
+// includes the snapshot key, its creation epoch, byte size, and a
+// summary of the protected fields it CONTAINS — so the operator can
+// pick the right one to restore. The body itself is not returned in
+// the list (snapshots can be hundreds of KB); use the restore route
+// to write a chosen snapshot back to the canonical data blob.
+async function handleAdminListRecoverySnapshotsRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const url = new URL(request.url);
+  const parts = url.pathname.split('/');
+  // /admin/tenant/<id>/recovery-snapshots → ['', 'admin', 'tenant', '<id>', 'recovery-snapshots']
+  const tenantId = parts[3] || '';
+  if (!tenantId) return json({ error: 'missing_id' }, 400, corsOrigin);
+  // Confirm the tenant exists so we don't list nothing for a typo'd id.
+  const traw = await env.KV.get(`tenant:${tenantId}`);
+  if (!traw) return json({ error: 'not_found' }, 404, corsOrigin);
+  const prefix = `tenant:${tenantId}:data:recovery:`;
+  const list = await env.KV.list({ prefix, limit: 100 });
+  const entries = [];
+  // We want a few protected-field summaries per snapshot so the
+  // operator UI can show "studentPlans:3, studentSupports:2, roster:7"
+  // and pick the right one. Reading each snapshot is one KV.get; with
+  // a cap of 10 snapshots per tenant this is fine.
+  for (const k of list.keys) {
+    const tsStr = k.name.slice(prefix.length);
+    const ts = parseInt(tsStr, 10) || 0;
+    let body = null;
+    try { body = await env.KV.get(k.name); } catch (e) { /* skip on error */ }
+    let summary = null;
+    if (body) {
+      try {
+        const o = JSON.parse(body);
+        summary = {
+          studentPlans: (o && o.studentPlans && typeof o.studentPlans === 'object') ? Object.keys(o.studentPlans).length : 0,
+          studentSupports: (o && o.studentSupports && typeof o.studentSupports === 'object') ? Object.keys(o.studentSupports).length : 0,
+          roster: (o && Array.isArray(o.roster)) ? o.roster.length : 0,
+          users: (o && o.users && typeof o.users === 'object') ? Object.keys(o.users).length : 0,
+        };
+      } catch (e) { /* malformed snapshot; still list it */ }
+    }
+    entries.push({
+      key: k.name,
+      takenAt: ts,
+      takenAtIso: ts ? new Date(ts).toISOString() : null,
+      bytes: body ? body.length : 0,
+      summary,
+    });
+  }
+  // Newest first.
+  entries.sort((a, b) => (b.takenAt || 0) - (a.takenAt || 0));
+  return json({ ok: true, tenantId, snapshots: entries }, 200, corsOrigin);
+}
+
+// POST /admin/tenant/:id/recovery-snapshots/restore  body: { key }
+// — promotes the snapshot at `key` back to the canonical /data blob.
+// Before doing so, snapshots the CURRENT canonical blob so the restore
+// is itself reversible. The auth gate is the same admin token used for
+// every other /admin/* route. Body MUST contain the exact `key` from
+// the list endpoint to avoid path-traversal style mistakes.
+async function handleAdminRestoreRecoverySnapshotRoute(request, env, corsOrigin) {
+  if (!env.KV) return json({ error: 'kv_not_bound' }, 500, corsOrigin);
+  if (!checkAdminAuth(request, env)) return json({ error: 'admin_unauthorized' }, 401, corsOrigin);
+  const url = new URL(request.url);
+  const parts = url.pathname.split('/');
+  const tenantId = parts[3] || '';
+  if (!tenantId) return json({ error: 'missing_id' }, 400, corsOrigin);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400, corsOrigin); }
+  const snapKey = String((body && body.key) || '').trim();
+  // Strict prefix check — reject any key not under THIS tenant's
+  // recovery prefix so a buggy admin UI can't restore the wrong
+  // tenant's snapshot or wander into an unrelated KV namespace.
+  const expectedPrefix = `tenant:${tenantId}:data:recovery:`;
+  if (!snapKey.startsWith(expectedPrefix)) {
+    return json({ error: 'invalid_key', detail: 'key must start with ' + expectedPrefix }, 400, corsOrigin);
+  }
+  const snapBody = await env.KV.get(snapKey);
+  if (!snapBody) return json({ error: 'snapshot_not_found' }, 404, corsOrigin);
+  // Validate that the snapshot still parses; refuse to restore a
+  // malformed blob.
+  try { JSON.parse(snapBody); } catch { return json({ error: 'snapshot_malformed' }, 500, corsOrigin); }
+  const dataKey = `tenant:${tenantId}:data`;
+  const current = await env.KV.get(dataKey);
+  // Always snapshot the current blob first so the restore itself is
+  // reversible. Uses the same TTL + naming as the auto-snapshot path.
+  if (current) {
+    const ts = Date.now();
+    const preRestoreKey = `tenant:${tenantId}:data:recovery:${ts}`;
+    try { await env.KV.put(preRestoreKey, current, { expirationTtl: DATA_RECOVERY_TTL_S }); } catch (e) { /* best-effort */ }
+  }
+  await env.KV.put(dataKey, snapBody);
+  try { console.warn(`[Solvix] recovery snapshot RESTORED for tenant ${tenantId} from ${snapKey}`); } catch (e) {}
+  return json({ ok: true, tenantId, restoredFrom: snapKey, bytes: snapBody.length }, 200, corsOrigin);
 }
 
 // ---------- Activity log ----------
@@ -4545,7 +4748,20 @@ export default {
       if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/charges')) {
         return await handleAdminListChargesRoute(request, env, corsOrigin);
       }
-      if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && !url.pathname.includes('/suspend') && !url.pathname.includes('/unsuspend') && !url.pathname.includes('/resend-code') && !url.pathname.includes('/charges') && !url.pathname.includes('/refund')) {
+      // GET /admin/tenant/<id>/recovery-snapshots — list server-side
+      // recovery snapshots taken when a /data POST would have wiped
+      // protected fields (studentPlans, studentSupports, roster).
+      if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/recovery-snapshots')) {
+        return await handleAdminListRecoverySnapshotsRoute(request, env, corsOrigin);
+      }
+      // POST /admin/tenant/<id>/recovery-snapshots/restore body:{key}
+      // — promote a snapshot back to the canonical data blob. The
+      // CURRENT data is itself snapshotted first so a restore is also
+      // recoverable.
+      if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/recovery-snapshots/restore')) {
+        return await handleAdminRestoreRecoverySnapshotRoute(request, env, corsOrigin);
+      }
+      if (request.method === 'GET' && url.pathname.startsWith('/admin/tenant/') && !url.pathname.includes('/suspend') && !url.pathname.includes('/unsuspend') && !url.pathname.includes('/resend-code') && !url.pathname.includes('/charges') && !url.pathname.includes('/refund') && !url.pathname.includes('/recovery-snapshots')) {
         return await handleAdminGetTenantRoute(request, env, corsOrigin);
       }
       if (request.method === 'POST' && url.pathname.startsWith('/admin/tenant/') && url.pathname.endsWith('/suspend')) {
