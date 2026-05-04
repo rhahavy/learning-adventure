@@ -425,6 +425,23 @@ details.faq-item p{color:var(--ink2);line-height:1.55;margin-top:12px;font-size:
 .cta-band .btn-primary{background:#fff;color:var(--primary)}
 .cta-band .btn-primary:hover{background:#F0EEFF;color:var(--primary-dark)}
 
+/* Support / contact section. Sits at the very end of the marketing
+   page (after the final CTA, before the footer) so anyone scrolling
+   past everything has a clear "talk to a human" landing pad. Three
+   topic cards with mailto: links pre-fill the subject so we can route
+   internally without an inbound triage step. */
+.support-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:32px}
+.support-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:28px 24px;box-shadow:var(--shadow);transition:transform .25s var(--spring),box-shadow .25s ease,border-color .25s ease;display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit}
+.support-card:hover{transform:translateY(-3px);border-color:rgba(108,92,231,.3);box-shadow:var(--shadow-lg)}
+.support-card .support-emoji{font-size:36px;line-height:1;margin-bottom:6px}
+.support-card h3{font-family:var(--font-display);font-size:18px;font-weight:800;margin:0;color:var(--ink)}
+.support-card p{font-size:14px;color:var(--ink2);line-height:1.5;margin:0;flex:1}
+.support-card .support-cta{margin-top:8px;font-size:14px;font-weight:800;color:var(--primary)}
+.support-direct{margin-top:36px;text-align:center}
+.support-direct .support-email{display:inline-block;background:linear-gradient(135deg,rgba(108,92,231,.1),rgba(253,121,168,.08));border:1.5px solid rgba(108,92,231,.2);border-radius:999px;padding:14px 24px;font-size:18px;font-weight:800;color:var(--primary);text-decoration:none;letter-spacing:.01em;transition:all .2s ease}
+.support-direct .support-email:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(108,92,231,.22);border-color:var(--primary)}
+.support-direct .support-meta{margin-top:14px;font-size:13px;color:var(--ink3);font-weight:600}
+
 /* Footer */
 footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
 .footer-grid{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px}
@@ -794,6 +811,7 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
       <a href="#pricing" class="hide-sm">Pricing</a>
       <a href="#demo" class="hide-sm">Try free</a>
       <a href="#faq" class="hide-sm">FAQ</a>
+      <a href="#support" class="hide-sm">Support</a>
       <a href="/app/" class="btn btn-ghost">Sign in</a>
     </div>
   </div>
@@ -1604,12 +1622,54 @@ footer{padding:48px 0;border-top:1px solid var(--line);margin-top:72px}
   </div>
 </section>
 
+<section id="support" class="tight">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-eyebrow">Support</span>
+      <h2>Need a hand? We&rsquo;re here.</h2>
+      <p>Real humans answer every email. Most replies go out within a few hours, and always within one business day. Pick whichever box matches your question — the subject line is pre-filled so we can route it fast.</p>
+    </div>
+
+    <div class="support-grid">
+      <a class="support-card" href="mailto:admin@kidquest.fun?subject=Solvix%20%E2%80%94%20Help%20signing%20up">
+        <div class="support-emoji">🚀</div>
+        <h3>Signup or trial help</h3>
+        <p>Stuck on the Stripe page? Promo not applying? Lost your classroom PIN before the kids ever logged in? Send us the email you used and we&rsquo;ll get you set up manually.</p>
+        <div class="support-cta">Email signup help →</div>
+      </a>
+      <a class="support-card" href="mailto:admin@kidquest.fun?subject=Solvix%20%E2%80%94%20Billing%20question">
+        <div class="support-emoji">💳</div>
+        <h3>Billing or refunds</h3>
+        <p>Charged twice? Want to switch from monthly to yearly? Need to cancel and get a partial refund for unused months? We&rsquo;ll handle it directly through Stripe.</p>
+        <div class="support-cta">Email billing →</div>
+      </a>
+      <a class="support-card" href="mailto:admin@kidquest.fun?subject=Solvix%20%E2%80%94%20Forgot%20password%2Fdata%20issue">
+        <div class="support-emoji">🛟</div>
+        <h3>Password or lost data</h3>
+        <p>Can&rsquo;t reach the teacher dashboard? A kid&rsquo;s progress looks wrong or missing? We can reset passwords, restore from server-side recovery snapshots, and get everyone back where they were within minutes.</p>
+        <div class="support-cta">Email recovery →</div>
+      </a>
+      <a class="support-card" href="mailto:admin@kidquest.fun?subject=Solvix%20%E2%80%94%20Bug%20report%20or%20feedback">
+        <div class="support-emoji">🐛</div>
+        <h3>Bug reports &amp; feedback</h3>
+        <p>Something rendering wrong on a phone? Quiz behaving oddly? Curriculum suggestion? We read every note. The more specific (grade, subject, lesson, browser) the faster we can fix it.</p>
+        <div class="support-cta">Email feedback →</div>
+      </a>
+    </div>
+
+    <div class="support-direct">
+      <a class="support-email" href="mailto:admin@kidquest.fun">📩 admin@kidquest.fun</a>
+      <div class="support-meta">Or reach us directly &middot; based in Toronto &middot; replies within one business day</div>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="container footer-grid">
     <div class="footer-copy">© 2026 Solvix · Made for curious kids</div>
     <div class="footer-links">
       <a href="/app/">Sign in</a>
-      <a href="mailto:admin@kidquest.fun">Contact</a>
+      <a href="#support">Support</a>
       <a href="#faq">FAQ</a>
     </div>
   </div>
